@@ -1,4 +1,5 @@
 import { shouldUseMockApis } from "@/lib/config/api-mode";
+import { getWeatherDailyApiLimit } from "@/lib/config/data-source";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { RateLimitError } from "@/lib/types/prediction";
 
@@ -99,6 +100,8 @@ export const TTL = {
 } as const;
 
 export const DAILY_LIMITS = {
-  weather: 1,
+  get weather() {
+    return getWeatherDailyApiLimit();
+  },
   football: 2,
 } as const;

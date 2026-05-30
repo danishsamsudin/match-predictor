@@ -170,6 +170,26 @@ export async function loadWeatherFromStore(
   return data.forecast as WeatherForecast;
 }
 
+export async function saveWeatherToStore(
+  city: string,
+  matchDate: string,
+  forecast: WeatherForecast
+): Promise<void> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return;
+
+  const dateOnly = matchDate.slice(0, 10);
+  const { error } = await supabase.from("synced_weather").upsert({
+    city_key: cityKey(city),
+    forecast_date: dateOnly,
+    forecast: forecast as unknown,
+  });
+
+  if (error) {
+    console.warn("Failed to persist weather to store:", error.message);
+  }
+}
+
 export function loadLeaguesFromReference(country: string, entityType?: EntityType) {
   return getLeaguesByCountry(country, entityType);
 }

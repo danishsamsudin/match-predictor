@@ -60,7 +60,7 @@ echo ""
 
 echo "2) Direct RapidAPI — Weather (Manchester forecast)"
 WEATHER_CODE=$(curl -s -o /tmp/weather-test.json -w "%{http_code}" \
-  "https://${WEATHER_HOST}/weather/forecast?place=Manchester&units=metric&type=hourly&lang=en" \
+  "https://${WEATHER_HOST}/api/weather/forecast?place=Manchester&units=metric&type=three_hour&lang=en" \
   -H "X-RapidAPI-Key: ${KEY}" \
   -H "X-RapidAPI-Host: ${WEATHER_HOST}")
 if [[ "$WEATHER_CODE" == "200" ]]; then

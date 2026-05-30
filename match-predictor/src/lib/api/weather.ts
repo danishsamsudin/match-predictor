@@ -1,7 +1,7 @@
 import axios from "axios";
 import { shouldUseMockApis } from "@/lib/config/api-mode";
 import { useSupabaseDataStore } from "@/lib/config/data-source";
-import { loadWeatherFromStore } from "@/lib/data/football-store";
+import { loadWeatherFromStore, saveWeatherToStore } from "@/lib/data/football-store";
 import { createRapidApiClient, getWeatherRapidApiHost } from "@/lib/config/rapidapi";
 import { cachedFetch, DAILY_LIMITS, TTL } from "@/lib/cache/api-cache";
 import {
@@ -61,10 +61,9 @@ function mapForecastResponse(
   };
 }
 
-function selectForecastType(matchDate: string): "hourly" | "three_hour" {
-  const hoursUntilMatch =
-    (new Date(matchDate).getTime() - Date.now()) / (1000 * 60 * 60);
-  return hoursUntilMatch <= 48 ? "hourly" : "three_hour";
+function selectForecastType(_matchDate: string): "three_hour" {
+  // weather-api167 only accepts three_hour (hourly was removed upstream).
+  return "three_hour";
 }
 
 export async function getWeatherForecast(
@@ -76,8 +75,17 @@ export async function getWeatherForecast(
     return getMockWeatherForecast(city);
   }
 
+  let fetchedForStore = false;
   if (useSupabaseDataStore() && !options?.allowLive) {
-    return loadWeatherFromStore(city, matchDate);
+    try {
+      return await loadWeatherFromStore(city, matchDate);
+    } catch (err) {
+      const missingStoreEntry =
+        err instanceof UpstreamApiError &&
+        err.message.includes("No synced weather");
+      if (!missingStoreEntry) throw err;
+      fetchedForStore = true;
+    }
   }
 
   const dateOnly = matchDate.slice(0, 10);
@@ -92,7 +100,7 @@ export async function getWeatherForecast(
     fetcher: async () => {
       try {
         const client = getWeatherClient();
-        const { data } = await client.get<WeatherApiResponse>("/weather/forecast", {
+        const { data } = await client.get<WeatherApiResponse>("/api/weather/forecast", {
           params: {
             place: city,
             units: "metric",
@@ -124,7 +132,13 @@ export async function getWeatherForecast(
     throw new UpstreamApiError(`No weather forecast for ${city} on ${dateOnly}`);
   }
 
-  return mapForecastResponse(response, matchDate);
+  const forecast = mapForecastResponse(response, matchDate);
+
+  if (fetchedForStore) {
+    await saveWeatherToStore(city, matchDate, forecast);
+  }
+
+  return forecast;
 }
 
 export function getMockResponse(city: string, date: string): WeatherApiResponse {

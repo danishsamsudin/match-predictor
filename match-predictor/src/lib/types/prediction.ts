@@ -14,6 +14,8 @@ export interface PredictRequest {
 
 export interface PredictionResult {
   id?: string;
+  homeTeamName?: string;
+  awayTeamName?: string;
   homeWinPct: number;
   awayWinPct: number;
   drawPct: number;
@@ -47,6 +49,10 @@ export interface BaseProbabilityInput {
   h2hHomeWinRate: number;
   h2hDrawRate: number;
   h2hAwayWinRate: number;
+  /** League strength multiplier Ω_L for home team (1.0 = top tier). */
+  homeLeagueStrength: number;
+  /** League strength multiplier Ω_L for away team. */
+  awayLeagueStrength: number;
   homeStats: TeamStatAverages;
   awayStats: TeamStatAverages;
 }

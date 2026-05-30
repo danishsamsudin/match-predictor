@@ -4,26 +4,57 @@ import type {
   TeamStatAverages,
 } from "@/lib/types/prediction";
 
+/** Form weight w₁ in momentum index. */
+const W1_FORM = 0.6;
+/** H2H weight w₂ in momentum index. */
+const W2_H2H = 0.4;
+/** Home momentum damping γ_home. */
+const GAMMA_HOME = 0.15;
+/** Away momentum damping γ_away. */
+const GAMMA_AWAY = 0.12;
+
+export function computeMomentumIndex(input: BaseProbabilityInput): number {
+  const formDiff = input.homeFormScore - input.awayFormScore;
+  const h2hStrength =
+    input.h2hHomeWinRate -
+    input.h2hAwayWinRate +
+    input.h2hDrawRate * 0.3;
+  return formDiff * W1_FORM + h2hStrength * W2_H2H;
+}
+
+/**
+ * Structural baseline λ₀, μ₀ with league-normalized attack (α) and raw defense (β),
+ * then momentum-adjusted tilde-xG (λ̃, μ̃).
+ */
 export function computeBaseProbability(input: BaseProbabilityInput): BaseProbabilityOutput {
-  const { homeFormScore, awayFormScore, h2hHomeWinRate, h2hDrawRate, h2hAwayWinRate } = input;
+  const {
+    homeStats,
+    awayStats,
+    homeLeagueStrength,
+    awayLeagueStrength,
+  } = input;
 
-  const formDiff = homeFormScore - awayFormScore;
-  const h2hStrength = h2hHomeWinRate - h2hAwayWinRate + h2hDrawRate * 0.3;
-  const combinedStrength = formDiff * 0.6 + h2hStrength * 0.4;
+  const alphaHome = homeStats.goalsFor * homeLeagueStrength;
+  const betaHome = homeStats.goalsAgainst;
+  const alphaAway = awayStats.goalsFor * awayLeagueStrength;
+  const betaAway = awayStats.goalsAgainst;
 
-  const homeXg = input.homeStats.goalsFor * (1 + combinedStrength * 0.15);
-  const awayXg = input.awayStats.goalsFor * (1 - combinedStrength * 0.12);
+  const lambda0 = alphaHome * betaAway;
+  const mu0 = alphaAway * betaHome;
 
-  const corners =
-    input.homeStats.corners + input.awayStats.corners;
-  const fouls = input.homeStats.fouls + input.awayStats.fouls;
-  const yellowCards =
-    input.homeStats.yellowCards + input.awayStats.yellowCards;
-  const redCards = input.homeStats.redCards + input.awayStats.redCards;
+  const indexMomentum = computeMomentumIndex(input);
+
+  const homeXg = lambda0 * (1 + GAMMA_HOME * indexMomentum);
+  const awayXg = mu0 * (1 - GAMMA_AWAY * indexMomentum);
+
+  const corners = homeStats.corners + awayStats.corners;
+  const fouls = homeStats.fouls + awayStats.fouls;
+  const yellowCards = homeStats.yellowCards + awayStats.yellowCards;
+  const redCards = homeStats.redCards + awayStats.redCards;
 
   return {
-    homeXg: Math.max(0.3, homeXg),
-    awayXg: Math.max(0.3, awayXg),
+    homeXg,
+    awayXg,
     corners,
     fouls,
     yellowCards,
@@ -35,9 +66,12 @@ export function statsFromAverages(
   home: TeamStatAverages,
   away: TeamStatAverages
 ): BaseProbabilityOutput {
+  const lambda0 = home.goalsFor * away.goalsAgainst;
+  const mu0 = away.goalsFor * home.goalsAgainst;
+
   return {
-    homeXg: home.goalsFor,
-    awayXg: away.goalsFor,
+    homeXg: lambda0,
+    awayXg: mu0,
     corners: home.corners + away.corners,
     fouls: home.fouls + away.fouls,
     yellowCards: home.yellowCards + away.yellowCards,

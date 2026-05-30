@@ -35,6 +35,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `WEATHER_PROVIDER` | `X-RapidAPI-Host` for weather, e.g. `weather-api167.p.rapidapi.com` |
 | `DATA_SOURCE` | Set `supabase` so user requests read the DB only (no live football API) |
 | `FOOTBALL_DAILY_API_LIMIT` | Max football RapidAPI calls per day during sync (default `50`) |
+| `WEATHER_DAILY_API_LIMIT` | Max weather RapidAPI calls per day (default `20`) |
 | `SYNC_LEAGUE_IDS` | Comma-separated league IDs, or `all` for full catalog with tiered rotation |
 | `SYNC_CRON_SECRET` | Bearer token for `POST /api/cron/sync` |
 | `SYNC_CRON_HOUR_UTC` | Earliest UTC hour for the daily sync (default `6`) |
@@ -96,6 +97,7 @@ On Vercel, `vercel.json` triggers `/api/cron/sync?run=true` daily at 06:00 UTC. 
 | Context | Limit |
 |---------|--------|
 | Football sync (RapidAPI) | `FOOTBALL_DAILY_API_LIMIT` per day (default 50) |
+| Weather (RapidAPI) | `WEATHER_DAILY_API_LIMIT` per day (default 20); responses cached 24h |
 | User-facing predictions | No football API calls when `DATA_SOURCE=supabase` |
 
 Set `USE_MOCK_APIS=true` for unlimited local development without RapidAPI.

@@ -5,11 +5,15 @@ import {
   parseTeamStats,
 } from "@/lib/api/football";
 import { getWeatherForecast } from "@/lib/api/weather";
-import { computeBaseProbability } from "@/lib/prediction/base-probability";
+import { getLeagueStrengthMultiplier } from "@/lib/data/football-reference";
+import { computeBaseProbability, computeMomentumIndex } from "@/lib/prediction/base-probability";
 import { computeLineupImpact } from "@/lib/prediction/lineup-impact";
 import { computeStadiumImpact } from "@/lib/prediction/stadium-impact";
 import { computeWeatherImpact } from "@/lib/prediction/weather-impact";
 import type { PredictRequest, PredictionResult } from "@/lib/types/prediction";
+
+/** Minimum xG floor before Poisson grid evaluation. */
+const XG_FLOOR = 0.3;
 
 function factorial(n: number): number {
   if (n <= 1) return 1;
@@ -76,12 +80,33 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   const awayFormScore = computeFormScore(bundle.awayForm, awayTeamId);
   const h2h = computeH2HRates(bundle.h2h, homeTeamId);
 
+  const homeLeagueStrength = getLeagueStrengthMultiplier(
+    input.homeLeagueId ?? bundle.fixture.league.id
+  );
+  const awayLeagueStrength = getLeagueStrengthMultiplier(
+    input.awayLeagueId ?? bundle.fixture.league.id
+  );
+
   const base = computeBaseProbability({
     homeFormScore,
     awayFormScore,
     h2hHomeWinRate: h2h.homeWinRate,
     h2hDrawRate: h2h.drawRate,
     h2hAwayWinRate: h2h.awayWinRate,
+    homeLeagueStrength,
+    awayLeagueStrength,
+    homeStats,
+    awayStats,
+  });
+
+  const momentumIndex = computeMomentumIndex({
+    homeFormScore,
+    awayFormScore,
+    h2hHomeWinRate: h2h.homeWinRate,
+    h2hDrawRate: h2h.drawRate,
+    h2hAwayWinRate: h2h.awayWinRate,
+    homeLeagueStrength,
+    awayLeagueStrength,
     homeStats,
     awayStats,
   });
@@ -114,7 +139,7 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
 
   let homeXg = base.homeXg;
   let awayXg = base.awayXg;
-  const corners = base.corners;
+  const baseCorners = base.corners;
   let fouls = base.fouls;
   let yellowCards = base.yellowCards;
   let redCards = base.redCards;
@@ -122,9 +147,14 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   homeXg *= lineup.homeXgMultiplier * weatherImpact.homeXgMultiplier * stadium.homeXgMultiplier;
   awayXg *= lineup.awayXgMultiplier * weatherImpact.awayXgMultiplier * stadium.awayXgMultiplier;
 
+  homeXg = Math.max(XG_FLOOR, homeXg);
+  awayXg = Math.max(XG_FLOOR, awayXg);
+
   fouls *= weatherImpact.foulsMultiplier * stadium.foulsMultiplier;
   yellowCards *= weatherImpact.cardsMultiplier * stadium.cardsMultiplier;
   redCards *= weatherImpact.cardsMultiplier * stadium.cardsMultiplier;
+
+  const corners = baseCorners * Math.exp(0.02 * (homeXg + awayXg));
 
   homeXg = Math.round(homeXg * 100) / 100;
   awayXg = Math.round(awayXg * 100) / 100;
@@ -135,6 +165,15 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     probs.draw,
     probs.awayWin
   );
+
+  const homeTeamName =
+    input.homeTeamName?.trim() ||
+    bundle.fixture.teams.home.name ||
+    bundle.homeTeamInfo.team.name;
+  const awayTeamName =
+    input.awayTeamName?.trim() ||
+    bundle.fixture.teams.away.name ||
+    bundle.awayTeamInfo.team.name;
 
   const explanationParts = [
     "## Weather Impact",
@@ -147,12 +186,17 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     ...lineup.notes,
     "",
     `## Base Analysis`,
-    `Home form score: ${(homeFormScore * 100).toFixed(0)}% | Away form score: ${(awayFormScore * 100).toFixed(0)}%.`,
-    `H2H rates — Home win: ${(h2h.homeWinRate * 100).toFixed(0)}%, Draw: ${(h2h.drawRate * 100).toFixed(0)}%, Away win: ${(h2h.awayWinRate * 100).toFixed(0)}%.`,
-    `Final xG after all adjustments: Home ${homeXg} — Away ${awayXg}.`,
+    `League strength Ω — ${homeTeamName}: ${homeLeagueStrength.toFixed(2)}, ${awayTeamName}: ${awayLeagueStrength.toFixed(2)}.`,
+    `Momentum index: ${momentumIndex.toFixed(3)} (form 60% + H2H 40%).`,
+    `${homeTeamName} form score: ${(homeFormScore * 100).toFixed(0)}% | ${awayTeamName} form score: ${(awayFormScore * 100).toFixed(0)}%.`,
+    `H2H rates — ${homeTeamName} win: ${(h2h.homeWinRate * 100).toFixed(0)}%, Draw: ${(h2h.drawRate * 100).toFixed(0)}%, ${awayTeamName} win: ${(h2h.awayWinRate * 100).toFixed(0)}%.`,
+    `Structural baseline xG (pre-shock): ${homeTeamName} ${base.homeXg.toFixed(2)} — ${awayTeamName} ${base.awayXg.toFixed(2)}.`,
+    `Final xG after all adjustments: ${homeTeamName} ${homeXg} — ${awayTeamName} ${awayXg}.`,
   ];
 
   return {
+    homeTeamName,
+    awayTeamName,
     homeWinPct,
     awayWinPct,
     drawPct,
@@ -168,6 +212,9 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
       factors: {
         homeFormScore,
         awayFormScore,
+        momentumIndex,
+        homeLeagueStrength,
+        awayLeagueStrength,
         lineupHomeXg: lineup.homeXgMultiplier,
         lineupAwayXg: lineup.awayXgMultiplier,
         weatherHomeXg: weatherImpact.homeXgMultiplier,

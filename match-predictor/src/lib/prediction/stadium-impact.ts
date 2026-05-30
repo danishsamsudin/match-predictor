@@ -22,13 +22,11 @@ export function computeStadiumImpact(
     );
     if (distance > 1500) {
       awayXgMultiplier *= 0.95;
-      foulsMultiplier *= 1.05;
-      cardsMultiplier *= 1.05;
       notes.push(
-        `Away team travel distance ~${Math.round(distance)} km from ${awayHomeCity} reduces away xG by 5% and increases fatigue-related fouls/cards.`
+        `Away team travel distance ~${Math.round(distance)} km from ${awayHomeCity} reduces away xG by 5% (δ_travel = 0.95).`
       );
     } else if (distance > 500) {
-      notes.push(`Moderate away travel (~${Math.round(distance)} km) — slight fatigue factor.`);
+      notes.push(`Moderate away travel (~${Math.round(distance)} km) — within fatigue threshold.`);
     }
   }
 
@@ -39,7 +37,7 @@ export function computeStadiumImpact(
     foulsMultiplier *= 1.05;
     cardsMultiplier *= 1.05;
     notes.push(
-      `High altitude venue (${altitude}m at ${venueName}) boosts long-range xG by 3% and increases stamina drain (+5% fouls/cards).`
+      `High altitude venue (${altitude}m at ${venueName}) boosts xG by 3% (δ_altitude = 1.03) and increases fouls/cards by 5%.`
     );
   }
 

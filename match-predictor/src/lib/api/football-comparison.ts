@@ -12,7 +12,6 @@ import {
 } from "@/lib/api/sportapi";
 import { getMockFootballBundle } from "@/lib/mocks/football";
 import {
-  applyLeagueStrengthToStats,
   type ComparisonBundleInput,
 } from "@/lib/prediction/league-strength";
 import type { FootballBundle, TeamStatistics } from "@/lib/types/football";
@@ -26,12 +25,11 @@ async function resolveTeamStats(
 ): Promise<TeamStatistics> {
   if (useSupabaseDataStore()) {
     const stored = await loadTeamStatisticsFromStore(teamId, leagueId, isHomeSide);
-    if (stored) return applyLeagueStrengthToStats(stored, leagueId);
+    if (stored) return stored;
   }
 
   if (usesSportApi()) {
-    const stats = await sportApiGetTeamStatistics(teamId, leagueId, season, isHomeSide);
-    return applyLeagueStrengthToStats(stats, leagueId);
+    return sportApiGetTeamStatistics(teamId, leagueId, season, isHomeSide);
   }
 
   throw new UpstreamApiError(

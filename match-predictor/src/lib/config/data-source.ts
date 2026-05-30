@@ -44,6 +44,12 @@ export function getFootballDailyApiLimit(): number {
   return getSyncApiBudget();
 }
 
+/** Max weather RapidAPI calls per calendar day (sync + on-demand city lookups). */
+export function getWeatherDailyApiLimit(): number {
+  const n = Number(process.env.WEATHER_DAILY_API_LIMIT ?? "20");
+  return Number.isFinite(n) && n > 0 ? n : 20;
+}
+
 /** Hour (0–23 UTC) when the daily sync is allowed to run. */
 export function getSyncCronHourUtc(): number {
   const n = Number(process.env.SYNC_CRON_HOUR_UTC ?? "6");

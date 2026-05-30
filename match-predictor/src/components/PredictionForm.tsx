@@ -417,8 +417,10 @@ export function PredictionForm() {
     <div className="space-y-8">
       <form
         onSubmit={handleSubmit}
-        className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+        className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-lg shadow-emerald-500/5 dark:border-zinc-700/60 dark:bg-zinc-900/90 dark:shadow-emerald-500/10"
       >
+        <div className="h-1 bg-gradient-to-r from-emerald-500 via-sky-500 to-blue-600" />
+        <div className="p-6">
         <div className="mb-6 flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-emerald-600" />
@@ -601,7 +603,7 @@ export function PredictionForm() {
             !awayTeamId ||
             (inputMode === "fixture" && !matchId)
           }
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:w-auto sm:px-8"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 sm:w-auto sm:px-8"
         >
           {loading ? (
             <>
@@ -612,6 +614,7 @@ export function PredictionForm() {
             "Generate Prediction"
           )}
         </button>
+        </div>
       </form>
 
       {error && (
