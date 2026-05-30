@@ -1,40 +1,323 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f8fafc;
-  --foreground: #171717;
+/* Shared tokens (non-color) */
+:root,
+[data-theme="light"],
+[data-theme="dark"] {
+  --glass-blur: 48px;
+  --glass-nav-blur: 160px;
+  --glass-pill-blur: 100px;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Light theme — default, high-contrast text on soft surfaces */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --background: #f0f4f9;
+  --foreground: #0c1222;
+  --foreground-secondary: #1e293b;
+  --muted: #52607a;
+  --muted-subtle: #94a3b8;
+
+  --primary: #0e7490;
+  --primary-light: #0891b2;
+  --primary-emphasis: #155e75;
+  --accent: #6d28d9;
+  --accent-light: #7c3aed;
+  --accent-emphasis: #5b21b6;
+
+  --on-primary: #ffffff;
+  --on-accent: #ffffff;
+  --on-gradient: #ffffff;
+
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-shadow: rgba(14, 116, 144, 0.1);
+  --glass-nav-bg: rgba(255, 255, 255, 0.85);
+  --surface: rgba(255, 255, 255, 0.55);
+  --surface-hover: rgba(14, 116, 144, 0.06);
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-border: rgba(15, 23, 42, 0.1);
+  --divider: rgba(15, 23, 42, 0.08);
+
+  --alert-primary-bg: rgba(14, 116, 144, 0.1);
+  --alert-primary-border: rgba(14, 116, 144, 0.28);
+  --alert-primary-fg: #155e75;
+
+  --alert-accent-bg: rgba(109, 40, 217, 0.08);
+  --alert-accent-border: rgba(109, 40, 217, 0.28);
+  --alert-accent-fg: #5b21b6;
+
+  --nav-active-bg: rgba(14, 116, 144, 0.14);
+  --nav-active-fg: #0e7490;
+  --nav-hover-bg: rgba(15, 23, 42, 0.05);
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: #070b14;
+  --foreground: #e2e8f0;
+  --foreground-secondary: #cbd5e1;
+  --muted: #94a3b8;
+  --muted-subtle: #64748b;
+
+  --primary: #22d3ee;
+  --primary-light: #67e8f9;
+  --primary-emphasis: #a5f3fc;
+  --accent: #a78bfa;
+  --accent-light: #c4b5fd;
+  --accent-emphasis: #ddd6fe;
+
+  --on-primary: #070b14;
+  --on-accent: #070b14;
+  --on-gradient: #ffffff;
+
+  --glass-bg: rgba(255, 255, 255, 0.07);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow: rgba(34, 211, 238, 0.1);
+  --glass-nav-bg: rgba(255, 255, 255, 0.025);
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(34, 211, 238, 0.08);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.12);
+  --divider: rgba(255, 255, 255, 0.12);
+
+  --alert-primary-bg: rgba(34, 211, 238, 0.1);
+  --alert-primary-border: rgba(34, 211, 238, 0.3);
+  --alert-primary-fg: #67e8f9;
+
+  --alert-accent-bg: rgba(167, 139, 250, 0.1);
+  --alert-accent-border: rgba(167, 139, 250, 0.3);
+  --alert-accent-fg: #c4b5fd;
+
+  --nav-active-bg: rgba(34, 211, 238, 0.2);
+  --nav-active-fg: #22d3ee;
+  --nav-hover-bg: rgba(255, 255, 255, 0.08);
+
+  --glass-blur: 64px;
+}
+
+/* Fallback before hydration: prefer stored light default */
+:root:not([data-theme]) {
+  color-scheme: light;
+  --background: #f0f4f9;
+  --foreground: #0c1222;
+  --foreground-secondary: #1e293b;
+  --muted: #52607a;
+  --muted-subtle: #94a3b8;
+  --primary: #0e7490;
+  --primary-light: #0891b2;
+  --primary-emphasis: #155e75;
+  --accent: #6d28d9;
+  --accent-light: #7c3aed;
+  --accent-emphasis: #5b21b6;
+  --on-primary: #ffffff;
+  --on-accent: #ffffff;
+  --on-gradient: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-shadow: rgba(14, 116, 144, 0.1);
+  --glass-nav-bg: rgba(255, 255, 255, 0.85);
+  --surface: rgba(255, 255, 255, 0.55);
+  --surface-hover: rgba(14, 116, 144, 0.06);
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-border: rgba(15, 23, 42, 0.1);
+  --divider: rgba(15, 23, 42, 0.08);
+  --alert-primary-bg: rgba(14, 116, 144, 0.1);
+  --alert-primary-border: rgba(14, 116, 144, 0.28);
+  --alert-primary-fg: #155e75;
+  --alert-accent-bg: rgba(109, 40, 217, 0.08);
+  --alert-accent-border: rgba(109, 40, 217, 0.28);
+  --alert-accent-fg: #5b21b6;
+  --nav-active-bg: rgba(14, 116, 144, 0.14);
+  --nav-active-fg: #0e7490;
+  --nav-hover-bg: rgba(15, 23, 42, 0.05);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-emphasis: var(--primary-emphasis);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-emphasis: var(--accent-emphasis);
+  --color-muted: var(--muted);
+  --color-muted-subtle: var(--muted-subtle);
+  --color-on-primary: var(--on-primary);
+  --color-on-accent: var(--on-accent);
+  --color-on-gradient: var(--on-gradient);
+  --color-glass: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
+  --color-surface: var(--surface);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #13161f;
-    --foreground: #f4f4f5;
-  }
+html {
+  min-height: 100%;
+  background-color: var(--background);
 }
 
 body {
-  background:
-    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(16, 185, 129, 0.1), transparent),
-    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(59, 130, 246, 0.08), transparent),
-    radial-gradient(ellipse 60% 40% at 0% 100%, rgba(139, 92, 246, 0.06), transparent),
-    var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  min-height: 100vh;
 }
 
-@media (prefers-color-scheme: dark) {
-  body {
-    background:
-      radial-gradient(ellipse 90% 60% at 50% -10%, rgba(16, 185, 129, 0.14), transparent),
-      radial-gradient(ellipse 70% 50% at 100% 0%, rgba(59, 130, 246, 0.12), transparent),
-      radial-gradient(ellipse 60% 40% at 0% 100%, rgba(139, 92, 246, 0.1), transparent),
-      var(--background);
+.app-bg-gradient {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 120% 90% at 10% -10%, rgba(8, 145, 178, 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse 100% 80% at 90% 10%, rgba(124, 58, 237, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse 90% 70% at 50% 110%, rgba(8, 145, 178, 0.06) 0%, transparent 45%);
+}
+
+[data-theme="dark"] .app-bg-gradient {
+  background-image:
+    radial-gradient(ellipse 120% 90% at 10% -10%, rgba(34, 211, 238, 0.11) 0%, transparent 55%),
+    radial-gradient(ellipse 100% 80% at 90% 10%, rgba(167, 139, 250, 0.09) 0%, transparent 50%),
+    radial-gradient(ellipse 90% 70% at 50% 110%, rgba(34, 211, 238, 0.05) 0%, transparent 45%);
+}
+
+[data-theme="light"] .app-bg-blob-primary {
+  background-color: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+[data-theme="light"] .app-bg-blob-accent {
+  background-color: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* Nav glass */
+.glass-nav {
+  background: var(--glass-nav-bg);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  backdrop-filter: blur(48px) saturate(200%);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="dark"] .glass-nav {
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.glass-nav-pill {
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+[data-theme="dark"] .glass-nav-pill {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      0 4px 24px var(--glass-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    color: var(--foreground);
+  }
+
+  [data-theme="dark"] .glass {
+    box-shadow:
+      0 4px 24px var(--glass-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .glass-subtle {
+    background: var(--surface);
+    backdrop-filter: blur(48px) saturate(180%);
+    -webkit-backdrop-filter: blur(48px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    color: var(--foreground);
+  }
+
+  [data-theme="dark"] .glass-subtle {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  [data-theme="light"] .text-gradient {
+    background: linear-gradient(135deg, var(--primary-emphasis), var(--accent-emphasis));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 40px color-mix(in srgb, var(--primary) 18%, transparent);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 40px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+
+  .alert-primary {
+    border: 1px solid var(--alert-primary-border);
+    background: var(--alert-primary-bg);
+    color: var(--alert-primary-fg);
+  }
+
+  .alert-accent {
+    border: 1px solid var(--alert-accent-border);
+    background: var(--alert-accent-bg);
+    color: var(--alert-accent-fg);
+  }
+
+  .field-control {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--foreground);
+  }
+
+  .field-control::placeholder {
+    color: var(--muted-subtle);
+  }
+
+  .field-control option {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  .nav-link-active {
+    background: var(--nav-active-bg);
+    color: var(--nav-active-fg);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.05),
+      inset 0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent);
+  }
+
+  .nav-link-inactive {
+    color: var(--muted);
+  }
+
+  .nav-link-inactive:hover {
+    background: var(--nav-hover-bg);
+    color: var(--foreground);
   }
 }

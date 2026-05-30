@@ -417,14 +417,14 @@ export function PredictionForm() {
     <div className="space-y-8">
       <form
         onSubmit={handleSubmit}
-        className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-lg shadow-emerald-500/5 dark:border-zinc-700/60 dark:bg-zinc-900/90 dark:shadow-emerald-500/10"
+        className="overflow-hidden rounded-2xl glass glow-primary"
       >
-        <div className="h-1 bg-gradient-to-r from-emerald-500 via-sky-500 to-blue-600" />
+        <div className="h-0.5 bg-gradient-to-r from-primary via-primary-light to-accent" />
         <div className="p-6">
         <div className="mb-6 flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-emerald-600" />
-            <h2 className="text-lg font-semibold">Match Details</h2>
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Match Details</h2>
           </div>
         </div>
 
@@ -450,31 +450,29 @@ export function PredictionForm() {
         </div>
 
         {dataMode && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-            {dataMode}. Restart the dev server after changing <code className="text-xs">.env.local</code>.
-            Check <code className="text-xs">/api/football/status</code>.
+          <div className="alert-accent mb-4 rounded-xl px-4 py-3 text-sm">
+            {dataMode}. Restart the dev server after changing{" "}
+            <code className="text-xs text-foreground-secondary">.env.local</code>. Check{" "}
+            <code className="text-xs text-foreground-secondary">/api/football/status</code>.
           </div>
         )}
 
         {fixtureNotice && (
-          <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
-            {fixtureNotice}
-          </div>
+          <div className="alert-primary mb-4 rounded-xl px-4 py-3 text-sm">{fixtureNotice}</div>
         )}
 
         {fixtureSource && fixtureSource !== "live" && !dataMode && !fixtureNotice && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-            Fixtures are from <strong>{fixtureSource}</strong> data, not SportAPI7 live. Subscribe on RapidAPI or fix your API key.
+          <div className="alert-accent mb-4 rounded-xl px-4 py-3 text-sm">
+            Fixtures are from <strong className="font-semibold">{fixtureSource}</strong> data, not
+            SportAPI7 live. Subscribe on RapidAPI or fix your API key.
           </div>
         )}
 
         {inputMode === "fixture" && entityType === "club" && (
         <section className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Find a match
-            </h3>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <h3 className="text-sm font-semibold text-foreground">Find a match</h3>
+            <p className="mt-1 text-xs text-muted">
               Pick an upcoming fixture from a top league — home and away teams fill in
               automatically.
             </p>
@@ -514,15 +512,15 @@ export function PredictionForm() {
         )}
 
         {inputMode === "fixture" && entityType === "club" && (
-        <div className="my-6 border-t border-zinc-200 dark:border-zinc-800" />
+        <div className="my-6 border-t border-glass-border" />
         )}
 
         <section className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <h3 className="text-sm font-semibold text-foreground">
               {inputMode === "compare" ? "Choose teams to compare" : "Or choose teams manually"}
             </h3>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-1 text-xs text-muted">
               {inputMode === "compare"
                 ? "Pick any two clubs or countries from different leagues — stats are loaded per team."
                 : "Select country, competition, and team for each side."}
@@ -558,25 +556,30 @@ export function PredictionForm() {
           />
 
           {(homeTeamName || awayTeamName) && (
-            <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
-              <span className="font-medium">
-                {homeTeamName ?? "Home team"}
-                {homeLeagueName && (
-                  <span className="ml-1 text-xs font-normal opacity-75">· {homeLeagueName}</span>
-                )}
-              </span>
-              <span className="mx-2 text-emerald-600 dark:text-emerald-400">vs</span>
-              <span className="font-medium">
-                {awayTeamName ?? "Away team"}
-                {awayLeagueName && (
-                  <span className="ml-1 text-xs font-normal opacity-75">· {awayLeagueName}</span>
-                )}
-              </span>
+            <div className="glass-subtle rounded-xl px-4 py-3 text-center text-sm">
+              {(homeLeagueName || awayLeagueName) && (
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                  {homeLeagueName === awayLeagueName
+                    ? homeLeagueName
+                    : [homeLeagueName, awayLeagueName].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              <div>
+                <span className="font-semibold text-primary-emphasis">
+                  {homeTeamName ?? "Home team"}
+                </span>
+                <span className="mx-3 text-xs font-medium uppercase tracking-wider text-muted">
+                  vs
+                </span>
+                <span className="font-semibold text-accent-emphasis">
+                  {awayTeamName ?? "Away team"}
+                </span>
+              </div>
             </div>
           )}
         </section>
 
-        <div className="my-6 border-t border-zinc-200 dark:border-zinc-800" />
+        <div className="my-6 border-t border-glass-border" />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="City" name="city" value={city} onChange={setCity} required />
@@ -603,7 +606,7 @@ export function PredictionForm() {
             !awayTeamId ||
             (inputMode === "fixture" && !matchId)
           }
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 sm:w-auto sm:px-8"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-accent px-4 py-3 text-sm font-semibold text-on-gradient shadow-lg shadow-primary/25 transition hover:opacity-90 disabled:opacity-60 sm:w-auto sm:px-8"
         >
           {loading ? (
             <>
@@ -618,16 +621,14 @@ export function PredictionForm() {
       </form>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          {error}
-        </div>
+        <div className="alert-accent rounded-xl px-4 py-3 text-sm">{error}</div>
       )}
 
       {loading && !result && (
-        <div className="animate-pulse rounded-2xl border border-zinc-200 bg-zinc-50 p-8 dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="mb-4 h-6 w-48 rounded bg-zinc-200 dark:bg-zinc-700" />
-          <div className="mb-2 h-4 w-full rounded bg-zinc-200 dark:bg-zinc-700" />
-          <div className="h-4 w-3/4 rounded bg-zinc-200 dark:bg-zinc-700" />
+        <div className="animate-pulse rounded-2xl glass p-8">
+          <div className="mb-4 h-6 w-48 rounded bg-foreground/10" />
+          <div className="mb-2 h-4 w-full rounded bg-foreground/10" />
+          <div className="h-4 w-3/4 rounded bg-foreground/10" />
         </div>
       )}
 
@@ -662,8 +663,8 @@ function TeamPicker({
   disabled?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+    <div className="rounded-xl glass-subtle p-4">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
         {side} team
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
@@ -709,8 +710,8 @@ function ToggleField({
 }) {
   return (
     <div className="space-y-1.5">
-      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
-      <div className="flex rounded-lg border border-zinc-200 p-1 dark:border-zinc-700">
+      <span className="text-sm font-medium text-muted">{label}</span>
+      <div className="flex rounded-lg glass-subtle p-1">
         {options.map((option) => (
           <button
             key={option.value}
@@ -719,8 +720,8 @@ function ToggleField({
             onClick={() => onChange(option.value)}
             className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition sm:text-sm ${
               value === option.value
-                ? "bg-emerald-600 text-white"
-                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                ? "bg-primary text-on-primary shadow-sm"
+                : "text-muted hover:bg-[var(--surface-hover)] hover:text-foreground"
             } disabled:cursor-not-allowed disabled:opacity-40`}
           >
             {option.label}
@@ -748,12 +749,12 @@ function SelectField({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
+      <span className="text-sm font-medium text-muted">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-emerald-500 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800"
+        className="field-control w-full rounded-lg px-3 py-2 text-sm outline-none ring-primary focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {!value && placeholder && (
           <option value="" disabled>
@@ -787,14 +788,14 @@ function Field({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
+      <span className="text-sm font-medium text-muted">{label}</span>
       <input
         name={name}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-emerald-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-800"
+        className="field-control w-full rounded-lg px-3 py-2 text-sm outline-none ring-primary focus:ring-2"
       />
     </label>
   );

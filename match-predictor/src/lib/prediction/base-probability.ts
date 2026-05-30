@@ -12,6 +12,10 @@ const W2_H2H = 0.4;
 const GAMMA_HOME = 0.15;
 /** Away momentum damping γ_away. */
 const GAMMA_AWAY = 0.12;
+/** League-average goals per team per match (μ). */
+const LEAGUE_AVG_GOALS = 1.35;
+/** Baseline total match xG for corner velocity scaling. */
+const CORNER_XG_BASELINE = 2.7;
 
 export function computeMomentumIndex(input: BaseProbabilityInput): number {
   const formDiff = input.homeFormScore - input.awayFormScore;
@@ -27,27 +31,25 @@ export function computeMomentumIndex(input: BaseProbabilityInput): number {
  * then momentum-adjusted tilde-xG (λ̃, μ̃).
  */
 export function computeBaseProbability(input: BaseProbabilityInput): BaseProbabilityOutput {
-  const {
-    homeStats,
-    awayStats,
-    homeLeagueStrength,
-    awayLeagueStrength,
-  } = input;
+  const { homeStats, awayStats } = input;
 
-  const alphaHome = homeStats.goalsFor * homeLeagueStrength;
-  const betaHome = homeStats.goalsAgainst;
-  const alphaAway = awayStats.goalsFor * awayLeagueStrength;
-  const betaAway = awayStats.goalsAgainst;
+  const homeAttack = homeStats.goalsFor / LEAGUE_AVG_GOALS;
+  const homeDefense = homeStats.goalsAgainst / LEAGUE_AVG_GOALS;
+  const awayAttack = awayStats.goalsFor / LEAGUE_AVG_GOALS;
+  const awayDefense = awayStats.goalsAgainst / LEAGUE_AVG_GOALS;
 
-  const lambda0 = alphaHome * betaAway;
-  const mu0 = alphaAway * betaHome;
+  const combinedStrength = computeMomentumIndex(input);
 
-  const indexMomentum = computeMomentumIndex(input);
+  const homeXg =
+    homeAttack * awayDefense * LEAGUE_AVG_GOALS * (1 + GAMMA_HOME * combinedStrength);
+  const awayXg =
+    awayAttack * homeDefense * LEAGUE_AVG_GOALS * (1 - GAMMA_AWAY * combinedStrength);
 
-  const homeXg = lambda0 * (1 + GAMMA_HOME * indexMomentum);
-  const awayXg = mu0 * (1 - GAMMA_AWAY * indexMomentum);
+  const totalMatchXg = homeXg + awayXg;
 
-  const corners = homeStats.corners + awayStats.corners;
+  const corners =
+    (homeStats.corners + awayStats.corners) *
+    Math.exp(0.02 * (totalMatchXg - CORNER_XG_BASELINE));
   const fouls = homeStats.fouls + awayStats.fouls;
   const yellowCards = homeStats.yellowCards + awayStats.yellowCards;
   const redCards = homeStats.redCards + awayStats.redCards;

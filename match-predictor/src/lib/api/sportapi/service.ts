@@ -76,10 +76,16 @@ async function getStandings(
 
 function findStandingsRow(
   standings: SportApiStandingsResponse,
-  teamId: number
+  teamId: number,
+  teamName?: string
 ): SportApiStandingsResponse["standings"][0]["rows"][0] | undefined {
   for (const group of standings.standings ?? []) {
-    const row = group.rows?.find((r) => r.team.id === teamId);
+    const row = group.rows?.find((r) => {
+      const idMatch = r.team.id === teamId;
+      const nameMatch =
+        teamName && r.team.name.toLowerCase() === teamName.toLowerCase();
+      return idMatch || nameMatch;
+    });
     if (row) return row;
   }
   return undefined;
@@ -254,15 +260,20 @@ export async function sportApiGetTeamStatistics(
   referenceLeagueId: number,
   season: number,
   isHomeSide: boolean,
-  matchStats?: SportApiStatisticsResponse
+  matchStats?: SportApiStatisticsResponse,
+  teamName?: string
 ): Promise<TeamStatistics> {
   const mapping = resolveSportApiLeague(referenceLeagueId);
   if (!mapping) throw new UpstreamApiError(`Unknown league ${referenceLeagueId}`);
 
   const seasonId = await getCurrentSeasonId(mapping.uniqueTournamentId);
   const standings = await getStandings(mapping.uniqueTournamentId, seasonId);
-  const row = findStandingsRow(standings, teamId);
-  if (!row) throw new UpstreamApiError(`Standings row not found for team ${teamId}`);
+  const row = findStandingsRow(standings, teamId, teamName);
+  if (!row) {
+    throw new UpstreamApiError(
+      `Standings row not found for team ${teamId}${teamName ? ` (${teamName})` : ""}`
+    );
+  }
 
   let stats = mapStandingsRowToTeamStatistics(row, referenceLeagueId, season, isHomeSide);
   if (matchStats) {
@@ -396,8 +407,22 @@ export async function sportApiFetchFootballBundle(
   ]);
 
   const [homeStats, awayStats, homeTeamInfo, awayTeamInfo] = await Promise.all([
-    sportApiGetTeamStatistics(homeTeamId, referenceLeagueId, season, true, statistics),
-    sportApiGetTeamStatistics(awayTeamId, referenceLeagueId, season, false, statistics),
+    sportApiGetTeamStatistics(
+      homeTeamId,
+      referenceLeagueId,
+      season,
+      true,
+      statistics,
+      event.homeTeam.name
+    ),
+    sportApiGetTeamStatistics(
+      awayTeamId,
+      referenceLeagueId,
+      season,
+      false,
+      statistics,
+      event.awayTeam.name
+    ),
     sportApiGetTeamInfo(homeTeamId, event.homeTeam.name, venueCity, fixture.fixture.venue.name),
     sportApiGetTeamInfo(awayTeamId, event.awayTeam.name, venueCity),
   ]);

@@ -130,10 +130,16 @@ export function buildFootballBundleFromParts(input: {
 
 export function findStandingsRow(
   standingsPayload: { standings?: Array<{ rows?: Array<Parameters<typeof mapStandingsRowToTeamStatistics>[0]> }> },
-  teamId: number
+  teamId: number,
+  teamName?: string
 ) {
   for (const group of standingsPayload.standings ?? []) {
-    const row = group.rows?.find((r) => r.team.id === teamId);
+    const row = group.rows?.find((r) => {
+      const idMatch = r.team.id === teamId;
+      const nameMatch =
+        teamName && r.team.name.toLowerCase() === teamName.toLowerCase();
+      return idMatch || nameMatch;
+    });
     if (row) return row;
   }
   return undefined;

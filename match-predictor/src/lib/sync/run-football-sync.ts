@@ -401,8 +401,12 @@ export async function runFootballDataSync(options?: {
         awayTeamId: f.away.id,
         statistics: statsRes,
         lineups: lineupsRes,
-        homeStandingsRow: standingsRes ? findStandingsRow(standingsRes, f.home.id) : undefined,
-        awayStandingsRow: standingsRes ? findStandingsRow(standingsRes, f.away.id) : undefined,
+        homeStandingsRow: standingsRes
+          ? findStandingsRow(standingsRes, f.home.id, f.home.name)
+          : undefined,
+        awayStandingsRow: standingsRes
+          ? findStandingsRow(standingsRes, f.away.id, f.away.name)
+          : undefined,
         homeFormEvents: filterFormForTeam(lastEvents, f.home.id),
         awayFormEvents: filterFormForTeam(lastEvents, f.away.id),
         h2hEvents: h2hRes.events ?? [],

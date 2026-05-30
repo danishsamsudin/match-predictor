@@ -60,10 +60,28 @@ async function loadTeamStats(
   );
 }
 
-async function loadRecentFormEvents(
+function eventInvolvesTeam(
+  event: SportApiEvent,
+  teamId: number,
+  teamName?: string
+): boolean {
+  if (event.homeTeam.id === teamId || event.awayTeam.id === teamId) {
+    return true;
+  }
+  if (!teamName) return false;
+  const normalized = teamName.toLowerCase();
+  return (
+    event.homeTeam.name.toLowerCase() === normalized ||
+    event.awayTeam.name.toLowerCase() === normalized
+  );
+}
+
+/** Recent finished events for a team from `synced_events` (ID or name match). */
+export async function loadRecentFormEvents(
   supabase: ServiceClient,
   leagueId: number,
   teamId: number,
+  teamName?: string,
   limit = 20
 ): Promise<SportApiEvent[]> {
   const { data, error } = await supabase
@@ -71,7 +89,7 @@ async function loadRecentFormEvents(
     .select("payload, kickoff_at")
     .eq("reference_league_id", leagueId)
     .order("kickoff_at", { ascending: false })
-    .limit(limit);
+    .limit(limit * 4);
 
   if (error) return [];
 
@@ -79,9 +97,10 @@ async function loadRecentFormEvents(
   for (const row of data ?? []) {
     const event = row.payload as SportApiEvent;
     if (!event?.homeTeam?.id || !event?.awayTeam?.id) continue;
-    if (event.homeTeam.id === teamId || event.awayTeam.id === teamId) {
+    if (eventInvolvesTeam(event, teamId, teamName)) {
       events.push(event);
     }
+    if (events.length >= limit) break;
   }
   return events;
 }
@@ -158,10 +177,15 @@ export async function assembleFootballBundleFromStore(
       supabase.from("synced_event_statistics").select("payload").eq("event_id", matchId).maybeSingle(),
       supabase.from("synced_event_lineups").select("payload").eq("event_id", matchId).maybeSingle(),
       supabase.from("synced_event_h2h").select("payload").eq("event_id", matchId).maybeSingle(),
-      loadRecentFormEvents(supabase, leagueId, homeTeamId),
+      loadRecentFormEvents(supabase, leagueId, homeTeamId, homeName),
     ]);
 
-  const awayFormEvents = await loadRecentFormEvents(supabase, leagueId, awayTeamId);
+  const awayFormEvents = await loadRecentFormEvents(
+    supabase,
+    leagueId,
+    awayTeamId,
+    awayName
+  );
   const standingsRes = standingsRow.data?.payload as SportApiStandingsResponse | undefined;
   const statistics = statsRow.data?.payload as import("@/lib/types/sportapi").SportApiStatisticsResponse | undefined;
   const lineups = lineupsRow.data?.payload as import("@/lib/types/sportapi").SportApiLineupsResponse | undefined;
@@ -175,8 +199,12 @@ export async function assembleFootballBundleFromStore(
     awayTeamId,
     statistics,
     lineups,
-    homeStandingsRow: standingsRes ? findStandingsRow(standingsRes, homeTeamId) : undefined,
-    awayStandingsRow: standingsRes ? findStandingsRow(standingsRes, awayTeamId) : undefined,
+    homeStandingsRow: standingsRes
+      ? findStandingsRow(standingsRes, homeTeamId, homeName)
+      : undefined,
+    awayStandingsRow: standingsRes
+      ? findStandingsRow(standingsRes, awayTeamId, awayName)
+      : undefined,
     homeFormEvents: filterFormForTeam(formEvents, homeTeamId),
     awayFormEvents: filterFormForTeam(awayFormEvents, awayTeamId),
     h2hEvents: h2hPayload?.events ?? [],

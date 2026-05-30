@@ -1,9 +1,11 @@
 import { shouldUseMockApis } from "@/lib/config/api-mode";
 import { useSupabaseDataStore } from "@/lib/config/data-source";
 import { usesSportApi } from "@/lib/config/football-provider";
+import { loadRecentFormEvents } from "@/lib/data/assemble-football-bundle";
 import { getLeagueById, getTeamCity } from "@/lib/data/football-reference";
 import { loadTeamStatisticsFromStore } from "@/lib/data/football-store";
-import { mapTeamInfo } from "@/lib/api/sportapi/mappers";
+import { mapEventToFixtureResult, mapTeamInfo } from "@/lib/api/sportapi/mappers";
+import { tryCreateServiceClient } from "@/lib/supabase";
 import {
   sportApiGetRecentForm,
   sportApiGetTeamInfo,
@@ -21,7 +23,8 @@ async function resolveTeamStats(
   teamId: number,
   leagueId: number,
   season: number,
-  isHomeSide: boolean
+  isHomeSide: boolean,
+  teamName?: string
 ): Promise<TeamStatistics> {
   if (useSupabaseDataStore()) {
     const stored = await loadTeamStatisticsFromStore(teamId, leagueId, isHomeSide);
@@ -29,7 +32,7 @@ async function resolveTeamStats(
   }
 
   if (usesSportApi()) {
-    return sportApiGetTeamStatistics(teamId, leagueId, season, isHomeSide);
+    return sportApiGetTeamStatistics(teamId, leagueId, season, isHomeSide, undefined, teamName);
   }
 
   throw new UpstreamApiError(
@@ -75,8 +78,14 @@ export async function fetchComparisonBundle(
   const readOnlyStore = useSupabaseDataStore();
 
   const [homeStats, awayStats] = await Promise.all([
-    resolveTeamStats(input.homeTeamId, input.homeLeagueId, season, true),
-    resolveTeamStats(input.awayTeamId, input.awayLeagueId, awayLeague.season, false),
+    resolveTeamStats(input.homeTeamId, input.homeLeagueId, season, true, input.homeTeamName),
+    resolveTeamStats(
+      input.awayTeamId,
+      input.awayLeagueId,
+      awayLeague.season,
+      false,
+      input.awayTeamName
+    ),
   ]);
 
   let homeForm: FootballBundle["homeForm"] = [];
@@ -84,7 +93,27 @@ export async function fetchComparisonBundle(
   let homeTopScorers: FootballBundle["topScorers"] = [];
   let awayTopScorers: FootballBundle["topScorers"] = [];
 
-  if (!readOnlyStore && usesSportApi()) {
+  if (readOnlyStore) {
+    const supabase = tryCreateServiceClient();
+    if (supabase) {
+      const [homeFormEvents, awayFormEvents] = await Promise.all([
+        loadRecentFormEvents(
+          supabase,
+          input.homeLeagueId,
+          input.homeTeamId,
+          input.homeTeamName
+        ),
+        loadRecentFormEvents(
+          supabase,
+          input.awayLeagueId,
+          input.awayTeamId,
+          input.awayTeamName
+        ),
+      ]);
+      homeForm = homeFormEvents.slice(0, 5).map(mapEventToFixtureResult);
+      awayForm = awayFormEvents.slice(0, 5).map(mapEventToFixtureResult);
+    }
+  } else if (usesSportApi()) {
     [homeForm, awayForm, homeTopScorers, awayTopScorers] = await Promise.all([
       sportApiGetRecentForm(input.homeTeamId).catch(() => []),
       sportApiGetRecentForm(input.awayTeamId).catch(() => []),

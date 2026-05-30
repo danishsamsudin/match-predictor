@@ -34,21 +34,21 @@ export default async function PredictionDetailPage({
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <Link
         href="/predictions"
-        className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50"
+        className="mb-6 inline-flex items-center gap-1 text-sm text-muted transition hover:text-primary"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to history
       </Link>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">
+        <h1 className="text-2xl font-bold text-foreground">
           Team {data.home_team_id} vs Team {data.away_team_id}
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-muted">
           {data.city} · {new Date(data.match_date).toLocaleString()} · Fixture #
           {data.match_id}
         </p>
-        <p className="mt-1 text-xs text-zinc-400">
+        <p className="mt-1 text-xs text-muted/70">
           Predicted {new Date(data.created_at).toLocaleString()}
         </p>
       </div>

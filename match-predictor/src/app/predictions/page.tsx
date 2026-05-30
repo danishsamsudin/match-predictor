@@ -43,24 +43,27 @@ export default async function PredictionsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Prediction History</h1>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary-emphasis">
+          Archive
+        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-gradient">Prediction History</h1>
+        <p className="mt-2 text-muted">
           Recent predictions saved to your Supabase database.
         </p>
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+        <div className="alert-accent mb-6 rounded-xl px-4 py-3 text-sm">
           Could not load predictions: {error}. Run the Supabase migration and check your env vars.
         </div>
       )}
 
       {predictions.length === 0 && !error ? (
-        <div className="rounded-2xl border border-dashed border-zinc-300 p-12 text-center dark:border-zinc-700">
-          <p className="text-zinc-500">No predictions yet.</p>
+        <div className="rounded-2xl border border-dashed border-glass-border p-12 text-center glass-subtle">
+          <p className="text-muted">No predictions yet.</p>
           <Link
             href="/"
-            className="mt-4 inline-block text-sm font-medium text-emerald-600 hover:underline"
+            className="mt-4 inline-block text-sm font-medium text-primary hover:text-primary-light"
           >
             Create your first prediction →
           </Link>
@@ -71,14 +74,14 @@ export default async function PredictionsPage() {
             <Link
               key={p.id}
               href={`/predictions/${p.id}`}
-              className="block rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-emerald-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-emerald-700"
+              className="group block rounded-xl glass p-4 transition hover:glow-primary"
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="font-semibold">
+                  <p className="font-semibold text-foreground">
                     Team {p.home_team_id} vs Team {p.away_team_id}
                   </p>
-                  <p className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
+                  <p className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted">
                     <span className="flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" />
                       {p.city}
@@ -92,13 +95,13 @@ export default async function PredictionsPage() {
                 </div>
                 <div className="text-right text-sm">
                   <p>
-                    <span className="text-emerald-600">{Number(p.home_win_pct)}%</span>
+                    <span className="text-primary">{Number(p.home_win_pct)}%</span>
                     {" / "}
-                    <span className="text-zinc-500">{Number(p.draw_pct)}%</span>
+                    <span className="text-muted">{Number(p.draw_pct)}%</span>
                     {" / "}
-                    <span className="text-blue-600">{Number(p.away_win_pct)}%</span>
+                    <span className="text-accent">{Number(p.away_win_pct)}%</span>
                   </p>
-                  <p className="text-zinc-500">
+                  <p className="text-muted">
                     xG {Number(p.home_xg)} – {Number(p.away_xg)}
                   </p>
                 </div>
