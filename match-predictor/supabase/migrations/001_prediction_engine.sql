@@ -49,8 +49,16 @@ ALTER TABLE api_usage_daily ENABLE ROW LEVEL SECURITY;
 ALTER TABLE predictions ENABLE ROW LEVEL SECURITY;
 
 -- Predictions: public read access
-CREATE POLICY "predictions_select_anon" ON predictions
-  FOR SELECT TO anon, authenticated
-  USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'predictions' AND policyname = 'predictions_select_anon'
+  ) THEN
+    CREATE POLICY "predictions_select_anon" ON predictions
+      FOR SELECT TO anon, authenticated
+      USING (true);
+  END IF;
+END $$;
 
 -- Cache and usage tables: no public policies (service role only)

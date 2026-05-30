@@ -1,3 +1,7 @@
+export type EntityType = "club" | "national";
+
+export type SyncTier = 1 | 2 | 3;
+
 export interface CountryOption {
   name: string;
   code: string;
@@ -9,6 +13,8 @@ export interface LeagueOption {
   country: string;
   season: number;
   type: string;
+  entityType: EntityType;
+  syncTier: SyncTier;
 }
 
 export interface TeamOption {

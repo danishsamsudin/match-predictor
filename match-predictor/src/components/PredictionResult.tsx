@@ -10,9 +10,19 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <TrendingUp className="h-5 w-5 text-emerald-600" />
           <h2 className="text-lg font-semibold">Prediction Results</h2>
+          {result.mode === "compare" && (
+            <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+              Hypothetical match
+            </span>
+          )}
+          {result.entityType === "national" && (
+            <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200">
+              National teams
+            </span>
+          )}
         </div>
       </div>
 

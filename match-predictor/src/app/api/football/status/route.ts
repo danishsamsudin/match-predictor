@@ -1,37 +1,83 @@
 import { NextResponse } from "next/server";
 import { getMockModeReason, shouldUseMockApis } from "@/lib/config/api-mode";
+import { useSupabaseDataStore, getFootballDailyApiLimit } from "@/lib/config/data-source";
+import {
+  getPrimaryFootballHost,
+  getPrimaryProviderName,
+  getSecondaryFootballHost,
+} from "@/lib/config/football-providers";
 import { getFootballProvider } from "@/lib/config/football-provider";
+import { sofascoreGet } from "@/lib/api/sofascore/client";
 import { getSportApiBaseUrl, getSportApiHost, sportApiGet, todayDateString } from "@/lib/api/sportapi/client";
+import { getFootballCallsUsedToday } from "@/lib/sync/football-api-budget";
+import { getSyncStatus } from "@/lib/data/football-store";
 import { serverEnv } from "@/lib/env/server-env";
 import type { SportApiCategoriesResponse } from "@/lib/types/sportapi";
 import { UpstreamApiError } from "@/lib/types/prediction";
 
 export async function GET() {
   const provider = getFootballProvider();
+  const primary = getPrimaryProviderName();
   const mock = shouldUseMockApis();
   const mockReason = getMockModeReason();
+  const footballCallsToday = await getFootballCallsUsedToday();
+  const dailyLimit = getFootballDailyApiLimit();
+  const syncStatus = await getSyncStatus();
 
   if (mock) {
     return NextResponse.json({
       ok: true,
       provider,
+      primary,
       mode: "mock",
       mockReason,
+      dataSource: useSupabaseDataStore() ? "supabase" : "live",
+      footballApi: { usedToday: footballCallsToday, dailyLimit },
+      syncStatus,
       env: {
         useMockApis: serverEnv.useMockApis,
         hasRapidApiKey: Boolean(serverEnv.rapidApiKey),
+        primaryHost: getPrimaryFootballHost(),
+        secondaryHost: getSecondaryFootballHost(),
       },
       message: mockReason ?? "Mock mode is active.",
     });
   }
 
-  if (provider !== "sportapi7") {
-    return NextResponse.json({
-      ok: true,
-      provider,
-      mode: "live",
-      message: "Using API-Football provider. SportAPI7 status not checked.",
-    });
+  if (primary === "sofascore") {
+    try {
+      await sofascoreGet<{ uniqueTournament?: { id: number; name: string } }>(
+        "tournaments/detail",
+        { tournamentId: 17 }
+      );
+      return NextResponse.json({
+        ok: true,
+        provider: "sofascore",
+        primary,
+        secondaryHost: getSecondaryFootballHost(),
+        mode: "live",
+        dataSource: useSupabaseDataStore() ? "supabase" : "live",
+        footballApi: { usedToday: footballCallsToday, dailyLimit },
+        syncStatus,
+        message: "SofaScore (primary) connection successful.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof UpstreamApiError
+          ? error.message
+          : "SofaScore health check failed.";
+      return NextResponse.json(
+        {
+          ok: false,
+          provider: "sofascore",
+          primary,
+          mode: "live",
+          footballApi: { usedToday: footballCallsToday, dailyLimit },
+          message,
+        },
+        { status: 502 }
+      );
+    }
   }
 
   try {
@@ -45,9 +91,13 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       provider: "sportapi7",
+      primary,
       mode: "live",
       baseUrl: getSportApiBaseUrl(),
       host: getSportApiHost(),
+      dataSource: useSupabaseDataStore() ? "supabase" : "live",
+      footballApi: { usedToday: footballCallsToday, dailyLimit },
+      syncStatus,
       categoriesToday: count,
       message: "SportAPI7 connection successful.",
     });
@@ -60,9 +110,11 @@ export async function GET() {
       {
         ok: false,
         provider: "sportapi7",
+        primary,
         mode: "live",
         baseUrl: getSportApiBaseUrl(),
         host: getSportApiHost(),
+        footballApi: { usedToday: footballCallsToday, dailyLimit },
         message,
         subscribeUrl: "https://rapidapi.com/rapidsportapi/api/sportapi7",
       },

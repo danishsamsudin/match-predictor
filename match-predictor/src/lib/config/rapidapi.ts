@@ -23,9 +23,9 @@ export function getWeatherRapidApiHost(): string {
 }
 
 export function getSportApiRapidApiHost(): string {
-  const fromFootballProvider = normalizeRapidApiHost(serverEnv.footballProvider);
-  if (fromFootballProvider?.includes("rapidapi.com")) {
-    return fromFootballProvider;
+  const secondary = normalizeRapidApiHost(serverEnv.footballSecondaryProvider);
+  if (secondary?.includes("rapidapi.com")) {
+    return secondary;
   }
   return normalizeRapidApiHost(serverEnv.sportApiRapidApiHost) ?? DEFAULT_SPORTAPI_HOST;
 }

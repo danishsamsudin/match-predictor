@@ -1,7 +1,13 @@
 export interface PredictRequest {
-  matchId: number;
+  mode?: "fixture" | "compare";
+  matchId?: number;
   homeTeamId: number;
   awayTeamId: number;
+  homeLeagueId?: number;
+  awayLeagueId?: number;
+  entityType?: "club" | "national";
+  homeTeamName?: string;
+  awayTeamName?: string;
   city: string;
   matchDate: string;
 }
@@ -20,6 +26,8 @@ export interface PredictionResult {
   };
   explanation: string;
   fromCache?: boolean;
+  mode?: "fixture" | "compare";
+  entityType?: "club" | "national";
   debug?: { factors: Record<string, number> };
 }
 

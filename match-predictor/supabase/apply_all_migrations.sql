@@ -1,0 +1,360 @@
+-- Match Predictor: apply all migrations (001 → 004) in one go
+-- Safe to re-run: uses IF NOT EXISTS for tables/indexes and guarded policies.
+
+-- ========== 001_prediction_engine.sql ==========
+-- API response cache with TTL
+CREATE TABLE IF NOT EXISTS api_cache (
+  cache_key text PRIMARY KEY,
+  provider text NOT NULL CHECK (provider IN ('football', 'weather')),
+  response jsonb NOT NULL,
+  fetched_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_cache_expires_at ON api_cache (expires_at);
+CREATE INDEX IF NOT EXISTS idx_api_cache_provider ON api_cache (provider);
+
+-- Daily API usage counters for rate limiting
+CREATE TABLE IF NOT EXISTS api_usage_daily (
+  provider text NOT NULL CHECK (provider IN ('football', 'weather')),
+  usage_date date NOT NULL DEFAULT CURRENT_DATE,
+  call_count int NOT NULL DEFAULT 0,
+  PRIMARY KEY (provider, usage_date)
+);
+
+-- Persisted prediction results
+CREATE TABLE IF NOT EXISTS predictions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  match_id int NOT NULL,
+  home_team_id int NOT NULL,
+  away_team_id int NOT NULL,
+  city text NOT NULL,
+  match_date timestamptz NOT NULL,
+  home_win_pct numeric(5, 2) NOT NULL,
+  away_win_pct numeric(5, 2) NOT NULL,
+  draw_pct numeric(5, 2) NOT NULL,
+  home_xg numeric(4, 2) NOT NULL,
+  away_xg numeric(4, 2) NOT NULL,
+  estimated_corners numeric(5, 1) NOT NULL,
+  estimated_fouls numeric(5, 1) NOT NULL,
+  estimated_yellow_cards numeric(4, 1) NOT NULL,
+  estimated_red_cards numeric(3, 1) NOT NULL,
+  explanation text NOT NULL,
+  inputs_snapshot jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_predictions_created_at ON predictions (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_predictions_match_id ON predictions (match_id);
+
+-- Row Level Security
+ALTER TABLE api_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE api_usage_daily ENABLE ROW LEVEL SECURITY;
+ALTER TABLE predictions ENABLE ROW LEVEL SECURITY;
+
+-- Predictions: public read access
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'predictions' AND policyname = 'predictions_select_anon'
+  ) THEN
+    CREATE POLICY "predictions_select_anon" ON predictions
+      FOR SELECT TO anon, authenticated
+      USING (true);
+  END IF;
+END $$;
+
+-- Cache and usage tables: no public policies (service role only)
+
+-- ========== 002_football_data_store.sql ==========
+-- Structured football/weather store (populated by /api/cron/sync, read by the app)
+
+CREATE TABLE IF NOT EXISTS data_sync_runs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  started_at timestamptz NOT NULL DEFAULT now(),
+  finished_at timestamptz,
+  status text NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'success', 'failed')),
+  football_api_calls int NOT NULL DEFAULT 0,
+  weather_api_calls int NOT NULL DEFAULT 0,
+  leagues_synced int NOT NULL DEFAULT 0,
+  fixtures_synced int NOT NULL DEFAULT 0,
+  bundles_synced int NOT NULL DEFAULT 0,
+  error_message text,
+  details jsonb
+);
+
+CREATE TABLE IF NOT EXISTS data_sync_state (
+  id int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  last_success_at timestamptz,
+  next_sync_after timestamptz,
+  last_run_id uuid REFERENCES data_sync_runs (id)
+);
+
+INSERT INTO data_sync_state (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS synced_teams (
+  league_id int NOT NULL,
+  team_id int NOT NULL,
+  team_name text NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (league_id, team_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_synced_teams_league ON synced_teams (league_id);
+
+CREATE TABLE IF NOT EXISTS synced_fixtures (
+  event_id int PRIMARY KEY,
+  league_id int NOT NULL,
+  league_name text NOT NULL,
+  season int NOT NULL,
+  kickoff_at timestamptz NOT NULL,
+  venue_city text NOT NULL,
+  home_team_id int NOT NULL,
+  home_team_name text NOT NULL,
+  away_team_id int NOT NULL,
+  away_team_name text NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_synced_fixtures_league_kickoff ON synced_fixtures (league_id, kickoff_at);
+
+CREATE TABLE IF NOT EXISTS synced_match_bundles (
+  match_id int PRIMARY KEY,
+  league_id int NOT NULL,
+  home_team_id int NOT NULL,
+  away_team_id int NOT NULL,
+  bundle jsonb NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS synced_weather (
+  city_key text NOT NULL,
+  forecast_date date NOT NULL,
+  forecast jsonb NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (city_key, forecast_date)
+);
+
+ALTER TABLE data_sync_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE data_sync_state ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_fixtures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_match_bundles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_weather ENABLE ROW LEVEL SECURITY;
+
+-- Public read for fixture/team pickers (no write policies = service role only for writes)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'synced_fixtures' AND policyname = 'synced_fixtures_select'
+  ) THEN
+    CREATE POLICY "synced_fixtures_select" ON synced_fixtures
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'synced_teams' AND policyname = 'synced_teams_select'
+  ) THEN
+    CREATE POLICY "synced_teams_select" ON synced_teams
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+END $$;
+
+-- ========== 003_sofascore_data_catalog.sql ==========
+-- Full football data catalog (SofaScore primary / SportAPI7 fallback) + daily API budget
+
+CREATE TABLE IF NOT EXISTS football_api_daily (
+  usage_date date PRIMARY KEY DEFAULT CURRENT_DATE,
+  call_count int NOT NULL DEFAULT 0,
+  last_provider text,
+  last_endpoint text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS football_api_call_log (
+  id bigserial PRIMARY KEY,
+  usage_date date NOT NULL DEFAULT CURRENT_DATE,
+  provider text NOT NULL,
+  endpoint text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_football_api_call_log_date ON football_api_call_log (usage_date DESC);
+
+-- Raw payloads for audit / future features (one row per entity)
+CREATE TABLE IF NOT EXISTS synced_api_payloads (
+  provider text NOT NULL,
+  endpoint text NOT NULL,
+  entity_type text NOT NULL,
+  entity_key text NOT NULL,
+  payload jsonb NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (provider, entity_type, entity_key)
+);
+
+CREATE TABLE IF NOT EXISTS synced_seasons (
+  unique_tournament_id int NOT NULL,
+  season_id int NOT NULL,
+  season_name text,
+  season_year text,
+  reference_league_id int,
+  payload jsonb,
+  synced_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (unique_tournament_id, season_id)
+);
+
+CREATE TABLE IF NOT EXISTS synced_tournaments (
+  unique_tournament_id int PRIMARY KEY,
+  reference_league_id int,
+  name text NOT NULL,
+  payload jsonb,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS synced_standings (
+  unique_tournament_id int NOT NULL,
+  season_id int NOT NULL,
+  reference_league_id int NOT NULL,
+  standing_type text NOT NULL DEFAULT 'total',
+  payload jsonb NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (unique_tournament_id, season_id, standing_type)
+);
+
+CREATE TABLE IF NOT EXISTS synced_events (
+  event_id int PRIMARY KEY,
+  unique_tournament_id int NOT NULL,
+  season_id int,
+  reference_league_id int NOT NULL,
+  kickoff_at timestamptz,
+  status_type text,
+  payload jsonb NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_synced_events_league ON synced_events (reference_league_id, kickoff_at);
+
+CREATE TABLE IF NOT EXISTS synced_event_statistics (
+  event_id int PRIMARY KEY,
+  payload jsonb NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS synced_event_lineups (
+  event_id int PRIMARY KEY,
+  payload jsonb NOT NULL,
+  confirmed boolean,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS synced_event_incidents (
+  event_id int PRIMARY KEY,
+  payload jsonb NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS synced_event_h2h (
+  event_id int PRIMARY KEY,
+  payload jsonb NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS synced_team_statistics (
+  team_id int NOT NULL,
+  unique_tournament_id int NOT NULL,
+  season_id int NOT NULL,
+  reference_league_id int NOT NULL,
+  payload jsonb NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (team_id, unique_tournament_id, season_id)
+);
+
+ALTER TABLE data_sync_runs ADD COLUMN IF NOT EXISTS primary_provider text;
+ALTER TABLE data_sync_runs ADD COLUMN IF NOT EXISTS secondary_fallback_calls int NOT NULL DEFAULT 0;
+
+ALTER TABLE data_sync_state ADD COLUMN IF NOT EXISTS last_sync_date date;
+ALTER TABLE data_sync_state ADD COLUMN IF NOT EXISTS sync_hour_utc int;
+
+ALTER TABLE football_api_daily ENABLE ROW LEVEL SECURITY;
+ALTER TABLE football_api_call_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_api_payloads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_seasons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_tournaments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_standings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_event_statistics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_event_lineups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_event_incidents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_event_h2h ENABLE ROW LEVEL SECURITY;
+ALTER TABLE synced_team_statistics ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'synced_events' AND policyname = 'synced_events_select'
+  ) THEN
+    CREATE POLICY "synced_events_select" ON synced_events
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+END $$;
+
+-- ========== 004_entity_type_and_sync_rotation.sql ==========
+-- Entity types for clubs vs national teams, comparison metadata, sync rotation state
+--
+-- PREREQUISITE: Run these first (in order):
+--   001_prediction_engine.sql
+--   002_football_data_store.sql
+--   003_sofascore_data_catalog.sql
+--
+-- Or run the combined file: supabase/apply_all_migrations.sql
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'synced_teams'
+  ) THEN
+    RAISE EXCEPTION 'Missing table synced_teams. Run 002_football_data_store.sql first (or apply_all_migrations.sql).';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'predictions'
+  ) THEN
+    RAISE EXCEPTION 'Missing table predictions. Run 001_prediction_engine.sql first (or apply_all_migrations.sql).';
+  END IF;
+END $$;
+
+ALTER TABLE synced_teams ADD COLUMN IF NOT EXISTS entity_type text NOT NULL DEFAULT 'club';
+
+ALTER TABLE predictions ADD COLUMN IF NOT EXISTS entity_type text DEFAULT 'club';
+ALTER TABLE predictions ADD COLUMN IF NOT EXISTS home_league_id int;
+ALTER TABLE predictions ADD COLUMN IF NOT EXISTS away_league_id int;
+ALTER TABLE predictions ADD COLUMN IF NOT EXISTS comparison_mode text DEFAULT 'fixture';
+
+CREATE TABLE IF NOT EXISTS sync_league_state (
+  reference_league_id int PRIMARY KEY,
+  last_teams_sync_at timestamptz,
+  last_fixtures_sync_at timestamptz,
+  next_sync_after timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS idx_synced_teams_entity ON synced_teams (entity_type, league_id);
+
+ALTER TABLE sync_league_state ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'sync_league_state' AND policyname = 'sync_league_state_select'
+  ) THEN
+    CREATE POLICY "sync_league_state_select" ON sync_league_state
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+END $$;
+

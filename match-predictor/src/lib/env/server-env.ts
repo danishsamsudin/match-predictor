@@ -29,6 +29,18 @@ export const serverEnv = {
   get sportApiRapidApiHost(): string | undefined {
     return read("SPORTAPI_RAPIDAPI_HOST");
   },
+  get footballPrimaryProvider(): string | undefined {
+    return read("FOOTBALL_PRIMARY_PROVIDER");
+  },
+  get footballSecondaryProvider(): string | undefined {
+    return read("FOOTBALL_SECONDARY_PROVIDER");
+  },
+  get dataSource(): string | undefined {
+    return read("DATA_SOURCE");
+  },
+  get useSupabaseData(): boolean {
+    return read("USE_SUPABASE_DATA") === "true";
+  },
 };
 
 export function getMockModeReason(): string | null {

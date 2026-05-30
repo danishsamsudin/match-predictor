@@ -3,7 +3,7 @@ import {
   SPORTAPI_CATEGORY_COUNTRIES,
   SPORTAPI_LEAGUE_MAP,
 } from "@/lib/config/sportapi-leagues";
-import { getLeagueById } from "@/lib/data/football-reference";
+import { getLeagueById, getLeagueEntityType } from "@/lib/data/football-reference";
 import type {
   Fixture,
   FixtureLineup,
@@ -13,7 +13,7 @@ import type {
   TeamStatistics,
   TopScorer,
 } from "@/lib/types/football";
-import type { CountryOption, FixtureOption, TeamOption } from "@/lib/types/football-lookup";
+import type { CountryOption, EntityType, FixtureOption, TeamOption } from "@/lib/types/football-lookup";
 import { UpstreamApiError } from "@/lib/types/prediction";
 import type {
   SportApiCategoriesResponse,
@@ -28,14 +28,6 @@ import type {
   SportApiTopPlayersResponse,
 } from "@/lib/types/sportapi";
 import { addDays, sportApiGet, todayDateString } from "./client";
-
-function referenceLeagueIdFromTournament(uniqueTournamentId?: number): number {
-  if (!uniqueTournamentId) return 39;
-  const entry = Object.entries(SPORTAPI_LEAGUE_MAP).find(
-    ([, v]) => v.uniqueTournamentId === uniqueTournamentId
-  );
-  return entry ? Number(entry[0]) : 39;
-}
 import {
   enrichTeamStatsFromMatchStatistics,
   mapEventToFixture,
@@ -47,6 +39,18 @@ import {
   mapTopScorers,
   parseSeasonYear,
 } from "./mappers";
+
+function referenceLeagueIdFromTournament(uniqueTournamentId?: number): number {
+  if (!uniqueTournamentId) return 39;
+  const entry = Object.entries(SPORTAPI_LEAGUE_MAP).find(
+    ([, v]) => v.uniqueTournamentId === uniqueTournamentId
+  );
+  return entry ? Number(entry[0]) : 39;
+}
+
+function eventMatchesTournament(event: SportApiEvent, uniqueTournamentId: number): boolean {
+  return event.tournament?.uniqueTournament?.id === uniqueTournamentId;
+}
 
 async function getCurrentSeasonId(uniqueTournamentId: number): Promise<number> {
   const data = await sportApiGet<SportApiSeasonsResponse>(
@@ -89,25 +93,57 @@ async function fetchScheduledEventsForDate(date: string): Promise<SportApiEvent[
   return data.events ?? [];
 }
 
-async function fetchUpcomingEventsForTournament(
-  uniqueTournamentId: number,
-  daysAhead = 14
+/** One API call: upcoming events for the current season of a tournament. */
+async function fetchTournamentNextEvents(
+  uniqueTournamentId: number
 ): Promise<SportApiEvent[]> {
-  const start = todayDateString();
-  const dates = Array.from({ length: daysAhead }, (_, i) => addDays(start, i));
-  const batches = await Promise.all(dates.map((d) => fetchScheduledEventsForDate(d)));
-  const all = batches.flat();
+  const seasonId = await getCurrentSeasonId(uniqueTournamentId);
+  const data = await sportApiGet<SportApiScheduledEventsResponse>(
+    `/api/v1/unique-tournament/${uniqueTournamentId}/season/${seasonId}/events/next/0`,
+    `next:${uniqueTournamentId}:${seasonId}`
+  );
+  return (data.events ?? []).filter((e) => eventMatchesTournament(e, uniqueTournamentId));
+}
+
+/**
+ * Fallback: scan forward day-by-day (sequential, not parallel) to save quota.
+ * Stops after finding fixtures or reaching maxDays.
+ */
+async function fetchUpcomingEventsByDateScan(
+  uniqueTournamentId: number,
+  maxDays = 14,
+  targetCount = 20
+): Promise<SportApiEvent[]> {
   const seen = new Set<number>();
   const filtered: SportApiEvent[] = [];
-  for (const event of all) {
-    const tid = event.tournament?.uniqueTournament?.id;
-    if (tid !== uniqueTournamentId || seen.has(event.id)) continue;
-    seen.add(event.id);
-    filtered.push(event);
+
+  for (let i = 0; i < maxDays; i++) {
+    const date = addDays(todayDateString(), i);
+    const events = await fetchScheduledEventsForDate(date);
+    for (const event of events) {
+      if (!eventMatchesTournament(event, uniqueTournamentId) || seen.has(event.id)) {
+        continue;
+      }
+      seen.add(event.id);
+      filtered.push(event);
+    }
+    if (filtered.length >= targetCount) break;
   }
-  return filtered.sort(
-    (a, b) => (a.startTimestamp ?? 0) - (b.startTimestamp ?? 0)
-  );
+
+  return filtered.sort((a, b) => (a.startTimestamp ?? 0) - (b.startTimestamp ?? 0));
+}
+
+async function fetchUpcomingEventsForTournament(
+  uniqueTournamentId: number
+): Promise<SportApiEvent[]> {
+  try {
+    const next = await fetchTournamentNextEvents(uniqueTournamentId);
+    if (next.length) return next;
+  } catch {
+    // try date scan below
+  }
+
+  return fetchUpcomingEventsByDateScan(uniqueTournamentId);
 }
 
 export async function sportApiLookupCountries(): Promise<CountryOption[]> {
@@ -136,9 +172,55 @@ export async function sportApiLookupCountries(): Promise<CountryOption[]> {
   }));
 }
 
-export async function sportApiLookupTeams(referenceLeagueId: number): Promise<TeamOption[]> {
+function collectTeamsFromEvents(events: SportApiEvent[]): TeamOption[] {
+  const byId = new Map<number, string>();
+  for (const event of events) {
+    if (event.homeTeam?.id && event.homeTeam?.name) {
+      byId.set(event.homeTeam.id, event.homeTeam.name);
+    }
+    if (event.awayTeam?.id && event.awayTeam?.name) {
+      byId.set(event.awayTeam.id, event.awayTeam.name);
+    }
+  }
+  return Array.from(byId.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function sportApiLookupTeamsFromEvents(
+  uniqueTournamentId: number
+): Promise<TeamOption[]> {
+  const next = await fetchTournamentNextEvents(uniqueTournamentId);
+  const teams = collectTeamsFromEvents(next);
+  if (teams.length) return teams;
+
+  const seasonId = await getCurrentSeasonId(uniqueTournamentId);
+  const last = await sportApiGet<{ events?: SportApiEvent[] }>(
+    `/api/v1/unique-tournament/${uniqueTournamentId}/season/${seasonId}/events/last/0`,
+    `last:${uniqueTournamentId}:${seasonId}`
+  );
+  return collectTeamsFromEvents(
+    (last.events ?? []).filter((e) => eventMatchesTournament(e, uniqueTournamentId))
+  );
+}
+
+export async function sportApiLookupTeams(
+  referenceLeagueId: number,
+  entityType?: EntityType
+): Promise<TeamOption[]> {
   const mapping = resolveSportApiLeague(referenceLeagueId);
   if (!mapping) return [];
+
+  const effectiveEntity = entityType ?? getLeagueEntityType(referenceLeagueId);
+
+  if (effectiveEntity === "national") {
+    try {
+      const fromEvents = await sportApiLookupTeamsFromEvents(mapping.uniqueTournamentId);
+      if (fromEvents.length) return fromEvents;
+    } catch {
+      // fall through to standings
+    }
+  }
 
   const seasonId = await getCurrentSeasonId(mapping.uniqueTournamentId);
   const standings = await getStandings(mapping.uniqueTournamentId, seasonId);

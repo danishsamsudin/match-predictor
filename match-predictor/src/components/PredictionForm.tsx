@@ -5,14 +5,17 @@ import { Loader2, Sparkles } from "lucide-react";
 import type { PredictionResult } from "@/lib/types/prediction";
 import type {
   CountryOption,
+  EntityType,
   FixtureOption,
   LeagueOption,
   TeamOption,
 } from "@/lib/types/football-lookup";
 import { PredictionResultCard } from "./PredictionResult";
 
-const DEFAULT_COUNTRY = "England";
-const DEFAULT_LEAGUE_ID = 39;
+const DEFAULT_CLUB_COUNTRY = "England";
+const DEFAULT_CLUB_LEAGUE_ID = 39;
+const DEFAULT_NATIONAL_COUNTRY = "International";
+const DEFAULT_NATIONAL_LEAGUE_ID = 1;
 
 function formatFixtureLabel(fixture: FixtureOption): string {
   const kickoff = new Date(fixture.date);
@@ -46,22 +49,25 @@ export function PredictionForm() {
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
 
-  const [matchCountry, setMatchCountry] = useState(DEFAULT_COUNTRY);
+  const [entityType, setEntityType] = useState<EntityType>("club");
+  const [inputMode, setInputMode] = useState<"fixture" | "compare">("fixture");
+
+  const [matchCountry, setMatchCountry] = useState(DEFAULT_CLUB_COUNTRY);
   const [matchLeagues, setMatchLeagues] = useState<LeagueOption[]>([]);
-  const [matchLeagueId, setMatchLeagueId] = useState(String(DEFAULT_LEAGUE_ID));
+  const [matchLeagueId, setMatchLeagueId] = useState(String(DEFAULT_CLUB_LEAGUE_ID));
   const [fixtures, setFixtures] = useState<FixtureOption[]>([]);
   const [selectedFixtureId, setSelectedFixtureId] = useState("");
   const [loadingFixtures, setLoadingFixtures] = useState(false);
 
-  const [homeCountry, setHomeCountry] = useState(DEFAULT_COUNTRY);
+  const [homeCountry, setHomeCountry] = useState(DEFAULT_CLUB_COUNTRY);
   const [homeLeagues, setHomeLeagues] = useState<LeagueOption[]>([]);
-  const [homeLeagueId, setHomeLeagueId] = useState(String(DEFAULT_LEAGUE_ID));
+  const [homeLeagueId, setHomeLeagueId] = useState(String(DEFAULT_CLUB_LEAGUE_ID));
   const [homeTeams, setHomeTeams] = useState<TeamOption[]>([]);
   const [homeTeamId, setHomeTeamId] = useState("33");
 
-  const [awayCountry, setAwayCountry] = useState(DEFAULT_COUNTRY);
+  const [awayCountry, setAwayCountry] = useState("Netherlands");
   const [awayLeagues, setAwayLeagues] = useState<LeagueOption[]>([]);
-  const [awayLeagueId, setAwayLeagueId] = useState(String(DEFAULT_LEAGUE_ID));
+  const [awayLeagueId, setAwayLeagueId] = useState(String(DEFAULT_CLUB_LEAGUE_ID));
   const [awayTeams, setAwayTeams] = useState<TeamOption[]>([]);
   const [awayTeamId, setAwayTeamId] = useState("40");
 
@@ -71,16 +77,21 @@ export function PredictionForm() {
   const [time, setTime] = useState("15:00");
   const [dataMode, setDataMode] = useState<string | null>(null);
   const [fixtureSource, setFixtureSource] = useState<string | null>(null);
+  const [fixtureNotice, setFixtureNotice] = useState<string | null>(null);
 
-  const fetchLeagues = useCallback(async (country: string) => {
-    const res = await fetch(`/api/football/leagues?country=${encodeURIComponent(country)}`);
+  const fetchLeagues = useCallback(async (country: string, type: EntityType) => {
+    const res = await fetch(
+      `/api/football/leagues?country=${encodeURIComponent(country)}&entityType=${type}`
+    );
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to load leagues");
     return data.leagues as LeagueOption[];
   }, []);
 
-  const fetchTeams = useCallback(async (leagueId: number) => {
-    const res = await fetch(`/api/football/teams?league=${leagueId}`);
+  const fetchTeams = useCallback(async (leagueId: number, type: EntityType) => {
+    const res = await fetch(
+      `/api/football/teams?league=${leagueId}&entityType=${type}`
+    );
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to load teams");
     return data.teams as TeamOption[];
@@ -89,9 +100,12 @@ export function PredictionForm() {
   const fetchFixtures = useCallback(async (leagueId: number) => {
     const res = await fetch(`/api/football/fixtures?league=${leagueId}`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Failed to load fixtures");
+    if (!res.ok) {
+      throw new Error(data.error ?? "Failed to load fixtures");
+    }
     setFixtureSource(data.source ?? null);
-    return data.fixtures as FixtureOption[];
+    setFixtureNotice(data.message ?? null);
+    return (data.fixtures ?? []) as FixtureOption[];
   }, []);
 
   const applyFixture = useCallback((fixture: FixtureOption) => {
@@ -122,73 +136,153 @@ export function PredictionForm() {
         }
       })
       .catch(() => {});
-
-    fetch("/api/football/countries")
-      .then((res) => res.json())
-      .then((data) => setCountries(data.countries ?? []))
-      .catch(() => setError("Could not load countries."))
-      .finally(() => setLoadingCountries(false));
   }, []);
 
   useEffect(() => {
-    if (!matchCountry) return;
-    fetchLeagues(matchCountry)
+    let cancelled = false;
+    setLoadingCountries(true);
+    fetch(`/api/football/countries?entityType=${entityType}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setCountries(data.countries ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load countries.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCountries(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entityType]);
+
+  useEffect(() => {
+    setHomeTeams([]);
+    setAwayTeams([]);
+    if (entityType === "national") {
+      setMatchCountry(DEFAULT_NATIONAL_COUNTRY);
+      setHomeCountry(DEFAULT_NATIONAL_COUNTRY);
+      setAwayCountry(DEFAULT_NATIONAL_COUNTRY);
+      setMatchLeagueId(String(DEFAULT_NATIONAL_LEAGUE_ID));
+      setHomeLeagueId(String(DEFAULT_NATIONAL_LEAGUE_ID));
+      setAwayLeagueId(String(DEFAULT_NATIONAL_LEAGUE_ID));
+      setHomeTeamId("4748");
+      setAwayTeamId("4710");
+      setInputMode("compare");
+    } else {
+      setMatchCountry(DEFAULT_CLUB_COUNTRY);
+      setHomeCountry(DEFAULT_CLUB_COUNTRY);
+      setAwayCountry("Netherlands");
+      setMatchLeagueId(String(DEFAULT_CLUB_LEAGUE_ID));
+      setHomeLeagueId(String(DEFAULT_CLUB_LEAGUE_ID));
+      setAwayLeagueId(String(DEFAULT_CLUB_LEAGUE_ID));
+      setHomeTeamId("33");
+      setAwayTeamId("194");
+    }
+    setMatchId("");
+    setSelectedFixtureId("");
+  }, [entityType]);
+
+  useEffect(() => {
+    if (!matchCountry || inputMode !== "fixture") return;
+    let cancelled = false;
+    fetchLeagues(matchCountry, entityType)
       .then((leagues) => {
+        if (cancelled) return;
         setMatchLeagues(leagues);
         const hasCurrent = leagues.some((l) => String(l.id) === matchLeagueId);
         if (!hasCurrent && leagues.length) {
           setMatchLeagueId(String(leagues[0].id));
         }
       })
-      .catch(() => setError("Could not load leagues."));
-  }, [matchCountry, fetchLeagues, matchLeagueId]);
+      .catch(() => {
+        if (!cancelled) setError("Could not load leagues.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [matchCountry, fetchLeagues, matchLeagueId, entityType, inputMode]);
 
   useEffect(() => {
     if (!homeCountry) return;
-    fetchLeagues(homeCountry)
-      .then(setHomeLeagues)
-      .catch(() => setError("Could not load home leagues."));
-  }, [homeCountry, fetchLeagues]);
+    let cancelled = false;
+    fetchLeagues(homeCountry, entityType)
+      .then((leagues) => {
+        if (!cancelled) setHomeLeagues(leagues);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load home leagues.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [homeCountry, fetchLeagues, entityType]);
 
   useEffect(() => {
     if (!awayCountry) return;
-    fetchLeagues(awayCountry)
-      .then(setAwayLeagues)
-      .catch(() => setError("Could not load away leagues."));
-  }, [awayCountry, fetchLeagues]);
+    let cancelled = false;
+    fetchLeagues(awayCountry, entityType)
+      .then((leagues) => {
+        if (!cancelled) setAwayLeagues(leagues);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load away leagues.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [awayCountry, fetchLeagues, entityType]);
 
   useEffect(() => {
     const leagueId = Number(homeLeagueId);
     if (!Number.isFinite(leagueId)) return;
-    fetchTeams(leagueId)
+    let cancelled = false;
+    fetchTeams(leagueId, entityType)
       .then((teams) => {
+        if (cancelled) return;
         setHomeTeams(teams);
         if (!teams.some((t) => String(t.id) === homeTeamId) && teams.length) {
           setHomeTeamId(String(teams[0].id));
         }
       })
-      .catch(() => setError("Could not load home teams."));
-  }, [homeLeagueId, fetchTeams, homeTeamId]);
+      .catch(() => {
+        if (!cancelled) setError("Could not load home teams.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [homeLeagueId, fetchTeams, homeTeamId, entityType]);
 
   useEffect(() => {
     const leagueId = Number(awayLeagueId);
     if (!Number.isFinite(leagueId)) return;
-    fetchTeams(leagueId)
+    let cancelled = false;
+    fetchTeams(leagueId, entityType)
       .then((teams) => {
+        if (cancelled) return;
         setAwayTeams(teams);
         if (!teams.some((t) => String(t.id) === awayTeamId) && teams.length) {
           setAwayTeamId(String(teams[0].id));
         }
       })
-      .catch(() => setError("Could not load away teams."));
-  }, [awayLeagueId, fetchTeams, awayTeamId]);
+      .catch(() => {
+        if (!cancelled) setError("Could not load away teams.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [awayLeagueId, fetchTeams, awayTeamId, entityType]);
 
   useEffect(() => {
+    if (inputMode !== "fixture") return;
     const leagueId = Number(matchLeagueId);
     if (!Number.isFinite(leagueId)) return;
+    let cancelled = false;
     setLoadingFixtures(true);
     fetchFixtures(leagueId)
       .then((list) => {
+        if (cancelled) return;
         setFixtures(list);
         if (list.length) {
           const defaultFixture = list[0];
@@ -197,9 +291,21 @@ export function PredictionForm() {
           setSelectedFixtureId("");
         }
       })
-      .catch(() => setError("Could not load upcoming matches."))
-      .finally(() => setLoadingFixtures(false));
-  }, [matchLeagueId, fetchFixtures, applyFixture]);
+      .catch(async (err) => {
+        if (cancelled) return;
+        setFixtures([]);
+        setFixtureNotice(null);
+        setError(
+          err instanceof Error ? err.message : "Could not load upcoming matches."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingFixtures(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [matchLeagueId, fetchFixtures, applyFixture, inputMode]);
 
   function syncFixtureFromTeams(
     homeId: string,
@@ -229,13 +335,26 @@ export function PredictionForm() {
 
   function handleHomeTeamChange(teamId: string) {
     setHomeTeamId(teamId);
-    syncFixtureFromTeams(teamId, awayTeamId);
+    if (inputMode === "fixture") {
+      syncFixtureFromTeams(teamId, awayTeamId);
+    } else {
+      setMatchId("");
+      setSelectedFixtureId("");
+    }
   }
 
   function handleAwayTeamChange(teamId: string) {
     setAwayTeamId(teamId);
-    syncFixtureFromTeams(homeTeamId, teamId);
+    if (inputMode === "fixture") {
+      syncFixtureFromTeams(homeTeamId, teamId);
+    } else {
+      setMatchId("");
+      setSelectedFixtureId("");
+    }
   }
+
+  const homeLeagueName = homeLeagues.find((l) => String(l.id) === homeLeagueId)?.name;
+  const awayLeagueName = awayLeagues.find((l) => String(l.id) === awayLeagueId)?.name;
 
   const homeTeamName = homeTeams.find((t) => String(t.id) === homeTeamId)?.name;
   const awayTeamName = awayTeams.find((t) => String(t.id) === awayTeamId)?.name;
@@ -247,13 +366,33 @@ export function PredictionForm() {
     setResult(null);
 
     const matchDate = `${date}T${time}:00.000Z`;
-    const payload = {
-      matchId: Number(matchId),
-      homeTeamId: Number(homeTeamId),
-      awayTeamId: Number(awayTeamId),
-      city,
-      matchDate,
-    };
+    const payload =
+      inputMode === "compare"
+        ? {
+            mode: "compare" as const,
+            homeTeamId: Number(homeTeamId),
+            awayTeamId: Number(awayTeamId),
+            homeLeagueId: Number(homeLeagueId),
+            awayLeagueId: Number(awayLeagueId),
+            entityType,
+            homeTeamName: homeTeamName ?? undefined,
+            awayTeamName: awayTeamName ?? undefined,
+            city,
+            matchDate,
+          }
+        : {
+            mode: "fixture" as const,
+            matchId: Number(matchId),
+            homeTeamId: Number(homeTeamId),
+            awayTeamId: Number(awayTeamId),
+            homeLeagueId: Number(homeLeagueId),
+            awayLeagueId: Number(awayLeagueId),
+            entityType,
+            homeTeamName: homeTeamName ?? undefined,
+            awayTeamName: awayTeamName ?? undefined,
+            city,
+            matchDate,
+          };
 
     try {
       const res = await fetch("/api/predict", {
@@ -280,9 +419,32 @@ export function PredictionForm() {
         onSubmit={handleSubmit}
         className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <div className="mb-6 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-emerald-600" />
-          <h2 className="text-lg font-semibold">Match Details</h2>
+        <div className="mb-6 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-emerald-600" />
+            <h2 className="text-lg font-semibold">Match Details</h2>
+          </div>
+        </div>
+
+        <div className="mb-6 grid gap-4 sm:grid-cols-2">
+          <ToggleField
+            label="Entity type"
+            value={entityType}
+            onChange={(v) => setEntityType(v as EntityType)}
+            options={[
+              { value: "club", label: "Clubs" },
+              { value: "national", label: "National teams" },
+            ]}
+          />
+          <ToggleField
+            label="Input mode"
+            value={inputMode}
+            onChange={(v) => setInputMode(v as "fixture" | "compare")}
+            options={[
+              { value: "fixture", label: "Find a fixture", disabled: entityType === "national" },
+              { value: "compare", label: "Compare any two teams" },
+            ]}
+          />
         </div>
 
         {dataMode && (
@@ -292,12 +454,19 @@ export function PredictionForm() {
           </div>
         )}
 
-        {fixtureSource && fixtureSource !== "live" && !dataMode && (
+        {fixtureNotice && (
+          <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+            {fixtureNotice}
+          </div>
+        )}
+
+        {fixtureSource && fixtureSource !== "live" && !dataMode && !fixtureNotice && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
             Fixtures are from <strong>{fixtureSource}</strong> data, not SportAPI7 live. Subscribe on RapidAPI or fix your API key.
           </div>
         )}
 
+        {inputMode === "fixture" && entityType === "club" && (
         <section className="space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -340,17 +509,21 @@ export function PredictionForm() {
             placeholder={loadingFixtures ? "Loading matches…" : "Select a match"}
           />
         </section>
+        )}
 
+        {inputMode === "fixture" && entityType === "club" && (
         <div className="my-6 border-t border-zinc-200 dark:border-zinc-800" />
+        )}
 
         <section className="space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Or choose teams manually
+              {inputMode === "compare" ? "Choose teams to compare" : "Or choose teams manually"}
             </h3>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              Select country, competition, and team for each side. Changing teams clears the
-              match selection above.
+              {inputMode === "compare"
+                ? "Pick any two clubs or countries from different leagues — stats are loaded per team."
+                : "Select country, competition, and team for each side."}
             </p>
           </div>
 
@@ -384,9 +557,19 @@ export function PredictionForm() {
 
           {(homeTeamName || awayTeamName) && (
             <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
-              <span className="font-medium">{homeTeamName ?? "Home team"}</span>
+              <span className="font-medium">
+                {homeTeamName ?? "Home team"}
+                {homeLeagueName && (
+                  <span className="ml-1 text-xs font-normal opacity-75">· {homeLeagueName}</span>
+                )}
+              </span>
               <span className="mx-2 text-emerald-600 dark:text-emerald-400">vs</span>
-              <span className="font-medium">{awayTeamName ?? "Away team"}</span>
+              <span className="font-medium">
+                {awayTeamName ?? "Away team"}
+                {awayLeagueName && (
+                  <span className="ml-1 text-xs font-normal opacity-75">· {awayLeagueName}</span>
+                )}
+              </span>
             </div>
           )}
         </section>
@@ -412,7 +595,12 @@ export function PredictionForm() {
 
         <button
           type="submit"
-          disabled={loading || !matchId || !homeTeamId || !awayTeamId}
+          disabled={
+            loading ||
+            !homeTeamId ||
+            !awayTeamId ||
+            (inputMode === "fixture" && !matchId)
+          }
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60 sm:w-auto sm:px-8"
         >
           {loading ? (
@@ -500,6 +688,41 @@ function TeamPicker({
           options={teams.map((t) => ({ value: String(t.id), label: t.name }))}
           placeholder="Team"
         />
+      </div>
+    </div>
+  );
+}
+
+function ToggleField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string; disabled?: boolean }>;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
+      <div className="flex rounded-lg border border-zinc-200 p-1 dark:border-zinc-700">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            disabled={option.disabled}
+            onClick={() => onChange(option.value)}
+            className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition sm:text-sm ${
+              value === option.value
+                ? "bg-emerald-600 text-white"
+                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            } disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
     </div>
   );

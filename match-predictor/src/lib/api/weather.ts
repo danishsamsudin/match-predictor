@@ -1,5 +1,7 @@
 import axios from "axios";
 import { shouldUseMockApis } from "@/lib/config/api-mode";
+import { useSupabaseDataStore } from "@/lib/config/data-source";
+import { loadWeatherFromStore } from "@/lib/data/football-store";
 import { createRapidApiClient, getWeatherRapidApiHost } from "@/lib/config/rapidapi";
 import { cachedFetch, DAILY_LIMITS, TTL } from "@/lib/cache/api-cache";
 import {
@@ -67,10 +69,15 @@ function selectForecastType(matchDate: string): "hourly" | "three_hour" {
 
 export async function getWeatherForecast(
   city: string,
-  matchDate: string
+  matchDate: string,
+  options?: { allowLive?: boolean }
 ): Promise<WeatherForecast> {
   if (shouldUseMockApis()) {
     return getMockWeatherForecast(city);
+  }
+
+  if (useSupabaseDataStore() && !options?.allowLive) {
+    return loadWeatherFromStore(city, matchDate);
   }
 
   const dateOnly = matchDate.slice(0, 10);

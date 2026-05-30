@@ -1,5 +1,7 @@
 import { shouldUseMockApis } from "@/lib/config/api-mode";
+import { useSupabaseDataStore } from "@/lib/config/data-source";
 import { usesSportApi } from "@/lib/config/football-provider";
+import { loadFootballBundleFromStore } from "@/lib/data/football-store";
 import {
   sportApiFetchFootballBundle,
   sportApiGetFixture,
@@ -13,7 +15,9 @@ import {
 import { createRapidApiClient, getApiFootballRapidApiHost } from "@/lib/config/rapidapi";
 import axios from "axios";
 import { cachedFetch, DAILY_LIMITS, TTL } from "@/lib/cache/api-cache";
+import { fetchComparisonBundle } from "@/lib/api/football-comparison";
 import { getMockFootballBundle } from "@/lib/mocks/football";
+import { getTeamName } from "@/lib/data/football-reference";
 import type {
   ApiFootballResponse,
   Fixture,
@@ -24,7 +28,7 @@ import type {
   TeamStatistics,
   TopScorer,
 } from "@/lib/types/football";
-import { UpstreamApiError } from "@/lib/types/prediction";
+import { UpstreamApiError, type PredictRequest } from "@/lib/types/prediction";
 
 function getFootballClient() {
   return createRapidApiClient(getApiFootballRapidApiHost(), { timeout: 15000 });
@@ -180,12 +184,46 @@ export async function getTeamInfo(
 }
 
 export async function fetchFootballBundle(
-  matchId: number,
-  homeTeamId: number,
-  awayTeamId: number
+  input: PredictRequest
 ): Promise<FootballBundle> {
+  const { matchId, homeTeamId, awayTeamId, homeLeagueId, awayLeagueId, entityType, city, matchDate, mode } =
+    input;
+
+  if (mode === "compare") {
+    if (!homeLeagueId || !awayLeagueId) {
+      throw new UpstreamApiError("Compare mode requires homeLeagueId and awayLeagueId.");
+    }
+    const homeTeamName =
+      input.homeTeamName?.trim() ||
+      getTeamName(homeTeamId, homeLeagueId) ||
+      `Team ${homeTeamId}`;
+    const awayTeamName =
+      input.awayTeamName?.trim() ||
+      getTeamName(awayTeamId, awayLeagueId) ||
+      `Team ${awayTeamId}`;
+
+    return fetchComparisonBundle({
+      homeTeamId,
+      awayTeamId,
+      homeLeagueId,
+      awayLeagueId,
+      homeTeamName,
+      awayTeamName,
+      entityType,
+      city,
+      matchDate,
+    });
+  }
+
+  if (!matchId) {
+    throw new UpstreamApiError("Fixture mode requires matchId.");
+  }
+
   if (shouldUseMockApis()) {
     return getMockFootballBundle(matchId, homeTeamId, awayTeamId);
+  }
+  if (useSupabaseDataStore()) {
+    return loadFootballBundleFromStore(matchId, homeTeamId, awayTeamId);
   }
   if (usesSportApi()) {
     return sportApiFetchFootballBundle(matchId, homeTeamId, awayTeamId);

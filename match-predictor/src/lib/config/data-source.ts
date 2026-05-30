@@ -1,0 +1,56 @@
+import { serverEnv } from "@/lib/env/server-env";
+import { getAllSyncLeagueIds, getLeaguesBySyncTier } from "@/lib/data/football-reference";
+
+/** When true, predictions and lookups read Supabase tables only — no RapidAPI calls. */
+export function useSupabaseDataStore(): boolean {
+  const raw = serverEnv.dataSource?.toLowerCase();
+  return raw === "supabase" || serverEnv.useSupabaseData;
+}
+
+export function getSyncIntervalDays(): number {
+  const n = Number(process.env.SYNC_INTERVAL_DAYS ?? "2");
+  return Number.isFinite(n) && n > 0 ? n : 2;
+}
+
+export function getSyncLeagueIds(): number[] {
+  const raw = process.env.SYNC_LEAGUE_IDS;
+  if (raw?.trim().toLowerCase() === "all") {
+    return getAllSyncLeagueIds();
+  }
+  if (raw?.trim()) {
+    return raw
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n));
+  }
+  return getLeaguesBySyncTier(1).map((league) => league.id);
+}
+
+export function getAllSyncLeagueIdsFromConfig(): number[] {
+  return getAllSyncLeagueIds();
+}
+
+export function getSyncMaxMatchesPerLeague(): number {
+  const n = Number(process.env.SYNC_MAX_MATCHES_PER_LEAGUE ?? "3");
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 10) : 3;
+}
+
+export function getSyncApiBudget(): number {
+  const n = Number(process.env.FOOTBALL_DAILY_API_LIMIT ?? process.env.SYNC_API_BUDGET ?? "10");
+  return Number.isFinite(n) && n > 0 ? n : 10;
+}
+
+export function getFootballDailyApiLimit(): number {
+  return getSyncApiBudget();
+}
+
+/** Hour (0–23 UTC) when the daily sync is allowed to run. */
+export function getSyncCronHourUtc(): number {
+  const n = Number(process.env.SYNC_CRON_HOUR_UTC ?? "6");
+  if (!Number.isFinite(n)) return 6;
+  return Math.min(23, Math.max(0, Math.floor(n)));
+}
+
+export function getSyncCronSecret(): string | undefined {
+  return process.env.SYNC_CRON_SECRET?.trim() || undefined;
+}

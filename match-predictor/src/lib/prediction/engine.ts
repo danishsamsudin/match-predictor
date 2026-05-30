@@ -62,10 +62,10 @@ function normalizeTo100(
 }
 
 export async function runPrediction(input: PredictRequest): Promise<PredictionResult> {
-  const { matchId, homeTeamId, awayTeamId, city, matchDate } = input;
+  const { homeTeamId, awayTeamId, city, matchDate } = input;
 
   const [bundle, weather] = await Promise.all([
-    fetchFootballBundle(matchId, homeTeamId, awayTeamId),
+    fetchFootballBundle(input),
     getWeatherForecast(city, matchDate),
   ]);
 

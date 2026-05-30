@@ -6,7 +6,7 @@ import {
   normalizeRapidApiHost,
 } from "@/lib/config/rapidapi";
 import { cachedFetch, DAILY_LIMITS, TTL } from "@/lib/cache/api-cache";
-import { UpstreamApiError } from "@/lib/types/prediction";
+import { RateLimitError, UpstreamApiError } from "@/lib/types/prediction";
 
 export function getSportApiHost(): string {
   return getSportApiRapidApiHost();
@@ -18,6 +18,20 @@ export function getSportApiBaseUrl(): string {
 
 function getSportApiClient() {
   return createRapidApiClient(getSportApiRapidApiHost(), { timeout: 20000 });
+}
+
+function assertSportApiBody<T>(data: T): T {
+  if (!data || typeof data !== "object") return data;
+  const msg = (data as { message?: string }).message;
+  if (!msg) return data;
+  const lower = msg.toLowerCase();
+  if (lower.includes("quota") || lower.includes("rate limit")) {
+    throw new RateLimitError(msg);
+  }
+  if (lower.includes("not subscribed") || lower.includes("does not exist")) {
+    throw new UpstreamApiError(msg);
+  }
+  return data;
 }
 
 function formatSportApiError(error: unknown): string {
@@ -34,6 +48,9 @@ function formatSportApiError(error: unknown): string {
     if (status === 429) {
       return msg ?? "SportAPI7 rate limit exceeded on RapidAPI.";
     }
+    if (msg?.toLowerCase().includes("quota")) {
+      return msg;
+    }
     if (msg) return `SportAPI7 error (${status ?? "unknown"}): ${msg}`;
     return `SportAPI7 request failed (${status ?? "network"}): ${ax.message}`;
   }
@@ -49,8 +66,11 @@ export async function sportApiGet<T>(
     try {
       const client = getSportApiClient();
       const response = await client.get<T>(path);
-      return response.data;
+      return assertSportApiBody(response.data);
     } catch (error) {
+      if (error instanceof RateLimitError || error instanceof UpstreamApiError) {
+        throw error;
+      }
       throw new UpstreamApiError(formatSportApiError(error));
     }
   };

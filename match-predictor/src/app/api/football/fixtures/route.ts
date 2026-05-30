@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { fixtures, source } = await lookupFixtures(leagueId);
-    return NextResponse.json({ fixtures, source });
+    const { fixtures, source, message } = await lookupFixtures(leagueId);
+    return NextResponse.json({ fixtures, source, message });
   } catch (error) {
     if (error instanceof RateLimitError) {
       return NextResponse.json({ error: error.message }, { status: 429 });
