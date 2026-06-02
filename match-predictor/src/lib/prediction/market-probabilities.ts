@@ -4,6 +4,11 @@ import type { OverUnderLine, PredictionAnalytics, ScoreCell } from "@/lib/types/
 
 export type { PredictionAnalytics, ScoreCell };
 
+export interface OutcomeProbabilityOptions {
+  /** Dixon-Coles correlation ρ; negative values inflate low-score draw mass. */
+  correlation?: number;
+}
+
 function factorial(n: number): number {
   if (n <= 1) return 1;
   return n * factorial(n - 1);
@@ -13,18 +18,47 @@ function poissonPmf(k: number, lambda: number): number {
   return (Math.exp(-lambda) * Math.pow(lambda, k)) / factorial(k);
 }
 
+/** Dixon-Coles adjustment τ for low-score correlation (ρ typically −0.1 to −0.2). */
+function dixonColesTau(
+  homeGoals: number,
+  awayGoals: number,
+  homeXg: number,
+  awayXg: number,
+  rho: number
+): number {
+  if (homeGoals === 0 && awayGoals === 0) return 1 - homeXg * awayXg * rho;
+  if (homeGoals === 0 && awayGoals === 1) return 1 + homeXg * rho;
+  if (homeGoals === 1 && awayGoals === 0) return 1 + awayXg * rho;
+  if (homeGoals === 1 && awayGoals === 1) return 1 - rho;
+  return 1;
+}
+
+function scoreProbability(
+  homeGoals: number,
+  awayGoals: number,
+  homeXg: number,
+  awayXg: number,
+  rho = 0
+): number {
+  const base = poissonPmf(homeGoals, homeXg) * poissonPmf(awayGoals, awayXg);
+  if (rho === 0) return base;
+  return base * dixonColesTau(homeGoals, awayGoals, homeXg, awayXg, rho);
+}
+
 export function buildScoreMatrix(
   homeXg: number,
   awayXg: number,
-  maxGoals = 6
+  maxGoals = 6,
+  options?: OutcomeProbabilityOptions
 ): ScoreCell[] {
+  const rho = options?.correlation ?? 0;
   const cells: ScoreCell[] = [];
   for (let h = 0; h <= maxGoals; h++) {
     for (let a = 0; a <= maxGoals; a++) {
       cells.push({
         home: h,
         away: a,
-        probability: poissonPmf(h, homeXg) * poissonPmf(a, awayXg),
+        probability: scoreProbability(h, a, homeXg, awayXg, rho),
       });
     }
   }
@@ -35,15 +69,17 @@ export function buildScoreMatrix(
 export function computeOutcomeProbabilities(
   homeXg: number,
   awayXg: number,
-  maxGoals = 8
+  maxGoals = 8,
+  options?: OutcomeProbabilityOptions
 ): { homeWin: number; draw: number; awayWin: number } {
+  const rho = options?.correlation ?? 0;
   let homeWin = 0;
   let draw = 0;
   let awayWin = 0;
 
   for (let h = 0; h <= maxGoals; h++) {
     for (let a = 0; a <= maxGoals; a++) {
-      const p = poissonPmf(h, homeXg) * poissonPmf(a, awayXg);
+      const p = scoreProbability(h, a, homeXg, awayXg, rho);
       if (h > a) homeWin += p;
       else if (h === a) draw += p;
       else awayWin += p;
@@ -56,6 +92,19 @@ export function computeOutcomeProbabilities(
     draw: draw / total,
     awayWin: awayWin / total,
   };
+}
+
+/** ρ for high-stakes low-scoring cup ties; more negative ⇒ higher draw mass. */
+export function resolveCupFinalCorrelation(
+  homeXg: number,
+  awayXg: number,
+  isHighStakesCup: boolean
+): number {
+  if (!isHighStakesCup) return 0;
+  const totalXg = homeXg + awayXg;
+  if (totalXg >= 3.2) return -0.08;
+  if (totalXg >= 2.6) return -0.12;
+  return -0.18;
 }
 
 function roundPct(n: number): number {
@@ -75,9 +124,11 @@ export function computeMarketAnalytics(
     modelImpact: PredictionAnalytics["modelImpact"];
     statComparison: PredictionAnalytics["statComparison"];
     heatmapMaxGoals?: number;
+    correlation?: number;
   }
 ): PredictionAnalytics {
-  const matrix = buildScoreMatrix(homeXg, awayXg, opts.heatmapMaxGoals ?? 4);
+  const scoreOptions = { correlation: opts.correlation ?? 0 };
+  const matrix = buildScoreMatrix(homeXg, awayXg, opts.heatmapMaxGoals ?? 4, scoreOptions);
   const topScores = [...matrix]
     .sort((a, b) => b.probability - a.probability)
     .slice(0, 8)

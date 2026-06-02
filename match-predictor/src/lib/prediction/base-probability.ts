@@ -21,7 +21,7 @@ const CORNER_XG_BASELINE = 2.7;
  * then momentum-adjusted tilde-xG (λ̃, μ̃).
  */
 export function computeBaseProbability(input: BaseProbabilityInput): BaseProbabilityOutput {
-  const { homeStats, awayStats } = input;
+  const { homeStats, awayStats, isNeutralVenue = false } = input;
 
   const homeAttack = homeStats.goalsFor / LEAGUE_AVG_GOALS;
   const homeDefense = homeStats.goalsAgainst / LEAGUE_AVG_GOALS;
@@ -30,10 +30,13 @@ export function computeBaseProbability(input: BaseProbabilityInput): BaseProbabi
 
   const combinedStrength = computeMomentumIndex(input);
 
+  const gammaHome = isNeutralVenue ? 0 : GAMMA_HOME;
+  const gammaAway = isNeutralVenue ? 0 : GAMMA_AWAY;
+
   const homeXg =
-    homeAttack * awayDefense * LEAGUE_AVG_GOALS * (1 + GAMMA_HOME * combinedStrength);
+    homeAttack * awayDefense * LEAGUE_AVG_GOALS * (1 + gammaHome * combinedStrength);
   const awayXg =
-    awayAttack * homeDefense * LEAGUE_AVG_GOALS * (1 - GAMMA_AWAY * combinedStrength);
+    awayAttack * homeDefense * LEAGUE_AVG_GOALS * (1 - gammaAway * combinedStrength);
 
   const totalMatchXg = homeXg + awayXg;
 

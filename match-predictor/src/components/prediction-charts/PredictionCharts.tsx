@@ -175,31 +175,62 @@ function ScoreHeatmap({
   );
 }
 
+function formatFormMatchDate(isoDate: string): string {
+  const kickoff = new Date(`${isoDate}T12:00:00`);
+  if (Number.isNaN(kickoff.getTime())) return isoDate;
+  return kickoff.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function FormResultBadge({ result }: { result: TeamFormMatch["result"] }) {
+  const styles =
+    result === "W"
+      ? "bg-primary/15 text-primary-emphasis ring-primary/25"
+      : result === "L"
+        ? "bg-red-500/15 text-red-600 ring-red-500/25 dark:text-red-400"
+        : result === "D"
+          ? "bg-foreground/10 text-muted ring-foreground/15"
+          : "bg-foreground/5 text-muted ring-foreground/10";
+
+  return (
+    <span
+      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ring-1 ${styles}`}
+    >
+      {result}
+    </span>
+  );
+}
+
 function FormStrip({ matches }: { matches: TeamFormMatch[] }) {
-  if (!matches.length) {
+  const recent = matches.slice(0, 5);
+
+  if (!recent.length) {
     return <p className="text-xs text-muted">No recent form data</p>;
   }
 
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {matches.slice(0, 5).map((m) => {
-        const color =
-          m.result === "W"
-            ? "bg-primary/20 text-primary-emphasis ring-primary/30"
-            : m.result === "L"
-              ? "bg-red-500/15 text-red-600 ring-red-500/25 dark:text-red-400"
-              : "bg-foreground/10 text-muted ring-foreground/15";
-        return (
-          <div
-            key={`${m.date}-${m.opponent}`}
-            className={`flex h-9 min-w-[2.25rem] flex-col items-center justify-center rounded-lg px-1.5 text-center ring-1 ${color}`}
-            title={`${m.opponent} (${m.score})`}
-          >
-            <span className="text-xs font-bold">{m.result}</span>
+    <ul className="space-y-1.5">
+      {recent.map((m) => (
+        <li
+          key={`${m.date}-${m.opponent}-${m.score}`}
+          className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/15 px-2 py-1.5 dark:border-slate-800/50 dark:bg-slate-900/25"
+        >
+          <FormResultBadge result={m.result} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium text-foreground">{m.opponent}</p>
+            <time className="text-[11px] text-muted" dateTime={m.date}>
+              {formatFormMatchDate(m.date)}
+            </time>
           </div>
-        );
-      })}
-    </div>
+          <span className="shrink-0 self-center text-xs font-semibold tabular-nums tracking-wide text-foreground">
+            {m.score}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -531,7 +562,7 @@ function FormTrendSection({
   return (
     <ChartCard
       title="Recent form timeline"
-      description="Last five results — W win, D draw, L loss (from this team's perspective)."
+      description="Last five matches — date, opponent, and score from this team's perspective (W/D/L badge)."
     >
       <div className="grid gap-6 sm:grid-cols-2">
         <div>

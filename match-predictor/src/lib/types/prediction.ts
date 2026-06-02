@@ -95,6 +95,8 @@ export interface BaseProbabilityInput {
   awayLeagueStrength: number;
   homeStats: TeamStatAverages;
   awayStats: TeamStatAverages;
+  /** When true, suppress asymmetric home/away momentum tilts (neutral venue). */
+  isNeutralVenue?: boolean;
 }
 
 export interface BaseProbabilityOutput {

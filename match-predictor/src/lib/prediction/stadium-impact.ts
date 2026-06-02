@@ -1,33 +1,73 @@
 import type { GeoPoint, StadiumImpactResult } from "@/lib/types/prediction";
 import { getStadiumAltitude, haversineKm } from "@/lib/utils/geo";
 
+export interface TeamTravelContext {
+  city: string;
+  homeLocation: GeoPoint | null;
+}
+
+function applyTravelFatigue(
+  distanceKm: number,
+  city: string,
+  side: "home" | "away",
+  notes: string[]
+): number {
+  if (distanceKm > 1500) {
+    notes.push(
+      `${side === "home" ? "Home" : "Away"} team travel distance ~${Math.round(distanceKm)} km from ${city} reduces xG by 5% (δ_travel = 0.95).`
+    );
+    return 0.95;
+  }
+  if (distanceKm > 500) {
+    notes.push(
+      `Moderate ${side} travel (~${Math.round(distanceKm)} km from ${city}) — within secondary fatigue band.`
+    );
+    return 0.98;
+  }
+  return 1;
+}
+
 export function computeStadiumImpact(
   venueName: string,
-  awayHomeCity: string,
   matchLocation: GeoPoint,
-  awayHomeLocation: GeoPoint | null
+  homeTeam: TeamTravelContext,
+  awayTeam: TeamTravelContext,
+  options?: { isNeutralVenue?: boolean }
 ): StadiumImpactResult {
   let homeXgMultiplier = 1;
   let awayXgMultiplier = 1;
   let foulsMultiplier = 1;
   let cardsMultiplier = 1;
   const notes: string[] = [];
+  const isNeutral = options?.isNeutralVenue ?? false;
 
-  if (awayHomeLocation) {
+  if (isNeutral) {
+    if (homeTeam.homeLocation) {
+      const distance = haversineKm(
+        homeTeam.homeLocation.lat,
+        homeTeam.homeLocation.lon,
+        matchLocation.lat,
+        matchLocation.lon
+      );
+      homeXgMultiplier *= applyTravelFatigue(distance, homeTeam.city, "home", notes);
+    }
+    if (awayTeam.homeLocation) {
+      const distance = haversineKm(
+        awayTeam.homeLocation.lat,
+        awayTeam.homeLocation.lon,
+        matchLocation.lat,
+        matchLocation.lon
+      );
+      awayXgMultiplier *= applyTravelFatigue(distance, awayTeam.city, "away", notes);
+    }
+  } else if (awayTeam.homeLocation) {
     const distance = haversineKm(
-      awayHomeLocation.lat,
-      awayHomeLocation.lon,
+      awayTeam.homeLocation.lat,
+      awayTeam.homeLocation.lon,
       matchLocation.lat,
       matchLocation.lon
     );
-    if (distance > 1500) {
-      awayXgMultiplier *= 0.95;
-      notes.push(
-        `Away team travel distance ~${Math.round(distance)} km from ${awayHomeCity} reduces away xG by 5% (δ_travel = 0.95).`
-      );
-    } else if (distance > 500) {
-      notes.push(`Moderate away travel (~${Math.round(distance)} km) - within fatigue threshold.`);
-    }
+    awayXgMultiplier *= applyTravelFatigue(distance, awayTeam.city, "away", notes);
   }
 
   const altitude = getStadiumAltitude(venueName);
@@ -41,8 +81,10 @@ export function computeStadiumImpact(
     );
   }
 
-  if (notes.length === 0) {
-    notes.push(`Standard stadium conditions at ${venueName} - no significant travel or altitude effects.`);
+  if (isNeutral && notes.length === 0) {
+    notes.push(`Neutral venue at ${venueName} — travel distances within fatigue threshold for both teams.`);
+  } else if (notes.length === 0) {
+    notes.push(`Standard stadium conditions at ${venueName} — no significant travel or altitude effects.`);
   }
 
   return { homeXgMultiplier, awayXgMultiplier, foulsMultiplier, cardsMultiplier, notes };

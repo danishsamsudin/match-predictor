@@ -219,6 +219,16 @@ export function getTeamCity(teamId: number): string {
   return TEAM_CITIES[teamId] ?? "London";
 }
 
+/** Domestic league id for a club team, when registered in reference data. */
+export function resolveDomesticLeagueId(teamId: number): number | undefined {
+  for (const league of FOOTBALL_LEAGUES) {
+    if (league.type !== "League" || league.entityType !== "club") continue;
+    const teams = TEAMS_BY_LEAGUE[league.id] ?? [];
+    if (teams.some((t) => t.id === teamId)) return league.id;
+  }
+  return undefined;
+}
+
 export function getTeamName(teamId: number, leagueId?: number): string | undefined {
   if (leagueId !== undefined) {
     const team = getTeamsByLeague(leagueId).find((t) => t.id === teamId);

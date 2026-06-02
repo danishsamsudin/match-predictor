@@ -259,7 +259,11 @@ export async function fetchFootballBundle(
   };
 }
 
-export function parseTeamStats(stats: TeamStatistics, isHome: boolean): {
+export function parseTeamStats(
+  stats: TeamStatistics,
+  isHome: boolean,
+  options?: { useTotal?: boolean }
+): {
   goalsFor: number;
   goalsAgainst: number;
   corners: number;
@@ -268,7 +272,7 @@ export function parseTeamStats(stats: TeamStatistics, isHome: boolean): {
   redCards: number;
   shotsOnTarget: number;
 } {
-  const side = isHome ? "home" : "away";
+  const side = options?.useTotal ? "total" : isHome ? "home" : "away";
   const yellowTotal = Object.values(stats.cards.yellow).reduce(
     (sum, v) => sum + (v.total ?? 0),
     0
