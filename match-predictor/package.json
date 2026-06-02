@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:live": "bash scripts/test-live-apis.sh"
+    "logos:download": "node scripts/download-team-logos.mjs",
+    "test:live": "bash scripts/test-live-apis.sh",
+    "soccerdata:install": "python3 -m pip install -r services/soccerdata/requirements.txt",
+    "soccerdata:populate": "bash scripts/soccerdata-populate.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

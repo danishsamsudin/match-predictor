@@ -1,11 +1,12 @@
 import { shouldUseMockApis } from "@/lib/config/api-mode";
-import { useSupabaseDataStore } from "@/lib/config/data-source";
+import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { usesSportApi } from "@/lib/config/football-provider";
 import {
   loadFixturesFromStore,
   loadLeaguesFromReference,
   loadTeamsFromStore,
 } from "@/lib/data/football-store";
+import { importFixturesFromFbref } from "@/lib/soccerdata/import-fixtures";
 import { syncLeagueFixturesToStore } from "@/lib/sync/sync-league-fixtures";
 import {
   sportApiLookupCountries,
@@ -21,6 +22,8 @@ import {
   getTeamsByLeague,
   isKnownClubTeamName,
 } from "@/lib/data/football-reference";
+import { enrichTeamsWithLogos } from "@/lib/data/team-logos";
+import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import { cachedFetch, DAILY_LIMITS, TTL } from "@/lib/cache/api-cache";
 import type { Fixture } from "@/lib/types/football";
 import type {
@@ -82,6 +85,9 @@ export async function lookupCountries(entityType?: EntityType): Promise<CountryO
   if (shouldUseMockApis()) {
     return getCountries(entityType);
   }
+  if (entityType === "national") {
+    return getCountries("national");
+  }
   if (usesSportApi()) {
     try {
       const fromApi = await sportApiLookupCountries();
@@ -101,7 +107,7 @@ export async function lookupLeagues(
   country: string,
   entityType?: EntityType
 ): Promise<LeagueOption[]> {
-  if (useSupabaseDataStore()) {
+  if (isSupabaseDataStore()) {
     return loadLeaguesFromReference(country, entityType);
   }
   return getLeaguesByCountry(country, entityType);
@@ -118,19 +124,25 @@ function filterNationalTeams(teams: TeamOption[]): TeamOption[] {
 
 /** Prefer stable reference ids; merge in API/store teams matched by name. */
 function mergeNationalTeamLists(reference: TeamOption[], live: TeamOption[]): TeamOption[] {
-  const refByName = new Map(reference.map((t) => [t.name.toLowerCase(), t]));
+  const refByName = new Map(
+    reference.map((t) => [normalizeNationalTeamName(t.name), t])
+  );
   const merged = new Map<number, TeamOption>();
 
   for (const team of live) {
     if (isKnownClubTeamName(team.name)) continue;
-    const ref = refByName.get(team.name.toLowerCase());
-    merged.set(ref?.id ?? team.id, ref ?? team);
+    const ref = refByName.get(normalizeNationalTeamName(team.name));
+    merged.set(ref?.id ?? team.id, ref ? { ...ref, name: team.name } : team);
   }
   for (const team of reference) {
     merged.set(team.id, team);
   }
 
   return Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function finishTeams(teams: TeamOption[], effectiveEntity: EntityType): TeamOption[] {
+  return enrichTeamsWithLogos(teams, effectiveEntity);
 }
 
 export async function lookupTeams(
@@ -141,15 +153,16 @@ export async function lookupTeams(
   const reference = getTeamsByLeague(leagueId);
 
   if (shouldUseMockApis()) {
-    return effectiveEntity === "national" && reference.length
-      ? reference
-      : getTeamsByLeague(leagueId);
+    return finishTeams(
+      effectiveEntity === "national" && reference.length ? reference : getTeamsByLeague(leagueId),
+      effectiveEntity
+    );
   }
 
   if (effectiveEntity === "national") {
     let live: TeamOption[] = [];
 
-    if (useSupabaseDataStore()) {
+    if (isSupabaseDataStore()) {
       live = filterNationalTeams(await loadTeamsFromStore(leagueId, "national"));
     } else if (usesSportApi()) {
       try {
@@ -160,20 +173,23 @@ export async function lookupTeams(
     }
 
     if (reference.length) {
-      return live.length ? mergeNationalTeamLists(reference, live) : reference;
+      return finishTeams(
+        live.length ? mergeNationalTeamLists(reference, live) : reference,
+        effectiveEntity
+      );
     }
-    return live;
+    return finishTeams(live, effectiveEntity);
   }
 
-  if (useSupabaseDataStore()) {
+  if (isSupabaseDataStore()) {
     const teams = await loadTeamsFromStore(leagueId, entityType);
-    if (teams.length) return teams;
+    if (teams.length) return finishTeams(teams, effectiveEntity);
     return getTeamsByLeague(leagueId);
   }
   if (usesSportApi()) {
     try {
       const teams = await sportApiLookupTeams(leagueId, "club");
-      if (teams.length) return teams;
+      if (teams.length) return finishTeams(teams, effectiveEntity);
     } catch {
       // fall through to reference
     }
@@ -193,7 +209,7 @@ export async function lookupFixtures(
     return { fixtures: buildMockFixtures(leagueId), source: "mock" };
   }
 
-  if (useSupabaseDataStore()) {
+  if (isSupabaseDataStore()) {
     let fixtures = await loadFixturesFromStore(leagueId);
 
     if (!fixtures.length) {
@@ -203,11 +219,26 @@ export async function lookupFixtures(
       }
     }
 
+    if (!fixtures.length) {
+      try {
+        const imported = await importFixturesFromFbref({
+          referenceLeagueId: leagueId,
+          seasons: [league.season],
+        });
+        if (imported.fixturesUpserted > 0) {
+          fixtures = await loadFixturesFromStore(leagueId);
+        }
+      } catch {
+        // ignore SoccerData backfill errors and fall through
+      }
+    }
+
     if (fixtures.length) {
       return {
         fixtures,
         source: "live",
-        message: "Fixtures loaded from Supabase (synced on demand when needed).",
+        message:
+          "Fixtures loaded from Supabase (synced on demand when needed; SoccerData backfill when RapidAPI is empty).",
       };
     }
 

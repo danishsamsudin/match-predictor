@@ -5,15 +5,48 @@ import {
   parseTeamStats,
 } from "@/lib/api/football";
 import { getWeatherForecast } from "@/lib/api/weather";
+import { enrichLineupsWithRatings } from "@/lib/data/enrich-lineup-ratings";
 import { getLeagueStrengthMultiplier } from "@/lib/data/football-reference";
 import { computeBaseProbability, computeMomentumIndex } from "@/lib/prediction/base-probability";
 import { computeLineupImpact } from "@/lib/prediction/lineup-impact";
 import { computeStadiumImpact } from "@/lib/prediction/stadium-impact";
 import { computeWeatherImpact } from "@/lib/prediction/weather-impact";
-import type { PredictRequest, PredictionResult } from "@/lib/types/prediction";
+import { tryCreateServiceClient } from "@/lib/supabase";
+import type {
+  FirstTeamToScorePct,
+  PredictRequest,
+  PredictionResult,
+  TeamStatAverages,
+} from "@/lib/types/prediction";
 
 /** Minimum xG floor before Poisson grid evaluation. */
 const XG_FLOOR = 0.3;
+const LEAGUE_AVG_GOALS = 1.35;
+
+export function computeFirstTeamToScorePct(
+  homeStats: TeamStatAverages,
+  awayStats: TeamStatAverages,
+  homeFormScore: number,
+  awayFormScore: number
+): FirstTeamToScorePct {
+  const homeFtsRaw =
+    (homeStats.goalsFor / LEAGUE_AVG_GOALS) *
+    (awayStats.goalsAgainst / LEAGUE_AVG_GOALS) *
+    homeFormScore;
+
+  const awayFtsRaw =
+    (awayStats.goalsFor / LEAGUE_AVG_GOALS) *
+    (homeStats.goalsAgainst / LEAGUE_AVG_GOALS) *
+    awayFormScore;
+
+  const totalFtsIntensity = homeFtsRaw + awayFtsRaw || 1;
+
+  return {
+    home: Math.round((homeFtsRaw / totalFtsIntensity) * 0.9 * 100),
+    away: Math.round((awayFtsRaw / totalFtsIntensity) * 0.9 * 100),
+    none: 10,
+  };
+}
 
 function factorial(n: number): number {
   if (n <= 1) return 1;
@@ -111,8 +144,24 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     awayStats,
   });
 
+  const firstTeamToScorePct = computeFirstTeamToScorePct(
+    homeStats,
+    awayStats,
+    homeFormScore,
+    awayFormScore
+  );
+
+  let lineupsForImpact = bundle.lineups;
+  const supabase = tryCreateServiceClient();
+  if (supabase) {
+    lineupsForImpact = await enrichLineupsWithRatings(bundle.lineups, {
+      entityType: input.entityType,
+      supabase,
+    });
+  }
+
   const lineup = computeLineupImpact(
-    bundle.lineups,
+    lineupsForImpact,
     bundle.topScorers,
     homeTeamId,
     awayTeamId
@@ -200,6 +249,7 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     homeWinPct,
     awayWinPct,
     drawPct,
+    firstTeamToScorePct,
     expectedGoals: { home: homeXg, away: awayXg },
     estimated: {
       corners: Math.round(corners * 10) / 10,

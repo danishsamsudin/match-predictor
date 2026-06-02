@@ -40,6 +40,10 @@ Open [http://localhost:3000](http://localhost:3000).
 | `SYNC_CRON_SECRET` | Bearer token for `POST /api/cron/sync` |
 | `SYNC_CRON_HOUR_UTC` | Earliest UTC hour for the daily sync (default `6`) |
 | `USE_MOCK_APIS` | Set `true` to use mock data (no external API calls) |
+| `SOCCERDATA_ENABLED` | Set `false` to disable the [SoccerData](https://soccerdata.readthedocs.io/) bridge (default: enabled) |
+| `SOCCERDATA_PYTHON` | Python binary with `soccerdata` installed (default `python3`) |
+| `SOCCERDATA_DIR` | Cache directory (default `~/soccerdata`) |
+| `SOCCERDATA_TIMEOUT_MS` | Max wait per scrape (default `120000`) |
 
 ### RapidAPI setup (one key, different hosts)
 
@@ -101,6 +105,104 @@ On Vercel, `vercel.json` triggers `/api/cron/sync?run=true` daily at 06:00 UTC. 
 | User-facing predictions | No football API calls when `DATA_SOURCE=supabase` |
 
 Set `USE_MOCK_APIS=true` for unlimited local development without RapidAPI.
+
+## SoccerData (FBref, Understat, ClubElo, …)
+
+The app integrates the open-source [SoccerData](https://soccerdata.readthedocs.io/en/latest/intro.html) Python library for scraping **ClubElo, ESPN, FBref, Football-Data.co.uk, Sofascore, SoFIFA, Understat, and WhoScored**. This is separate from the RapidAPI SofaScore/SportAPI7 stack used for live predictions.
+
+**Setup (once per machine):**
+
+```bash
+cd match-predictor
+python3 -m pip install -r services/soccerdata/requirements.txt
+curl http://localhost:3000/api/soccerdata/status
+```
+
+**Endpoints:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/soccerdata/sources` | Catalog of sources and `read_*` methods |
+| GET | `/api/soccerdata/status` | Health check (runs `FBref.available_leagues`) |
+| POST | `/api/soccerdata/fetch` | Run a scrape; results cached in `synced_api_payloads` |
+| POST | `/api/soccerdata/import/fixtures` | Backfill fixtures from FBref schedule into `synced_fixtures` (best-effort mapping) |
+| POST | `/api/soccerdata/import/players` | Import SoFIFA player catalog into `soccerdata_players` (SoFIFA overall used as lineup rating fallback) |
+| POST | `/api/soccerdata/import/enrich` | Link + import Understat xG or MatchHistory odds into `soccerdata_event_enrichments` |
+| POST | `/api/soccerdata/import/backfill` | One-shot: fixtures + xG + odds + SoFIFA players for a league |
+
+**Copy-paste terminal commands:** see [`docs/SOCCERDATA_POPULATE_COMMANDS.md`](docs/SOCCERDATA_POPULATE_COMMANDS.md) (or run `bash scripts/soccerdata-populate.sh` after setting env vars).
+
+**Example — FBref team shooting stats:**
+
+```bash
+curl -X POST http://localhost:3000/api/soccerdata/fetch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "FBref",
+    "method": "read_team_season_stats",
+    "constructor": {
+      "leagues": ["ENG-Premier League"],
+      "seasons": ["2324"]
+    },
+    "params": { "stat_type": "shooting" }
+  }'
+```
+
+**Example — Understat shot events:**
+
+```bash
+curl -X POST http://localhost:3000/api/soccerdata/fetch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "Understat",
+    "method": "read_shot_events",
+    "constructor": {
+      "leagues": ["ENG-Premier League"],
+      "seasons": ["2023"]
+    }
+  }'
+```
+
+WhoScored and SoFIFA may require **Chrome** and Selenium (see SoccerData docs). On Vercel/serverless, run the Python runner on a VM, cron host, or local machine — not in ephemeral serverless functions.
+
+### SoccerData → canonical enrichment workflow
+
+This repo keeps **SofaScore/SportAPI IDs canonical**. SoccerData is used to enrich/backfill by linking rows to canonical `synced_events.event_id`.
+
+1. Run your normal RapidAPI sync so `synced_events` contains canonical event IDs.
+2. Pull SoccerData datasets (cached via `/api/soccerdata/fetch`).
+3. Run importer endpoints to link/import into canonical ids.
+**FBref fixtures backfill:**
+
+```bash
+curl -X POST http://localhost:3000/api/soccerdata/import/fixtures \
+  -H "Content-Type: application/json" \
+  -d '{"leagueId":39,"seasons":[2025]}'
+```
+
+**Understat xG link + import:**
+
+```bash
+curl -X POST http://localhost:3000/api/soccerdata/import/enrich \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"understat_xg","leagueId":39,"seasons":[2025]}'
+```
+
+**Football-Data.co.uk odds link + import:**
+
+```bash
+curl -X POST http://localhost:3000/api/soccerdata/import/enrich \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"matchhistory_odds","leagueId":39,"seasons":[2025]}'
+```
+
+**SoFIFA player baseline ratings (fallback for lineup ratings):**
+
+```bash
+curl -X POST http://localhost:3000/api/soccerdata/import/players \
+  -H "Content-Type: application/json" \
+  -d '{"leagueId":39,"version":"latest"}'
+```
 
 ## Prediction API
 

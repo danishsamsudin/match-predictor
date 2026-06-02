@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMockModeReason, shouldUseMockApis } from "@/lib/config/api-mode";
-import { useSupabaseDataStore, getFootballDailyApiLimit } from "@/lib/config/data-source";
+import { isSupabaseDataStore, getFootballDailyApiLimit } from "@/lib/config/data-source";
 import {
   getPrimaryFootballHost,
   getPrimaryProviderName,
@@ -31,7 +31,7 @@ export async function GET() {
       primary,
       mode: "mock",
       mockReason,
-      dataSource: useSupabaseDataStore() ? "supabase" : "live",
+      dataSource: isSupabaseDataStore() ? "supabase" : "live",
       footballApi: { usedToday: footballCallsToday, dailyLimit },
       syncStatus,
       env: {
@@ -56,7 +56,7 @@ export async function GET() {
         primary,
         secondaryHost: getSecondaryFootballHost(),
         mode: "live",
-        dataSource: useSupabaseDataStore() ? "supabase" : "live",
+        dataSource: isSupabaseDataStore() ? "supabase" : "live",
         footballApi: { usedToday: footballCallsToday, dailyLimit },
         syncStatus,
         message: "SofaScore (primary) connection successful.",
@@ -95,7 +95,7 @@ export async function GET() {
       mode: "live",
       baseUrl: getSportApiBaseUrl(),
       host: getSportApiHost(),
-      dataSource: useSupabaseDataStore() ? "supabase" : "live",
+      dataSource: isSupabaseDataStore() ? "supabase" : "live",
       footballApi: { usedToday: footballCallsToday, dailyLimit },
       syncStatus,
       categoriesToday: count,

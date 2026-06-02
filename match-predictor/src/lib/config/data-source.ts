@@ -2,7 +2,7 @@ import { serverEnv } from "@/lib/env/server-env";
 import { getAllSyncLeagueIds, getLeaguesBySyncTier } from "@/lib/data/football-reference";
 
 /** When true, predictions and lookups read Supabase tables only — no RapidAPI calls. */
-export function useSupabaseDataStore(): boolean {
+export function isSupabaseDataStore(): boolean {
   const raw = serverEnv.dataSource?.toLowerCase();
   return raw === "supabase" || serverEnv.useSupabaseData;
 }

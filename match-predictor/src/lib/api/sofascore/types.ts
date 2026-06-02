@@ -19,6 +19,10 @@ export type SofascoreLineupsResponse = import("@/lib/types/sportapi").SportApiLi
 export type SofascoreIncidentsResponse = import("@/lib/types/sportapi").SportApiIncidentsResponse;
 export type SofascoreH2HResponse = import("@/lib/types/sportapi").SportApiH2HResponse;
 
+export interface SofascoreBestPlayersResponse {
+  bestPlayers: Array<{ playerId: number; rating: number }>;
+}
+
 export interface SofascoreTeamStatisticsResponse {
   statistics: Record<string, number | string>;
 }

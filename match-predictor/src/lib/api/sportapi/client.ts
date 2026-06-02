@@ -6,6 +6,7 @@ import {
   normalizeRapidApiHost,
 } from "@/lib/config/rapidapi";
 import { cachedFetch, DAILY_LIMITS, TTL } from "@/lib/cache/api-cache";
+import { readSportApiCacheFromStore } from "@/lib/data/synced-resource-cache";
 import { RateLimitError, UpstreamApiError } from "@/lib/types/prediction";
 
 export function getSportApiHost(): string {
@@ -77,6 +78,11 @@ export async function sportApiGet<T>(
 
   if (options?.skipCache || shouldUseMockApis()) {
     return fetcher();
+  }
+
+  const fromStore = await readSportApiCacheFromStore<T>(cacheKey);
+  if (fromStore != null) {
+    return fromStore;
   }
 
   const result = await cachedFetch<T>({

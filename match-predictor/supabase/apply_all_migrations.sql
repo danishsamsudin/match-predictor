@@ -358,3 +358,164 @@ BEGIN
   END IF;
 END $$;
 
+-- ========== 005_player_ratings.sql ==========
+CREATE TABLE IF NOT EXISTS synced_player_ratings (
+  player_id int PRIMARY KEY,
+  club_avg_rating numeric(4, 2),
+  sample_size int NOT NULL DEFAULT 0,
+  ratings jsonb,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_synced_player_ratings_synced_at ON synced_player_ratings (synced_at DESC);
+
+ALTER TABLE synced_player_ratings ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'synced_player_ratings' AND policyname = 'synced_player_ratings_select'
+  ) THEN
+    CREATE POLICY "synced_player_ratings_select" ON synced_player_ratings
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+END $$;
+
+-- ========== 006_soccerdata_mapping.sql ==========
+-- SoccerData ↔ SofaScore mapping + enrichments (canonical ids remain SofaScore/SportAPI)
+
+CREATE TABLE IF NOT EXISTS soccerdata_team_aliases (
+  league_id int NOT NULL,
+  team_id int NOT NULL,
+  source text NOT NULL,
+  soccerdata_team_name text NOT NULL,
+  normalized_team_name text NOT NULL,
+  confidence numeric(4, 3) NOT NULL DEFAULT 0.500,
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (league_id, team_id, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_soccerdata_team_aliases_lookup
+  ON soccerdata_team_aliases (source, league_id, normalized_team_name);
+
+CREATE TABLE IF NOT EXISTS soccerdata_match_links (
+  event_id int NOT NULL,
+  league_id int NOT NULL,
+  source text NOT NULL,
+  soccerdata_match_key text NOT NULL,
+  kickoff_at timestamptz,
+  home_team_id int,
+  away_team_id int,
+  confidence numeric(4, 3) NOT NULL DEFAULT 0.500,
+  linked_by text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (event_id, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_soccerdata_match_links_key
+  ON soccerdata_match_links (source, soccerdata_match_key);
+
+CREATE TABLE IF NOT EXISTS soccerdata_players (
+  id bigserial PRIMARY KEY,
+  name text NOT NULL,
+  league_id int,
+  team_id int,
+  position text,
+  country text,
+  birth_date date,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_soccerdata_players_team ON soccerdata_players (team_id);
+
+CREATE TABLE IF NOT EXISTS soccerdata_player_links (
+  player_id bigint NOT NULL REFERENCES soccerdata_players (id) ON DELETE CASCADE,
+  source text NOT NULL,
+  soccerdata_player_key text NOT NULL,
+  confidence numeric(4, 3) NOT NULL DEFAULT 0.500,
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (player_id, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_soccerdata_player_links_key
+  ON soccerdata_player_links (source, soccerdata_player_key);
+
+CREATE TABLE IF NOT EXISTS soccerdata_event_enrichments (
+  event_id int PRIMARY KEY,
+  league_id int,
+  season int,
+  xg_home numeric(6, 3),
+  xg_away numeric(6, 3),
+  odds_home numeric(10, 4),
+  odds_draw numeric(10, 4),
+  odds_away numeric(10, 4),
+  payload jsonb,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_soccerdata_event_enrichments_league
+  ON soccerdata_event_enrichments (league_id, season);
+
+ALTER TABLE soccerdata_team_aliases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE soccerdata_match_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE soccerdata_players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE soccerdata_player_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE soccerdata_event_enrichments ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'soccerdata_team_aliases' AND policyname = 'soccerdata_team_aliases_select'
+  ) THEN
+    CREATE POLICY "soccerdata_team_aliases_select" ON soccerdata_team_aliases
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'soccerdata_match_links' AND policyname = 'soccerdata_match_links_select'
+  ) THEN
+    CREATE POLICY "soccerdata_match_links_select" ON soccerdata_match_links
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'soccerdata_players' AND policyname = 'soccerdata_players_select'
+  ) THEN
+    CREATE POLICY "soccerdata_players_select" ON soccerdata_players
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'soccerdata_player_links' AND policyname = 'soccerdata_player_links_select'
+  ) THEN
+    CREATE POLICY "soccerdata_player_links_select" ON soccerdata_player_links
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'soccerdata_event_enrichments' AND policyname = 'soccerdata_event_enrichments_select'
+  ) THEN
+    CREATE POLICY "soccerdata_event_enrichments_select" ON soccerdata_event_enrichments
+      FOR SELECT TO anon, authenticated USING (true);
+  END IF;
+END $$;
+
+-- ========== 007_soccerdata_player_fields.sql ==========
+ALTER TABLE soccerdata_players
+  ADD COLUMN IF NOT EXISTS sofifa_overall numeric(5, 2);
+
+CREATE INDEX IF NOT EXISTS idx_soccerdata_players_sofifa
+  ON soccerdata_players (team_id, sofifa_overall DESC);
+

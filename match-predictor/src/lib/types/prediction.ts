@@ -12,6 +12,12 @@ export interface PredictRequest {
   matchDate: string;
 }
 
+export interface FirstTeamToScorePct {
+  home: number;
+  away: number;
+  none: number;
+}
+
 export interface PredictionResult {
   id?: string;
   homeTeamName?: string;
@@ -19,6 +25,7 @@ export interface PredictionResult {
   homeWinPct: number;
   awayWinPct: number;
   drawPct: number;
+  firstTeamToScorePct?: FirstTeamToScorePct;
   expectedGoals: { home: number; away: number };
   estimated: {
     corners: number;

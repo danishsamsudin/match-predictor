@@ -95,7 +95,7 @@ export async function cachedFetch<T>(
 }
 
 export const TTL = {
-  WEATHER: 24 * 60 * 60 * 1000,
+  WEATHER: 6 * 60 * 60 * 1000,
   FOOTBALL: 12 * 60 * 60 * 1000,
 } as const;
 

@@ -60,7 +60,14 @@ export interface FixtureResult {
 }
 
 export interface LineupPlayer {
-  player: { id: number; name: string; number: number; pos: string; grid: string | null };
+  player: {
+    id: number;
+    name: string;
+    number: number;
+    pos: string;
+    grid: string | null;
+    averageRating?: number;
+  };
 }
 
 export interface FixtureLineup {

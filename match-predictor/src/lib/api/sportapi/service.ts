@@ -210,6 +210,28 @@ async function sportApiLookupTeamsFromEvents(
   );
 }
 
+function collectTeamsFromStandings(standings: SportApiStandingsResponse): TeamOption[] {
+  const byId = new Map<number, TeamOption>();
+  for (const group of standings.standings ?? []) {
+    for (const row of group.rows ?? []) {
+      if (!row.team?.id || !row.team?.name) continue;
+      byId.set(row.team.id, { id: row.team.id, name: row.team.name });
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function mergeTeamOptions(...lists: TeamOption[][]): TeamOption[] {
+  const byId = new Map<number, TeamOption>();
+  for (const list of lists) {
+    for (const team of list) {
+      if (!team.id || !team.name) continue;
+      byId.set(team.id, team);
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function sportApiLookupTeams(
   referenceLeagueId: number,
   entityType?: EntityType
@@ -218,25 +240,21 @@ export async function sportApiLookupTeams(
   if (!mapping) return [];
 
   const effectiveEntity = entityType ?? getLeagueEntityType(referenceLeagueId);
+  const seasonId = await getCurrentSeasonId(mapping.uniqueTournamentId);
 
   if (effectiveEntity === "national") {
-    try {
-      const fromEvents = await sportApiLookupTeamsFromEvents(mapping.uniqueTournamentId);
-      if (fromEvents.length) return fromEvents;
-    } catch {
-      // fall through to standings
-    }
+    const [fromStandings, fromEvents] = await Promise.all([
+      getStandings(mapping.uniqueTournamentId, seasonId)
+        .then(collectTeamsFromStandings)
+        .catch(() => [] as TeamOption[]),
+      sportApiLookupTeamsFromEvents(mapping.uniqueTournamentId).catch(() => [] as TeamOption[]),
+    ]);
+    const merged = mergeTeamOptions(fromStandings, fromEvents);
+    if (merged.length) return merged;
   }
 
-  const seasonId = await getCurrentSeasonId(mapping.uniqueTournamentId);
   const standings = await getStandings(mapping.uniqueTournamentId, seasonId);
-  const teams: TeamOption[] = [];
-  for (const group of standings.standings ?? []) {
-    for (const row of group.rows ?? []) {
-      teams.push({ id: row.team.id, name: row.team.name });
-    }
-  }
-  return teams;
+  return collectTeamsFromStandings(standings);
 }
 
 export async function sportApiLookupFixtures(referenceLeagueId: number): Promise<FixtureOption[]> {

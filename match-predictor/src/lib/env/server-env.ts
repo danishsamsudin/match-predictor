@@ -41,6 +41,12 @@ export const serverEnv = {
   get useSupabaseData(): boolean {
     return read("USE_SUPABASE_DATA") === "true";
   },
+  get soccerdataDir(): string | undefined {
+    return read("SOCCERDATA_DIR");
+  },
+  get soccerdataEnabled(): boolean {
+    return read("SOCCERDATA_ENABLED") !== "false";
+  },
 };
 
 export function getMockModeReason(): string | null {

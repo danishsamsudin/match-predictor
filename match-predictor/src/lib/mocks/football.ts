@@ -117,11 +117,11 @@ function mockLineup(teamId: number, teamName: string, includeTopScorer: boolean)
     ? [{ player: { id: 1001, name: "Star Striker", number: 9, pos: "F", grid: "5:2" } }]
     : [];
   const base = [
-    { player: { id: 1000, name: "Goalkeeper", number: 1, pos: "G", grid: "1:1" } },
-    { player: { id: 1002, name: "Defender A", number: 4, pos: "D", grid: "2:1" } },
-    { player: { id: 1003, name: "Defender B", number: 5, pos: "D", grid: "2:2" } },
-    { player: { id: 1004, name: "Midfielder A", number: 8, pos: "M", grid: "3:2" } },
-    { player: { id: 1005, name: "Midfielder B", number: 10, pos: "M", grid: "4:2" } },
+    { player: { id: 1000, name: "Goalkeeper", number: 1, pos: "G", grid: "1:1", averageRating: 6.2 } },
+    { player: { id: 1002, name: "Defender A", number: 4, pos: "D", grid: "2:1", averageRating: 6.1 } },
+    { player: { id: 1003, name: "Defender B", number: 5, pos: "D", grid: "2:2", averageRating: 6.0 } },
+    { player: { id: 1004, name: "Midfielder A", number: 8, pos: "M", grid: "3:2", averageRating: 6.4 } },
+    { player: { id: 1005, name: "Midfielder B", number: 10, pos: "M", grid: "4:2", averageRating: 6.3 } },
   ];
   return {
     team: { id: teamId, name: teamName },

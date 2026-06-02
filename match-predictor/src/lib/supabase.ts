@@ -458,6 +458,24 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["synced_weather"]["Insert"]>;
         Relationships: [];
       };
+      synced_player_ratings: {
+        Row: {
+          player_id: number;
+          club_avg_rating: number | null;
+          sample_size: number;
+          ratings: unknown;
+          synced_at: string;
+        };
+        Insert: {
+          player_id: number;
+          club_avg_rating?: number | null;
+          sample_size?: number;
+          ratings?: unknown;
+          synced_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["synced_player_ratings"]["Insert"]>;
+        Relationships: [];
+      };
       predictions: {
         Row: {
           id: string;
@@ -508,6 +526,147 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["predictions"]["Insert"]>;
+        Relationships: [];
+      };
+      soccerdata_event_enrichments: {
+        Row: {
+          event_id: number;
+          league_id: number | null;
+          season: number | null;
+          xg_home: number | null;
+          xg_away: number | null;
+          odds_home: number | null;
+          odds_draw: number | null;
+          odds_away: number | null;
+          payload: unknown | null;
+          synced_at: string;
+        };
+        Insert: {
+          event_id: number;
+          league_id?: number | null;
+          season?: number | null;
+          xg_home?: number | null;
+          xg_away?: number | null;
+          odds_home?: number | null;
+          odds_draw?: number | null;
+          odds_away?: number | null;
+          payload?: unknown | null;
+          synced_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["soccerdata_event_enrichments"]["Insert"]>;
+        Relationships: [];
+      };
+      soccerdata_match_links: {
+        Row: {
+          event_id: number;
+          league_id: number;
+          source: string;
+          soccerdata_match_key: string;
+          kickoff_at: string | null;
+          home_team_id: number | null;
+          away_team_id: number | null;
+          confidence: number;
+          linked_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          event_id: number;
+          league_id: number;
+          source: string;
+          soccerdata_match_key: string;
+          kickoff_at?: string | null;
+          home_team_id?: number | null;
+          away_team_id?: number | null;
+          confidence?: number;
+          linked_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["soccerdata_match_links"]["Insert"]>;
+        Relationships: [];
+      };
+      soccerdata_player_links: {
+        Row: {
+          player_id: number;
+          source: string;
+          soccerdata_player_key: string;
+          confidence: number;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          player_id: number;
+          source: string;
+          soccerdata_player_key: string;
+          confidence?: number;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["soccerdata_player_links"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "soccerdata_player_links_player_id_fkey";
+            columns: ["player_id"];
+            referencedRelation: "soccerdata_players";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      soccerdata_players: {
+        Row: {
+          id: number;
+          name: string;
+          league_id: number | null;
+          team_id: number | null;
+          position: string | null;
+          country: string | null;
+          birth_date: string | null;
+          sofifa_overall: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          name: string;
+          league_id?: number | null;
+          team_id?: number | null;
+          position?: string | null;
+          country?: string | null;
+          birth_date?: string | null;
+          sofifa_overall?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["soccerdata_players"]["Insert"]>;
+        Relationships: [];
+      };
+      soccerdata_team_aliases: {
+        Row: {
+          league_id: number;
+          team_id: number;
+          source: string;
+          soccerdata_team_name: string;
+          normalized_team_name: string;
+          confidence: number;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          league_id: number;
+          team_id: number;
+          source: string;
+          soccerdata_team_name: string;
+          normalized_team_name: string;
+          confidence?: number;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["soccerdata_team_aliases"]["Insert"]>;
         Relationships: [];
       };
     };

@@ -3,6 +3,7 @@ import { getPrimaryProviderName } from "@/lib/config/football-providers";
 import { resolveSportApiLeague } from "@/lib/config/sportapi-leagues";
 import {
   gatewayGetLastMatches,
+  gatewayGetMatchBestPlayers,
   gatewayGetMatchH2H,
   gatewayGetMatchLineups,
   gatewayGetMatchStatistics,
@@ -31,6 +32,7 @@ import {
   findStandingsRow,
 } from "@/lib/sync/build-football-bundle";
 import { markLeagueSynced, selectLeaguesForSync } from "@/lib/sync/sync-league-scheduler";
+import { upsertPlayerRatingsFromMatch } from "@/lib/sync/player-ratings";
 
 export interface SyncRunResult {
   ok: boolean;
@@ -247,7 +249,34 @@ export async function runFootballDataSync(options?: {
       if (remaining < 1) break;
 
       const { data: lastRes } = await gatewayGetLastMatches(mapping.uniqueTournamentId, seasonId);
-      lastEventsByLeague.set(referenceLeagueId, lastRes.events ?? []);
+      const lastEvents = lastRes.events ?? [];
+      lastEventsByLeague.set(referenceLeagueId, lastEvents);
+
+      if (entityType === "club" || entityType === "national") {
+        const finishedForRatings = lastEvents
+          .filter((e) => e.status?.type === "finished")
+          .slice(0, 3);
+        for (const past of finishedForRatings) {
+          if ((await getRemainingFootballBudget()) < 1) break;
+          try {
+            const { data: bestRes, provider } = await gatewayGetMatchBestPlayers(past.id);
+            await persistRawPayload(supabase, {
+              provider,
+              endpoint: "best-players",
+              entityType: "match_best_players",
+              entityKey: String(past.id),
+              payload: bestRes,
+            });
+            const matchRatings = bestRes.bestPlayers.map((p) => ({
+              playerId: p.playerId,
+              rating: p.rating,
+            }));
+            await upsertPlayerRatingsFromMatch(supabase, matchRatings, now.toISOString());
+          } catch (e) {
+            console.warn("Player ratings sync skipped for event", past.id, e);
+          }
+        }
+      }
 
       if (entry.syncFixtures) {
         remaining = await getRemainingFootballBudget();

@@ -1,6 +1,7 @@
 import { parseTeamStats } from "@/lib/api/football";
 import { mapTeamInfo } from "@/lib/api/sportapi/mappers";
-import { teamStatisticsFromMetrics } from "@/lib/sync/team-prediction-metrics";
+import { getLeagueEntityType } from "@/lib/data/football-reference";
+import { resolveTeamStatistics } from "@/lib/data/resolve-team-statistics";
 import {
   buildFootballBundleFromParts,
   filterFormForTeam,
@@ -9,7 +10,7 @@ import {
 import type { FootballBundle } from "@/lib/types/football";
 import type { TeamStatistics } from "@/lib/types/football";
 import type { SportApiEvent, SportApiStandingsResponse } from "@/lib/types/sportapi";
-import type { TeamStatAverages } from "@/lib/types/prediction";
+import { isFresh, SYNC_FRESH_MS } from "@/lib/data/synced-resource-cache";
 import { UpstreamApiError } from "@/lib/types/prediction";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase";
@@ -22,42 +23,18 @@ async function loadTeamStats(
   leagueId: number,
   season: number,
   isHomeSide: boolean,
-  teamName: string
+  teamName: string,
+  entityType?: import("@/lib/types/football-lookup").EntityType
 ): Promise<TeamStatistics> {
-  const { data, error } = await supabase
-    .from("synced_team_statistics")
-    .select("payload, metrics_home, metrics_away")
-    .eq("team_id", teamId)
-    .eq("reference_league_id", leagueId)
-    .maybeSingle();
-
-  if (error) {
-    throw new UpstreamApiError(`Failed to load team statistics: ${error.message}`);
-  }
-
-  if (data?.payload) {
-    const payload = data.payload as { home?: TeamStatistics; away?: TeamStatistics };
-    const stats = isHomeSide ? payload.home : payload.away;
-    if (stats) return stats;
-  }
-
-  const metrics = isHomeSide
-    ? (data?.metrics_home as TeamStatAverages | null)
-    : (data?.metrics_away as TeamStatAverages | null);
-
-  if (metrics) {
-    return teamStatisticsFromMetrics(
-      metrics,
-      { id: teamId, name: teamName },
-      leagueId,
-      season,
-      isHomeSide
-    );
-  }
-
-  throw new UpstreamApiError(
-    `No synced statistics for team ${teamId} in league ${leagueId}. Run POST /api/cron/sync.`
-  );
+  void supabase;
+  return resolveTeamStatistics({
+    teamId,
+    leagueId,
+    season,
+    isHomeSide,
+    teamName,
+    entityType,
+  });
 }
 
 function eventInvolvesTeam(
@@ -105,6 +82,33 @@ export async function loadRecentFormEvents(
   return events;
 }
 
+/** Recent finished events for a team across all synced competitions. */
+export async function loadRecentFormEventsForTeam(
+  supabase: ServiceClient,
+  teamId: number,
+  teamName?: string,
+  limit = 20
+): Promise<SportApiEvent[]> {
+  const { data, error } = await supabase
+    .from("synced_events")
+    .select("payload, kickoff_at")
+    .order("kickoff_at", { ascending: false })
+    .limit(limit * 8);
+
+  if (error) return [];
+
+  const events: SportApiEvent[] = [];
+  for (const row of data ?? []) {
+    const event = row.payload as SportApiEvent;
+    if (!event?.homeTeam?.id || !event?.awayTeam?.id) continue;
+    if (eventInvolvesTeam(event, teamId, teamName)) {
+      events.push(event);
+    }
+    if (events.length >= limit) break;
+  }
+  return events;
+}
+
 export async function assembleFootballBundleFromStore(
   supabase: ServiceClient,
   matchId: number,
@@ -113,11 +117,11 @@ export async function assembleFootballBundleFromStore(
 ): Promise<FootballBundle> {
   const { data: cachedBundle } = await supabase
     .from("synced_match_bundles")
-    .select("bundle")
+    .select("bundle, synced_at")
     .eq("match_id", matchId)
     .maybeSingle();
 
-  if (cachedBundle?.bundle) {
+  if (cachedBundle?.bundle && isFresh(cachedBundle.synced_at, SYNC_FRESH_MS)) {
     return cachedBundle.bundle as FootballBundle;
   }
 
@@ -163,20 +167,34 @@ export async function assembleFootballBundleFromStore(
       venue: { city: { name: venueCity } },
     } as SportApiEvent);
 
+  const leagueEntityType = getLeagueEntityType(leagueId);
+
   const [homeStats, awayStats, standingsRow, statsRow, lineupsRow, h2hRow, formEvents] =
     await Promise.all([
-      loadTeamStats(supabase, homeTeamId, leagueId, season, true, homeName),
-      loadTeamStats(supabase, awayTeamId, leagueId, season, false, awayName),
+      loadTeamStats(supabase, homeTeamId, leagueId, season, true, homeName, leagueEntityType),
+      loadTeamStats(supabase, awayTeamId, leagueId, season, false, awayName, leagueEntityType),
       supabase
         .from("synced_standings")
-        .select("payload")
+        .select("payload, synced_at")
         .eq("reference_league_id", leagueId)
         .order("synced_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("synced_event_statistics").select("payload").eq("event_id", matchId).maybeSingle(),
-      supabase.from("synced_event_lineups").select("payload").eq("event_id", matchId).maybeSingle(),
-      supabase.from("synced_event_h2h").select("payload").eq("event_id", matchId).maybeSingle(),
+      supabase
+        .from("synced_event_statistics")
+        .select("payload, synced_at")
+        .eq("event_id", matchId)
+        .maybeSingle(),
+      supabase
+        .from("synced_event_lineups")
+        .select("payload, synced_at")
+        .eq("event_id", matchId)
+        .maybeSingle(),
+      supabase
+        .from("synced_event_h2h")
+        .select("payload, synced_at")
+        .eq("event_id", matchId)
+        .maybeSingle(),
       loadRecentFormEvents(supabase, leagueId, homeTeamId, homeName),
     ]);
 
@@ -186,10 +204,22 @@ export async function assembleFootballBundleFromStore(
     awayTeamId,
     awayName
   );
-  const standingsRes = standingsRow.data?.payload as SportApiStandingsResponse | undefined;
-  const statistics = statsRow.data?.payload as import("@/lib/types/sportapi").SportApiStatisticsResponse | undefined;
-  const lineups = lineupsRow.data?.payload as import("@/lib/types/sportapi").SportApiLineupsResponse | undefined;
-  const h2hPayload = h2hRow.data?.payload as { events?: SportApiEvent[] } | undefined;
+  const standingsRes =
+    standingsRow.data?.payload && isFresh(standingsRow.data.synced_at, SYNC_FRESH_MS)
+      ? (standingsRow.data.payload as SportApiStandingsResponse)
+      : undefined;
+  const statistics =
+    statsRow.data?.payload && isFresh(statsRow.data.synced_at, SYNC_FRESH_MS)
+      ? (statsRow.data.payload as import("@/lib/types/sportapi").SportApiStatisticsResponse)
+      : undefined;
+  const lineups =
+    lineupsRow.data?.payload && isFresh(lineupsRow.data.synced_at, SYNC_FRESH_MS)
+      ? (lineupsRow.data.payload as import("@/lib/types/sportapi").SportApiLineupsResponse)
+      : undefined;
+  const h2hPayload =
+    h2hRow.data?.payload && isFresh(h2hRow.data.synced_at, SYNC_FRESH_MS)
+      ? (h2hRow.data.payload as { events?: SportApiEvent[] })
+      : undefined;
 
   const bundle = buildFootballBundleFromParts({
     event,

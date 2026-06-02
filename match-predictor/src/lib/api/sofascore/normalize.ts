@@ -1,3 +1,4 @@
+import type { SofascoreBestPlayersResponse } from "@/lib/api/sofascore/types";
 import type {
   SportApiEvent,
   SportApiH2HResponse,
@@ -309,6 +310,31 @@ export function normalizeH2HResponse(raw: unknown): SportApiH2HResponse {
   return { events };
 }
 
+export function normalizeBestPlayersResponse(raw: unknown): SofascoreBestPlayersResponse {
+  const root = asRecord(raw) ?? {};
+  const list = Array.isArray(root.bestPlayers)
+    ? root.bestPlayers
+    : Array.isArray(root.players)
+      ? root.players
+      : [];
+
+  const bestPlayers: SofascoreBestPlayersResponse["bestPlayers"] = [];
+  for (const item of list) {
+    const row = asRecord(item);
+    if (!row) continue;
+    const player = asRecord(row.player) ?? row;
+    const id = asNumber(player.id, NaN);
+    const rating = asNumber(
+      row.rating ?? row.value ?? player.rating ?? player.averageRating,
+      NaN
+    );
+    if (!Number.isFinite(id) || !Number.isFinite(rating)) continue;
+    bestPlayers.push({ playerId: id, rating });
+  }
+
+  return { bestPlayers };
+}
+
 export function normalizeIncidentsResponse(raw: unknown): SportApiIncidentsResponse {
   const root = asRecord(raw) ?? {};
   const incidents = Array.isArray(root.incidents) ? root.incidents : [];
@@ -341,6 +367,8 @@ export function normalizeSofascorePayload<T>(endpoint: string, data: unknown): T
       return normalizeH2HResponse(data) as T;
     case "matches/get-incidents":
       return normalizeIncidentsResponse(data) as T;
+    case "matches/get-best-players":
+      return normalizeBestPlayersResponse(data) as T;
     default:
       return data as T;
   }

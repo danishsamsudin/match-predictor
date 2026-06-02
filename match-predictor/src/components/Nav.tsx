@@ -13,29 +13,36 @@ export function Nav() {
   const pathname = usePathname();
 
   return (
-    <header className="glass-nav sticky top-0 z-50">
-      <div className="relative mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
-        <Link href="/" className="text-lg font-bold tracking-tight text-gradient">
-          Match Predictor
+    <header className="sticky top-0 z-50 border-b border-white/30 bg-white/50 backdrop-blur-2xl transition-colors duration-500 dark:border-slate-800/50 dark:bg-slate-950/30">
+      <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
+        <Link
+          href="/"
+          className="text-lg font-extrabold tracking-tighter text-slate-950 dark:text-white"
+        >
+          Match <span className="text-indigo-600 dark:text-cyan-400">Predictor</span>
         </Link>
         <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <nav className="glass-nav-pill flex gap-1 rounded-xl p-1">
-            {links.map((link) => {
-              const active = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
-                    active ? "nav-link-active" : "nav-link-inactive"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <div className="liquid-glass-pill flex items-center gap-1 rounded-full p-1">
+            <ThemeToggle />
+            <nav className="flex gap-0.5">
+              {links.map((link) => {
+                const active = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-300 ${
+                      active
+                        ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
+                        : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
         </div>
       </div>
     </header>

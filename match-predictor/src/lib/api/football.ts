@@ -1,5 +1,5 @@
 import { shouldUseMockApis } from "@/lib/config/api-mode";
-import { useSupabaseDataStore } from "@/lib/config/data-source";
+import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { usesSportApi } from "@/lib/config/football-provider";
 import { loadFootballBundleFromStore } from "@/lib/data/football-store";
 import {
@@ -222,7 +222,7 @@ export async function fetchFootballBundle(
   if (shouldUseMockApis()) {
     return getMockFootballBundle(matchId, homeTeamId, awayTeamId);
   }
-  if (useSupabaseDataStore()) {
+  if (isSupabaseDataStore()) {
     return loadFootballBundleFromStore(matchId, homeTeamId, awayTeamId);
   }
   if (usesSportApi()) {

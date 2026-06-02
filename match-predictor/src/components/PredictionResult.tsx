@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { teamNamesFromSnapshot } from "@/lib/prediction/resolve-team-names";
 import type { PredictionResult } from "@/lib/types/prediction";
 
 type Accent = "primary" | "accent" | "neutral";
@@ -57,17 +58,17 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
   const awayLabel = result.awayTeamName ?? "Away";
 
   return (
-    <div className="overflow-hidden rounded-2xl glass glow-primary">
-      <div className="h-0.5 bg-gradient-to-r from-primary via-primary-light to-accent" />
+    <div className="liquid-glass-panel overflow-hidden rounded-[2rem]">
+      <div className="h-0.5 bg-gradient-to-r from-indigo-500 via-cyan-500 to-violet-500 dark:from-cyan-400 dark:via-fuchsia-500 dark:to-violet-400" />
 
-      <div className="border-b border-glass-border px-6 py-4">
+      <div className="border-b border-white/30 px-6 py-4 dark:border-slate-800/60">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-on-gradient shadow-lg shadow-primary/25">
             <TrendingUp className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Prediction Results</h2>
-            <p className="text-xs text-muted">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Prediction Results</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {homeLabel} vs {awayLabel}
             </p>
           </div>
@@ -92,6 +93,14 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
           homeLabel={homeLabel}
           awayLabel={awayLabel}
         />
+
+        {result.firstTeamToScorePct ? (
+          <FirstTeamToScoreSection
+            fts={result.firstTeamToScorePct}
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
+          />
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <StatBox
@@ -125,7 +134,7 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
           <button
             type="button"
             onClick={() => setShowExplanation(!showExplanation)}
-            className="flex w-full items-center justify-between rounded-xl glass-subtle px-4 py-3 text-sm font-medium transition hover:bg-primary/5"
+            className="flex w-full items-center justify-between rounded-2xl border border-white/30 bg-white/20 px-4 py-3 text-sm font-medium transition hover:bg-white/40 dark:border-slate-800/60 dark:bg-slate-900/30 dark:hover:bg-slate-800/50"
           >
             <span className="flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent-emphasis">
@@ -136,6 +145,38 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
             {showExplanation ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
           </button>
           {showExplanation && <AnalysisBreakdown explanation={result.explanation} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FirstTeamToScoreSection({
+  fts,
+  homeLabel,
+  awayLabel,
+}: {
+  fts: { home: number; away: number; none: number };
+  homeLabel: string;
+  awayLabel: string;
+}) {
+  return (
+    <div className="liquid-glass-pill space-y-3 rounded-2xl p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        First team to score
+      </p>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-3 dark:border-cyan-400/25">
+          <p className="truncate text-xs font-medium text-primary-emphasis">{homeLabel}</p>
+          <p className="text-xl font-semibold text-primary">{fts.home}%</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/50 bg-white/30 p-3 dark:border-slate-700/50 dark:bg-slate-900/30">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">No goal</p>
+          <p className="text-xl font-semibold text-slate-900 dark:text-white">{fts.none}%</p>
+        </div>
+        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-3 dark:border-fuchsia-400/25">
+          <p className="truncate text-xs font-medium text-accent-emphasis">{awayLabel}</p>
+          <p className="text-xl font-semibold text-accent">{fts.away}%</p>
         </div>
       </div>
     </div>
@@ -156,11 +197,11 @@ function WinProbabilityBar({
   awayLabel: string;
 }) {
   return (
-    <div className="space-y-3 rounded-xl glass-subtle p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">
+    <div className="liquid-glass-pill space-y-3 rounded-2xl p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
         Win probability
       </p>
-      <div className="flex h-9 overflow-hidden rounded-full ring-1 ring-glass-border">
+      <div className="flex h-9 overflow-hidden rounded-full ring-1 ring-white/40 dark:ring-slate-700/60">
         <div
           className="flex items-center justify-center bg-gradient-to-r from-primary to-primary-light text-xs font-semibold text-on-primary"
           style={{ width: `${home}%` }}
@@ -276,7 +317,7 @@ function StatBox({
   const styles = ACCENT_STYLES[accent];
 
   return (
-    <div className={`rounded-xl border ${styles.box} ${small ? "p-3" : "p-4"}`}>
+    <div className={`rounded-2xl border backdrop-blur-sm ${styles.box} ${small ? "p-3" : "p-4"}`}>
       <p className={`truncate text-xs font-medium ${styles.label}`}>{label}</p>
       <p className={`font-semibold ${styles.value} ${small ? "text-lg" : "text-2xl"}`}>
         {value}
@@ -285,26 +326,10 @@ function StatBox({
   );
 }
 
-function teamNamesFromSnapshot(snapshot: unknown): {
-  homeTeamName?: string;
-  awayTeamName?: string;
-} {
-  if (!snapshot || typeof snapshot !== "object") return {};
-  const s = snapshot as Record<string, unknown>;
-  return {
-    homeTeamName:
-      typeof s.homeTeamName === "string" && s.homeTeamName.trim()
-        ? s.homeTeamName.trim()
-        : undefined,
-    awayTeamName:
-      typeof s.awayTeamName === "string" && s.awayTeamName.trim()
-        ? s.awayTeamName.trim()
-        : undefined,
-  };
-}
-
 export function PredictionResultDisplay({
   result,
+  homeTeamName: homeTeamNameProp,
+  awayTeamName: awayTeamNameProp,
 }: {
   result: {
     home_win_pct: number;
@@ -319,14 +344,16 @@ export function PredictionResultDisplay({
     explanation: string;
     inputs_snapshot?: unknown;
   };
+  homeTeamName?: string;
+  awayTeamName?: string;
 }) {
-  const { homeTeamName, awayTeamName } = teamNamesFromSnapshot(result.inputs_snapshot);
+  const fromSnapshot = teamNamesFromSnapshot(result.inputs_snapshot);
 
   return (
     <PredictionResultCard
       result={{
-        homeTeamName,
-        awayTeamName,
+        homeTeamName: homeTeamNameProp ?? fromSnapshot.homeTeamName,
+        awayTeamName: awayTeamNameProp ?? fromSnapshot.awayTeamName,
         homeWinPct: Number(result.home_win_pct),
         awayWinPct: Number(result.away_win_pct),
         drawPct: Number(result.draw_pct),

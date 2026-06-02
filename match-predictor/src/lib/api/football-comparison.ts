@@ -1,44 +1,21 @@
 import { shouldUseMockApis } from "@/lib/config/api-mode";
-import { useSupabaseDataStore } from "@/lib/config/data-source";
+import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { usesSportApi } from "@/lib/config/football-provider";
-import { loadRecentFormEvents } from "@/lib/data/assemble-football-bundle";
-import { getLeagueById, getTeamCity } from "@/lib/data/football-reference";
-import { loadTeamStatisticsFromStore } from "@/lib/data/football-store";
 import { mapEventToFixtureResult, mapTeamInfo } from "@/lib/api/sportapi/mappers";
-import { tryCreateServiceClient } from "@/lib/supabase";
 import {
   sportApiGetRecentForm,
   sportApiGetTeamInfo,
-  sportApiGetTeamStatistics,
   sportApiGetTopScorers,
 } from "@/lib/api/sportapi";
-import { getMockFootballBundle } from "@/lib/mocks/football";
+import { getLeagueById, getTeamCity } from "@/lib/data/football-reference";
 import {
-  type ComparisonBundleInput,
-} from "@/lib/prediction/league-strength";
-import type { FootballBundle, TeamStatistics } from "@/lib/types/football";
+  resolveRecentFormEvents,
+  resolveTeamStatistics,
+} from "@/lib/data/resolve-team-statistics";
+import { getMockFootballBundle } from "@/lib/mocks/football";
+import { type ComparisonBundleInput } from "@/lib/prediction/league-strength";
+import type { FootballBundle } from "@/lib/types/football";
 import { UpstreamApiError } from "@/lib/types/prediction";
-
-async function resolveTeamStats(
-  teamId: number,
-  leagueId: number,
-  season: number,
-  isHomeSide: boolean,
-  teamName?: string
-): Promise<TeamStatistics> {
-  if (useSupabaseDataStore()) {
-    const stored = await loadTeamStatisticsFromStore(teamId, leagueId, isHomeSide);
-    if (stored) return stored;
-  }
-
-  if (usesSportApi()) {
-    return sportApiGetTeamStatistics(teamId, leagueId, season, isHomeSide, undefined, teamName);
-  }
-
-  throw new UpstreamApiError(
-    `No statistics for team ${teamId} in league ${leagueId}. Run sync or enable SportAPI.`
-  );
-}
 
 function buildH2HFromForm(
   homeForm: FootballBundle["homeForm"],
@@ -75,17 +52,27 @@ export async function fetchComparisonBundle(
 
   const season = homeLeague.season;
   const venueCity = input.city || getTeamCity(input.homeTeamId);
-  const readOnlyStore = useSupabaseDataStore();
+  const readOnlyStore = isSupabaseDataStore();
+
+  const entityType = input.entityType;
 
   const [homeStats, awayStats] = await Promise.all([
-    resolveTeamStats(input.homeTeamId, input.homeLeagueId, season, true, input.homeTeamName),
-    resolveTeamStats(
-      input.awayTeamId,
-      input.awayLeagueId,
-      awayLeague.season,
-      false,
-      input.awayTeamName
-    ),
+    resolveTeamStatistics({
+      teamId: input.homeTeamId,
+      leagueId: input.homeLeagueId,
+      season,
+      isHomeSide: true,
+      teamName: input.homeTeamName,
+      entityType,
+    }),
+    resolveTeamStatistics({
+      teamId: input.awayTeamId,
+      leagueId: input.awayLeagueId,
+      season: awayLeague.season,
+      isHomeSide: false,
+      teamName: input.awayTeamName,
+      entityType,
+    }),
   ]);
 
   let homeForm: FootballBundle["homeForm"] = [];
@@ -94,25 +81,22 @@ export async function fetchComparisonBundle(
   let awayTopScorers: FootballBundle["topScorers"] = [];
 
   if (readOnlyStore) {
-    const supabase = tryCreateServiceClient();
-    if (supabase) {
-      const [homeFormEvents, awayFormEvents] = await Promise.all([
-        loadRecentFormEvents(
-          supabase,
-          input.homeLeagueId,
-          input.homeTeamId,
-          input.homeTeamName
-        ),
-        loadRecentFormEvents(
-          supabase,
-          input.awayLeagueId,
-          input.awayTeamId,
-          input.awayTeamName
-        ),
-      ]);
-      homeForm = homeFormEvents.slice(0, 5).map(mapEventToFixtureResult);
-      awayForm = awayFormEvents.slice(0, 5).map(mapEventToFixtureResult);
-    }
+    const [homeFormEvents, awayFormEvents] = await Promise.all([
+      resolveRecentFormEvents(
+        input.homeLeagueId,
+        input.homeTeamId,
+        input.homeTeamName,
+        entityType
+      ),
+      resolveRecentFormEvents(
+        input.awayLeagueId,
+        input.awayTeamId,
+        input.awayTeamName,
+        entityType
+      ),
+    ]);
+    homeForm = homeFormEvents.slice(0, 5).map(mapEventToFixtureResult);
+    awayForm = awayFormEvents.slice(0, 5).map(mapEventToFixtureResult);
   } else if (usesSportApi()) {
     [homeForm, awayForm, homeTopScorers, awayTopScorers] = await Promise.all([
       sportApiGetRecentForm(input.homeTeamId).catch(() => []),

@@ -9,6 +9,7 @@ import type {
   SofascoreEventsResponse,
   SofascoreH2HResponse,
   SofascoreIncidentsResponse,
+  SofascoreBestPlayersResponse,
   SofascoreLineupsResponse,
   SofascoreSeasonsResponse,
   SofascoreStandingsResponse,
@@ -162,6 +163,17 @@ export async function gatewayGetMatchLineups(matchId: number) {
     `match-lineups:${matchId}`,
     () => sofascoreGet<SofascoreLineupsResponse>("matches/get-lineups", { matchId }),
     () => sportApiGet<SportApiLineupsResponse>(`/api/v1/event/${matchId}/lineups`, `lineups:${matchId}`, { skipCache: true })
+  );
+}
+
+export async function gatewayGetMatchBestPlayers(matchId: number) {
+  return withPrimaryFallback(
+    `match-best-players:${matchId}`,
+    () =>
+      sofascoreGet<SofascoreBestPlayersResponse>("matches/get-best-players", {
+        matchId,
+      }),
+    async () => ({ bestPlayers: [] })
   );
 }
 

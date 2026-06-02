@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSyncCronSecret, useSupabaseDataStore } from "@/lib/config/data-source";
+import { getSyncCronSecret, isSupabaseDataStore } from "@/lib/config/data-source";
 import { getSyncStatus } from "@/lib/data/football-store";
 import { runFootballDataSync } from "@/lib/sync/run-football-sync";
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!useSupabaseDataStore()) {
+  if (!isSupabaseDataStore()) {
     return NextResponse.json(
       {
         error:
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   const status = await getSyncStatus();
 
   if (isAuthorized(request) && request.nextUrl.searchParams.get("run") === "true") {
-    if (!useSupabaseDataStore()) {
+    if (!isSupabaseDataStore()) {
       return NextResponse.json({
         dataSource: "live",
         ...status,
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    dataSource: useSupabaseDataStore() ? "supabase" : "live",
+    dataSource: isSupabaseDataStore() ? "supabase" : "live",
     ...status,
     hint: "POST /api/cron/sync?force=true with Authorization: Bearer <SYNC_CRON_SECRET> to sync now",
   });

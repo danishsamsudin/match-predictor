@@ -38,12 +38,8 @@ export default function RootLayout({
       </head>
       <body className="relative flex min-h-full flex-col text-foreground">
         <ThemeProvider>
-          <div className="app-bg pointer-events-none fixed inset-0 z-0" aria-hidden="true">
+          <div className="app-bg pointer-events-none fixed inset-0 z-0 bg-background" aria-hidden="true">
             <div className="app-bg-gradient absolute inset-0" />
-            <div className="app-bg-blob-primary absolute -left-32 -top-16 h-80 w-80 rounded-full blur-[100px]" />
-            <div className="app-bg-blob-accent absolute -right-20 -top-8 h-72 w-72 rounded-full blur-[100px]" />
-            <div className="app-bg-blob-primary absolute -left-24 top-[40%] h-[28rem] w-[28rem] rounded-full opacity-80 blur-[120px]" />
-            <div className="app-bg-blob-accent absolute -right-24 top-[55%] h-[32rem] w-[32rem] rounded-full opacity-70 blur-[120px]" />
           </div>
           <Nav />
           <main className="relative z-10 flex-1">{children}</main>

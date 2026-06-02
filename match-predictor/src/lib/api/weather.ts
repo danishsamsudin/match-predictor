@@ -1,9 +1,10 @@
 import axios from "axios";
 import { shouldUseMockApis } from "@/lib/config/api-mode";
-import { useSupabaseDataStore } from "@/lib/config/data-source";
+import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { loadWeatherFromStore, saveWeatherToStore } from "@/lib/data/football-store";
 import { createRapidApiClient, getWeatherRapidApiHost } from "@/lib/config/rapidapi";
 import { cachedFetch, DAILY_LIMITS, TTL } from "@/lib/cache/api-cache";
+import { readWeatherApiCache } from "@/lib/data/synced-resource-cache";
 import {
   getMockWeatherApiResponse,
   getMockWeatherForecast,
@@ -76,7 +77,7 @@ export async function getWeatherForecast(
   }
 
   let fetchedForStore = false;
-  if (useSupabaseDataStore() && !options?.allowLive) {
+  if (isSupabaseDataStore() && !options?.allowLive) {
     try {
       return await loadWeatherFromStore(city, matchDate);
     } catch (err) {
@@ -91,6 +92,11 @@ export async function getWeatherForecast(
   const dateOnly = matchDate.slice(0, 10);
   const forecastType = selectForecastType(matchDate);
   const cacheKey = `weather:${city.toLowerCase()}:${dateOnly}:${forecastType}`;
+
+  const cachedWeather = await readWeatherApiCache<WeatherApiResponse>(cacheKey);
+  if (cachedWeather?.list?.length) {
+    return mapForecastResponse(cachedWeather, matchDate);
+  }
 
   const { data: response } = await cachedFetch<WeatherApiResponse>({
     provider: "weather",
