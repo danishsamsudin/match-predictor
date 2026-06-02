@@ -296,38 +296,8 @@ export function parseTeamStats(stats: TeamStatistics, isHome: boolean): {
   };
 }
 
-export function computeFormScore(form: FixtureResult[], teamId: number): number {
-  if (!form.length) return 0.5;
-  let points = 0;
-  for (const match of form) {
-    const isHome = match.teams.home.id === teamId;
-    const winner = isHome ? match.teams.home.winner : match.teams.away.winner;
-    if (winner === true) points += 3;
-    else if (winner === null) points += 1;
-  }
-  return points / (form.length * 3);
-}
-
-export function computeH2HRates(
-  h2h: FixtureResult[],
-  homeTeamId: number
-): { homeWinRate: number; drawRate: number; awayWinRate: number } {
-  if (!h2h.length) return { homeWinRate: 0.33, drawRate: 0.34, awayWinRate: 0.33 };
-  let homeWins = 0;
-  let draws = 0;
-  let awayWins = 0;
-  for (const match of h2h) {
-    const homeIsTarget = match.teams.home.id === homeTeamId;
-    const homeWinner = match.teams.home.winner;
-    const awayWinner = match.teams.away.winner;
-    if (homeWinner === null && awayWinner === null) draws++;
-    else if (homeIsTarget ? homeWinner : awayWinner) homeWins++;
-    else awayWins++;
-  }
-  const total = h2h.length;
-  return {
-    homeWinRate: homeWins / total,
-    drawRate: draws / total,
-    awayWinRate: awayWins / total,
-  };
-}
+export {
+  computeFormScore,
+  computeH2HRates,
+  type H2HRates,
+} from "@/lib/prediction/form-momentum";

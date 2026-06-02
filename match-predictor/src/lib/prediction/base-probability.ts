@@ -1,30 +1,20 @@
+import { computeMomentumIndex } from "@/lib/prediction/form-momentum";
 import type {
   BaseProbabilityInput,
   BaseProbabilityOutput,
   TeamStatAverages,
 } from "@/lib/types/prediction";
 
-/** Form weight w₁ in momentum index. */
-const W1_FORM = 0.6;
-/** H2H weight w₂ in momentum index. */
-const W2_H2H = 0.4;
+export { computeMomentumIndex };
+
 /** Home momentum damping γ_home. */
-const GAMMA_HOME = 0.15;
+const GAMMA_HOME = 0.18;
 /** Away momentum damping γ_away. */
-const GAMMA_AWAY = 0.12;
+const GAMMA_AWAY = 0.15;
 /** League-average goals per team per match (μ). */
 const LEAGUE_AVG_GOALS = 1.35;
 /** Baseline total match xG for corner velocity scaling. */
 const CORNER_XG_BASELINE = 2.7;
-
-export function computeMomentumIndex(input: BaseProbabilityInput): number {
-  const formDiff = input.homeFormScore - input.awayFormScore;
-  const h2hStrength =
-    input.h2hHomeWinRate -
-    input.h2hAwayWinRate +
-    input.h2hDrawRate * 0.3;
-  return formDiff * W1_FORM + h2hStrength * W2_H2H;
-}
 
 /**
  * Structural baseline λ₀, μ₀ with league-normalized attack (α) and raw defense (β),

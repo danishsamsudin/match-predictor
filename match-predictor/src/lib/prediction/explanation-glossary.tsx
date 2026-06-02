@@ -32,9 +32,11 @@ const BASE_ANALYSIS_TIPS: Array<{ test: RegExp; tip: ExplanationTip }> = [
       label: "Momentum index",
       body: (
         <>
-          A single number combining recent form (60%) and head-to-head history (40%). Higher values
-          suggest the side is trending well going into this match. It feeds the baseline goal
-          expectations before weather, travel, and lineup adjustments.
+          A single number combining recent form (35%) and head-to-head history (65%). Recent H2H
+          meetings count more, and a team that consistently dominates this opponent pushes the index
+          further toward the home side. Higher values suggest the side is trending well going into
+          this match. It feeds the baseline goal expectations before weather, travel, and lineup
+          adjustments.
         </>
       ),
     },
@@ -46,7 +48,8 @@ const BASE_ANALYSIS_TIPS: Array<{ test: RegExp; tip: ExplanationTip }> = [
       body: (
         <>
           Points from the last few finished matches, scaled to a percentage (wins = 3 pts, draws = 1).
-          100% means maximum points; 50% is roughly mid-table form.
+          Recent games are weighted more heavily. 100% means maximum points; 50% is roughly
+          mid-table form.
         </>
       ),
     },
@@ -57,8 +60,9 @@ const BASE_ANALYSIS_TIPS: Array<{ test: RegExp; tip: ExplanationTip }> = [
       label: "Head-to-head (H2H) rates",
       body: (
         <>
-          How often each outcome happened in recent meetings between these teams. If they rarely play,
-          the model uses balanced default rates.
+          How often each outcome happened in recent meetings between these teams, with newer games
+          weighted more. When they rarely play, the model leans on form instead of inventing H2H
+          signal.
         </>
       ),
     },

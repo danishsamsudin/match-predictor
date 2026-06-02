@@ -163,12 +163,15 @@ export async function resolveRecentFormEvents(
   const supabase = tryCreateServiceClient();
   if (!supabase) return [];
 
-  if (effectiveEntity === "national") {
-    const crossLeague = await loadRecentFormEventsForTeam(supabase, teamId, teamName, 12);
-    if (crossLeague.length) return crossLeague;
+  const crossCompetition = await loadRecentFormEventsForTeam(supabase, teamId, teamName, 12);
+  if (crossCompetition.length >= 5) return crossCompetition;
+
+  if (effectiveEntity === "national" && crossCompetition.length) {
+    return crossCompetition;
   }
 
-  return loadRecentFormEvents(supabase, leagueId, teamId, teamName);
+  const leagueScoped = await loadRecentFormEvents(supabase, leagueId, teamId, teamName);
+  return leagueScoped.length > crossCompetition.length ? leagueScoped : crossCompetition;
 }
 
 export function nationalProxyLeagueIds(): readonly number[] {

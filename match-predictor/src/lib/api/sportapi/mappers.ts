@@ -73,6 +73,18 @@ export function mapEventToFixtureOption(
   };
 }
 
+function extractSideScore(
+  scoreRaw: Record<string, unknown> | { current?: number; display?: number } | null | undefined
+): number | null {
+  if (!scoreRaw || typeof scoreRaw !== "object") return null;
+  for (const key of ["current", "display", "normaltime", "regular"]) {
+    const value = (scoreRaw as Record<string, unknown>)[key];
+    const n = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
 function winnerFromScores(
   homeGoals: number | null,
   awayGoals: number | null
@@ -86,12 +98,9 @@ function winnerFromScores(
 }
 
 export function mapEventToFixtureResult(event: SportApiEvent): FixtureResult {
-  const homeGoals = event.homeScore?.current ?? event.homeScore?.display ?? null;
-  const awayGoals = event.awayScore?.current ?? event.awayScore?.display ?? null;
-  const winners = winnerFromScores(
-    homeGoals ?? null,
-    awayGoals ?? null
-  );
+  const homeGoals = extractSideScore(event.homeScore);
+  const awayGoals = extractSideScore(event.awayScore);
+  const winners = winnerFromScores(homeGoals, awayGoals);
   return {
     fixture: {
       id: event.id,

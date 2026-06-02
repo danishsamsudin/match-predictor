@@ -109,6 +109,8 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     h2hHomeWinRate: h2h.homeWinRate,
     h2hDrawRate: h2h.drawRate,
     h2hAwayWinRate: h2h.awayWinRate,
+    h2hHasData: h2h.hasData,
+    h2hMeetingCount: bundle.h2h.length,
     homeLeagueStrength,
     awayLeagueStrength,
     homeStats,
@@ -207,9 +209,11 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     "",
     `## Base Analysis`,
     `League strength Ω - ${homeTeamName}: ${homeLeagueStrength.toFixed(2)}, ${awayTeamName}: ${awayLeagueStrength.toFixed(2)}.`,
-    `Momentum index: ${momentumIndex.toFixed(3)} (form 60% + H2H 40%).`,
+    `Momentum index: ${momentumIndex.toFixed(3)} (form 35% + H2H 65%).`,
     `${homeTeamName} form score: ${(homeFormScore * 100).toFixed(0)}% | ${awayTeamName} form score: ${(awayFormScore * 100).toFixed(0)}%.`,
-    `H2H rates - ${homeTeamName} win: ${(h2h.homeWinRate * 100).toFixed(0)}%, Draw: ${(h2h.drawRate * 100).toFixed(0)}%, ${awayTeamName} win: ${(h2h.awayWinRate * 100).toFixed(0)}%.`,
+    h2h.hasData
+      ? `H2H rates - ${homeTeamName} win: ${(h2h.homeWinRate * 100).toFixed(0)}%, Draw: ${(h2h.drawRate * 100).toFixed(0)}%, ${awayTeamName} win: ${(h2h.awayWinRate * 100).toFixed(0)}%.`
+      : `H2H rates - insufficient history; momentum uses form only.`,
     `Structural baseline xG (pre-shock): ${homeTeamName} ${base.homeXg.toFixed(2)} - ${awayTeamName} ${base.awayXg.toFixed(2)}.`,
     `Final xG after all adjustments: ${homeTeamName} ${homeXg} - ${awayTeamName} ${awayXg}.`,
   ];

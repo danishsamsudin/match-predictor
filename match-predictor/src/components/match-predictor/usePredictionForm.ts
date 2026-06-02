@@ -112,12 +112,14 @@ export function usePredictionForm() {
       setAwayCountry(matchCountry);
       setHomeLeagueId(String(fixture.league.id));
       setAwayLeagueId(String(fixture.league.id));
-      setCity(fixture.venueCity || city);
+      if (fixture.venueCity) {
+        setCity(fixture.venueCity);
+      }
       const { date: d, time: t } = parseFixtureDateTime(fixture.date);
       setDate(d);
       setTime(t);
     },
-    [matchCountry, city]
+    [matchCountry]
   );
 
   useEffect(() => {
@@ -339,7 +341,9 @@ export function usePredictionForm() {
       const { date: d, time: t } = parseFixtureDateTime(match.date);
       setDate(d);
       setTime(t);
-      setCity(match.venueCity || city);
+      if (match.venueCity) {
+        setCity(match.venueCity);
+      }
     } else {
       setSelectedFixtureId("");
     }

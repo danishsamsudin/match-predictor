@@ -1,5 +1,5 @@
 import { parseTeamStats } from "@/lib/api/football";
-import { mapTeamInfo } from "@/lib/api/sportapi/mappers";
+import { mapEventToFixtureResult, mapTeamInfo } from "@/lib/api/sportapi/mappers";
 import { isMockFixtureForm } from "@/lib/mocks/football";
 import { getLeagueEntityType } from "@/lib/data/football-reference";
 import { resolveTeamStatistics } from "@/lib/data/resolve-team-statistics";
@@ -126,6 +126,78 @@ export async function loadH2HEventsFromSyncedEvents(
   return events;
 }
 
+async function resolveFormEventsForTeam(
+  supabase: ServiceClient,
+  leagueId: number,
+  teamId: number,
+  teamName?: string,
+  limit = 10
+): Promise<SportApiEvent[]> {
+  const crossCompetition = await loadRecentFormEventsForTeam(
+    supabase,
+    teamId,
+    teamName,
+    limit
+  );
+  if (crossCompetition.length >= 5) return crossCompetition;
+
+  const leagueScoped = await loadRecentFormEvents(supabase, leagueId, teamId, teamName, limit);
+  if (leagueScoped.length > crossCompetition.length) return leagueScoped;
+  return crossCompetition;
+}
+
+async function resolveH2HEvents(
+  supabase: ServiceClient,
+  matchId: number,
+  homeTeamId: number,
+  awayTeamId: number,
+  leagueId: number,
+  homeTeamName: string,
+  awayTeamName: string,
+  h2hPayloadEvents: SportApiEvent[]
+): Promise<SportApiEvent[]> {
+  const seen = new Set<number>();
+  const merged: SportApiEvent[] = [];
+
+  const push = (event: SportApiEvent) => {
+    if (!event?.id || seen.has(event.id)) return;
+    seen.add(event.id);
+    merged.push(event);
+  };
+
+  for (const event of h2hPayloadEvents) push(event);
+
+  if (merged.length < 10) {
+    const dbEvents = await loadH2HEventsFromSyncedEvents(supabase, homeTeamId, awayTeamId, {
+      leagueIds: [leagueId],
+      homeTeamName,
+      awayTeamName,
+      limit: 10,
+      excludeEventIds: [...seen],
+      maxPoolRows: 5000,
+      finishedOnly: true,
+    });
+    for (const event of dbEvents) push(event);
+  }
+
+  void matchId;
+  return merged.slice(0, 10);
+}
+
+function attachLiveFormAndH2H(
+  bundle: FootballBundle,
+  homeFormEvents: SportApiEvent[],
+  awayFormEvents: SportApiEvent[],
+  h2hEvents: SportApiEvent[]
+): FootballBundle {
+  return {
+    ...bundle,
+    homeForm: homeFormEvents.slice(0, 5).map(mapEventToFixtureResult),
+    awayForm: awayFormEvents.slice(0, 5).map(mapEventToFixtureResult),
+    h2h: h2hEvents.slice(0, 10).map(mapEventToFixtureResult),
+  };
+}
+
 /** Recent finished events for a team from `synced_events` (ID or name match). */
 export async function loadRecentFormEvents(
   supabase: ServiceClient,
@@ -199,7 +271,36 @@ export async function assembleFootballBundleFromStore(
   if (cachedBundle?.bundle && isFresh(cachedBundle.synced_at, SYNC_FRESH_MS)) {
     const cached = cachedBundle.bundle as FootballBundle;
     if (!isMockFixtureForm(cached.homeForm) && !isMockFixtureForm(cached.awayForm)) {
-      return cached;
+      const cachedLeagueId = cached.fixture.league.id;
+      const cachedHomeName = cached.fixture.teams.home.name;
+      const cachedAwayName = cached.fixture.teams.away.name;
+
+      const { data: cachedH2hRow } = await supabase
+        .from("synced_event_h2h")
+        .select("payload, synced_at")
+        .eq("event_id", matchId)
+        .maybeSingle();
+
+      const cachedH2hPayload =
+        cachedH2hRow?.payload && isFresh(cachedH2hRow.synced_at, SYNC_FRESH_MS)
+          ? (cachedH2hRow.payload as { events?: SportApiEvent[] })
+          : undefined;
+
+      const [homeFormEvents, awayFormEvents, h2hEvents] = await Promise.all([
+        resolveFormEventsForTeam(supabase, cachedLeagueId, homeTeamId, cachedHomeName),
+        resolveFormEventsForTeam(supabase, cachedLeagueId, awayTeamId, cachedAwayName),
+        resolveH2HEvents(
+          supabase,
+          matchId,
+          homeTeamId,
+          awayTeamId,
+          cachedLeagueId,
+          cachedHomeName,
+          cachedAwayName,
+          cachedH2hPayload?.events ?? []
+        ),
+      ]);
+      return attachLiveFormAndH2H(cached, homeFormEvents, awayFormEvents, h2hEvents);
     }
   }
 
@@ -247,7 +348,7 @@ export async function assembleFootballBundleFromStore(
 
   const leagueEntityType = getLeagueEntityType(leagueId);
 
-  const [homeStats, awayStats, standingsRow, statsRow, lineupsRow, h2hRow, formEvents] =
+  const [homeStats, awayStats, standingsRow, statsRow, lineupsRow, h2hRow] =
     await Promise.all([
       loadTeamStats(supabase, homeTeamId, leagueId, season, true, homeName, leagueEntityType),
       loadTeamStats(supabase, awayTeamId, leagueId, season, false, awayName, leagueEntityType),
@@ -273,15 +374,27 @@ export async function assembleFootballBundleFromStore(
         .select("payload, synced_at")
         .eq("event_id", matchId)
         .maybeSingle(),
-      loadRecentFormEvents(supabase, leagueId, homeTeamId, homeName),
     ]);
 
-  const awayFormEvents = await loadRecentFormEvents(
-    supabase,
-    leagueId,
-    awayTeamId,
-    awayName
-  );
+  const h2hPayload =
+    h2hRow.data?.payload && isFresh(h2hRow.data.synced_at, SYNC_FRESH_MS)
+      ? (h2hRow.data.payload as { events?: SportApiEvent[] })
+      : undefined;
+
+  const [homeFormEvents, awayFormEvents, h2hEvents] = await Promise.all([
+    resolveFormEventsForTeam(supabase, leagueId, homeTeamId, homeName),
+    resolveFormEventsForTeam(supabase, leagueId, awayTeamId, awayName),
+    resolveH2HEvents(
+      supabase,
+      matchId,
+      homeTeamId,
+      awayTeamId,
+      leagueId,
+      homeName,
+      awayName,
+      h2hPayload?.events ?? []
+    ),
+  ]);
   const standingsRes =
     standingsRow.data?.payload && isFresh(standingsRow.data.synced_at, SYNC_FRESH_MS)
       ? (standingsRow.data.payload as SportApiStandingsResponse)
@@ -293,10 +406,6 @@ export async function assembleFootballBundleFromStore(
   const lineups =
     lineupsRow.data?.payload && isFresh(lineupsRow.data.synced_at, SYNC_FRESH_MS)
       ? (lineupsRow.data.payload as import("@/lib/types/sportapi").SportApiLineupsResponse)
-      : undefined;
-  const h2hPayload =
-    h2hRow.data?.payload && isFresh(h2hRow.data.synced_at, SYNC_FRESH_MS)
-      ? (h2hRow.data.payload as { events?: SportApiEvent[] })
       : undefined;
 
   const bundle = buildFootballBundleFromParts({
@@ -313,9 +422,9 @@ export async function assembleFootballBundleFromStore(
     awayStandingsRow: standingsRes
       ? findStandingsRow(standingsRes, awayTeamId, awayName)
       : undefined,
-    homeFormEvents: filterFormForTeam(formEvents, homeTeamId),
-    awayFormEvents: filterFormForTeam(awayFormEvents, awayTeamId),
-    h2hEvents: h2hPayload?.events ?? [],
+    homeFormEvents,
+    awayFormEvents,
+    h2hEvents,
     venueCity,
   });
 

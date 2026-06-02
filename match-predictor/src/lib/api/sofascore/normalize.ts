@@ -169,13 +169,27 @@ export function normalizeEvent(raw: unknown): SportApiEvent | null {
       : undefined,
     homeScore: homeScoreRaw
       ? {
-          current: asNumber(homeScoreRaw.current ?? homeScoreRaw.display, NaN) || undefined,
+          current:
+            asNumber(
+              homeScoreRaw.current ??
+                homeScoreRaw.display ??
+                homeScoreRaw.normaltime ??
+                homeScoreRaw.regular,
+              NaN
+            ) || undefined,
           display: asNumber(homeScoreRaw.display, NaN) || undefined,
         }
       : undefined,
     awayScore: awayScoreRaw
       ? {
-          current: asNumber(awayScoreRaw.current ?? awayScoreRaw.display, NaN) || undefined,
+          current:
+            asNumber(
+              awayScoreRaw.current ??
+                awayScoreRaw.display ??
+                awayScoreRaw.normaltime ??
+                awayScoreRaw.regular,
+              NaN
+            ) || undefined,
           display: asNumber(awayScoreRaw.display, NaN) || undefined,
         }
       : undefined,

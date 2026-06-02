@@ -80,48 +80,70 @@ export function isMockFixtureForm(form: FixtureResult[]): boolean {
 }
 
 function mockForm(teamId: number, teamName: string): FixtureResult[] {
-  return [
-    {
-      fixture: { id: 1, date: "2026-05-20", status: { short: "FT" } },
+  const pattern = ["W", "D", "L"] as const;
+  const results: Array<"W" | "D" | "L"> = [];
+  for (let i = 0; i < 5; i++) {
+    results.push(pattern[(teamId + i * 2) % 3]);
+  }
+
+  return results.map((result, index) => {
+    const opponentId = 990 + index;
+    const isHome = index % 2 === 0;
+    const homeGoals = result === "W" ? 2 : result === "D" ? 1 : 0;
+    const awayGoals = result === "L" ? 2 : result === "D" ? 1 : 0;
+
+    if (isHome) {
+      return {
+        fixture: { id: teamId * 10 + index, date: `2026-05-${20 - index * 7}`, status: { short: "FT" } },
+        teams: {
+          home: { id: teamId, name: teamName, winner: result === "W" ? true : result === "L" ? false : null },
+          away: { id: opponentId, name: `Opponent ${String.fromCharCode(65 + index)}`, winner: result === "L" ? true : result === "W" ? false : null },
+        },
+        goals: { home: homeGoals, away: awayGoals },
+      };
+    }
+
+    return {
+      fixture: { id: teamId * 10 + index, date: `2026-05-${20 - index * 7}`, status: { short: "FT" } },
       teams: {
-        home: { id: teamId, name: teamName, winner: true },
-        away: { id: 999, name: "Opponent A", winner: false },
+        home: { id: opponentId, name: `Opponent ${String.fromCharCode(65 + index)}`, winner: result === "L" ? true : result === "W" ? false : null },
+        away: { id: teamId, name: teamName, winner: result === "W" ? true : result === "L" ? false : null },
       },
-      goals: { home: 2, away: 1 },
-    },
-    {
-      fixture: { id: 2, date: "2026-05-13", status: { short: "FT" } },
-      teams: {
-        home: { id: 998, name: "Opponent B", winner: false },
-        away: { id: teamId, name: teamName, winner: true },
-      },
-      goals: { home: 0, away: 1 },
-    },
-    {
-      fixture: { id: 3, date: "2026-05-06", status: { short: "FT" } },
-      teams: {
-        home: { id: teamId, name: teamName, winner: null },
-        away: { id: 997, name: "Opponent C", winner: null },
-      },
-      goals: { home: 1, away: 1 },
-    },
-    {
-      fixture: { id: 4, date: "2026-04-29", status: { short: "FT" } },
-      teams: {
-        home: { id: 996, name: "Opponent D", winner: true },
-        away: { id: teamId, name: teamName, winner: false },
-      },
-      goals: { home: 3, away: 0 },
-    },
-    {
-      fixture: { id: 5, date: "2026-04-22", status: { short: "FT" } },
-      teams: {
-        home: { id: teamId, name: teamName, winner: true },
-        away: { id: 995, name: "Opponent E", winner: false },
-      },
-      goals: { home: 2, away: 0 },
-    },
+      goals: { home: awayGoals, away: homeGoals },
+    };
+  });
+}
+
+function mockH2H(
+  homeTeamId: number,
+  awayTeamId: number,
+  homeName: string,
+  awayName: string
+): FixtureResult[] {
+  const outcomes: Array<{ homeGoals: number; awayGoals: number }> = [
+    { homeGoals: 2, awayGoals: 0 },
+    { homeGoals: 1, awayGoals: 1 },
+    { homeGoals: 0, awayGoals: 2 },
+    { homeGoals: 3, awayGoals: 1 },
+    { homeGoals: 1, awayGoals: 0 },
   ];
+
+  return outcomes.map((score, index) => {
+    const flip = (homeTeamId + awayTeamId + index) % 2 === 1;
+    const homeGoals = flip ? score.awayGoals : score.homeGoals;
+    const awayGoals = flip ? score.homeGoals : score.awayGoals;
+    const homeWinner = homeGoals > awayGoals ? true : homeGoals < awayGoals ? false : null;
+    const awayWinner = awayGoals > homeGoals ? true : awayGoals < homeGoals ? false : null;
+
+    return {
+      fixture: { id: 9000 + index, date: `2025-0${index + 1}-15`, status: { short: "FT" } },
+      teams: {
+        home: { id: homeTeamId, name: homeName, winner: homeWinner },
+        away: { id: awayTeamId, name: awayName, winner: awayWinner },
+      },
+      goals: { home: homeGoals, away: awayGoals },
+    };
+  });
 }
 
 function mockLineup(teamId: number, teamName: string, includeTopScorer: boolean): FixtureLineup {
@@ -191,7 +213,7 @@ export function getMockFootballBundle(
     awayStats: mockStats(awayTeamId, "Away Team"),
     homeForm: mockForm(homeTeamId, "Home Team"),
     awayForm: mockForm(awayTeamId, "Away Team"),
-    h2h: mockForm(homeTeamId, "Home Team"),
+    h2h: mockH2H(homeTeamId, awayTeamId, "Home Team", "Away Team"),
     lineups: [
       mockLineup(homeTeamId, "Home Team", true),
       mockLineup(awayTeamId, "Away Team", false),

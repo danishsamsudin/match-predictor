@@ -1,4 +1,5 @@
 import type { FixtureResult } from "@/lib/types/football";
+import { matchPointsForTeam } from "@/lib/prediction/form-momentum";
 
 export type FormResultChar = "W" | "D" | "L";
 
@@ -6,11 +7,10 @@ export function resultCharForFixture(
   match: FixtureResult,
   teamId: number
 ): FormResultChar | null {
-  const isHome = match.teams.home.id === teamId;
-  const winner = isHome ? match.teams.home.winner : match.teams.away.winner;
-  if (winner === true) return "W";
-  if (winner === false) return "L";
-  if (winner === null) return "D";
+  const points = matchPointsForTeam(match, teamId);
+  if (points === 3) return "W";
+  if (points === 1) return "D";
+  if (points === 0) return "L";
   return null;
 }
 
