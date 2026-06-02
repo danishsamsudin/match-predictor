@@ -60,7 +60,7 @@ export function applySquadFormDecay(
   }
   return {
     multiplier: next,
-    note: `Squad form decay (${parts.join("; ")}) — attacking xG ×${next.toFixed(2)}.`,
+    note: `Squad form decay (${parts.join("; ")}) - attacking xG ×${next.toFixed(2)}.`,
   };
 }
 
@@ -115,7 +115,7 @@ export function computeLineupImpact(
   if (awayDecay.note) notes.push(awayDecay.note);
 
   if (notes.length === 0) {
-    notes.push("Full strength lineups expected — no major absences detected.");
+    notes.push("Full strength lineups expected - no major absences detected.");
   }
 
   return { homeXgMultiplier, awayXgMultiplier, notes };

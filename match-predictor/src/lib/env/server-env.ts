@@ -26,6 +26,9 @@ export const serverEnv = {
   get weatherProvider(): string | undefined {
     return read("WEATHER_PROVIDER");
   },
+  get openMeteoApiKey(): string | undefined {
+    return read("OPEN_METEO_API_KEY");
+  },
   get sportApiRapidApiHost(): string | undefined {
     return read("SPORTAPI_RAPIDAPI_HOST");
   },

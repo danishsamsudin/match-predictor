@@ -1,0 +1,79 @@
+name: Open-Meteo release sync
+
+on:
+  schedule:
+    # Weekly on Monday 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+defaults:
+  run:
+    working-directory: match-predictor
+
+jobs:
+  sync-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check latest Open-Meteo release
+        id: release
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -sS "https://api.github.com/repos/open-meteo/open-meteo/releases/latest")
+          VERSION=$(python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'].lstrip('v'))" <<< "$RESPONSE")
+          URL=$(python3 -c "import json,sys; print(json.load(sys.stdin)['html_url'])" <<< "$RESPONSE")
+          CURRENT=$(python3 -c "import json; print(json.load(open('config/open-meteo-version.json'))['version'])")
+          echo "latest=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          if [ "$VERSION" = "$CURRENT" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update version manifest
+        if: steps.release.outputs.changed == 'true'
+        run: |
+          python3 <<'PY'
+          import json
+          from datetime import datetime, timezone
+
+          path = "config/open-meteo-version.json"
+          with open(path) as f:
+              data = json.load(f)
+
+          data["version"] = "${{ steps.release.outputs.latest }}"
+          data["releaseUrl"] = "${{ steps.release.outputs.url }}"
+          data["checkedAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+          with open(path, "w") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          PY
+
+      - name: Create pull request
+        if: steps.release.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/open-meteo-${{ steps.release.outputs.latest }}
+          title: "chore: bump Open-Meteo pin to ${{ steps.release.outputs.latest }}"
+          commit-message: "chore: bump Open-Meteo pin to ${{ steps.release.outputs.latest }}"
+          body: |
+            Automated update from [open-meteo/open-meteo releases](https://github.com/open-meteo/open-meteo/releases).
+
+            - Previous pin: `${{ steps.release.outputs.current }}`
+            - Latest release: `${{ steps.release.outputs.latest }}`
+            - Release notes: ${{ steps.release.outputs.url }}
+
+            Review the upstream changelog for API or model changes before merging.
+
+      - name: No update needed
+        if: steps.release.outputs.changed != 'true'
+        run: echo "Open-Meteo pin already at ${{ steps.release.outputs.latest }}"

@@ -1,70 +1,47 @@
-import axios from "axios";
 import { shouldUseMockApis } from "@/lib/config/api-mode";
 import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { loadWeatherFromStore, saveWeatherToStore } from "@/lib/data/football-store";
-import { createRapidApiClient, getWeatherRapidApiHost } from "@/lib/config/rapidapi";
 import { cachedFetch, DAILY_LIMITS, TTL } from "@/lib/cache/api-cache";
 import { readWeatherApiCache } from "@/lib/data/synced-resource-cache";
 import {
-  getMockWeatherApiResponse,
-  getMockWeatherForecast,
-  type WeatherApiResponse,
-} from "@/lib/mocks/weather";
+  fetchOpenMeteoForecast,
+  geocodeLocation,
+  weatherForecastFromCache,
+} from "@/lib/api/open-meteo/client";
+import { OPEN_METEO_VERSION } from "@/lib/config/open-meteo";
+import type { OpenMeteoGeocodingResult, OpenMeteoWeatherCachePayload } from "@/lib/api/open-meteo/types";
+import { getMockWeatherForecast } from "@/lib/mocks/weather";
 import type { WeatherForecast } from "@/lib/types/prediction";
 import { UpstreamApiError } from "@/lib/types/prediction";
 
-function getWeatherClient() {
-  return createRapidApiClient(getWeatherRapidApiHost(), { timeout: 10000 });
+const GEOCODE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function cityCacheKey(city: string): string {
+  return city.trim().toLowerCase();
 }
 
-function parseForecastTimestamp(dtTxt: string): number {
-  return new Date(dtTxt.replace(" ", "T")).getTime();
-}
+async function resolveGeocodedLocation(city: string): Promise<OpenMeteoGeocodingResult> {
+  const cacheKey = `geocode:open-meteo:${cityCacheKey(city)}`;
 
-function findClosestForecastEntry(
-  entries: WeatherApiResponse["list"],
-  matchDate: string
-) {
-  if (!entries.length) return null;
-  const matchTime = new Date(matchDate).getTime();
-  return entries.reduce((closest, entry) => {
-    const entryTime = parseForecastTimestamp(entry.dt_txt);
-    const closestTime = parseForecastTimestamp(closest.dt_txt);
-    return Math.abs(entryTime - matchTime) < Math.abs(closestTime - matchTime)
-      ? entry
-      : closest;
+  const { data } = await cachedFetch<OpenMeteoGeocodingResult>({
+    provider: "weather",
+    cacheKey,
+    ttlMs: GEOCODE_TTL_MS,
+    dailyLimit: DAILY_LIMITS.weather,
+    fetcher: () => geocodeLocation(city),
   });
+
+  return data;
 }
 
-function mapForecastResponse(
-  response: WeatherApiResponse,
-  matchDate: string
-): WeatherForecast {
-  const forecastEntry = findClosestForecastEntry(response.list, matchDate);
-  if (!forecastEntry) {
-    throw new UpstreamApiError("Empty weather forecast");
-  }
-
-  const precipMm =
-    forecastEntry.rain?.["1h"] ?? forecastEntry.rain?.["3h"] ?? 0;
-
-  return {
-    condition:
-      forecastEntry.weather[0]?.description ??
-      forecastEntry.weather[0]?.main ??
-      "Unknown",
-    tempC: forecastEntry.main.temp,
-    humidity: forecastEntry.main.humidity,
-    windKph: forecastEntry.wind.speed * 3.6,
-    precipMm,
-    lat: response.city.coord.lat,
-    lon: response.city.coord.lon,
-  };
-}
-
-function selectForecastType(_matchDate: string): "three_hour" {
-  // weather-api167 only accepts three_hour (hourly was removed upstream).
-  return "three_hour";
+function isValidWeatherCache(payload: unknown): payload is OpenMeteoWeatherCachePayload {
+  if (!payload || typeof payload !== "object") return false;
+  const p = payload as OpenMeteoWeatherCachePayload;
+  return (
+    p.provider === "open-meteo" &&
+    Boolean(p.location?.latitude !== undefined) &&
+    Boolean(p.forecast?.hourly?.time?.length)
+  );
 }
 
 export async function getWeatherForecast(
@@ -90,63 +67,39 @@ export async function getWeatherForecast(
   }
 
   const dateOnly = matchDate.slice(0, 10);
-  const forecastType = selectForecastType(matchDate);
-  const cacheKey = `weather:${city.toLowerCase()}:${dateOnly}:${forecastType}`;
+  const cacheKey = `weather:open-meteo:${cityCacheKey(city)}:${dateOnly}`;
 
-  const cachedWeather = await readWeatherApiCache<WeatherApiResponse>(cacheKey);
-  if (cachedWeather?.list?.length) {
-    return mapForecastResponse(cachedWeather, matchDate);
+  const cachedWeather = await readWeatherApiCache<OpenMeteoWeatherCachePayload>(cacheKey);
+  if (isValidWeatherCache(cachedWeather)) {
+    return weatherForecastFromCache(cachedWeather, matchDate);
   }
 
-  const { data: response } = await cachedFetch<WeatherApiResponse>({
+  const { data: payload } = await cachedFetch<OpenMeteoWeatherCachePayload>({
     provider: "weather",
     cacheKey,
     ttlMs: TTL.WEATHER,
     dailyLimit: DAILY_LIMITS.weather,
     fetcher: async () => {
-      try {
-        const client = getWeatherClient();
-        const { data } = await client.get<WeatherApiResponse>("/api/weather/forecast", {
-          params: {
-            place: city,
-            units: "metric",
-            type: forecastType,
-            lang: "en",
-          },
-        });
-
-        if ("message" in data && typeof (data as { message?: string }).message === "string") {
-          throw new UpstreamApiError(
-            `Weather API error: ${(data as { message: string }).message}`
-          );
-        }
-
-        return data;
-      } catch (err) {
-        if (err instanceof UpstreamApiError) throw err;
-        if (axios.isAxiosError(err)) {
-          const payload = err.response?.data as { message?: string } | undefined;
-          const msg = payload?.message ?? err.message;
-          throw new UpstreamApiError(`Weather API error: ${msg}`);
-        }
-        throw err;
-      }
+      const location = await resolveGeocodedLocation(city);
+      const forecast = await fetchOpenMeteoForecast(location, matchDate);
+      return {
+        provider: "open-meteo" as const,
+        version: OPEN_METEO_VERSION,
+        location,
+        forecast,
+      };
     },
   });
 
-  if (!response.list?.length) {
+  if (!isValidWeatherCache(payload)) {
     throw new UpstreamApiError(`No weather forecast for ${city} on ${dateOnly}`);
   }
 
-  const forecast = mapForecastResponse(response, matchDate);
+  const forecast = weatherForecastFromCache(payload, matchDate);
 
   if (fetchedForStore) {
     await saveWeatherToStore(city, matchDate, forecast);
   }
 
   return forecast;
-}
-
-export function getMockResponse(city: string, date: string): WeatherApiResponse {
-  return getMockWeatherApiResponse(city, date);
 }

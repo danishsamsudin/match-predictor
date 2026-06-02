@@ -8,9 +8,15 @@ import { getWeatherForecast } from "@/lib/api/weather";
 import { enrichLineupsWithRatings } from "@/lib/data/enrich-lineup-ratings";
 import { getLeagueStrengthMultiplier } from "@/lib/data/football-reference";
 import { computeBaseProbability, computeMomentumIndex } from "@/lib/prediction/base-probability";
+import {
+  computeMarketAnalytics,
+  computeOutcomeProbabilities,
+  parseSeasonStat,
+} from "@/lib/prediction/market-probabilities";
 import { computeLineupImpact } from "@/lib/prediction/lineup-impact";
 import { computeStadiumImpact } from "@/lib/prediction/stadium-impact";
 import { computeWeatherImpact } from "@/lib/prediction/weather-impact";
+import { buildTeamComparisonSnapshot } from "@/lib/data/build-team-comparison";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import type {
   FirstTeamToScorePct,
@@ -45,41 +51,6 @@ export function computeFirstTeamToScorePct(
     home: Math.round((homeFtsRaw / totalFtsIntensity) * 0.9 * 100),
     away: Math.round((awayFtsRaw / totalFtsIntensity) * 0.9 * 100),
     none: 10,
-  };
-}
-
-function factorial(n: number): number {
-  if (n <= 1) return 1;
-  return n * factorial(n - 1);
-}
-
-function poissonPmf(k: number, lambda: number): number {
-  return (Math.exp(-lambda) * Math.pow(lambda, k)) / factorial(k);
-}
-
-function computeOutcomeProbabilities(
-  homeXg: number,
-  awayXg: number,
-  maxGoals = 8
-): { homeWin: number; draw: number; awayWin: number } {
-  let homeWin = 0;
-  let draw = 0;
-  let awayWin = 0;
-
-  for (let h = 0; h <= maxGoals; h++) {
-    for (let a = 0; a <= maxGoals; a++) {
-      const p = poissonPmf(h, homeXg) * poissonPmf(a, awayXg);
-      if (h > a) homeWin += p;
-      else if (h === a) draw += p;
-      else awayWin += p;
-    }
-  }
-
-  const total = homeWin + draw + awayWin;
-  return {
-    homeWin: homeWin / total,
-    draw: draw / total,
-    awayWin: awayWin / total,
   };
 }
 
@@ -235,13 +206,84 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     ...lineup.notes,
     "",
     `## Base Analysis`,
-    `League strength Ω — ${homeTeamName}: ${homeLeagueStrength.toFixed(2)}, ${awayTeamName}: ${awayLeagueStrength.toFixed(2)}.`,
+    `League strength Ω - ${homeTeamName}: ${homeLeagueStrength.toFixed(2)}, ${awayTeamName}: ${awayLeagueStrength.toFixed(2)}.`,
     `Momentum index: ${momentumIndex.toFixed(3)} (form 60% + H2H 40%).`,
     `${homeTeamName} form score: ${(homeFormScore * 100).toFixed(0)}% | ${awayTeamName} form score: ${(awayFormScore * 100).toFixed(0)}%.`,
-    `H2H rates — ${homeTeamName} win: ${(h2h.homeWinRate * 100).toFixed(0)}%, Draw: ${(h2h.drawRate * 100).toFixed(0)}%, ${awayTeamName} win: ${(h2h.awayWinRate * 100).toFixed(0)}%.`,
-    `Structural baseline xG (pre-shock): ${homeTeamName} ${base.homeXg.toFixed(2)} — ${awayTeamName} ${base.awayXg.toFixed(2)}.`,
-    `Final xG after all adjustments: ${homeTeamName} ${homeXg} — ${awayTeamName} ${awayXg}.`,
+    `H2H rates - ${homeTeamName} win: ${(h2h.homeWinRate * 100).toFixed(0)}%, Draw: ${(h2h.drawRate * 100).toFixed(0)}%, ${awayTeamName} win: ${(h2h.awayWinRate * 100).toFixed(0)}%.`,
+    `Structural baseline xG (pre-shock): ${homeTeamName} ${base.homeXg.toFixed(2)} - ${awayTeamName} ${base.awayXg.toFixed(2)}.`,
+    `Final xG after all adjustments: ${homeTeamName} ${homeXg} - ${awayTeamName} ${awayXg}.`,
   ];
+
+  const teamComparison = await buildTeamComparisonSnapshot(input, bundle);
+
+  const statComparison: { metric: string; home: number; away: number }[] = [];
+  if (teamComparison) {
+    const pairs: Array<{
+      metric: string;
+      home: string | null;
+      away: string | null;
+    }> = [
+      {
+        metric: "Goals scored / game",
+        home: teamComparison.home.seasonStats.goalsForPerGame,
+        away: teamComparison.away.seasonStats.goalsForPerGame,
+      },
+      {
+        metric: "Goals conceded / game",
+        home: teamComparison.home.seasonStats.goalsAgainstPerGame,
+        away: teamComparison.away.seasonStats.goalsAgainstPerGame,
+      },
+      {
+        metric: "Corners / game",
+        home: teamComparison.home.seasonStats.cornersPerGame,
+        away: teamComparison.away.seasonStats.cornersPerGame,
+      },
+      {
+        metric: "Shots on target / game",
+        home: teamComparison.home.seasonStats.shotsOnTargetPerGame,
+        away: teamComparison.away.seasonStats.shotsOnTargetPerGame,
+      },
+    ];
+    for (const row of pairs) {
+      const h = parseSeasonStat(row.home);
+      const a = parseSeasonStat(row.away);
+      if (h != null && a != null) {
+        statComparison.push({ metric: row.metric, home: h, away: a });
+      }
+    }
+  }
+
+  if (!statComparison.length) {
+    statComparison.push(
+      { metric: "Goals scored / game", home: homeStats.goalsFor, away: awayStats.goalsFor },
+      { metric: "Goals conceded / game", home: homeStats.goalsAgainst, away: awayStats.goalsAgainst },
+      { metric: "Corners / game", home: homeStats.corners, away: awayStats.corners },
+      { metric: "Shots on target / game", home: homeStats.shotsOnTarget, away: awayStats.shotsOnTarget }
+    );
+  }
+
+  const analytics = computeMarketAnalytics(homeXg, awayXg, {
+    h2hHomeWinRate: h2h.homeWinRate,
+    h2hDrawRate: h2h.drawRate,
+    h2hAwayWinRate: h2h.awayWinRate,
+    homeFormScore,
+    awayFormScore,
+    momentumIndex,
+    modelImpact: [
+      { label: "Lineup", homeMultiplier: lineup.homeXgMultiplier, awayMultiplier: lineup.awayXgMultiplier },
+      {
+        label: "Weather",
+        homeMultiplier: weatherImpact.homeXgMultiplier,
+        awayMultiplier: weatherImpact.awayXgMultiplier,
+      },
+      {
+        label: "Stadium & travel",
+        homeMultiplier: stadium.homeXgMultiplier,
+        awayMultiplier: stadium.awayXgMultiplier,
+      },
+    ],
+    statComparison,
+  });
 
   return {
     homeTeamName,
@@ -258,6 +300,8 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
       redCards: Math.round(redCards * 10) / 10,
     },
     explanation: explanationParts.join("\n"),
+    teamComparison,
+    analytics,
     debug: {
       factors: {
         homeFormScore,

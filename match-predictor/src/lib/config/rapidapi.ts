@@ -2,7 +2,6 @@ import axios, { type AxiosInstance } from "axios";
 import { serverEnv } from "@/lib/env/server-env";
 import { UpstreamApiError } from "@/lib/types/prediction";
 
-const DEFAULT_WEATHER_HOST = "weather-api167.p.rapidapi.com";
 const DEFAULT_SPORTAPI_HOST = "sportapi7.p.rapidapi.com";
 const API_FOOTBALL_HOST = "v3.football.api-sports.io";
 
@@ -15,11 +14,6 @@ export function normalizeRapidApiHost(host: string | undefined): string | undefi
 /** One RapidAPI key for every subscribed API. */
 export function getRapidApiKey(): string | undefined {
   return serverEnv.rapidApiKey;
-}
-
-/** `WEATHER_PROVIDER` = X-RapidAPI-Host for the weather API. */
-export function getWeatherRapidApiHost(): string {
-  return normalizeRapidApiHost(serverEnv.weatherProvider) ?? DEFAULT_WEATHER_HOST;
 }
 
 export function getSportApiRapidApiHost(): string {

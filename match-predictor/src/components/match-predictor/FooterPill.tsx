@@ -1,6 +1,7 @@
 "use client";
 
 import { Calendar, Clock, Loader2, MapPin } from "lucide-react";
+import { useMemo, useState } from "react";
 
 export function FooterPill({
   city,
@@ -11,6 +12,7 @@ export function FooterPill({
   onTimeChange,
   loading,
   submitDisabled,
+  citySuggestions = [],
 }: {
   city: string;
   onCityChange: (v: string) => void;
@@ -20,11 +22,23 @@ export function FooterPill({
   onTimeChange: (v: string) => void;
   loading: boolean;
   submitDisabled: boolean;
+  citySuggestions?: string[];
 }) {
+  const [cityFocused, setCityFocused] = useState(false);
+
+  const filteredCities = useMemo(() => {
+    const query = city.trim().toLowerCase();
+    const list = (citySuggestions ?? []).filter(Boolean);
+    if (!query) return list.slice(0, 6);
+    return list
+      .filter((name) => name.toLowerCase().includes(query))
+      .slice(0, 6);
+  }, [city, citySuggestions]);
+
   return (
     <div className="liquid-glass-pill flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-full sm:p-2 sm:pl-6 md:pl-8">
       <div className="grid min-w-0 grid-cols-1 gap-3 min-[400px]:grid-cols-3 sm:flex sm:flex-wrap sm:items-center sm:gap-6 md:gap-8">
-        <label className="flex min-w-0 items-center gap-2 border-b border-slate-200/80 pb-3 text-slate-700 dark:border-slate-800 dark:text-slate-300 min-[400px]:border-b-0 min-[400px]:pb-0 sm:border-b-0 sm:pb-0 sm:border-l-0 sm:pl-0">
+        <label className="relative flex min-w-0 items-center gap-2 border-b border-slate-200/80 pb-3 text-slate-700 dark:border-slate-800 dark:text-slate-300 min-[400px]:border-b-0 min-[400px]:pb-0 sm:border-b-0 sm:pb-0 sm:border-l-0 sm:pl-0">
           <MapPin className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
           <span className="sr-only">City</span>
           <input
@@ -32,10 +46,34 @@ export function FooterPill({
             name="city"
             value={city}
             onChange={(e) => onCityChange(e.target.value)}
+            onFocus={() => setCityFocused(true)}
+            onBlur={() => setTimeout(() => setCityFocused(false), 120)}
             required
             placeholder="City"
             className="min-w-0 flex-1 border-none bg-transparent p-0 text-sm font-medium capitalize text-slate-800 outline-none focus:ring-0 dark:text-slate-200"
+            autoComplete="off"
           />
+          {cityFocused && filteredCities.length > 0 ? (
+            <div className="absolute left-0 top-full z-30 mt-2 w-full min-w-[14rem] overflow-hidden rounded-xl border border-white/30 bg-white/80 shadow-lg backdrop-blur-sm dark:border-slate-800/60 dark:bg-slate-950/80">
+              <ul className="max-h-48 overflow-auto py-1">
+                {filteredCities.map((name) => (
+                  <li key={name}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => onCityChange(name)}
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm font-medium text-slate-800 transition hover:bg-slate-100/80 dark:text-slate-200 dark:hover:bg-slate-800/50"
+                    >
+                      <span className="truncate">{name}</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Suggestion
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </label>
 
         <label className="flex min-w-0 items-center gap-2 border-b border-slate-200/80 pb-3 text-slate-700 dark:border-slate-800 dark:text-slate-300 min-[400px]:border-b-0 min-[400px]:pb-0 sm:border-l sm:border-slate-300/80 sm:pb-0 sm:pl-6 dark:sm:border-slate-800 md:pl-8">

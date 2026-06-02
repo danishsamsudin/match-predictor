@@ -12,16 +12,14 @@ if [[ -f .env.local ]]; then
   set +a
 fi
 
-KEY="${RAPIDAPI_KEY:-${FOOTBALL_API_KEY:-${WEATHER_API_KEY:-}}}"
+KEY="${RAPIDAPI_KEY:-${FOOTBALL_API_KEY:-}}"
 if [[ "${FOOTBALL_PROVIDER:-}" == *rapidapi.com* ]]; then
   FOOTBALL_HOST="${FOOTBALL_PROVIDER}"
 else
   FOOTBALL_HOST="${SPORTAPI_RAPIDAPI_HOST:-sportapi7.p.rapidapi.com}"
 fi
-WEATHER_HOST="${WEATHER_PROVIDER:-weather-api167.p.rapidapi.com}"
-WEATHER_HOST="${WEATHER_HOST#https://}"
-WEATHER_HOST="${WEATHER_HOST#http://}"
-WEATHER_HOST="${WEATHER_HOST%/}"
+OPEN_METEO_FORECAST="${OPEN_METEO_FORECAST_URL:-https://api.open-meteo.com}"
+OPEN_METEO_GEO="${OPEN_METEO_GEOCODING_URL:-https://geocoding-api.open-meteo.com}"
 APP_URL="${APP_URL:-http://localhost:3000}"
 TODAY="$(date +%Y-%m-%d)"
 
@@ -33,7 +31,7 @@ echo "APP_URL=$APP_URL"
 echo ""
 
 if [[ -z "$KEY" ]]; then
-  echo "❌ No RapidAPI key. Set RAPIDAPI_KEY in .env.local"
+  echo "❌ No RapidAPI key. Set RAPIDAPI_KEY in .env.local (required for football APIs)"
   exit 1
 fi
 
@@ -58,27 +56,39 @@ else
 fi
 echo ""
 
-echo "2) Direct RapidAPI — Weather (Manchester forecast)"
-WEATHER_CODE=$(curl -s -o /tmp/weather-test.json -w "%{http_code}" \
-  "https://${WEATHER_HOST}/api/weather/forecast?place=Manchester&units=metric&type=three_hour&lang=en" \
-  -H "X-RapidAPI-Key: ${KEY}" \
-  -H "X-RapidAPI-Host: ${WEATHER_HOST}")
-if [[ "$WEATHER_CODE" == "200" ]]; then
-  N=$(python3 -c "import json; d=json.load(open('/tmp/weather-test.json')); print(len(d.get('list',[])))" 2>/dev/null || echo "?")
-  echo "   ✅ HTTP 200 — $N forecast entries"
+echo "2) Open-Meteo — Geocoding (Manchester)"
+GEO_CODE=$(curl -s -o /tmp/open-meteo-geo.json -w "%{http_code}" \
+  "${OPEN_METEO_GEO}/v1/search?name=Manchester&count=1&language=en&format=json")
+if [[ "$GEO_CODE" == "200" ]]; then
+  LAT=$(python3 -c "import json; r=json.load(open('/tmp/open-meteo-geo.json')).get('results',[{}])[0]; print(r.get('latitude','?'))" 2>/dev/null || echo "?")
+  LON=$(python3 -c "import json; r=json.load(open('/tmp/open-meteo-geo.json')).get('results',[{}])[0]; print(r.get('longitude','?'))" 2>/dev/null || echo "?")
+  echo "   ✅ HTTP 200 — Manchester at ${LAT}, ${LON}"
 else
-  MSG=$(python3 -c "import json; print(json.load(open('/tmp/weather-test.json')).get('message',''))" 2>/dev/null || cat /tmp/weather-test.json)
-  echo "   ❌ HTTP $WEATHER_CODE — $MSG"
-  echo "   → Subscribe: https://rapidapi.com/maruf111/api/weather-api167"
+  MSG=$(python3 -c "import json; d=json.load(open('/tmp/open-meteo-geo.json')); print(d.get('reason', d))" 2>/dev/null || cat /tmp/open-meteo-geo.json)
+  echo "   ❌ HTTP $GEO_CODE — $MSG"
+  echo "   → Docs: https://open-meteo.com/en/docs/geocoding-api"
+fi
+echo ""
+
+echo "3) Open-Meteo — Forecast (Manchester hourly)"
+FORECAST_CODE=$(curl -s -o /tmp/open-meteo-forecast.json -w "%{http_code}" \
+  "${OPEN_METEO_FORECAST}/v1/forecast?latitude=53.48&longitude=-2.24&hourly=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&forecast_days=3&timezone=UTC&wind_speed_unit=kmh")
+if [[ "$FORECAST_CODE" == "200" ]]; then
+  N=$(python3 -c "import json; d=json.load(open('/tmp/open-meteo-forecast.json')); print(len(d.get('hourly',{}).get('time',[])))" 2>/dev/null || echo "?")
+  echo "   ✅ HTTP 200 — $N hourly forecast entries"
+else
+  MSG=$(python3 -c "import json; d=json.load(open('/tmp/open-meteo-forecast.json')); print(d.get('reason', d))" 2>/dev/null || cat /tmp/open-meteo-forecast.json)
+  echo "   ❌ HTTP $FORECAST_CODE — $MSG"
+  echo "   → Docs: https://open-meteo.com/en/docs"
 fi
 echo ""
 
 if curl -s -o /dev/null -w "" --connect-timeout 2 "$APP_URL" 2>/dev/null; then
-  echo "3) App route — GET /api/football/status"
+  echo "4) App route — GET /api/football/status"
   curl -s "$APP_URL/api/football/status" | python3 -m json.tool
   echo ""
 
-  echo "4) App route — GET /api/football/fixtures?league=39 (Premier League)"
+  echo "5) App route — GET /api/football/fixtures?league=39 (Premier League)"
   curl -s "$APP_URL/api/football/fixtures?league=39" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
@@ -90,9 +100,9 @@ else:
     print(f\"      • {f['home']['name']} vs {f['away']['name']} (id {f['id']})\")
 "
   echo ""
-  echo "Tip: pick a real matchId/homeTeamId/awayTeamId from step 4, then POST /api/predict"
+  echo "Tip: pick a real matchId/homeTeamId/awayTeamId from step 5, then POST /api/predict"
 else
-  echo "3) App not reachable at $APP_URL — start it: npm run dev"
+  echo "4) App not reachable at $APP_URL — start it: npm run dev"
 fi
 
 echo ""

@@ -1,3 +1,5 @@
+import type { TeamComparisonSnapshot } from "@/lib/types/team-comparison";
+
 export interface PredictRequest {
   mode?: "fixture" | "compare";
   matchId?: number;
@@ -18,10 +20,41 @@ export interface FirstTeamToScorePct {
   none: number;
 }
 
+export interface ScoreCell {
+  home: number;
+  away: number;
+  probability: number;
+}
+
+export interface OverUnderLine {
+  line: number;
+  overPct: number;
+  underPct: number;
+}
+
+export interface PredictionAnalytics {
+  topScores: ScoreCell[];
+  scoreHeatmap: ScoreCell[];
+  overUnder: OverUnderLine[];
+  btts: { yesPct: number; noPct: number };
+  totalGoalsDistribution: { goals: number; probability: number }[];
+  h2h: { homeWinPct: number; drawPct: number; awayWinPct: number };
+  formScores: { homePct: number; awayPct: number };
+  momentumIndex: number;
+  modelImpact: {
+    label: string;
+    homeMultiplier: number;
+    awayMultiplier: number;
+  }[];
+  statComparison: { metric: string; home: number; away: number }[];
+}
+
 export interface PredictionResult {
   id?: string;
   homeTeamName?: string;
   awayTeamName?: string;
+  teamComparison?: TeamComparisonSnapshot;
+  analytics?: PredictionAnalytics;
   homeWinPct: number;
   awayWinPct: number;
   drawPct: number;

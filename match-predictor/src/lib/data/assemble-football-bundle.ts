@@ -53,6 +53,78 @@ function eventInvolvesTeam(
   );
 }
 
+function eventIsHeadToHead(
+  event: SportApiEvent,
+  teamAId: number,
+  teamBId: number,
+  teamAName?: string,
+  teamBName?: string
+): boolean {
+  return (
+    eventInvolvesTeam(event, teamAId, teamAName) &&
+    eventInvolvesTeam(event, teamBId, teamBName)
+  );
+}
+
+/** Head-to-head fixtures from full `synced_events` history (not just recent form). */
+export async function loadH2HEventsFromSyncedEvents(
+  supabase: ServiceClient,
+  homeTeamId: number,
+  awayTeamId: number,
+  options: {
+    leagueIds: number[];
+    homeTeamName?: string;
+    awayTeamName?: string;
+    limit?: number;
+    /** Fixture IDs already present in form-derived H2H (skip duplicates). */
+    excludeEventIds?: number[];
+    /** Max rows scanned per league (deep international pools can be large). */
+    maxPoolRows?: number;
+    /** When true, only include finished matches with a result. */
+    finishedOnly?: boolean;
+  }
+): Promise<SportApiEvent[]> {
+  const limit = options.limit ?? 10;
+  const maxPoolRows = options.maxPoolRows ?? 2000;
+  const finishedOnly = options.finishedOnly ?? true;
+  const seen = new Set(options.excludeEventIds ?? []);
+  const events: SportApiEvent[] = [];
+
+  for (const leagueId of options.leagueIds) {
+    const { data, error } = await supabase
+      .from("synced_events")
+      .select("payload, kickoff_at")
+      .eq("reference_league_id", leagueId)
+      .order("kickoff_at", { ascending: false })
+      .limit(maxPoolRows);
+
+    if (error) continue;
+
+    for (const row of data ?? []) {
+      const event = row.payload as SportApiEvent;
+      if (!event?.homeTeam?.id || !event?.awayTeam?.id) continue;
+      if (finishedOnly && event.status?.type !== "finished") continue;
+      if (
+        !eventIsHeadToHead(
+          event,
+          homeTeamId,
+          awayTeamId,
+          options.homeTeamName,
+          options.awayTeamName
+        )
+      ) {
+        continue;
+      }
+      if (seen.has(event.id)) continue;
+      seen.add(event.id);
+      events.push(event);
+      if (events.length >= limit) return events;
+    }
+  }
+
+  return events;
+}
+
 /** Recent finished events for a team from `synced_events` (ID or name match). */
 export async function loadRecentFormEvents(
   supabase: ServiceClient,

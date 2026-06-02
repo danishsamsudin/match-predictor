@@ -8,10 +8,12 @@ import {
   sportApiGetTopScorers,
 } from "@/lib/api/sportapi";
 import { getLeagueById, getTeamCity } from "@/lib/data/football-reference";
+import { loadH2HEventsFromSyncedEvents } from "@/lib/data/assemble-football-bundle";
 import {
   resolveRecentFormEvents,
   resolveTeamStatistics,
 } from "@/lib/data/resolve-team-statistics";
+import { tryCreateServiceClient } from "@/lib/supabase";
 import { getMockFootballBundle } from "@/lib/mocks/football";
 import { type ComparisonBundleInput } from "@/lib/prediction/league-strength";
 import type { FootballBundle } from "@/lib/types/football";
@@ -106,7 +108,32 @@ export async function fetchComparisonBundle(
     ]);
   }
 
-  const h2h = buildH2HFromForm(homeForm, awayForm, input.homeTeamId, input.awayTeamId);
+  let h2h = buildH2HFromForm(homeForm, awayForm, input.homeTeamId, input.awayTeamId);
+
+  if (readOnlyStore && h2h.length < 10) {
+    const supabase = tryCreateServiceClient();
+    if (supabase) {
+      const leagueIds =
+        input.homeLeagueId === input.awayLeagueId
+          ? [input.homeLeagueId]
+          : [input.homeLeagueId, input.awayLeagueId];
+      const dbEvents = await loadH2HEventsFromSyncedEvents(
+        supabase,
+        input.homeTeamId,
+        input.awayTeamId,
+        {
+          leagueIds,
+          homeTeamName: input.homeTeamName,
+          awayTeamName: input.awayTeamName,
+          limit: 10,
+          excludeEventIds: h2h.map((match) => match.fixture.id),
+          maxPoolRows: 5000,
+          finishedOnly: true,
+        }
+      );
+      h2h = [...h2h, ...dbEvents.map(mapEventToFixtureResult)].slice(0, 10);
+    }
+  }
 
   const homeTeamInfo = readOnlyStore
     ? mapTeamInfo(input.homeTeamId, input.homeTeamName, venueCity)

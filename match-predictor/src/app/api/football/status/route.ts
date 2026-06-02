@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { getMockModeReason, shouldUseMockApis } from "@/lib/config/api-mode";
-import { isSupabaseDataStore, getFootballDailyApiLimit } from "@/lib/config/data-source";
+import {
+  isSupabaseDataStore,
+  getFootballDailyApiLimit,
+  getWeatherDailyApiLimit,
+} from "@/lib/config/data-source";
 import {
   getPrimaryFootballHost,
   getPrimaryProviderName,
   getSecondaryFootballHost,
 } from "@/lib/config/football-providers";
 import { getFootballProvider } from "@/lib/config/football-provider";
+import { getOpenMeteoVersionInfo } from "@/lib/config/open-meteo";
 import { sofascoreGet } from "@/lib/api/sofascore/client";
 import { getSportApiBaseUrl, getSportApiHost, sportApiGet, todayDateString } from "@/lib/api/sportapi/client";
 import { getFootballCallsUsedToday } from "@/lib/sync/football-api-budget";
@@ -22,7 +27,19 @@ export async function GET() {
   const mockReason = getMockModeReason();
   const footballCallsToday = await getFootballCallsUsedToday();
   const dailyLimit = getFootballDailyApiLimit();
+  const weatherDailyLimit = getWeatherDailyApiLimit();
+  const openMeteo = getOpenMeteoVersionInfo();
   const syncStatus = await getSyncStatus();
+
+  const weatherApi = {
+    provider: "open-meteo" as const,
+    ok: !mock,
+    message: mock
+      ? "Mock mode — weather uses local fixtures."
+      : "Open-Meteo configured (no RapidAPI key required). Run npm run test:live to probe.",
+    version: openMeteo.version,
+    dailyLimit: weatherDailyLimit,
+  };
 
   if (mock) {
     return NextResponse.json({
@@ -33,6 +50,8 @@ export async function GET() {
       mockReason,
       dataSource: isSupabaseDataStore() ? "supabase" : "live",
       footballApi: { usedToday: footballCallsToday, dailyLimit },
+      weatherApi,
+      openMeteo,
       syncStatus,
       env: {
         useMockApis: serverEnv.useMockApis,
@@ -58,6 +77,8 @@ export async function GET() {
         mode: "live",
         dataSource: isSupabaseDataStore() ? "supabase" : "live",
         footballApi: { usedToday: footballCallsToday, dailyLimit },
+        weatherApi,
+        openMeteo,
         syncStatus,
         message: "SofaScore (primary) connection successful.",
       });
@@ -97,6 +118,8 @@ export async function GET() {
       host: getSportApiHost(),
       dataSource: isSupabaseDataStore() ? "supabase" : "live",
       footballApi: { usedToday: footballCallsToday, dailyLimit },
+      weatherApi,
+      openMeteo,
       syncStatus,
       categoriesToday: count,
       message: "SportAPI7 connection successful.",

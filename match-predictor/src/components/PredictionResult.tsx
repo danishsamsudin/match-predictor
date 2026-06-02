@@ -10,6 +10,13 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { PredictionCharts } from "./prediction-charts/PredictionCharts";
+import { TeamComparisonPanel } from "./TeamComparisonPanel";
+import { InfoTip } from "./ui/InfoTip";
+import {
+  getExplanationTip,
+  normalizeExplanationText,
+} from "@/lib/prediction/explanation-glossary";
 import { teamNamesFromSnapshot } from "@/lib/prediction/resolve-team-names";
 import type { PredictionResult } from "@/lib/types/prediction";
 
@@ -58,7 +65,7 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
   const awayLabel = result.awayTeamName ?? "Away";
 
   return (
-    <div className="liquid-glass-panel overflow-hidden rounded-[2rem]">
+    <div className="liquid-glass-panel overflow-x-hidden rounded-[2rem]">
       <div className="h-0.5 bg-gradient-to-r from-indigo-500 via-cyan-500 to-violet-500 dark:from-cyan-400 dark:via-fuchsia-500 dark:to-violet-400" />
 
       <div className="border-b border-white/30 px-6 py-4 dark:border-slate-800/60">
@@ -86,6 +93,10 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
       </div>
 
       <div className="space-y-6 p-6">
+        {result.mode === "compare" && result.teamComparison ? (
+          <TeamComparisonPanel comparison={result.teamComparison} />
+        ) : null}
+
         <WinProbabilityBar
           home={result.homeWinPct}
           draw={result.drawPct}
@@ -102,16 +113,32 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
           />
         ) : null}
 
+        <PredictionCharts result={result} />
+
         <div className="grid gap-4 sm:grid-cols-2">
           <StatBox
             label={`${homeLabel} xG`}
             value={result.expectedGoals.home.toFixed(2)}
             accent="primary"
+            info={
+              <>
+                <strong>xG</strong> (“expected goals”) estimates how many goals a team should score
+                based on the quality of their chances. \(1.00\) xG roughly means “about one goal
+                worth of chances”.
+              </>
+            }
           />
           <StatBox
             label={`${awayLabel} xG`}
             value={result.expectedGoals.away.toFixed(2)}
             accent="accent"
+            info={
+              <>
+                <strong>xG</strong> (“expected goals”) estimates how many goals a team should score
+                based on the quality of their chances. \(1.00\) xG roughly means “about one goal
+                worth of chances”.
+              </>
+            }
           />
         </div>
 
@@ -121,12 +148,40 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
               <Target className="h-3.5 w-3.5" />
             </span>
             Estimated Match Stats
+            <InfoTip label="What are estimated match stats?">
+              Extra match events the model estimates (like corners or cards). These are rough
+              averages - real matches can vary a lot.
+            </InfoTip>
           </h3>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatBox label="Corners" value={String(result.estimated.corners)} accent="primary" small />
-            <StatBox label="Fouls" value={String(result.estimated.fouls)} accent="neutral" small />
-            <StatBox label="Yellow Cards" value={String(result.estimated.yellowCards)} accent="accent" small />
-            <StatBox label="Red Cards" value={String(result.estimated.redCards)} accent="neutral" small />
+            <StatBox
+              label="Corners"
+              value={String(result.estimated.corners)}
+              accent="primary"
+              small
+              info={<>A corner kick happens when the ball goes out past the goal line off a defender.</>}
+            />
+            <StatBox
+              label="Fouls"
+              value={String(result.estimated.fouls)}
+              accent="neutral"
+              small
+              info={<>Rule breaks that usually stop play (trips, pushes, handball, etc.).</>}
+            />
+            <StatBox
+              label="Yellow Cards"
+              value={String(result.estimated.yellowCards)}
+              accent="accent"
+              small
+              info={<>Warnings from the referee. Two yellow cards for a player becomes a red card.</>}
+            />
+            <StatBox
+              label="Red Cards"
+              value={String(result.estimated.redCards)}
+              accent="neutral"
+              small
+              info={<>A player is sent off and their team plays with fewer players.</>}
+            />
           </div>
         </div>
 
@@ -162,9 +217,15 @@ function FirstTeamToScoreSection({
 }) {
   return (
     <div className="liquid-glass-pill space-y-3 rounded-2xl p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        First team to score
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          First team to score
+        </p>
+        <InfoTip label="What is first team to score?">
+          The chance that each team scores the <strong>first goal</strong>. “No goal” means the
+          model expects a 0–0.
+        </InfoTip>
+      </div>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-3 dark:border-cyan-400/25">
           <p className="truncate text-xs font-medium text-primary-emphasis">{homeLabel}</p>
@@ -198,9 +259,15 @@ function WinProbabilityBar({
 }) {
   return (
     <div className="liquid-glass-pill space-y-3 rounded-2xl p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        Win probability
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Win probability
+        </p>
+        <InfoTip label="What is win probability?">
+          A percentage estimate of each outcome (home win, draw, away win). It&apos;s not a guarantee
+          - it&apos;s a best-guess based on the data we have.
+        </InfoTip>
+      </div>
       <div className="flex h-9 overflow-hidden rounded-full ring-1 ring-white/40 dark:ring-slate-700/60">
         <div
           className="flex items-center justify-center bg-gradient-to-r from-primary to-primary-light text-xs font-semibold text-on-primary"
@@ -286,15 +353,25 @@ function AnalysisBreakdown({ explanation }: { explanation: string }) {
               <h4 className={`text-sm font-semibold ${styles.value}`}>{section.title}</h4>
             </div>
             <ul className="space-y-2">
-              {section.lines.map((line) => (
-                <li
-                  key={`${section.title}-${line}`}
-                  className="flex gap-2.5 text-sm leading-relaxed text-muted"
-                >
-                  <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${styles.dot}`} />
-                  <span>{line}</span>
-                </li>
-              ))}
+              {section.lines.map((line) => {
+                const displayLine = normalizeExplanationText(line);
+                const tip = getExplanationTip(section.title, line);
+
+                return (
+                  <li
+                    key={`${section.title}-${line}`}
+                    className="flex gap-2.5 text-sm leading-relaxed text-muted"
+                  >
+                    <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${styles.dot}`} />
+                    <span className="flex min-w-0 flex-1 items-start gap-1.5">
+                      <span className="min-w-0 flex-1">{displayLine}</span>
+                      {tip ? (
+                        <InfoTip label={tip.label}>{tip.body}</InfoTip>
+                      ) : null}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         );
@@ -308,17 +385,22 @@ function StatBox({
   value,
   accent = "primary",
   small,
+  info,
 }: {
   label: string;
   value: string;
   accent?: Accent;
   small?: boolean;
+  info?: React.ReactNode;
 }) {
   const styles = ACCENT_STYLES[accent];
 
   return (
     <div className={`rounded-2xl border backdrop-blur-sm ${styles.box} ${small ? "p-3" : "p-4"}`}>
-      <p className={`truncate text-xs font-medium ${styles.label}`}>{label}</p>
+      <div className="flex items-start justify-between gap-3">
+        <p className={`min-w-0 truncate text-xs font-medium ${styles.label}`}>{label}</p>
+        {info ? <InfoTip label={`What is ${label}?`}>{info}</InfoTip> : null}
+      </div>
       <p className={`font-semibold ${styles.value} ${small ? "text-lg" : "text-2xl"}`}>
         {value}
       </p>

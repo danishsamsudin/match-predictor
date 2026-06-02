@@ -8,7 +8,14 @@ function isHeavyPrecipitation(forecast: WeatherForecast): boolean {
 }
 
 function isHighHeatOrHumidity(forecast: WeatherForecast): boolean {
-  return forecast.tempC > 30 || forecast.humidity > 70;
+  const temp = forecast.tempC;
+  return (typeof temp === "number" && temp > 30) || forecast.humidity > 70;
+}
+
+function formatTempForNote(tempC: number | undefined): string {
+  return typeof tempC === "number" && Number.isFinite(tempC)
+    ? `${tempC}°C`
+    : "Elevated temperature";
 }
 
 function computeRainMultiplier(forecast: WeatherForecast): number {
@@ -68,8 +75,12 @@ export function computeWeatherImpact(
   }
 
   if (isHighHeatOrHumidity(forecast)) {
+    const humidity =
+      typeof forecast.humidity === "number" && Number.isFinite(forecast.humidity)
+        ? `${forecast.humidity}%`
+        : "elevated";
     notes.push(
-      `High heat/humidity (${forecast.tempC}°C, ${forecast.humidity}% humidity) degrades pressing efficiency.`
+      `High heat/humidity (${formatTempForNote(forecast.tempC)}, ${humidity} humidity) degrades pressing efficiency.`
     );
     if (deltaHeatHome < 1) {
       notes.push(
@@ -84,8 +95,12 @@ export function computeWeatherImpact(
   }
 
   if (notes.length === 0) {
+    const tempSuffix =
+      typeof forecast.tempC === "number" && Number.isFinite(forecast.tempC)
+        ? `, ${forecast.tempC}°C`
+        : "";
     notes.push(
-      `Favorable conditions (${forecast.condition}, ${forecast.tempC}°C) — minimal weather impact.`
+      `Favorable conditions (${forecast.condition}${tempSuffix}) - minimal weather impact.`
     );
   }
 

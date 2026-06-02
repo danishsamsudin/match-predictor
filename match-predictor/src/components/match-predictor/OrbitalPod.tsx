@@ -11,14 +11,17 @@ export function OrbitalPod({
   entityType,
   onClick,
   accent = "home",
+  logoOnly = false,
 }: {
   side: "Home" | "Away";
   team?: TeamOption;
-  country: string;
+  country?: string;
   competition?: string;
   entityType?: EntityType;
   onClick: () => void;
   accent?: "home" | "away";
+  /** Logo badge only — name and league render in MatchTeamsSection. */
+  logoOnly?: boolean;
 }) {
   const label = team?.name ?? `Select ${side.toLowerCase()}`;
   const meta = [competition, country].filter(Boolean).join(" · ");
@@ -29,7 +32,7 @@ export function OrbitalPod({
       : "border-slate-200 dark:border-purple-500/40";
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-center sm:flex-none sm:w-auto">
+    <div className="flex min-w-0 flex-col items-center">
       <button
         type="button"
         onClick={onClick}
@@ -42,17 +45,21 @@ export function OrbitalPod({
           <TeamBadge team={team} entityType={entityType} accent={accent} />
         </div>
       </button>
-      <span className="mt-2 max-w-[7.5rem] truncate text-center text-[11px] font-semibold text-slate-700 dark:text-slate-300 sm:max-w-[9rem] sm:text-xs">
-        {label}
-      </span>
-      {meta ? (
-        <span className="mt-0.5 max-w-[8rem] truncate text-center text-[9px] uppercase tracking-wide text-slate-400 dark:text-slate-500 sm:max-w-[10rem]">
-          {meta}
-        </span>
+      {!logoOnly ? (
+        <>
+          <span className="mt-2 w-full max-w-[14rem] break-words px-2 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 sm:max-w-[18rem] sm:text-sm">
+            {label}
+          </span>
+          {meta ? (
+            <span className="mt-1 w-full max-w-[14rem] break-words px-2 text-center text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500 sm:max-w-[18rem]">
+              {meta}
+            </span>
+          ) : null}
+          <span className="mt-1 text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-600">
+            {side}
+          </span>
+        </>
       ) : null}
-      <span className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-600">
-        {side}
-      </span>
     </div>
   );
 }

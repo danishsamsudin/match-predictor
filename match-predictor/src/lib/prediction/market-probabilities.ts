@@ -1,0 +1,157 @@
+/** Poisson-based score grid and common betting market probabilities. */
+
+import type { OverUnderLine, PredictionAnalytics, ScoreCell } from "@/lib/types/prediction";
+
+export type { PredictionAnalytics, ScoreCell };
+
+function factorial(n: number): number {
+  if (n <= 1) return 1;
+  return n * factorial(n - 1);
+}
+
+function poissonPmf(k: number, lambda: number): number {
+  return (Math.exp(-lambda) * Math.pow(lambda, k)) / factorial(k);
+}
+
+export function buildScoreMatrix(
+  homeXg: number,
+  awayXg: number,
+  maxGoals = 6
+): ScoreCell[] {
+  const cells: ScoreCell[] = [];
+  for (let h = 0; h <= maxGoals; h++) {
+    for (let a = 0; a <= maxGoals; a++) {
+      cells.push({
+        home: h,
+        away: a,
+        probability: poissonPmf(h, homeXg) * poissonPmf(a, awayXg),
+      });
+    }
+  }
+  const total = cells.reduce((s, c) => s + c.probability, 0) || 1;
+  return cells.map((c) => ({ ...c, probability: c.probability / total }));
+}
+
+export function computeOutcomeProbabilities(
+  homeXg: number,
+  awayXg: number,
+  maxGoals = 8
+): { homeWin: number; draw: number; awayWin: number } {
+  let homeWin = 0;
+  let draw = 0;
+  let awayWin = 0;
+
+  for (let h = 0; h <= maxGoals; h++) {
+    for (let a = 0; a <= maxGoals; a++) {
+      const p = poissonPmf(h, homeXg) * poissonPmf(a, awayXg);
+      if (h > a) homeWin += p;
+      else if (h === a) draw += p;
+      else awayWin += p;
+    }
+  }
+
+  const total = homeWin + draw + awayWin || 1;
+  return {
+    homeWin: homeWin / total,
+    draw: draw / total,
+    awayWin: awayWin / total,
+  };
+}
+
+function roundPct(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+export function computeMarketAnalytics(
+  homeXg: number,
+  awayXg: number,
+  opts: {
+    h2hHomeWinRate: number;
+    h2hDrawRate: number;
+    h2hAwayWinRate: number;
+    homeFormScore: number;
+    awayFormScore: number;
+    momentumIndex: number;
+    modelImpact: PredictionAnalytics["modelImpact"];
+    statComparison: PredictionAnalytics["statComparison"];
+    heatmapMaxGoals?: number;
+  }
+): PredictionAnalytics {
+  const matrix = buildScoreMatrix(homeXg, awayXg, opts.heatmapMaxGoals ?? 4);
+  const topScores = [...matrix]
+    .sort((a, b) => b.probability - a.probability)
+    .slice(0, 8)
+    .map((c) => ({ ...c, probability: c.probability }));
+
+  let bttsYes = 0;
+  let bttsNo = 0;
+  const totalGoalsMap = new Map<number, number>();
+
+  for (const cell of matrix) {
+    const homeScored = cell.home > 0;
+    const awayScored = cell.away > 0;
+    if (homeScored && awayScored) bttsYes += cell.probability;
+    else bttsNo += cell.probability;
+
+    const total = cell.home + cell.away;
+    totalGoalsMap.set(total, (totalGoalsMap.get(total) ?? 0) + cell.probability);
+  }
+
+  const overUnderLines = [1.5, 2.5, 3.5];
+  const overUnder: OverUnderLine[] = overUnderLines.map((line) => {
+    let over = 0;
+    for (const cell of matrix) {
+      if (cell.home + cell.away > line) over += cell.probability;
+    }
+    return {
+      line,
+      overPct: roundPct(over * 100),
+      underPct: roundPct((1 - over) * 100),
+    };
+  });
+
+  const totalGoalsDistribution = Array.from(totalGoalsMap.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([goals, probability]) => ({
+      goals,
+      probability: roundPct(probability * 100),
+    }));
+
+  const h2hTotal =
+    opts.h2hHomeWinRate + opts.h2hDrawRate + opts.h2hAwayWinRate || 1;
+
+  return {
+    topScores: topScores.map((c) => ({
+      ...c,
+      probability: roundPct(c.probability * 100),
+    })),
+    scoreHeatmap: matrix.map((c) => ({
+      ...c,
+      probability: roundPct(c.probability * 100),
+    })),
+    overUnder,
+    btts: {
+      yesPct: roundPct(bttsYes * 100),
+      noPct: roundPct(bttsNo * 100),
+    },
+    totalGoalsDistribution,
+    h2h: {
+      homeWinPct: roundPct((opts.h2hHomeWinRate / h2hTotal) * 100),
+      drawPct: roundPct((opts.h2hDrawRate / h2hTotal) * 100),
+      awayWinPct: roundPct((opts.h2hAwayWinRate / h2hTotal) * 100),
+    },
+    formScores: {
+      homePct: roundPct(opts.homeFormScore * 100),
+      awayPct: roundPct(opts.awayFormScore * 100),
+    },
+    momentumIndex: Math.round(opts.momentumIndex * 1000) / 1000,
+    modelImpact: opts.modelImpact,
+    statComparison: opts.statComparison,
+  };
+}
+
+export function parseSeasonStat(value: string | null | undefined): number | null {
+  if (!value || value === "N/A") return null;
+  const n = parseFloat(value.replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}

@@ -26,7 +26,7 @@ export function computeStadiumImpact(
         `Away team travel distance ~${Math.round(distance)} km from ${awayHomeCity} reduces away xG by 5% (δ_travel = 0.95).`
       );
     } else if (distance > 500) {
-      notes.push(`Moderate away travel (~${Math.round(distance)} km) — within fatigue threshold.`);
+      notes.push(`Moderate away travel (~${Math.round(distance)} km) - within fatigue threshold.`);
     }
   }
 
@@ -42,7 +42,7 @@ export function computeStadiumImpact(
   }
 
   if (notes.length === 0) {
-    notes.push(`Standard stadium conditions at ${venueName} — no significant travel or altitude effects.`);
+    notes.push(`Standard stadium conditions at ${venueName} - no significant travel or altitude effects.`);
   }
 
   return { homeXgMultiplier, awayXgMultiplier, foulsMultiplier, cardsMultiplier, notes };

@@ -1,6 +1,6 @@
 # Match Predictor
 
-AI-powered sports match prediction engine built with Next.js 16, Supabase, [SofaScore](https://rapidapi.com/apidojo/api/sofascore) (primary football API), [SportAPI7](https://rapidapi.com/rapidsportapi/api/sportapi7) (secondary fallback), and [Weather API](https://rapidapi.com/maruf111/api/weather-api167) (RapidAPI).
+AI-powered sports match prediction engine built with Next.js 16, Supabase, [SofaScore](https://rapidapi.com/apidojo/api/sofascore) (primary football API), [SportAPI7](https://rapidapi.com/rapidsportapi/api/sportapi7) (secondary fallback), and [Open-Meteo](https://open-meteo.com/) (weather).
 
 ## Features
 
@@ -32,10 +32,12 @@ Open [http://localhost:3000](http://localhost:3000).
 | `FOOTBALL_API_KEY` | Optional alias for `RAPIDAPI_KEY` |
 | `FOOTBALL_PRIMARY_PROVIDER` | Primary host, e.g. `sofascore.p.rapidapi.com` |
 | `FOOTBALL_SECONDARY_PROVIDER` | Fallback when primary hits quota, e.g. `sportapi7.p.rapidapi.com` |
-| `WEATHER_PROVIDER` | `X-RapidAPI-Host` for weather, e.g. `weather-api167.p.rapidapi.com` |
+| `OPEN_METEO_API_KEY` | Optional — commercial/self-hosted Open-Meteo key |
+| `OPEN_METEO_FORECAST_URL` | Optional — custom forecast API base (default `https://api.open-meteo.com`) |
+| `OPEN_METEO_GEOCODING_URL` | Optional — custom geocoding API base (default `https://geocoding-api.open-meteo.com`) |
 | `DATA_SOURCE` | Set `supabase` so user requests read the DB only (no live football API) |
 | `FOOTBALL_DAILY_API_LIMIT` | Max football RapidAPI calls per day during sync (default `50`) |
-| `WEATHER_DAILY_API_LIMIT` | Max weather RapidAPI calls per day (default `20`) |
+| `WEATHER_DAILY_API_LIMIT` | App-side max Open-Meteo calls per day (default `1000`; upstream free tier is 10,000) |
 | `SYNC_LEAGUE_IDS` | Comma-separated league IDs, or `all` for full catalog with tiered rotation |
 | `SYNC_CRON_SECRET` | Bearer token for `POST /api/cron/sync` |
 | `SYNC_CRON_HOUR_UTC` | Earliest UTC hour for the daily sync (default `6`) |
@@ -49,16 +51,28 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Every external API uses the same `X-RapidAPI-Key`. Only `X-RapidAPI-Host` changes per subscription:
 
-| Service | Host (`X-RapidAPI-Host`) | Role |
-|---------|--------------------------|------|
+| Service | Host / URL | Role |
+|---------|------------|------|
 | SofaScore | `sofascore.p.rapidapi.com` | Primary (`FOOTBALL_PRIMARY_PROVIDER`) |
 | SportAPI7 | `sportapi7.p.rapidapi.com` | Secondary fallback (`FOOTBALL_SECONDARY_PROVIDER`) |
-| Weather API | `weather-api167.p.rapidapi.com` | `WEATHER_PROVIDER` |
+| Open-Meteo | `api.open-meteo.com` + `geocoding-api.open-meteo.com` | Weather (no RapidAPI key) |
 
-1. Subscribe to [SofaScore](https://rapidapi.com/apidojo/api/sofascore), [SportAPI7](https://rapidapi.com/rapidsportapi/api/sportapi7), and [Weather API](https://rapidapi.com/maruf111/api/weather-api167) on RapidAPI.
-2. Set `RAPIDAPI_KEY` once in `.env.local`.
+1. Subscribe to [SofaScore](https://rapidapi.com/apidojo/api/sofascore) and [SportAPI7](https://rapidapi.com/rapidsportapi/api/sportapi7) on RapidAPI for football data.
+2. Set `RAPIDAPI_KEY` once in `.env.local` (football only — weather uses Open-Meteo).
 3. Set `DATA_SOURCE=supabase`, `USE_MOCK_APIS=false`, and run migrations (below).
-4. Verify: `curl http://localhost:3000/api/football/status`
+4. Verify: `curl http://localhost:3000/api/football/status` and `npm run test:live`
+
+### Open-Meteo weather
+
+Weather is fetched from the free [Open-Meteo API](https://open-meteo.com/en/docs). When a user enters a **city** in the prediction form, the app:
+
+1. Geocodes the location via Open-Meteo Geocoding API
+2. Fetches hourly forecast for the match date (up to 16 days ahead)
+3. Caches responses in Supabase (`api_cache` + `synced_weather`) so repeat lookups for the same city/date skip upstream calls
+
+Open-Meteo's free tier allows **10,000 calls/day** (non-commercial). The app defaults to a conservative **1,000/day** budget via `WEATHER_DAILY_API_LIMIT`. Cached entries are reused before hitting the limit.
+
+The pinned upstream version is tracked in [`config/open-meteo-version.json`](config/open-meteo-version.json). A weekly GitHub Action opens a PR when [open-meteo/open-meteo](https://github.com/open-meteo/open-meteo) releases a new version.
 
 ## Supabase Setup
 
@@ -101,7 +115,7 @@ On Vercel, `vercel.json` triggers `/api/cron/sync?run=true` daily at 06:00 UTC. 
 | Context | Limit |
 |---------|--------|
 | Football sync (RapidAPI) | `FOOTBALL_DAILY_API_LIMIT` per day (default 50) |
-| Weather (RapidAPI) | `WEATHER_DAILY_API_LIMIT` per day (default 20); responses cached 24h |
+| Weather (Open-Meteo) | `WEATHER_DAILY_API_LIMIT` per day (default 1000); responses cached 6h; geocoding cached 30d |
 | User-facing predictions | No football API calls when `DATA_SOURCE=supabase` |
 
 Set `USE_MOCK_APIS=true` for unlimited local development without RapidAPI.
