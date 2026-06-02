@@ -20,6 +20,8 @@ export interface LeagueOption {
 export interface TeamOption {
   id: number;
   name: string;
+  /** Synced/API short label (e.g. PSG, BVB) for compact UI. */
+  shortName?: string;
   logo?: string;
 }
 

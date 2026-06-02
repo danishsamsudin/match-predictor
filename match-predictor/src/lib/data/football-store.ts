@@ -40,7 +40,7 @@ export async function loadTeamsFromStore(
 
   let query = supabase
     .from("synced_teams")
-    .select("team_id, team_name")
+    .select("team_id, team_name, short_name")
     .eq("league_id", leagueId)
     .order("team_name");
 
@@ -55,6 +55,7 @@ export async function loadTeamsFromStore(
   return (data ?? []).map((row) => ({
     id: row.team_id,
     name: row.team_name,
+    shortName: row.short_name?.trim() || undefined,
   }));
 }
 

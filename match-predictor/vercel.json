@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/sync?run=true",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/scoutlyst-import?run=true",
+      "schedule": "0 7 * * 1"
     }
   ]
 }

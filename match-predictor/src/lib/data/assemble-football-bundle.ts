@@ -126,7 +126,7 @@ export async function loadH2HEventsFromSyncedEvents(
   return events;
 }
 
-async function resolveFormEventsForTeam(
+export async function resolveFormEventsForTeam(
   supabase: ServiceClient,
   leagueId: number,
   teamId: number,
@@ -270,36 +270,40 @@ export async function assembleFootballBundleFromStore(
 
   if (cachedBundle?.bundle && isFresh(cachedBundle.synced_at, SYNC_FRESH_MS)) {
     const cached = cachedBundle.bundle as FootballBundle;
-    if (!isMockFixtureForm(cached.homeForm) && !isMockFixtureForm(cached.awayForm)) {
-      const cachedLeagueId = cached.fixture.league.id;
-      const cachedHomeName = cached.fixture.teams.home.name;
-      const cachedAwayName = cached.fixture.teams.away.name;
+    const cacheHasMockForm =
+      isMockFixtureForm(cached.homeForm) || isMockFixtureForm(cached.awayForm);
+    const cachedLeagueId = cached.fixture.league.id;
+    const cachedHomeName = cached.fixture.teams.home.name;
+    const cachedAwayName = cached.fixture.teams.away.name;
 
-      const { data: cachedH2hRow } = await supabase
-        .from("synced_event_h2h")
-        .select("payload, synced_at")
-        .eq("event_id", matchId)
-        .maybeSingle();
+    const { data: cachedH2hRow } = await supabase
+      .from("synced_event_h2h")
+      .select("payload, synced_at")
+      .eq("event_id", matchId)
+      .maybeSingle();
 
-      const cachedH2hPayload =
-        cachedH2hRow?.payload && isFresh(cachedH2hRow.synced_at, SYNC_FRESH_MS)
-          ? (cachedH2hRow.payload as { events?: SportApiEvent[] })
-          : undefined;
+    const cachedH2hPayload =
+      cachedH2hRow?.payload && isFresh(cachedH2hRow.synced_at, SYNC_FRESH_MS)
+        ? (cachedH2hRow.payload as { events?: SportApiEvent[] })
+        : undefined;
 
-      const [homeFormEvents, awayFormEvents, h2hEvents] = await Promise.all([
-        resolveFormEventsForTeam(supabase, cachedLeagueId, homeTeamId, cachedHomeName),
-        resolveFormEventsForTeam(supabase, cachedLeagueId, awayTeamId, cachedAwayName),
-        resolveH2HEvents(
-          supabase,
-          matchId,
-          homeTeamId,
-          awayTeamId,
-          cachedLeagueId,
-          cachedHomeName,
-          cachedAwayName,
-          cachedH2hPayload?.events ?? []
-        ),
-      ]);
+    const [homeFormEvents, awayFormEvents, h2hEvents] = await Promise.all([
+      resolveFormEventsForTeam(supabase, cachedLeagueId, homeTeamId, cachedHomeName),
+      resolveFormEventsForTeam(supabase, cachedLeagueId, awayTeamId, cachedAwayName),
+      resolveH2HEvents(
+        supabase,
+        matchId,
+        homeTeamId,
+        awayTeamId,
+        cachedLeagueId,
+        cachedHomeName,
+        cachedAwayName,
+        cachedH2hPayload?.events ?? []
+      ),
+    ]);
+
+    const hasLiveForm = homeFormEvents.length > 0 || awayFormEvents.length > 0;
+    if (!cacheHasMockForm || hasLiveForm) {
       return attachLiveFormAndH2H(cached, homeFormEvents, awayFormEvents, h2hEvents);
     }
   }

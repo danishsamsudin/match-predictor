@@ -1,14 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { BarChart3, Users } from "lucide-react";
+import { BarChart3 } from "lucide-react";
+import { TeamSquadComparison } from "@/components/TeamSquadComparison";
 import { displayValue } from "@/lib/data/build-team-comparison";
 import { TEAM_COMPARISON_GLOSSARY } from "@/lib/prediction/team-comparison-glossary";
 import type {
   TeamComparisonSide,
   TeamComparisonSnapshot,
   TeamFormMatch,
-  TeamPlayerStat,
   TeamSeasonStats,
 } from "@/lib/types/team-comparison";
 import { InfoTip } from "./ui/InfoTip";
@@ -174,45 +174,6 @@ function RecentFormColumn({ matches }: { matches: TeamFormMatch[] }) {
   );
 }
 
-function PlayerList({ players }: { players: TeamPlayerStat[] }) {
-  if (!players.length) {
-    return <p className="text-sm text-muted">N/A</p>;
-  }
-
-  return (
-    <ul className="space-y-2">
-      {players.map((p) => (
-        <li
-          key={p.name}
-          className="rounded-lg border border-white/20 bg-white/20 px-3 py-2 dark:border-slate-800/50 dark:bg-slate-900/30"
-        >
-          <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted">
-            <span className="inline-flex items-center gap-1">
-              Goals: {displayValue(p.goals)}
-              <InfoTip label="Goals">{TEAM_COMPARISON_GLOSSARY.Goals}</InfoTip>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              Apps: {displayValue(p.appearances)}
-              <InfoTip label="Appearances">{TEAM_COMPARISON_GLOSSARY.Appearances}</InfoTip>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              Rating: {displayValue(p.rating)}
-              <InfoTip label="Rating">{TEAM_COMPARISON_GLOSSARY.Rating}</InfoTip>
-            </span>
-            {p.position ? (
-              <span className="inline-flex items-center gap-1">
-                {p.position}
-                <InfoTip label="Position">{TEAM_COMPARISON_GLOSSARY.Position}</InfoTip>
-              </span>
-            ) : null}
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function TeamColumnHeader({ side }: { side: TeamComparisonSide }) {
   return (
     <div className="text-center">
@@ -282,32 +243,7 @@ export function TeamComparisonPanel({ comparison }: { comparison: TeamComparison
         </div>
       </div>
 
-      <div>
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent-emphasis">
-            <Users className="h-3.5 w-3.5" />
-          </span>
-          Key players
-          <InfoTip label="Key players">
-            Top scorers from league data when synced, otherwise highest-rated players from our SoFIFA
-            catalog for that club.
-          </InfoTip>
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-primary">
-              {home.teamName}
-            </p>
-            <PlayerList players={home.players} />
-          </div>
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-accent">
-              {away.teamName}
-            </p>
-            <PlayerList players={away.players} />
-          </div>
-        </div>
-      </div>
+      <TeamSquadComparison home={home} away={away} />
     </div>
   );
 }

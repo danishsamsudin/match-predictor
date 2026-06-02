@@ -1,0 +1,19 @@
+{
+  "name": "match-predictor-root",
+  "private": true,
+  "description": "Run npm scripts from the repo root; the Next.js app lives in match-predictor/.",
+  "scripts": {
+    "dev": "npm run dev --prefix match-predictor",
+    "build": "npm run build --prefix match-predictor",
+    "start": "npm run start --prefix match-predictor",
+    "lint": "npm run lint --prefix match-predictor",
+    "logos:download": "npm run logos:download --prefix match-predictor",
+    "test:live": "npm run test:live --prefix match-predictor",
+    "soccerdata:install": "npm run soccerdata:install --prefix match-predictor",
+    "soccerdata:populate": "npm run soccerdata:populate --prefix match-predictor",
+    "scoutlyst:import": "npm run scoutlyst:import --prefix match-predictor",
+    "scoutlyst:import:direct": "npm run scoutlyst:import:direct --prefix match-predictor",
+    "lineups:backfill": "npm run lineups:backfill --prefix match-predictor",
+    "squad:diagnose": "npm run squad:diagnose --prefix match-predictor"
+  }
+}

@@ -179,18 +179,24 @@ export async function sportApiLookupCountries(): Promise<CountryOption[]> {
 }
 
 function collectTeamsFromEvents(events: SportApiEvent[]): TeamOption[] {
-  const byId = new Map<number, string>();
+  const byId = new Map<number, TeamOption>();
   for (const event of events) {
     if (event.homeTeam?.id && event.homeTeam?.name) {
-      byId.set(event.homeTeam.id, event.homeTeam.name);
+      byId.set(event.homeTeam.id, {
+        id: event.homeTeam.id,
+        name: event.homeTeam.name,
+        shortName: event.homeTeam.shortName?.trim() || undefined,
+      });
     }
     if (event.awayTeam?.id && event.awayTeam?.name) {
-      byId.set(event.awayTeam.id, event.awayTeam.name);
+      byId.set(event.awayTeam.id, {
+        id: event.awayTeam.id,
+        name: event.awayTeam.name,
+        shortName: event.awayTeam.shortName?.trim() || undefined,
+      });
     }
   }
-  return Array.from(byId.entries())
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function sportApiLookupTeamsFromEvents(
@@ -215,7 +221,11 @@ function collectTeamsFromStandings(standings: SportApiStandingsResponse): TeamOp
   for (const group of standings.standings ?? []) {
     for (const row of group.rows ?? []) {
       if (!row.team?.id || !row.team?.name) continue;
-      byId.set(row.team.id, { id: row.team.id, name: row.team.name });
+      byId.set(row.team.id, {
+        id: row.team.id,
+        name: row.team.name,
+        shortName: row.team.shortName?.trim() || undefined,
+      });
     }
   }
   return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -226,7 +236,11 @@ function mergeTeamOptions(...lists: TeamOption[][]): TeamOption[] {
   for (const list of lists) {
     for (const team of list) {
       if (!team.id || !team.name) continue;
-      byId.set(team.id, team);
+      const existing = byId.get(team.id);
+      byId.set(team.id, {
+        ...team,
+        shortName: team.shortName ?? existing?.shortName,
+      });
     }
   }
   return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));

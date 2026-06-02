@@ -643,6 +643,95 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["soccerdata_players"]["Insert"]>;
         Relationships: [];
       };
+      scoutlyst_import_batches: {
+        Row: {
+          id: number;
+          file_name: string;
+          snapshot_date: string;
+          rows_imported: number;
+          rows_linked: number;
+          status: string;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          file_name: string;
+          snapshot_date: string;
+          rows_imported?: number;
+          rows_linked?: number;
+          status?: string;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["scoutlyst_import_batches"]["Insert"]>;
+        Relationships: [];
+      };
+      scoutlyst_player_links: {
+        Row: {
+          scoutlyst_player_key: string;
+          player_name: string;
+          reference_team_id: number | null;
+          sofascore_player_id: number | null;
+          confidence: number;
+          linked_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          scoutlyst_player_key: string;
+          player_name: string;
+          reference_team_id?: number | null;
+          sofascore_player_id?: number | null;
+          confidence?: number;
+          linked_at?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["scoutlyst_player_links"]["Insert"]>;
+        Relationships: [];
+      };
+      scoutlyst_player_snapshots: {
+        Row: {
+          scoutlyst_player_key: string;
+          snapshot_date: string;
+          player_name: string;
+          team_name: string | null;
+          league_name: string | null;
+          reference_league_id: number | null;
+          reference_team_id: number | null;
+          sofascore_player_id: number | null;
+          position: string | null;
+          age: number | null;
+          rating: number | null;
+          stats: Record<string, unknown>;
+          import_batch_id: number | null;
+          imported_at: string;
+        };
+        Insert: {
+          scoutlyst_player_key: string;
+          snapshot_date: string;
+          player_name: string;
+          team_name?: string | null;
+          league_name?: string | null;
+          reference_league_id?: number | null;
+          reference_team_id?: number | null;
+          sofascore_player_id?: number | null;
+          position?: string | null;
+          age?: number | null;
+          rating?: number | null;
+          stats?: Record<string, unknown>;
+          import_batch_id?: number | null;
+          imported_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["scoutlyst_player_snapshots"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "scoutlyst_player_snapshots_import_batch_id_fkey";
+            columns: ["import_batch_id"];
+            referencedRelation: "scoutlyst_import_batches";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       soccerdata_team_aliases: {
         Row: {
           league_id: number;

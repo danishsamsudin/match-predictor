@@ -2,6 +2,7 @@ import { shouldUseMockApis } from "@/lib/config/api-mode";
 import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { usesSportApi } from "@/lib/config/football-provider";
 import { loadFootballBundleFromStore } from "@/lib/data/football-store";
+import { hydrateFootballBundleRecentForm } from "@/lib/data/hydrate-bundle-recent-form";
 import {
   sportApiFetchFootballBundle,
   sportApiGetFixture,
@@ -183,6 +184,20 @@ export async function getTeamInfo(
   return results[0];
 }
 
+async function finalizeFootballBundle(
+  bundle: FootballBundle,
+  input: PredictRequest
+): Promise<FootballBundle> {
+  return hydrateFootballBundleRecentForm(bundle, {
+    homeTeamId: input.homeTeamId,
+    awayTeamId: input.awayTeamId,
+    homeLeagueId: input.homeLeagueId ?? bundle.fixture.league.id,
+    awayLeagueId: input.awayLeagueId ?? bundle.fixture.league.id,
+    homeTeamName: input.homeTeamName,
+    awayTeamName: input.awayTeamName,
+  });
+}
+
 export async function fetchFootballBundle(
   input: PredictRequest
 ): Promise<FootballBundle> {
@@ -202,7 +217,7 @@ export async function fetchFootballBundle(
       getTeamName(awayTeamId, awayLeagueId) ||
       `Team ${awayTeamId}`;
 
-    return fetchComparisonBundle({
+    const bundle = await fetchComparisonBundle({
       homeTeamId,
       awayTeamId,
       homeLeagueId,
@@ -213,50 +228,52 @@ export async function fetchFootballBundle(
       city,
       matchDate,
     });
+    return finalizeFootballBundle(bundle, input);
   }
 
   if (!matchId) {
     throw new UpstreamApiError("Fixture mode requires matchId.");
   }
 
+  let bundle: FootballBundle;
   if (isSupabaseDataStore()) {
-    return loadFootballBundleFromStore(matchId, homeTeamId, awayTeamId);
-  }
-  if (shouldUseMockApis()) {
-    return getMockFootballBundle(matchId, homeTeamId, awayTeamId);
-  }
-  if (usesSportApi()) {
-    return sportApiFetchFootballBundle(matchId, homeTeamId, awayTeamId);
+    bundle = await loadFootballBundleFromStore(matchId, homeTeamId, awayTeamId);
+  } else if (shouldUseMockApis()) {
+    bundle = getMockFootballBundle(matchId, homeTeamId, awayTeamId);
+  } else if (usesSportApi()) {
+    bundle = await sportApiFetchFootballBundle(matchId, homeTeamId, awayTeamId);
+  } else {
+    const fixture = await getFixture(matchId);
+    const { id: leagueId, season } = fixture.league;
+
+    const [homeStats, awayStats, homeForm, awayForm, h2h, lineups, topScorers, homeTeamInfo, awayTeamInfo] =
+      await Promise.all([
+        getTeamStatistics(homeTeamId, leagueId, season),
+        getTeamStatistics(awayTeamId, leagueId, season),
+        getRecentForm(homeTeamId),
+        getRecentForm(awayTeamId),
+        getHeadToHead(homeTeamId, awayTeamId, matchId),
+        getLineups(matchId),
+        getTopScorers(leagueId, season),
+        getTeamInfo(homeTeamId),
+        getTeamInfo(awayTeamId),
+      ]);
+
+    bundle = {
+      fixture,
+      homeStats,
+      awayStats,
+      homeForm,
+      awayForm,
+      h2h,
+      lineups,
+      topScorers,
+      homeTeamInfo,
+      awayTeamInfo,
+    };
   }
 
-  const fixture = await getFixture(matchId);
-  const { id: leagueId, season } = fixture.league;
-
-  const [homeStats, awayStats, homeForm, awayForm, h2h, lineups, topScorers, homeTeamInfo, awayTeamInfo] =
-    await Promise.all([
-      getTeamStatistics(homeTeamId, leagueId, season),
-      getTeamStatistics(awayTeamId, leagueId, season),
-      getRecentForm(homeTeamId),
-      getRecentForm(awayTeamId),
-      getHeadToHead(homeTeamId, awayTeamId, matchId),
-      getLineups(matchId),
-      getTopScorers(leagueId, season),
-      getTeamInfo(homeTeamId),
-      getTeamInfo(awayTeamId),
-    ]);
-
-  return {
-    fixture,
-    homeStats,
-    awayStats,
-    homeForm,
-    awayForm,
-    h2h,
-    lineups,
-    topScorers,
-    homeTeamInfo,
-    awayTeamInfo,
-  };
+  return finalizeFootballBundle(bundle, input);
 }
 
 export function parseTeamStats(

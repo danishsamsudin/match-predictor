@@ -31,6 +31,14 @@ function validateBody(body: unknown): PredictRequest | null {
     typeof b.awayTeamName === "string" && b.awayTeamName.trim()
       ? b.awayTeamName.trim()
       : undefined;
+  const homeTeamShortName =
+    typeof b.homeTeamShortName === "string" && b.homeTeamShortName.trim()
+      ? b.homeTeamShortName.trim()
+      : undefined;
+  const awayTeamShortName =
+    typeof b.awayTeamShortName === "string" && b.awayTeamShortName.trim()
+      ? b.awayTeamShortName.trim()
+      : undefined;
   const city = typeof b.city === "string" ? b.city.trim() : "";
   const matchDate = typeof b.matchDate === "string" ? b.matchDate.trim() : "";
 
@@ -59,6 +67,8 @@ function validateBody(body: unknown): PredictRequest | null {
       entityType,
       homeTeamName,
       awayTeamName,
+      homeTeamShortName,
+      awayTeamShortName,
       city,
       matchDate,
     };
@@ -78,6 +88,8 @@ function validateBody(body: unknown): PredictRequest | null {
     entityType,
     homeTeamName,
     awayTeamName,
+    homeTeamShortName,
+    awayTeamShortName,
     city,
     matchDate,
   };

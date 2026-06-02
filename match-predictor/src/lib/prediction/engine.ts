@@ -25,6 +25,7 @@ import { computeWeatherImpact } from "@/lib/prediction/weather-impact";
 import { buildTeamComparisonSnapshot } from "@/lib/data/build-team-comparison";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { resolveCityCoordinates } from "@/lib/utils/geo";
+import { resolveTeamShortLabelsForMatch } from "@/lib/utils/team-display-name";
 import type {
   FirstTeamToScorePct,
   PredictRequest,
@@ -265,6 +266,16 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     bundle.fixture.teams.away.name ||
     bundle.awayTeamInfo.team.name;
 
+  const { home: homeTeamShortName, away: awayTeamShortName } =
+    await resolveTeamShortLabelsForMatch({
+      homeTeamId,
+      awayTeamId,
+      homeTeamName,
+      awayTeamName,
+      homeTeamShortName: input.homeTeamShortName,
+      awayTeamShortName: input.awayTeamShortName,
+    });
+
   const explanationParts = [
     "## Weather Impact",
     ...weatherImpact.notes,
@@ -367,6 +378,8 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   return {
     homeTeamName,
     awayTeamName,
+    homeTeamShortName,
+    awayTeamShortName,
     homeWinPct,
     awayWinPct,
     drawPct,

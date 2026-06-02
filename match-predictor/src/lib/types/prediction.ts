@@ -10,6 +10,8 @@ export interface PredictRequest {
   entityType?: "club" | "national";
   homeTeamName?: string;
   awayTeamName?: string;
+  homeTeamShortName?: string;
+  awayTeamShortName?: string;
   city: string;
   matchDate: string;
 }
@@ -53,6 +55,8 @@ export interface PredictionResult {
   id?: string;
   homeTeamName?: string;
   awayTeamName?: string;
+  homeTeamShortName?: string;
+  awayTeamShortName?: string;
   teamComparison?: TeamComparisonSnapshot;
   analytics?: PredictionAnalytics;
   homeWinPct: number;

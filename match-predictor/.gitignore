@@ -20,6 +20,10 @@
 # production
 /build
 
+# Scoutlyst CSV exports (keep folder structure via .gitkeep)
+/data/imports/scoutlyst/incoming/**/*.csv
+/data/imports/scoutlyst/archive/**/*.csv
+
 # misc
 .DS_Store
 *.pem

@@ -413,6 +413,8 @@ export function usePredictionForm() {
             entityType,
             homeTeamName: homeTeamName ?? undefined,
             awayTeamName: awayTeamName ?? undefined,
+            homeTeamShortName: homeTeam?.shortName,
+            awayTeamShortName: awayTeam?.shortName,
             city,
             matchDate,
           }
@@ -426,6 +428,8 @@ export function usePredictionForm() {
             entityType,
             homeTeamName: homeTeamName ?? undefined,
             awayTeamName: awayTeamName ?? undefined,
+            homeTeamShortName: homeTeam?.shortName,
+            awayTeamShortName: awayTeam?.shortName,
             city,
             matchDate,
           };

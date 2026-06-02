@@ -1,5 +1,6 @@
 import { computeFormScore, parseTeamStats } from "@/lib/api/football";
 import { loadTeamPlayersForComparison } from "@/lib/data/load-team-players";
+import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
 import {
   isPlaceholderTeamInfo,
   leagueNameForTeam,
@@ -102,12 +103,10 @@ async function buildSide(input: {
   useDatabaseStats: boolean;
 }): Promise<TeamComparisonSide> {
   const supabase = tryCreateServiceClient();
-  const players = await loadTeamPlayersForComparison(
-    supabase,
-    input.teamId,
-    input.topScorers,
-    5
-  );
+  const [players, squad] = await Promise.all([
+    loadTeamPlayersForComparison(supabase, input.teamId, input.topScorers, 5),
+    loadTeamSquadForComparison(supabase, input.teamId, input.teamName),
+  ]);
 
   const fromBundle = buildSeasonStatsFromBundle(
     input.stats,
@@ -147,6 +146,7 @@ async function buildSide(input: {
     seasonStats,
     recentForm,
     players,
+    squad,
   };
 }
 

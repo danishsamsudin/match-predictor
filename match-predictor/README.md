@@ -110,6 +110,16 @@ curl -X POST "http://localhost:3000/api/cron/sync?force=true" \
 
 On Vercel, `vercel.json` triggers `/api/cron/sync?run=true` daily at 06:00 UTC. Set `CRON_SECRET` or `SYNC_CRON_SECRET` in the project env for auth.
 
+## Scoutlyst player stats (CSV import)
+
+Export player data from [Scoutlyst](https://scoutlyst.com/) as CSV into `data/imports/scoutlyst/incoming/<league-folder>/` (e.g. `premier-league/*.csv`), then:
+
+```bash
+npm run scoutlyst:import
+```
+
+This loads rows into `scoutlyst_player_snapshots` and links to SofaScore player IDs when possible. See [`data/imports/scoutlyst/README.md`](data/imports/scoutlyst/README.md). Run migration `009_scoutlyst_player_imports.sql` first.
+
 ## API rate limits
 
 | Context | Limit |

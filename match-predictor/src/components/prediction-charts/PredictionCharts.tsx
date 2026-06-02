@@ -1,8 +1,9 @@
 "use client";
 
-import { BarChart3, Goal, Layers, TrendingUp } from "lucide-react";
+import { BarChart3, Goal, TrendingUp } from "lucide-react";
 import type { PredictionAnalytics, PredictionResult } from "@/lib/types/prediction";
 import type { TeamComparisonSnapshot, TeamFormMatch } from "@/lib/types/team-comparison";
+import { resolveTeamShortLabel } from "@/lib/utils/team-display-name";
 import { ChartCard, ChartCardWithTip } from "./ChartCard";
 
 function maxProb(cells: { probability: number }[]): number {
@@ -44,12 +45,20 @@ function HorizontalBar({
   );
 }
 
+/** Per-metric scale so low values (e.g. goals/game) still fill the bar track. */
+function statRowBarMax(home: number, away: number): number {
+  const peak = Math.max(home, away, 0.1);
+  return peak * 1.1;
+}
+
 function DualHorizontalBar({
   label,
   homeValue,
   awayValue,
   homeLabel,
   awayLabel,
+  homeLabelTitle,
+  awayLabelTitle,
   maxValue,
 }: {
   label: string;
@@ -57,6 +66,8 @@ function DualHorizontalBar({
   awayValue: number;
   homeLabel: string;
   awayLabel: string;
+  homeLabelTitle?: string;
+  awayLabelTitle?: string;
   maxValue: number;
 }) {
   return (
@@ -66,7 +77,10 @@ function DualHorizontalBar({
       </p>
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <span className="w-16 shrink-0 truncate text-right text-[10px] font-semibold text-primary sm:w-20">
+          <span
+            className="w-16 shrink-0 truncate text-right text-[10px] font-semibold text-primary sm:w-20"
+            title={homeLabelTitle ?? homeLabel}
+          >
             {homeLabel}
           </span>
           <div className="relative h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/8">
@@ -80,7 +94,10 @@ function DualHorizontalBar({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-16 shrink-0 truncate text-right text-[10px] font-semibold text-accent sm:w-20">
+          <span
+            className="w-16 shrink-0 truncate text-right text-[10px] font-semibold text-accent sm:w-20"
+            title={awayLabelTitle ?? awayLabel}
+          >
             {awayLabel}
           </span>
           <div className="relative h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/8">
@@ -288,6 +305,10 @@ export function PredictionCharts({
   const analytics = result.analytics;
   const homeLabel = result.homeTeamName ?? "Home";
   const awayLabel = result.awayTeamName ?? "Away";
+  const homeShort =
+    result.homeTeamShortName ?? resolveTeamShortLabel({ name: homeLabel });
+  const awayShort =
+    result.awayTeamShortName ?? resolveTeamShortLabel({ name: awayLabel });
   const comparison = result.teamComparison;
 
   if (!analytics) return null;
@@ -298,11 +319,6 @@ export function PredictionCharts({
     ...analytics.totalGoalsDistribution.map((g) => g.probability),
     1
   );
-  const statMax = Math.max(
-    ...analytics.statComparison.flatMap((s) => [s.home, s.away]),
-    0.1
-  );
-
   return (
     <section className="space-y-6" aria-label="Prediction charts">
       <div className="flex items-center gap-2">
@@ -450,8 +466,10 @@ export function PredictionCharts({
             label="Expected goals"
             homeValue={result.expectedGoals.home}
             awayValue={result.expectedGoals.away}
-            homeLabel={homeLabel}
-            awayLabel={awayLabel}
+            homeLabel={homeShort}
+            awayLabel={awayShort}
+            homeLabelTitle={homeLabel}
+            awayLabelTitle={awayLabel}
             maxValue={Math.max(result.expectedGoals.home, result.expectedGoals.away, 0.5)}
           />
         </ChartCardWithTip>
@@ -472,8 +490,10 @@ export function PredictionCharts({
               label="Form score"
               homeValue={analytics.formScores.homePct}
               awayValue={analytics.formScores.awayPct}
-              homeLabel={homeLabel}
-              awayLabel={awayLabel}
+              homeLabel={homeShort}
+              awayLabel={awayShort}
+              homeLabelTitle={homeLabel}
+              awayLabelTitle={awayLabel}
               maxValue={100}
             />
             <div className="rounded-xl border border-white/25 bg-white/20 px-4 py-3 text-center dark:border-slate-800/50 dark:bg-slate-900/30">
@@ -486,9 +506,17 @@ export function PredictionCharts({
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <MiniStat label="H2H home win" value={`${analytics.h2h.homeWinPct}%`} />
-              <MiniStat label="H2H draw" value={`${analytics.h2h.drawPct}%`} />
-              <MiniStat label="H2H away win" value={`${analytics.h2h.awayWinPct}%`} />
+              <MiniStat
+                label={`${homeShort} win`}
+                title={`${homeLabel} win`}
+                value={`${analytics.h2h.homeWinPct}%`}
+              />
+              <MiniStat label="Draw" value={`${analytics.h2h.drawPct}%`} />
+              <MiniStat
+                label={`${awayShort} win`}
+                title={`${awayLabel} win`}
+                value={`${analytics.h2h.awayWinPct}%`}
+              />
             </div>
           </div>
         </ChartCardWithTip>
@@ -511,9 +539,11 @@ export function PredictionCharts({
                 label={row.metric}
                 homeValue={row.home}
                 awayValue={row.away}
-                homeLabel={homeLabel}
-                awayLabel={awayLabel}
-                maxValue={statMax}
+                homeLabel={homeShort}
+                awayLabel={awayShort}
+                homeLabelTitle={homeLabel}
+                awayLabelTitle={awayLabel}
+                maxValue={statRowBarMax(row.home, row.away)}
               />
             ))}
           </ChartCardWithTip>
@@ -541,10 +571,20 @@ export function PredictionCharts({
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({
+  label,
+  value,
+  title,
+}: {
+  label: string;
+  value: string;
+  title?: string;
+}) {
   return (
     <div className="rounded-xl border border-white/20 bg-white/15 px-2 py-2 text-center dark:border-slate-800/50 dark:bg-slate-900/25">
-      <p className="text-[10px] text-muted">{label}</p>
+      <p className="truncate text-[10px] text-muted" title={title ?? label}>
+        {label}
+      </p>
       <p className="text-sm font-bold tabular-nums text-foreground">{value}</p>
     </div>
   );
@@ -566,15 +606,13 @@ function FormTrendSection({
     >
       <div className="grid gap-6 sm:grid-cols-2">
         <div>
-          <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-primary">
-            <TrendingUp className="h-3.5 w-3.5" />
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
             {homeLabel}
           </p>
           <FormStrip matches={comparison.home.recentForm} />
         </div>
         <div>
-          <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-accent">
-            <Layers className="h-3.5 w-3.5" />
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-accent">
             {awayLabel}
           </p>
           <FormStrip matches={comparison.away.recentForm} />

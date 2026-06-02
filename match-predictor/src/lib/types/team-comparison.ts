@@ -28,6 +28,39 @@ export interface TeamPlayerStat {
   position: string | null;
 }
 
+export interface PlayerDisplayStat {
+  label: string;
+  value: string;
+}
+
+export interface SquadPlayer {
+  sofascorePlayerId: number;
+  scoutlystPlayerKey: string | null;
+  name: string;
+  /** GK, DEF, MID, FWD */
+  position: string;
+  /** Raw lineup slot when available (e.g. CB, LW). */
+  fieldPosition: string | null;
+  /** 0–100 composite from Scoutlyst / match ratings. */
+  performanceScore: number | null;
+  /** Share of inferred XI starts in recent matches (starters only). */
+  startSharePct: number | null;
+  detailStats: PlayerDisplayStat[];
+  age: number | null;
+}
+
+export type TeamSquadSource = "lineups" | "scoutlyst" | "none";
+
+export interface TeamSquadSnapshot {
+  starters: SquadPlayer[];
+  substitutes: SquadPlayer[];
+  hasLineupData: boolean;
+  hasScoutlystData: boolean;
+  /** How starters/bench were chosen. */
+  squadSource: TeamSquadSource;
+  snapshotDate: string | null;
+}
+
 export interface TeamComparisonSide {
   teamId: number;
   teamName: string;
@@ -35,6 +68,7 @@ export interface TeamComparisonSide {
   seasonStats: TeamSeasonStats;
   recentForm: TeamFormMatch[];
   players: TeamPlayerStat[];
+  squad: TeamSquadSnapshot;
 }
 
 export interface TeamComparisonSnapshot {
