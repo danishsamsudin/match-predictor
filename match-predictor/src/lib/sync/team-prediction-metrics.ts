@@ -22,7 +22,7 @@ export function teamStatisticsFromMetrics(
   return {
     team,
     league: { id: leagueId, season },
-    form: "WWDLW",
+    form: "",
     goals: {
       for: {
         average: {
@@ -57,7 +57,7 @@ export function teamStatisticsFromMetrics(
         "76-90": { total: Math.round(metrics.redCards), percentage: null },
       },
     },
-    lineups: [{ formation: "4-3-3", played: 1 }],
+    lineups: [],
     fouls: {
       drawn: {
         total: Math.round(metrics.fouls),

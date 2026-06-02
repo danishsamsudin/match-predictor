@@ -134,6 +134,16 @@ function FormBadge({ result }: { result: TeamFormMatch["result"] }) {
   );
 }
 
+function formatFormMatchDate(isoDate: string): string {
+  const kickoff = new Date(`${isoDate}T12:00:00`);
+  if (Number.isNaN(kickoff.getTime())) return isoDate;
+  return kickoff.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function RecentFormColumn({ matches }: { matches: TeamFormMatch[] }) {
   if (!matches.length) {
     return <p className="text-sm text-muted">N/A</p>;
@@ -149,9 +159,14 @@ function RecentFormColumn({ matches }: { matches: TeamFormMatch[] }) {
           <FormBadge result={m.result} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-foreground">{m.opponent}</p>
-            <p className="text-[11px] text-muted">
-              {m.date} · {m.score}
-            </p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-2">
+              <time className="text-[11px] text-muted" dateTime={m.date}>
+                {formatFormMatchDate(m.date)}
+              </time>
+              <span className="rounded-md bg-foreground/8 px-1.5 py-0.5 text-xs font-semibold tabular-nums tracking-wide text-foreground dark:bg-white/10">
+                {m.score}
+              </span>
+            </div>
           </div>
         </li>
       ))}

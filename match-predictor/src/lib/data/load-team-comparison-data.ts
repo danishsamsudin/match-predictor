@@ -1,6 +1,8 @@
 import { parseTeamStats } from "@/lib/api/football";
 import { isSupabaseDataStore } from "@/lib/config/data-source";
+import { aggregateTeamMetricsFromSyncedEvents } from "@/lib/data/aggregate-team-event-metrics";
 import { getLeagueById } from "@/lib/data/football-reference";
+import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
 import type { TeamStatistics } from "@/lib/types/football";
 import type { TeamStatAverages } from "@/lib/types/prediction";
 import type { SportApiEvent, SportApiStandingsResponse } from "@/lib/types/sportapi";
@@ -22,9 +24,28 @@ function formFromStandingsRow(row: StandingsRow): string {
   return chars.join("").slice(0, 5);
 }
 
+function findStandingsRow(
+  payload: SportApiStandingsResponse,
+  teamId: number,
+  teamName?: string
+): StandingsRow | null {
+  for (const group of payload.standings ?? []) {
+    const row = group.rows?.find((candidate) => {
+      if (candidate.team.id === teamId) return true;
+      if (teamName && candidate.team.name.toLowerCase() === teamName.toLowerCase()) {
+        return true;
+      }
+      return false;
+    });
+    if (row) return row;
+  }
+  return null;
+}
+
 async function loadStandingsRow(
   teamId: number,
-  leagueId: number
+  leagueId: number,
+  teamName?: string
 ): Promise<StandingsRow | null> {
   const supabase = tryCreateServiceClient();
   if (!supabase) return null;
@@ -41,16 +62,13 @@ async function loadStandingsRow(
   const payload = data?.payload as SportApiStandingsResponse | null;
   if (!payload?.standings?.length) return null;
 
-  for (const group of payload.standings) {
-    const row = group.rows?.find((r) => r.team.id === teamId);
-    if (row) return row;
-  }
-  return null;
+  return findStandingsRow(payload, teamId, teamName);
 }
 
 async function loadHomeVenueFromEvents(
   teamId: number,
-  leagueId: number
+  leagueId: number,
+  teamName?: string
 ): Promise<{ name: string | null; capacity: string | null; city: string | null }> {
   const supabase = tryCreateServiceClient();
   if (!supabase) return { name: null, capacity: null, city: null };
@@ -64,7 +82,14 @@ async function loadHomeVenueFromEvents(
 
   for (const row of data ?? []) {
     const event = row.payload as SportApiEvent;
-    if (event.homeTeam?.id !== teamId) continue;
+    if (event.homeTeam?.id !== teamId) {
+      if (
+        !teamName ||
+        event.homeTeam?.name?.toLowerCase() !== teamName.trim().toLowerCase()
+      ) {
+        continue;
+      }
+    }
     const name = event.venue?.stadium?.name?.trim();
     const city = event.venue?.city?.name?.trim();
     const cap = event.venue?.stadium?.capacity;
@@ -78,6 +103,18 @@ async function loadHomeVenueFromEvents(
   }
 
   return { name: null, capacity: null, city: null };
+}
+
+function resolveTeamVenue(
+  teamId: number,
+  teamName: string | undefined,
+  fromEvents: { name: string | null; capacity: string | null }
+): { name: string | null; capacity: string | null } {
+  const canonical = getCanonicalTeamHomeVenue(teamId, teamName);
+  return {
+    name: fromEvents.name ?? canonical?.name ?? null,
+    capacity: fromEvents.capacity ?? (canonical ? String(canonical.capacity) : null),
+  };
 }
 
 type StoredTeamStatisticsPayload = {
@@ -100,10 +137,32 @@ function hasFullTeamStatisticsPayload(
   return Boolean(statisticsFromStoredPayload(payload, true) ?? statisticsFromStoredPayload(payload, false));
 }
 
+function hasCardTotals(stats: TeamStatistics): boolean {
+  const yellowTotal = Object.values(stats.cards.yellow).reduce(
+    (sum, bucket) => sum + (bucket.total ?? 0),
+    0
+  );
+  const redTotal = Object.values(stats.cards.red).reduce(
+    (sum, bucket) => sum + (bucket.total ?? 0),
+    0
+  );
+  return yellowTotal > 0 || redTotal > 0;
+}
+
+/** Detect legacy placeholder metrics written from standings-only sync. */
+function isStandingsPlaceholderMetrics(metrics: TeamStatAverages): boolean {
+  return (
+    Math.abs(metrics.fouls - 10) < 0.15 &&
+    Math.abs(metrics.corners - 6) < 0.15 &&
+    Math.abs(metrics.shotsOnTarget - 5) < 0.15
+  );
+}
+
 function seasonAveragesFromSources(input: {
   metrics: TeamStatAverages | null;
   payloadStats: TeamStatistics | null;
   isHomeSide: boolean;
+  eventAggregates: Awaited<ReturnType<typeof aggregateTeamMetricsFromSyncedEvents>>;
 }): {
   cornersPerGame: string | null;
   foulsPerGame: string | null;
@@ -115,23 +174,59 @@ function seasonAveragesFromSources(input: {
   const fromPayload = input.payloadStats
     ? parseTeamStats(input.payloadStats, input.isHomeSide)
     : null;
-  const fromMetrics = input.metrics;
+  const metrics =
+    input.metrics && !isStandingsPlaceholderMetrics(input.metrics) ? input.metrics : null;
+  const aggregates = input.eventAggregates;
 
-  const corners = fromPayload?.corners ?? fromMetrics?.corners;
-  const fouls = fromPayload?.fouls ?? fromMetrics?.fouls;
-  const yellowCards = fromPayload?.yellowCards ?? fromMetrics?.yellowCards;
-  const redCards = fromPayload?.redCards ?? fromMetrics?.redCards;
-  const shotsOnTarget = fromPayload?.shotsOnTarget ?? fromMetrics?.shotsOnTarget;
+  const pick = (
+    aggregateValue: number | null | undefined,
+    metricsValue: number | undefined,
+    payloadValue: number | undefined,
+    decimals: number,
+    requirePayloadCards = false
+  ): string | null => {
+    if (aggregateValue != null && aggregates && aggregates.sampleSize > 0) {
+      return formatAvg(aggregateValue, decimals);
+    }
+    if (metricsValue != null) return formatAvg(metricsValue, decimals);
+    if (requirePayloadCards && input.payloadStats && !hasCardTotals(input.payloadStats)) {
+      return null;
+    }
+    if (payloadValue != null && payloadValue > 0) return formatAvg(payloadValue, decimals);
+    return null;
+  };
 
   return {
-    cornersPerGame: corners != null ? formatAvg(corners, 1) : null,
-    foulsPerGame: fouls != null ? formatAvg(fouls, 1) : null,
-    yellowCardsPerGame: yellowCards != null ? formatAvg(yellowCards, 2) : null,
-    redCardsPerGame: redCards != null ? formatAvg(redCards, 2) : null,
-    shotsOnTargetPerGame: shotsOnTarget != null ? formatAvg(shotsOnTarget, 1) : null,
-    preferredFormation: input.payloadStats
-      ? pickFormationFromStatistics(input.payloadStats)
-      : null,
+    cornersPerGame: pick(
+      aggregates?.cornersPerGame,
+      metrics?.corners,
+      fromPayload?.corners,
+      1
+    ),
+    foulsPerGame: pick(aggregates?.foulsPerGame, metrics?.fouls, fromPayload?.fouls, 1),
+    yellowCardsPerGame: pick(
+      aggregates?.yellowCardsPerGame,
+      metrics?.yellowCards,
+      fromPayload?.yellowCards,
+      2,
+      true
+    ),
+    redCardsPerGame: pick(
+      aggregates?.redCardsPerGame,
+      metrics?.redCards,
+      fromPayload?.redCards,
+      2,
+      true
+    ),
+    shotsOnTargetPerGame: pick(
+      aggregates?.shotsOnTargetPerGame,
+      metrics?.shotsOnTarget,
+      fromPayload?.shotsOnTarget,
+      1
+    ),
+    preferredFormation:
+      aggregates?.preferredFormation ??
+      (input.payloadStats ? pickFormationFromStatistics(input.payloadStats) : null),
   };
 }
 
@@ -139,13 +234,20 @@ function seasonAveragesFromSources(input: {
 export async function loadSeasonStatsFromDatabase(
   teamId: number,
   leagueId: number,
-  isHomeSide: boolean
+  isHomeSide: boolean,
+  teamName?: string
 ): Promise<{ stats: TeamSeasonStats; hasStandings: boolean; hasMetrics: boolean }> {
-  const [standingsRow, venue, storedRow] = await Promise.all([
-    loadStandingsRow(teamId, leagueId),
-    loadHomeVenueFromEvents(teamId, leagueId),
+  const supabase = tryCreateServiceClient();
+  const [standingsRow, venueFromEvents, storedRow, eventAggregates] = await Promise.all([
+    loadStandingsRow(teamId, leagueId, teamName),
+    loadHomeVenueFromEvents(teamId, leagueId, teamName),
     loadSyncedTeamStatisticsRow(teamId, leagueId),
+    supabase
+      ? aggregateTeamMetricsFromSyncedEvents(supabase, leagueId, teamId, teamName)
+      : Promise.resolve(null),
   ]);
+
+  const venue = resolveTeamVenue(teamId, teamName, venueFromEvents);
 
   const metrics =
     (isHomeSide ? storedRow?.metricsHome : storedRow?.metricsAway) ?? null;
@@ -155,6 +257,7 @@ export async function loadSeasonStatsFromDatabase(
     metrics,
     payloadStats,
     isHomeSide,
+    eventAggregates,
   });
 
   const matches = standingsRow?.matches ?? 0;
@@ -168,14 +271,17 @@ export async function loadSeasonStatsFromDatabase(
     goalsAgainstPerGame = formatAvg(standingsRow.scoresAgainst / matches);
     const derivedForm = formFromStandingsRow(standingsRow);
     form = derivedForm || null;
-  } else if (metrics) {
+  } else if (metrics && !isStandingsPlaceholderMetrics(metrics)) {
     goalsForPerGame = formatAvg(metrics.goalsFor);
     goalsAgainstPerGame = formatAvg(metrics.goalsAgainst);
   }
 
   return {
     hasStandings: Boolean(standingsRow),
-    hasMetrics: Boolean(metrics) || hasFullTeamStatisticsPayload(payload),
+    hasMetrics:
+      Boolean(eventAggregates?.sampleSize) ||
+      Boolean(metrics && !isStandingsPlaceholderMetrics(metrics)) ||
+      hasFullTeamStatisticsPayload(payload),
     stats: {
       formScorePct: null,
       form,
@@ -219,7 +325,7 @@ function pickFormationFromStatistics(stats: {
 }): string | null {
   const sorted = [...stats.lineups].sort((a, b) => b.played - a.played);
   const top = sorted[0];
-  if (!top?.formation || (top.formation === "4-3-3" && top.played <= 1)) return null;
+  if (!top?.formation?.trim()) return null;
   return top.formation;
 }
 
@@ -227,13 +333,38 @@ export function isPlaceholderTeamInfo(venue: {
   name: string;
   capacity: number;
 }): boolean {
-  return venue.capacity === 40000 && venue.name.endsWith(" Stadium");
+  const normalized = venue.name.trim().toLowerCase();
+  if (normalized === "home team stadium" || normalized === "away team stadium") return true;
+  if (venue.capacity === 75000) return true;
+  if (venue.capacity === 40000 && venue.name.endsWith(" Stadium")) return true;
+  return false;
 }
 
 export function shouldUseDatabaseComparisonStats(): boolean {
-  return isSupabaseDataStore();
+  return isSupabaseDataStore() || Boolean(tryCreateServiceClient());
 }
 
 export function leagueNameForTeam(leagueId: number): string | null {
   return getLeagueById(leagueId)?.name ?? null;
+}
+
+export function mergeSeasonStats(
+  primary: TeamSeasonStats,
+  fallback: TeamSeasonStats
+): TeamSeasonStats {
+  const pick = (key: keyof TeamSeasonStats) => primary[key] ?? fallback[key] ?? null;
+  return {
+    formScorePct: pick("formScorePct"),
+    form: pick("form"),
+    goalsForPerGame: pick("goalsForPerGame"),
+    goalsAgainstPerGame: pick("goalsAgainstPerGame"),
+    cornersPerGame: pick("cornersPerGame"),
+    foulsPerGame: pick("foulsPerGame"),
+    yellowCardsPerGame: pick("yellowCardsPerGame"),
+    redCardsPerGame: pick("redCardsPerGame"),
+    shotsOnTargetPerGame: pick("shotsOnTargetPerGame"),
+    preferredFormation: pick("preferredFormation"),
+    venueName: pick("venueName"),
+    venueCapacity: pick("venueCapacity"),
+  };
 }

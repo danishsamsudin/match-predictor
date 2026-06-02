@@ -79,7 +79,7 @@ export function MatchPredictorShell({
 
   return (
     <form onSubmit={handleSubmit} className="w-full min-w-0">
-      <div className="liquid-glass-panel relative w-full min-w-0 overflow-hidden rounded-2xl p-4 transition-all duration-500 sm:rounded-[2rem] sm:p-8 lg:rounded-[2.5rem] lg:p-10">
+      <div className="liquid-glass-panel relative w-full min-w-0 overflow-visible rounded-2xl p-4 transition-all duration-500 sm:rounded-[2rem] sm:p-8 lg:rounded-[2.5rem] lg:p-10">
         <div className="relative z-10 flex flex-col gap-7 lg:gap-10">
           <HeroSection />
 

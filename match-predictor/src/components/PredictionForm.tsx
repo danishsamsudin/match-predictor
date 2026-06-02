@@ -21,20 +21,6 @@ export function PredictionForm() {
       message: React.ReactNode;
     }> = [];
 
-    if (form.dataMode) {
-      items.push({
-        id: "data-mode",
-        variant: "warning",
-        message: (
-          <>
-            {form.dataMode}. Restart the dev server after changing{" "}
-            <code className="text-xs opacity-90">.env.local</code>. Check{" "}
-            <code className="text-xs opacity-90">/api/football/status</code>.
-          </>
-        ),
-      });
-    }
-
     if (form.fixtureNotice) {
       items.push({
         id: "fixture-notice",

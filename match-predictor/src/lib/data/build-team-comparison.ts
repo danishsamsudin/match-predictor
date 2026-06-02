@@ -4,8 +4,10 @@ import {
   isPlaceholderTeamInfo,
   leagueNameForTeam,
   loadSeasonStatsFromDatabase,
+  mergeSeasonStats,
   shouldUseDatabaseComparisonStats,
 } from "@/lib/data/load-team-comparison-data";
+import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
 import type { FootballBundle, FixtureResult } from "@/lib/types/football";
 import type {
   TeamComparisonSnapshot,
@@ -60,22 +62,29 @@ function buildSeasonStatsFromBundle(
   );
   const topFormation = [...bundleStats.lineups].sort((a, b) => b.played - a.played)[0];
   const venueIsPlaceholder = isPlaceholderTeamInfo(teamInfo.venue);
+  const canonicalVenue = getCanonicalTeamHomeVenue(teamInfo.team.id, teamInfo.team.name);
 
   return {
     formScorePct: null,
     form: bundleStats.form?.trim() || null,
     goalsForPerGame: parsed.goalsFor.toFixed(2),
     goalsAgainstPerGame: parsed.goalsAgainst.toFixed(2),
-    cornersPerGame: parsed.corners.toFixed(1),
-    foulsPerGame: parsed.fouls.toFixed(1),
-    yellowCardsPerGame: played > 0 ? (yellowTotal / played).toFixed(2) : null,
-    redCardsPerGame: played > 0 ? (redTotal / played).toFixed(2) : null,
-    shotsOnTargetPerGame: parsed.shotsOnTarget.toFixed(1),
+    cornersPerGame: parsed.corners > 0 ? parsed.corners.toFixed(1) : null,
+    foulsPerGame: parsed.fouls > 0 ? parsed.fouls.toFixed(1) : null,
+    yellowCardsPerGame:
+      played > 0 && yellowTotal > 0 ? (yellowTotal / played).toFixed(2) : null,
+    redCardsPerGame: played > 0 && redTotal > 0 ? (redTotal / played).toFixed(2) : null,
+    shotsOnTargetPerGame:
+      parsed.shotsOnTarget > 0 ? parsed.shotsOnTarget.toFixed(1) : null,
     preferredFormation: topFormation?.formation ?? null,
-    venueName: venueIsPlaceholder ? null : teamInfo.venue.name || null,
+    venueName: venueIsPlaceholder
+      ? canonicalVenue?.name ?? null
+      : teamInfo.venue.name || canonicalVenue?.name || null,
     venueCapacity:
       venueIsPlaceholder || teamInfo.venue.capacity <= 0
-        ? null
+        ? canonicalVenue
+          ? String(canonicalVenue.capacity)
+          : null
         : String(teamInfo.venue.capacity),
   };
 }
@@ -100,23 +109,30 @@ async function buildSide(input: {
     5
   );
 
+  const fromBundle = buildSeasonStatsFromBundle(
+    input.stats,
+    input.isHomeSide,
+    input.teamInfo
+  );
+  const formScorePct =
+    input.form.length > 0 ? `${Math.round(input.formScore * 100)}%` : null;
+
   let seasonStats: TeamSeasonStats;
-  if (input.useDatabaseStats) {
+  if (input.useDatabaseStats || supabase) {
     const fromDb = await loadSeasonStatsFromDatabase(
       input.teamId,
       input.leagueId,
-      input.isHomeSide
+      input.isHomeSide,
+      input.teamName
     );
     seasonStats = {
-      ...fromDb.stats,
-      formScorePct:
-        input.form.length > 0 ? `${Math.round(input.formScore * 100)}%` : null,
+      ...mergeSeasonStats(fromDb.stats, fromBundle),
+      formScorePct: formScorePct ?? fromDb.stats.formScorePct,
     };
   } else {
     seasonStats = {
-      ...buildSeasonStatsFromBundle(input.stats, input.isHomeSide, input.teamInfo),
-      formScorePct:
-        input.form.length > 0 ? `${Math.round(input.formScore * 100)}%` : null,
+      ...fromBundle,
+      formScorePct,
     };
   }
 

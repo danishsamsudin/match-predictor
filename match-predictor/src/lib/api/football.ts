@@ -219,11 +219,11 @@ export async function fetchFootballBundle(
     throw new UpstreamApiError("Fixture mode requires matchId.");
   }
 
-  if (shouldUseMockApis()) {
-    return getMockFootballBundle(matchId, homeTeamId, awayTeamId);
-  }
   if (isSupabaseDataStore()) {
     return loadFootballBundleFromStore(matchId, homeTeamId, awayTeamId);
+  }
+  if (shouldUseMockApis()) {
+    return getMockFootballBundle(matchId, homeTeamId, awayTeamId);
   }
   if (usesSportApi()) {
     return sportApiFetchFootballBundle(matchId, homeTeamId, awayTeamId);

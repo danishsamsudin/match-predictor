@@ -52,12 +52,28 @@ function fixtureToOption(fixture: Fixture): FixtureOption {
   };
 }
 
+function startOfTodayUtcMs(): number {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Keep only real kickoffs from start of today (UTC) onward. */
+function filterUpcomingFixtures(fixtures: FixtureOption[]): FixtureOption[] {
+  const cutoff = startOfTodayUtcMs();
+  return fixtures.filter((fixture) => {
+    const kickoff = new Date(fixture.date).getTime();
+    return Number.isFinite(kickoff) && kickoff >= cutoff;
+  });
+}
+
 function buildMockFixtures(leagueId: number): FixtureOption[] {
   const league = getLeagueById(leagueId);
   const teams = getTeamsByLeague(leagueId);
   if (!league || teams.length < 2) return [];
 
-  const baseDate = new Date("2026-05-29T15:00:00.000Z");
+  const baseDate = new Date();
+  baseDate.setUTCHours(15, 0, 0, 0);
   const pairings: Array<[number, number]> = [];
 
   for (let i = 0; i < Math.min(teams.length - 1, 8); i += 2) {
@@ -206,7 +222,7 @@ export async function lookupFixtures(
   if (!league) return { fixtures: [], source: "reference" };
 
   if (shouldUseMockApis()) {
-    return { fixtures: buildMockFixtures(leagueId), source: "mock" };
+    return { fixtures: filterUpcomingFixtures(buildMockFixtures(leagueId)), source: "mock" };
   }
 
   if (isSupabaseDataStore()) {
@@ -233,9 +249,10 @@ export async function lookupFixtures(
       }
     }
 
-    if (fixtures.length) {
+    const upcomingFromStore = filterUpcomingFixtures(fixtures);
+    if (upcomingFromStore.length) {
       return {
-        fixtures,
+        fixtures: upcomingFromStore,
         source: "live",
         message:
           "Fixtures loaded from Supabase (synced on demand when needed; SoccerData backfill when RapidAPI is empty).",
@@ -243,7 +260,7 @@ export async function lookupFixtures(
     }
 
     try {
-      const live = await sportApiLookupFixtures(leagueId);
+      const live = filterUpcomingFixtures(await sportApiLookupFixtures(leagueId));
       if (live.length) {
         return {
           fixtures: live,
@@ -265,7 +282,7 @@ export async function lookupFixtures(
   }
 
   if (usesSportApi()) {
-    const fixtures = await sportApiLookupFixtures(leagueId);
+    const fixtures = filterUpcomingFixtures(await sportApiLookupFixtures(leagueId));
     if (fixtures.length) return { fixtures, source: "live" };
     return {
       fixtures: [],
@@ -289,14 +306,20 @@ export async function lookupFixtures(
     },
   }).then((r) => r.data);
 
-  if (results.length > 0) {
+  const upcoming = filterUpcomingFixtures(results.map(fixtureToOption));
+  if (upcoming.length > 0) {
     return {
-      fixtures: results.map(fixtureToOption),
+      fixtures: upcoming,
       source: "live",
     };
   }
 
-  return { fixtures: buildMockFixtures(leagueId), source: "reference" };
+  return {
+    fixtures: [],
+    source: "live",
+    message:
+      "No upcoming matches found for this competition. Try another league or check back when fixtures are scheduled.",
+  };
 }
 
 export function formatFixtureLabel(fixture: FixtureOption): string {

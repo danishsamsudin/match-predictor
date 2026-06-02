@@ -42,7 +42,9 @@ function buildH2HFromForm(
 export async function fetchComparisonBundle(
   input: ComparisonBundleInput
 ): Promise<FootballBundle> {
-  if (shouldUseMockApis()) {
+  const readOnlyStore = isSupabaseDataStore();
+
+  if (shouldUseMockApis() && !readOnlyStore) {
     return getMockFootballBundle(0, input.homeTeamId, input.awayTeamId);
   }
 
@@ -54,8 +56,6 @@ export async function fetchComparisonBundle(
 
   const season = homeLeague.season;
   const venueCity = input.city || getTeamCity(input.homeTeamId);
-  const readOnlyStore = isSupabaseDataStore();
-
   const entityType = input.entityType;
 
   const [homeStats, awayStats] = await Promise.all([

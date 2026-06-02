@@ -1,3 +1,4 @@
+import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
 import type {
   Fixture,
   FixtureLineup,
@@ -158,33 +159,33 @@ export function mapStandingsRowToTeamStatistics(
     },
     cards: {
       yellow: {
-        "0-15": { total: 2, percentage: "10%" },
-        "16-30": { total: 3, percentage: "15%" },
-        "31-45": { total: 3, percentage: "15%" },
-        "46-60": { total: 4, percentage: "20%" },
-        "61-75": { total: 4, percentage: "20%" },
-        "76-90": { total: 4, percentage: "20%" },
+        "0-15": { total: 0, percentage: null },
+        "16-30": { total: 0, percentage: null },
+        "31-45": { total: 0, percentage: null },
+        "46-60": { total: 0, percentage: null },
+        "61-75": { total: 0, percentage: null },
+        "76-90": { total: 0, percentage: null },
       },
       red: {
         "0-15": { total: 0, percentage: null },
         "16-30": { total: 0, percentage: null },
         "31-45": { total: 0, percentage: null },
-        "46-60": { total: 1, percentage: "50%" },
+        "46-60": { total: 0, percentage: null },
         "61-75": { total: 0, percentage: null },
-        "76-90": { total: 1, percentage: "50%" },
+        "76-90": { total: 0, percentage: null },
       },
     },
-    lineups: [{ formation: "4-3-3", played: matches }],
+    lineups: [],
     fouls: {
-      drawn: { total: matches * 10, average: { home: "10", away: "10", total: "10" } },
-      committed: { total: matches * 11, average: { home: "11", away: "11", total: "11" } },
+      drawn: { total: 0, average: { home: "0", away: "0", total: "0" } },
+      committed: { total: 0, average: { home: "0", away: "0", total: "0" } },
     },
     shots: {
-      on: { total: matches * 5, average: { home: "5", away: "5", total: "5" } },
+      on: { total: 0, average: { home: "0", away: "0", total: "0" } },
     },
     corners: {
-      total: matches * 6,
-      average: { home: "6", away: "6", total: "6" },
+      total: 0,
+      average: { home: "0", away: "0", total: "0" },
     },
   };
 }
@@ -208,6 +209,20 @@ function findStatValue(
   return null;
 }
 
+/** Read a match stat for one side, trying several API label variants. */
+export function readMatchStatValue(
+  stats: SportApiStatisticsResponse,
+  names: string | string[],
+  side: "home" | "away"
+): number | null {
+  const candidates = Array.isArray(names) ? names : [names];
+  for (const name of candidates) {
+    const value = findStatValue(stats, name, side);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
 export function enrichTeamStatsFromMatchStatistics(
   stats: TeamStatistics,
   matchStats: SportApiStatisticsResponse,
@@ -218,6 +233,8 @@ export function enrichTeamStatsFromMatchStatistics(
   const shotsOn = findStatValue(matchStats, "Shots on target", side);
   const corners = findStatValue(matchStats, "Corner kicks", side);
   const fouls = findStatValue(matchStats, "Fouls", side);
+  const yellowCards = readMatchStatValue(matchStats, ["Yellow cards", "Yellow card"], side);
+  const redCards = readMatchStatValue(matchStats, ["Red cards", "Red card"], side);
 
   if (shotsOn !== null) {
     stats.shots.on.average[side] = String(shotsOn);
@@ -230,6 +247,12 @@ export function enrichTeamStatsFromMatchStatistics(
   if (fouls !== null) {
     stats.fouls.committed.average[side] = String(fouls);
     stats.fouls.committed.average.total = String(fouls);
+  }
+  if (yellowCards !== null && yellowCards >= 0) {
+    stats.cards.yellow["0-15"].total = Math.round(yellowCards);
+  }
+  if (redCards !== null && redCards >= 0) {
+    stats.cards.red["76-90"].total = Math.round(redCards);
   }
   if (possession !== null) {
     void possession;
@@ -304,14 +327,15 @@ export function mapTeamInfo(
   city: string,
   venueName?: string
 ): TeamInfo {
+  const canonical = getCanonicalTeamHomeVenue(teamId, teamName);
   return {
     team: { id: teamId, name: teamName, country: "" },
     venue: {
       id: 0,
-      name: venueName ?? `${teamName} Stadium`,
+      name: venueName ?? canonical?.name ?? `${teamName} Stadium`,
       address: "",
       city,
-      capacity: 40000,
+      capacity: canonical?.capacity ?? 40000,
       surface: "grass",
       image: "",
     },

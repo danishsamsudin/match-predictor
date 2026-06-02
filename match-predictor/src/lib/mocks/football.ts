@@ -67,6 +67,18 @@ function mockStats(teamId: number, teamName: string): TeamStatistics {
   };
 }
 
+const MOCK_OPPONENT_PATTERN = /^Opponent [A-E]$/;
+
+/** Detect placeholder recent-form rows from getMockFootballBundle. */
+export function isMockFixtureForm(form: FixtureResult[]): boolean {
+  if (!form.length) return false;
+  return form.some((match) =>
+    [match.teams.home.name, match.teams.away.name].some((name) =>
+      MOCK_OPPONENT_PATTERN.test(name)
+    )
+  );
+}
+
 function mockForm(teamId: number, teamName: string): FixtureResult[] {
   return [
     {

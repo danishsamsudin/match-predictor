@@ -1,5 +1,6 @@
 import { parseTeamStats } from "@/lib/api/football";
 import { mapTeamInfo } from "@/lib/api/sportapi/mappers";
+import { isMockFixtureForm } from "@/lib/mocks/football";
 import { getLeagueEntityType } from "@/lib/data/football-reference";
 import { resolveTeamStatistics } from "@/lib/data/resolve-team-statistics";
 import {
@@ -146,6 +147,7 @@ export async function loadRecentFormEvents(
   for (const row of data ?? []) {
     const event = row.payload as SportApiEvent;
     if (!event?.homeTeam?.id || !event?.awayTeam?.id) continue;
+    if (event.status?.type !== "finished") continue;
     if (eventInvolvesTeam(event, teamId, teamName)) {
       events.push(event);
     }
@@ -173,6 +175,7 @@ export async function loadRecentFormEventsForTeam(
   for (const row of data ?? []) {
     const event = row.payload as SportApiEvent;
     if (!event?.homeTeam?.id || !event?.awayTeam?.id) continue;
+    if (event.status?.type !== "finished") continue;
     if (eventInvolvesTeam(event, teamId, teamName)) {
       events.push(event);
     }
@@ -194,7 +197,10 @@ export async function assembleFootballBundleFromStore(
     .maybeSingle();
 
   if (cachedBundle?.bundle && isFresh(cachedBundle.synced_at, SYNC_FRESH_MS)) {
-    return cachedBundle.bundle as FootballBundle;
+    const cached = cachedBundle.bundle as FootballBundle;
+    if (!isMockFixtureForm(cached.homeForm) && !isMockFixtureForm(cached.awayForm)) {
+      return cached;
+    }
   }
 
   const { data: fixtureRow, error: fixtureError } = await supabase
