@@ -8,14 +8,14 @@ import { TEAM_COMPARISON_GLOSSARY } from "@/lib/prediction/team-comparison-gloss
 import { InfoTip } from "./ui/InfoTip";
 
 function performanceBadgeClass(score: number | null): string {
-  if (score == null) return "bg-foreground/8 text-muted";
+  if (score == null || score <= 0) return "bg-foreground/8 text-muted";
   if (score >= 75) return "bg-primary/15 text-primary-emphasis";
   if (score >= 55) return "bg-amber-500/15 text-amber-700 dark:text-amber-400";
   return "bg-red-500/15 text-red-600 dark:text-red-400";
 }
 
 function formatPerformance(score: number | null): string {
-  if (score == null) return "—";
+  if (score == null || score <= 0) return "—";
   return String(score);
 }
 

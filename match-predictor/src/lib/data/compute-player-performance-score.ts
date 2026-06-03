@@ -74,7 +74,13 @@ function getMinutesAndApps(stats: Record<string, string | number | null>): {
   appearances: number | null;
 } {
   return {
-    minutes: parseNumericStat(stats, ["Min", "Minutes", "minutes", "Mins"]),
+    minutes: parseNumericStat(stats, [
+      "Min",
+      "Minutes",
+      "minutes",
+      "Mins",
+      "gk_minutes",
+    ]),
     appearances: parseNumericStat(stats, [
       "MP",
       "Apps",
@@ -82,6 +88,7 @@ function getMinutesAndApps(stats: Record<string, string | number | null>): {
       "appearances",
       "games",
       "Games",
+      "gk_games",
     ]),
   };
 }
@@ -201,7 +208,23 @@ function computeRoleComposite(
   const ppmScore = resolvePpmScore(scoutlystRating, stats);
 
   if (role === "G") {
-    return ppmScore;
+    const savePct = parseNumericStat(stats, [
+      "gk_save_pct",
+      "Save%",
+      "save pct",
+      "save_pct",
+    ]);
+    const saves = parseNumericStat(stats, ["gk_saves", "Saves", "saves"]);
+    const parts: Array<{ w: number; s: number }> = [];
+    if (ppmScore != null) parts.push({ w: 0.35, s: ppmScore });
+    if (savePct != null) {
+      const pct = savePct <= 1 ? savePct * 100 : savePct;
+      parts.push({ w: 0.45, s: normalizeRateToScore(pct, 100) });
+    }
+    if (saves != null) parts.push({ w: 0.2, s: normalizeRateToScore(saves, 120) });
+    if (!parts.length) return null;
+    const totalW = parts.reduce((s, p) => s + p.w, 0);
+    return parts.reduce((sum, p) => sum + (p.w / totalW) * p.s, 0);
   }
 
   if (role === "F") {
@@ -214,7 +237,7 @@ function computeRoleComposite(
     );
     const sot = per90FromStats(
       stats,
-      ["SoT", "Shots on target", "on target", "Sh — SoT"],
+      ["SoT", "Shots on target", "on target", "Sh — SoT", "shots_on_target"],
       minutes,
       alreadyPer90
     );
@@ -232,7 +255,12 @@ function computeRoleComposite(
   }
 
   if (role === "M") {
-    const kp = per90FromStats(stats, ["KP", "Key passes", "key passes", "SCA"], minutes, alreadyPer90);
+    const kp = per90FromStats(
+      stats,
+      ["KP", "Key passes", "key passes", "SCA", "key_passes", "progressive_passes"],
+      minutes,
+      alreadyPer90
+    );
     const xa = per90FromStats(
       stats,
       ["xA", "xAG", "Expected assists", "xA/90"],
@@ -242,7 +270,15 @@ function computeRoleComposite(
     const cmp = parseNumericStat(stats, ["Cmp", "Passing — Total — Cmp"]);
     const tackles = per90FromStats(
       stats,
-      ["Defense — Tackles — Tkl", "Defense — Tackles — TklW", "Tkl", "TklW", "Tackles", "tackles"],
+      [
+        "Defense — Tackles — Tkl",
+        "Defense — Tackles — TklW",
+        "Tkl",
+        "TklW",
+        "Tackles",
+        "tackles",
+        "tackles_won",
+      ],
       minutes,
       alreadyPer90
     );
@@ -273,7 +309,15 @@ function computeRoleComposite(
   );
   const tackles = per90FromStats(
     stats,
-    ["Defense — Tackles — Tkl", "Defense — Tackles — TklW", "Tkl", "TklW", "Tackles", "tackles"],
+    [
+      "Defense — Tackles — Tkl",
+      "Defense — Tackles — TklW",
+      "Tkl",
+      "TklW",
+      "Tackles",
+      "tackles",
+      "tackles_won",
+    ],
     minutes,
     alreadyPer90
   );
@@ -324,17 +368,25 @@ function computeCompositeScore(input: {
   return clampScore(roleComposite * reliability);
 }
 
-/** Composite 0–100 performance score from Scoutlyst stats and/or match ratings. */
-export function computePlayerPerformanceScore(input: {
+function positionsToEvaluate(position: string | null | undefined): string[] {
+  if (!position?.trim()) return [""];
+  if (!position.includes(",")) return [position];
+  return position
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+function computePlayerPerformanceScoreForPosition(input: {
   scoutlystRating: number | null;
   matchAvgRating: number | null;
   stats: Record<string, string | number | null>;
-  position?: string | null;
+  position: string | null;
 }): number | null {
   const composite = computeCompositeScore({
     scoutlystRating: input.scoutlystRating,
     stats: input.stats,
-    position: input.position ?? null,
+    position: input.position,
   });
 
   const legacy = legacyRatingCandidates(input);
@@ -346,4 +398,25 @@ export function computePlayerPerformanceScore(input: {
   if (composite != null) return composite;
   if (legacyMax != null) return legacyMax;
   return null;
+}
+
+/** Composite 0–100 performance score from Scoutlyst stats and/or match ratings. */
+export function computePlayerPerformanceScore(input: {
+  scoutlystRating: number | null;
+  matchAvgRating: number | null;
+  stats: Record<string, string | number | null>;
+  position?: string | null;
+}): number | null {
+  const positions = positionsToEvaluate(input.position);
+  let best: number | null = null;
+  for (const position of positions) {
+    const score = computePlayerPerformanceScoreForPosition({
+      scoutlystRating: input.scoutlystRating,
+      matchAvgRating: input.matchAvgRating,
+      stats: input.stats,
+      position: position || null,
+    });
+    if (score != null && (best == null || score > best)) best = score;
+  }
+  return best;
 }

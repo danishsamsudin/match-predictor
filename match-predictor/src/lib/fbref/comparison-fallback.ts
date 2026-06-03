@@ -1,5 +1,9 @@
 import { stableSyntheticPlayerId } from "@/lib/data/build-squad-from-scoutlyst";
-import { computePlayerPerformanceScore } from "@/lib/data/compute-player-performance-score";
+import {
+  computePlayerPerformanceScore,
+  sofifaOverallToScore,
+} from "@/lib/data/compute-player-performance-score";
+import { normalizeText } from "@/lib/soccerdata/normalize";
 import {
   comparePlayersByPosition,
   positionDisplayLabel,
@@ -25,7 +29,9 @@ import {
 } from "@/lib/fbref/supabase-store";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import type { FixtureResult } from "@/lib/types/football";
+import type { Database } from "@/lib/supabase";
 import type { SquadPlayer, TeamSquadSnapshot } from "@/lib/types/team-comparison";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MIN_SYNCED_FORM = 5;
 
@@ -184,37 +190,49 @@ function statRecord(
   return out;
 }
 
-function pickStandardStat(
-  stats: FbrefPlayerStatRow[],
-  playerId: string
-): FbrefPlayerStatRow | undefined {
-  const forPlayer = stats.filter((s) => s.player_id === playerId);
-  const standard = forPlayer.filter((s) => s.stat_type === "standard");
-  const pool = standard.length ? standard : forPlayer;
-  return pool.sort((a, b) => {
-    const minsA = Number(a.stats?.minutes ?? a.stats?.min ?? 0);
-    const minsB = Number(b.stats?.minutes ?? b.stats?.min ?? 0);
-    return minsB - minsA;
-  })[0];
-}
+const FBREF_STAT_MERGE_ORDER = [
+  "standard",
+  "playing_time",
+  "shooting",
+  "passing",
+  "possession",
+  "misc",
+  "defense",
+  "keeper",
+  "keeper_adv",
+  "gca",
+] as const;
 
-function pickPlayingTimeStat(
-  stats: FbrefPlayerStatRow[],
+function mergeAllFbrefStatsForPlayer(
+  allStats: FbrefPlayerStatRow[],
   playerId: string
-): FbrefPlayerStatRow | undefined {
-  return stats
-    .filter((s) => s.player_id === playerId && s.stat_type === "playing_time")
-    .sort((a, b) => Number(b.stats?.minutes ?? 0) - Number(a.stats?.minutes ?? 0))[0];
-}
-
-function mergedStatBundle(
-  standard: FbrefPlayerStatRow | undefined,
-  playingTime: FbrefPlayerStatRow | undefined
 ): Record<string, string | number | null> {
-  return {
-    ...statRecord(standard?.stats ?? {}),
-    ...statRecord(playingTime?.stats ?? {}),
+  const forPlayer = allStats.filter((s) => s.player_id === playerId);
+  const byType = new Map<string, FbrefPlayerStatRow[]>();
+  for (const row of forPlayer) {
+    const list = byType.get(row.stat_type) ?? [];
+    list.push(row);
+    byType.set(row.stat_type, list);
+  }
+
+  const merged: Record<string, string | number | null> = {};
+  const mergeRows = (rows: FbrefPlayerStatRow[]) => {
+    const best = [...rows].sort(
+      (a, b) => Number(b.stats?.minutes ?? 0) - Number(a.stats?.minutes ?? 0)
+    )[0];
+    if (!best) return;
+    Object.assign(merged, statRecord(best.stats ?? {}));
   };
+
+  for (const statType of FBREF_STAT_MERGE_ORDER) {
+    const rows = byType.get(statType);
+    if (rows?.length) mergeRows(rows);
+  }
+  for (const [statType, rows] of byType) {
+    if ((FBREF_STAT_MERGE_ORDER as readonly string[]).includes(statType)) continue;
+    mergeRows(rows);
+  }
+  return merged;
 }
 
 function fbrefPositionLabel(stats: Record<string, unknown>): string | null {
@@ -223,6 +241,102 @@ function fbrefPositionLabel(stats: Record<string, unknown>): string | null {
   const text = String(raw).trim();
   if (!text) return null;
   return primaryPositionToken(text) || text.split("-")[0]?.trim() || text;
+}
+
+function fbrefPositionForScoring(stats: Record<string, unknown>): string | null {
+  const raw = stats.pos ?? stats.position;
+  if (raw == null) return null;
+  const text = String(raw).trim();
+  return text || null;
+}
+
+type ScoutlystRatingRow = {
+  rating: number | null;
+  stats: Record<string, string | number | null>;
+};
+
+async function loadScoutlystByPlayerNames(
+  supabase: SupabaseClient<Database> | null,
+  normalizedNames: string[]
+): Promise<Map<string, ScoutlystRatingRow>> {
+  const wanted = new Set(normalizedNames.filter(Boolean));
+  if (!supabase || !wanted.size) return new Map();
+
+  const { data } = await supabase
+    .from("scoutlyst_player_snapshots")
+    .select("player_name, rating, stats, snapshot_date")
+    .order("snapshot_date", { ascending: false })
+    .limit(4000);
+
+  const byName = new Map<string, ScoutlystRatingRow>();
+  for (const row of data ?? []) {
+    const key = normalizeText(row.player_name);
+    if (!wanted.has(key) || byName.has(key)) continue;
+    const stats =
+      row.stats && typeof row.stats === "object" && !Array.isArray(row.stats)
+        ? (row.stats as Record<string, string | number | null>)
+        : {};
+    byName.set(key, {
+      rating: row.rating != null ? Number(row.rating) : null,
+      stats,
+    });
+  }
+  return byName;
+}
+
+async function loadSofifaOverallByName(
+  supabase: SupabaseClient<Database> | null,
+  normalizedNames: string[]
+): Promise<Map<string, number>> {
+  const wanted = new Set(normalizedNames.filter(Boolean));
+  if (!supabase || !wanted.size) return new Map();
+
+  const { data } = await supabase
+    .from("soccerdata_players")
+    .select("name, sofifa_overall")
+    .not("sofifa_overall", "is", null)
+    .limit(20000);
+
+  const byName = new Map<string, number>();
+  for (const row of data ?? []) {
+    const key = normalizeText(row.name);
+    if (!wanted.has(key) || row.sofifa_overall == null) continue;
+    const overall = Number(row.sofifa_overall);
+    const prev = byName.get(key);
+    if (prev == null || overall > prev) byName.set(key, overall);
+  }
+  return byName;
+}
+
+function resolveFbrefPerformanceScore(input: {
+  stats: Record<string, string | number | null>;
+  position: string | null;
+  scoutlystRating: number | null;
+  scoutlystStats: Record<string, string | number | null>;
+  sofifaOverall: number | null;
+}): number | null {
+  const fromFbref = computePlayerPerformanceScore({
+    scoutlystRating: input.scoutlystRating,
+    matchAvgRating: null,
+    stats: input.stats,
+    position: input.position,
+  });
+  const fromScoutlystOnly =
+    input.scoutlystRating != null
+      ? computePlayerPerformanceScore({
+          scoutlystRating: input.scoutlystRating,
+          matchAvgRating: null,
+          stats: input.scoutlystStats,
+          position: input.position,
+        })
+      : null;
+  const fromSofifa =
+    input.sofifaOverall != null ? sofifaOverallToScore(input.sofifaOverall) : null;
+
+  const candidates = [fromFbref, fromScoutlystOnly, fromSofifa].filter(
+    (v): v is number => v != null && Number.isFinite(v)
+  );
+  return candidates.length ? Math.max(...candidates) : null;
 }
 
 function sortSquadPlayers(players: SquadPlayer[]): SquadPlayer[] {
@@ -238,19 +352,20 @@ function sortSquadPlayers(players: SquadPlayer[]): SquadPlayer[] {
 
 function toFbrefSquadPlayer(input: {
   player: FbrefPlayerRow;
-  stat: FbrefPlayerStatRow | undefined;
-  playingTime?: FbrefPlayerStatRow | undefined;
+  stats: Record<string, string | number | null>;
   startSharePct?: number | null;
+  scoutlyst: ScoutlystRatingRow | null;
+  sofifaOverall: number | null;
 }): SquadPlayer {
-  const stats = mergedStatBundle(input.stat, input.playingTime);
-  const positionLabel = fbrefPositionLabel(input.stat?.stats ?? input.playingTime?.stats ?? {});
-  const performanceScore =
-    computePlayerPerformanceScore({
-      scoutlystRating: null,
-      matchAvgRating: null,
-      stats,
-      position: positionLabel,
-    }) ?? 0;
+  const positionLabel = fbrefPositionLabel(input.stats);
+  const scoringPosition = fbrefPositionForScoring(input.stats) ?? positionLabel;
+  const performanceScore = resolveFbrefPerformanceScore({
+    stats: input.stats,
+    position: scoringPosition,
+    scoutlystRating: input.scoutlyst?.rating ?? null,
+    scoutlystStats: input.scoutlyst?.stats ?? {},
+    sofifaOverall: input.sofifaOverall,
+  });
 
   return {
     sofascorePlayerId: fbrefNumericId(`player:${input.player.id}`),
@@ -260,12 +375,12 @@ function toFbrefSquadPlayer(input: {
     fieldPosition: positionLabel,
     performanceScore,
     startSharePct: input.startSharePct ?? null,
-    detailStats: buildPlayerDetailStats(stats),
+    detailStats: buildPlayerDetailStats(input.stats),
     age:
-      typeof stats.age === "number"
-        ? stats.age
-        : typeof stats.age === "string"
-          ? Number(stats.age.replace(/[^\d]/g, "")) || null
+      typeof input.stats.age === "number"
+        ? input.stats.age
+        : typeof input.stats.age === "string"
+          ? Number(input.stats.age.replace(/[^\d]/g, "")) || null
           : null,
   };
 }
@@ -291,15 +406,21 @@ export async function loadFbrefTeamSquadSnapshot(
 
   if (!players.length) return null;
 
+  const normalizedNames = players.map((p) => normalizeText(p.name));
+  const [scoutlyst, sofifa] = await Promise.all([
+    loadScoutlystByPlayerNames(supabase, normalizedNames),
+    loadSofifaOverallByName(supabase, normalizedNames),
+  ]);
+
   const records = players.map((player) => {
-    const standard = pickStandardStat(stats, player.id);
-    const playingTime = pickPlayingTimeStat(stats, player.id);
-    const merged = mergedStatBundle(standard, playingTime);
+    const merged = mergeAllFbrefStatsForPlayer(stats, player.id);
+    const scout = scoutlyst.get(normalizeText(player.name)) ?? null;
     return squadPickRecordFromStats({
       id: player.id,
       name: player.name,
-      position: fbrefPositionLabel(standard?.stats ?? playingTime?.stats ?? {}),
+      position: fbrefPositionLabel(merged),
       stats: merged,
+      rating: scout?.rating ?? null,
     });
   });
 
@@ -316,12 +437,13 @@ export async function loadFbrefTeamSquadSnapshot(
   const mapRecord = (record: (typeof records)[0]): SquadPlayer | null => {
     const player = playerById.get(record.id);
     if (!player) return null;
-    const standard = pickStandardStat(stats, player.id);
-    const playingTime = pickPlayingTimeStat(stats, player.id);
+    const merged = mergeAllFbrefStatsForPlayer(stats, player.id);
+    const nameKey = normalizeText(player.name);
     return toFbrefSquadPlayer({
       player,
-      stat: standard,
-      playingTime,
+      stats: merged,
+      scoutlyst: scoutlyst.get(nameKey) ?? null,
+      sofifaOverall: sofifa.get(nameKey) ?? null,
       startSharePct: Math.round((record.starts / totalStarts) * 100),
     });
   };

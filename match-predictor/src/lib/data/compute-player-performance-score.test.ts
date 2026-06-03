@@ -121,6 +121,52 @@ describe("computePlayerPerformanceScore", () => {
     ).toBeNull();
   });
 
+  it("scores FBref WCQ bundles with merged misc and keeper stats", () => {
+    const forward = computePlayerPerformanceScore({
+      scoutlystRating: null,
+      matchAvgRating: null,
+      stats: {
+        minutes: 893,
+        games: 11,
+        goals: 2,
+        shots_on_target: 10,
+        position: "FW,MF",
+      },
+      position: "FW,MF",
+    });
+    const midfielder = computePlayerPerformanceScore({
+      scoutlystRating: null,
+      matchAvgRating: null,
+      stats: {
+        minutes: 964,
+        games: 12,
+        goals: 3,
+        interceptions: 5,
+        tackles_won: 5,
+        position: "MF,FW",
+      },
+      position: "MF,FW",
+    });
+    const keeper = computePlayerPerformanceScore({
+      scoutlystRating: null,
+      matchAvgRating: null,
+      stats: {
+        minutes: 797,
+        games: 9,
+        gk_save_pct: 83.9,
+        gk_saves: 26,
+        position: "GK",
+      },
+      position: "GK",
+    });
+    expect(forward).not.toBeNull();
+    expect(forward!).toBeGreaterThan(0);
+    expect(midfielder).not.toBeNull();
+    expect(midfielder!).toBeGreaterThan(0);
+    expect(keeper).not.toBeNull();
+    expect(keeper!).toBeGreaterThan(0);
+  });
+
   it("scores defender from tackles and interceptions without penalizing low goals", () => {
     const defender = computePlayerPerformanceScore({
       scoutlystRating: 2.2,
