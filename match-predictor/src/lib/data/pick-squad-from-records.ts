@@ -67,7 +67,8 @@ export function squadPickRecordFromStats(input: {
 
 export function pickSquadFromRecords(
   records: SquadPickRecord[],
-  formation: string | null | undefined
+  formation: string | null | undefined,
+  options?: { benchLimit?: number | null }
 ): { starters: SquadPickRecord[]; substitutes: SquadPickRecord[] } {
   if (!records.length) return { starters: [], substitutes: [] };
 
@@ -105,7 +106,7 @@ export function pickSquadFromRecords(
     }
   }
 
-  const substitutes = [...records]
+  const benchSorted = [...records]
     .filter((r) => !starterIds.has(r.id))
     .sort((a, b) => {
       const rankA = computeLineupRankScore(
@@ -122,8 +123,13 @@ export function pickSquadFromRecords(
       if (b.minutes !== a.minutes) return b.minutes - a.minutes;
       if (b.subAppearances !== a.subAppearances) return b.subAppearances - a.subAppearances;
       return b.starts - a.starts;
-    })
-    .slice(0, 9);
+    });
+
+  const benchLimit = options?.benchLimit;
+  const substitutes =
+    benchLimit === null
+      ? benchSorted
+      : benchSorted.slice(0, benchLimit ?? 9);
 
   return { starters, substitutes };
 }

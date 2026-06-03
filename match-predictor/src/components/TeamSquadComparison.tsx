@@ -100,8 +100,8 @@ function SquadColumn({
       <div>
         <p className={labelClass}>{side.teamName}</p>
         <p className="mt-2 text-sm text-muted">
-          No squad data for this team. Import Scoutlyst CSVs, run lineup backfill after football
-          sync, or import FBref World Cup squads into Supabase.
+          No squad data for this team. For World Cup nations, run{" "}
+          <code className="text-[10px]">npm run parse:fifa-squads</code> to load official lists.
         </p>
       </div>
     );
@@ -111,18 +111,32 @@ function SquadColumn({
     ? ` Formation: ${squad.preferredFormation}.`
     : "";
   const sourceNote =
-    squad.squadSource === "lineups"
-      ? `XI from recent synced match lineups.${formationNote}`
-      : squad.squadSource === "fbref"
-        ? `XI estimated from imported FBref squad stats.${formationNote}`
-        : `XI estimated from Scoutlyst ratings.${formationNote} Import lineups for match-based squads.`;
+    squad.squadSource === "fifa_official"
+      ? `Official FIFA 26-man squad (Jun 2026). Starting XI picked from this list.${formationNote}`
+      : squad.squadSource === "lineups"
+        ? `XI from recent synced match lineups.${formationNote}`
+        : squad.squadSource === "fbref"
+          ? `XI estimated from imported FBref squad stats.${formationNote}`
+          : `XI estimated from Scoutlyst ratings.${formationNote} Import lineups for match-based squads.`;
 
   return (
     <div className="space-y-4">
       <div>
         <p className={labelClass}>{side.teamName}</p>
+        {squad.coach ? (
+          <p className="mt-0.5 text-sm text-foreground">
+            <span className="text-muted">Head coach:</span> {squad.coach.name}
+            {squad.coach.nationality ? (
+              <span className="text-muted"> ({squad.coach.nationality})</span>
+            ) : null}
+          </p>
+        ) : null}
         {squad.snapshotDate ? (
-          <p className="mt-0.5 text-[11px] text-muted">Scoutlyst snapshot {squad.snapshotDate}</p>
+          <p className="mt-0.5 text-[11px] text-muted">
+            {squad.squadSource === "fifa_official"
+              ? `FIFA squad list ${squad.snapshotDate}`
+              : `Scoutlyst snapshot ${squad.snapshotDate}`}
+          </p>
         ) : null}
         <p className="mt-0.5 text-[11px] text-muted">{sourceNote}</p>
       </div>
@@ -148,7 +162,7 @@ function SquadColumn({
 
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
-          Substitutes
+          {squad.squadSource === "fifa_official" ? "Squad (bench)" : "Substitutes"}
         </p>
         {squad.substitutes.length ? (
           <ul className="space-y-2">
@@ -190,9 +204,9 @@ export function TeamSquadComparison({
 
       {hasAnyData ? (
         <p className="mb-3 text-xs leading-relaxed text-muted">
-          Starting XI is inferred from who started most often in recent finished matches.
-          Performance is mapped to 0–100, then adjusted vs the Premier League benchmark by domestic
-          league (Eredivisie / Ligue 1 discounted vs La Liga / Serie A / Bundesliga).
+          World Cup nations use the official FIFA 26-player squad lists. The starting XI is chosen
+          from those 26 by position and recent form ratings where available. Performance is mapped to
+          0–100, then adjusted vs the Premier League benchmark by domestic league.
         </p>
       ) : null}
 

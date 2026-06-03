@@ -3,7 +3,9 @@ import {
   stableSyntheticPlayerId,
   type ScoutlystSquadRow,
 } from "@/lib/data/build-squad-from-scoutlyst";
+import { loadOfficialWcSquadForComparison } from "@/lib/data/load-official-wc-squad-for-comparison";
 import { loadFbrefTeamSquadSnapshot } from "@/lib/fbref/comparison-fallback";
+import { resolveWc2026TeamLabel } from "@/lib/data/world-cup-2026-official-squads";
 import { loadPreferredFormationForTeam } from "@/lib/data/team-formations";
 import {
   computePlayerPerformanceScore,
@@ -296,7 +298,19 @@ export async function loadTeamSquadForComparison(
     squadSource: "none",
     preferredFormation: null,
     snapshotDate: null,
+    coach: null,
   };
+
+  const wcTeamLabel = resolveWc2026TeamLabel(teamName, teamId);
+  if (wcTeamLabel) {
+    const official = await loadOfficialWcSquadForComparison(
+      supabase,
+      teamId,
+      wcTeamLabel,
+      { teamName, domesticLeagueId: benchmarkLeagueId, entityType }
+    );
+    if (official) return official;
+  }
 
   if (!supabase) return empty;
 
@@ -477,5 +491,6 @@ export async function loadTeamSquadForComparison(
     squadSource,
     preferredFormation,
     snapshotDate: scoutlyst.snapshotDate,
+    coach: null,
   };
 }

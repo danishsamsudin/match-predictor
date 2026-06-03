@@ -49,7 +49,18 @@ export interface SquadPlayer {
   age: number | null;
 }
 
-export type TeamSquadSource = "lineups" | "scoutlyst" | "fbref" | "none";
+export type TeamSquadSource =
+  | "lineups"
+  | "scoutlyst"
+  | "fbref"
+  | "fifa_official"
+  | "none";
+
+export interface TeamSquadCoach {
+  name: string;
+  nationality: string | null;
+  role: string;
+}
 
 export interface TeamSquadSnapshot {
   starters: SquadPlayer[];
@@ -61,6 +72,8 @@ export interface TeamSquadSnapshot {
   /** Formation used to slot the inferred XI (from recent lineups when available). */
   preferredFormation: string | null;
   snapshotDate: string | null;
+  /** Head coach from FIFA official squad list (World Cup nations). */
+  coach?: TeamSquadCoach | null;
 }
 
 import type {
