@@ -13,6 +13,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 const outDir = path.join(root, "public", "team-logos");
 const manifestPath = path.join(root, "src", "lib", "data", "team-logo-manifest.ts");
+const repairMapPath = path.join(__dirname, "team-logo-api-repair.json");
+
+function loadApiRepairMap() {
+  if (!fs.existsSync(repairMapPath)) return new Map();
+  const raw = JSON.parse(fs.readFileSync(repairMapPath, "utf8"));
+  return new Map(Object.entries(raw).map(([sofaId, apiId]) => [Number(sofaId), Number(apiId)]));
+}
 
 /** Reference league id → SofaScore unique tournament id (see sportapi-leagues.ts). */
 const UNIQUE_TOURNAMENT_IDS = [
@@ -289,6 +296,7 @@ async function main() {
 
   console.log(`\nTotal unique teams: ${teams.length}`);
   fs.mkdirSync(outDir, { recursive: true });
+  const apiRepair = loadApiRepairMap();
 
   let ok = 0;
   let fail = 0;
@@ -325,6 +333,21 @@ async function main() {
         }
       } catch {
         /* try api-sports fallback below */
+      }
+    }
+
+    if (!saved) {
+      const apiId = apiRepair.get(team.id);
+      if (apiId != null) {
+        const buf = await downloadBytes(
+          `https://media.api-sports.io/football/teams/${apiId}.png`
+        );
+        if (buf) {
+          fs.writeFileSync(dest, buf);
+          ok++;
+          saved = true;
+          process.stdout.write(`✓ ${team.id} ${team.name} (api-sports ${apiId})\n`);
+        }
       }
     }
 

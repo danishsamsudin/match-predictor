@@ -1,5 +1,5 @@
 import type { EntityType, TeamOption } from "@/lib/types/football-lookup";
-import { TEAM_LOGO_NAME_TO_ID } from "@/lib/data/team-logo-manifest";
+import { TEAM_LOGO_ID_TO_NAME, TEAM_LOGO_NAME_TO_ID } from "@/lib/data/team-logo-manifest";
 import { normalizeTeamName as normalizeTeamNameKey } from "@/lib/soccerdata/normalize";
 
 /** Public path for a locally stored team badge (see scripts/download-team-logos.mjs). */
@@ -83,13 +83,53 @@ function logoLookupKeys(team: TeamOption): string[] {
   return [...keys];
 }
 
-/** SofaScore logo id from team name (never use upstream team.id — API-Football ids collide). */
-export function resolveLogoIdForTeam(team: TeamOption): number | null {
+/** Extra display-name aliases not always present in the generated manifest. */
+const EXTRA_LOGO_NAME_TO_ID: Record<string, number> = {
+  spurs: 33,
+  "man utd": 35,
+  "man city": 17,
+  psg: 1644,
+  ajax: 2953,
+  "afc ajax": 2953,
+};
+
+function resolveLogoIdByName(team: TeamOption): number | null {
   for (const key of logoLookupKeys(team)) {
-    const byName = TEAM_LOGO_NAME_TO_ID[key];
+    const byName = TEAM_LOGO_NAME_TO_ID[key] ?? EXTRA_LOGO_NAME_TO_ID[key];
     if (byName) return byName;
   }
   return null;
+}
+
+/** True when manifest label and display name refer to the same club. */
+function logoIdMatchesTeamName(logoId: number, team: TeamOption): boolean {
+  const expected = TEAM_LOGO_ID_TO_NAME[logoId];
+  if (!expected) return false;
+  const expectedNorm = normalizeTeamNameKey(expected);
+  if (!expectedNorm) return false;
+  for (const key of logoLookupKeys(team)) {
+    if (!key) continue;
+    if (key === expectedNorm) return true;
+    if (expectedNorm.includes(key) || key.includes(expectedNorm)) return true;
+  }
+  return false;
+}
+
+/**
+ * SofaScore / SportAPI team id for local badge path.
+ * Prefer name when upstream id exists in manifest but does not match the display name
+ * (common when API-Football ids collide with SofaScore ids on stored rows).
+ */
+export function resolveLogoIdForTeam(team: TeamOption): number | null {
+  const byName = resolveLogoIdByName(team);
+
+  if (team.id && TEAM_LOGO_ID_TO_NAME[team.id]) {
+    if (logoIdMatchesTeamName(team.id, team)) return team.id;
+    if (byName != null) return byName;
+    return team.id;
+  }
+
+  return byName;
 }
 
 export function resolveTeamLogo(team: TeamOption, entityType?: EntityType): string {

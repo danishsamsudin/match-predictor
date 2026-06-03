@@ -318,62 +318,162 @@ function parseExplanation(explanation: string): { title: string; lines: string[]
   return sections;
 }
 
+const VISIBLE_FACTS_PER_SECTION = 3;
+
+function extractMetricChips(text: string): string[] {
+  const chips: string[] = [];
+  const pct = text.match(/\b\d+(?:\.\d+)?%/g);
+  if (pct) chips.push(...pct.slice(0, 4));
+  const xg = text.match(/\bxG\b[^.]*\d+(?:\.\d+)?/gi);
+  if (xg) chips.push(...xg.slice(0, 2));
+  if (/\bΩ\b/.test(text)) chips.push("League strength (Ω)");
+  return [...new Set(chips)].slice(0, 5);
+}
+
+function AnalysisSectionBody({
+  section,
+  styles,
+}: {
+  section: { title: string; lines: string[] };
+  styles: (typeof ACCENT_STYLES)[Accent];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const lines = section.lines.map((line) => normalizeExplanationText(line));
+  const visible = expanded ? lines : lines.slice(0, VISIBLE_FACTS_PER_SECTION);
+  const bulletLines = visible.filter((line) => line.startsWith("-"));
+  const proseLines = visible.filter((line) => !line.startsWith("-"));
+
+  return (
+    <div className="space-y-3 border-t border-white/20 px-4 pb-4 pt-3 dark:border-slate-800/50">
+      {proseLines.length > 0 ? (
+        <p className="text-sm leading-relaxed text-muted">{proseLines.join(" ")}</p>
+      ) : null}
+      {bulletLines.length > 0 ? (
+        <ul className="space-y-2">
+          {bulletLines.map((line) => {
+            const displayLine = line.replace(/^-\s*/, "");
+            const tip = getExplanationTip(section.title, displayLine);
+            return (
+              <li
+                key={`${section.title}-${line}`}
+                className="flex gap-2 text-sm leading-relaxed text-muted"
+              >
+                <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${styles.dot}`} />
+                <span className="flex min-w-0 flex-1 items-start gap-1.5">
+                  <span className="min-w-0 flex-1">{displayLine}</span>
+                  {tip ? <InfoTip label={tip.label}>{tip.body}</InfoTip> : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      {proseLines.length === 0 && bulletLines.length === 0 ? (
+        <div className="space-y-2">
+          {visible.map((line) => {
+            const chips = extractMetricChips(line);
+            const tip = getExplanationTip(section.title, line);
+            return (
+              <div
+                key={`${section.title}-${line}`}
+                className="rounded-lg bg-white/15 px-3 py-2 dark:bg-slate-900/30"
+              >
+                <p className="text-sm leading-relaxed text-muted">{line}</p>
+                {chips.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {chips.map((chip) => (
+                      <span
+                        key={chip}
+                        className="rounded-md bg-foreground/8 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-foreground"
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {tip ? (
+                  <div className="mt-1">
+                    <InfoTip label={tip.label}>{tip.body}</InfoTip>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+      {lines.length > VISIBLE_FACTS_PER_SECTION ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="text-xs font-semibold text-primary-emphasis hover:underline"
+        >
+          {expanded
+            ? "Show less"
+            : `Show ${lines.length - VISIBLE_FACTS_PER_SECTION} more`}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function AnalysisBreakdown({ explanation }: { explanation: string }) {
   const sections = parseExplanation(explanation);
+  const summaryLines = sections
+    .flatMap((s) => s.lines.slice(0, 1))
+    .map((line) => normalizeExplanationText(line))
+    .filter(Boolean)
+    .slice(0, 3);
 
   if (sections.length === 0) {
     return (
       <p className="mt-3 rounded-xl glass-subtle p-4 text-sm text-muted">
-        {explanation}
+        {normalizeExplanationText(explanation)}
       </p>
     );
   }
 
   return (
     <div className="mt-3 space-y-3">
-      {sections.map((section) => {
+      {summaryLines.length > 0 ? (
+        <div className="rounded-xl border border-white/25 bg-white/15 p-4 dark:border-slate-800/50 dark:bg-slate-900/25">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            At a glance
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {summaryLines.map((line) => (
+              <li key={line} className="text-sm leading-relaxed text-foreground">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {sections.map((section, idx) => {
         const theme = SECTION_THEMES[section.title] ?? {
           accent: "neutral" as Accent,
           icon: TrendingUp,
         };
         const styles = ACCENT_STYLES[theme.accent];
         const Icon = theme.icon;
+        const defaultOpen = section.title === "Base Analysis" || idx === 0;
 
         return (
-          <section
+          <details
             key={section.title}
-            className={`rounded-xl border p-4 ${styles.box}`}
+            className={`group rounded-xl border ${styles.box}`}
+            open={defaultOpen}
           >
-            <div className="mb-3 flex items-center gap-2">
+            <summary className="flex cursor-pointer list-none items-center gap-2 p-4 [&::-webkit-details-marker]:hidden">
               <span
                 className={`flex h-7 w-7 items-center justify-center rounded-lg ${styles.icon}`}
               >
                 <Icon className="h-3.5 w-3.5" />
               </span>
-              <h4 className={`text-sm font-semibold ${styles.value}`}>{section.title}</h4>
-            </div>
-            <ul className="space-y-2">
-              {section.lines.map((line) => {
-                const displayLine = normalizeExplanationText(line);
-                const tip = getExplanationTip(section.title, line);
-
-                return (
-                  <li
-                    key={`${section.title}-${line}`}
-                    className="flex gap-2.5 text-sm leading-relaxed text-muted"
-                  >
-                    <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${styles.dot}`} />
-                    <span className="flex min-w-0 flex-1 items-start gap-1.5">
-                      <span className="min-w-0 flex-1">{displayLine}</span>
-                      {tip ? (
-                        <InfoTip label={tip.label}>{tip.body}</InfoTip>
-                      ) : null}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+              <h4 className={`flex-1 text-sm font-semibold ${styles.value}`}>{section.title}</h4>
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted transition group-open:rotate-180" />
+            </summary>
+            <AnalysisSectionBody section={section} styles={styles} />
+          </details>
         );
       })}
     </div>

@@ -1,4 +1,4 @@
--- Match Predictor: apply all migrations (001 → 004) in one go
+-- DynamixG: apply all migrations (001 → 004) in one go
 -- Safe to re-run: uses IF NOT EXISTS for tables/indexes and guarded policies.
 
 -- ========== 001_prediction_engine.sql ==========

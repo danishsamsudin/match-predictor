@@ -1,9 +1,12 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { BarChart3, Goal, TrendingUp } from "lucide-react";
 import type { PredictionAnalytics, PredictionResult } from "@/lib/types/prediction";
 import type { TeamComparisonSnapshot, TeamFormMatch } from "@/lib/types/team-comparison";
+import { formatCalendarDateLocal } from "@/lib/utils/kickoff-display";
 import { resolveTeamShortLabel } from "@/lib/utils/team-display-name";
+import { InfoTip } from "@/components/ui/InfoTip";
 import { ChartCard, ChartCardWithTip } from "./ChartCard";
 
 function maxProb(cells: { probability: number }[]): number {
@@ -60,6 +63,8 @@ function DualHorizontalBar({
   homeLabelTitle,
   awayLabelTitle,
   maxValue,
+  scaleAsPercent = false,
+  valueSuffix = "",
 }: {
   label: string;
   homeValue: number;
@@ -69,7 +74,23 @@ function DualHorizontalBar({
   homeLabelTitle?: string;
   awayLabelTitle?: string;
   maxValue: number;
+  /** When true, bar width is value% on a 0-100 track (for percentage metrics). */
+  scaleAsPercent?: boolean;
+  valueSuffix?: string;
 }) {
+  const homeWidth = scaleAsPercent
+    ? Math.min(100, Math.max(0, homeValue))
+    : maxValue > 0
+      ? (homeValue / maxValue) * 100
+      : 0;
+  const awayWidth = scaleAsPercent
+    ? Math.min(100, Math.max(0, awayValue))
+    : maxValue > 0
+      ? (awayValue / maxValue) * 100
+      : 0;
+  const formatVal = (v: number) =>
+    scaleAsPercent ? `${Math.round(v * 10) / 10}${valueSuffix || "%"}` : `${v}${valueSuffix}`;
+
   return (
     <div className="space-y-2 border-b border-white/20 py-3 last:border-0 dark:border-slate-800/50">
       <p className="text-center text-[11px] font-medium uppercase tracking-wide text-muted">
@@ -85,12 +106,12 @@ function DualHorizontalBar({
           </span>
           <div className="relative h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/8">
             <div
-              className="absolute right-0 top-0 h-full rounded-full bg-gradient-to-l from-primary to-primary-light"
-              style={{ width: `${maxValue > 0 ? (homeValue / maxValue) * 100 : 0}%` }}
+              className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-primary to-primary-light"
+              style={{ width: `${homeWidth}%` }}
             />
           </div>
           <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-primary">
-            {homeValue}
+            {formatVal(homeValue)}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -102,12 +123,12 @@ function DualHorizontalBar({
           </span>
           <div className="relative h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/8">
             <div
-              className="absolute right-0 top-0 h-full rounded-full bg-gradient-to-l from-accent to-accent-light"
-              style={{ width: `${maxValue > 0 ? (awayValue / maxValue) * 100 : 0}%` }}
+              className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-accent to-accent-light"
+              style={{ width: `${awayWidth}%` }}
             />
           </div>
           <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-accent">
-            {awayValue}
+            {formatVal(awayValue)}
           </span>
         </div>
       </div>
@@ -140,66 +161,72 @@ function ScoreHeatmap({
 
   return (
     <div className="overflow-x-auto">
-      <div className="inline-block min-w-full">
+      <div className="inline-flex min-w-full gap-2">
         <div
-          className="grid gap-1"
-          style={{
-            gridTemplateColumns: `auto repeat(${maxGoals + 1}, minmax(2.5rem, 1fr))`,
-          }}
+          className="flex shrink-0 items-center justify-center text-[9px] font-semibold leading-tight text-foreground"
+          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", minHeight: "12rem" }}
+          title={homeLabel}
         >
-          <div />
-          {Array.from({ length: maxGoals + 1 }, (_, a) => (
-            <div
-              key={`away-h-${a}`}
-              className="pb-1 text-center text-[10px] font-medium text-muted"
-            >
-              {a}
-            </div>
-          ))}
-          {grid.map((row, h) => (
-            <div key={`row-${h}`} className="contents">
-              <div className="flex items-center pr-2 text-[10px] font-medium text-muted">
-                {h}
-              </div>
-              {row.map((cell) => {
-                const intensity = cell.probability / peak;
-                return (
-                  <div
-                    key={`${cell.home}-${cell.away}`}
-                    className="flex aspect-square min-h-[2.5rem] flex-col items-center justify-center rounded-lg border border-white/25 text-center transition dark:border-slate-700/40"
-                    style={{
-                      background: `color-mix(in srgb, var(--primary) ${Math.round(intensity * 55)}%, transparent)`,
-                    }}
-                    title={`${cell.home}-${cell.away}: ${cell.probability}%`}
-                  >
-                    <span className="text-[10px] font-bold text-foreground">
-                      {cell.home}-{cell.away}
-                    </span>
-                    <span className="text-[9px] tabular-nums text-muted">
-                      {cell.probability > 0 ? `${cell.probability}%` : "—"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+          {homeLabel}
         </div>
-        <p className="mt-3 text-center text-[10px] text-muted">
-          Rows: {homeLabel} goals · Columns: {awayLabel} goals
-        </p>
+        <div className="min-w-0 flex-1">
+          <p
+            className="mb-2 truncate text-center text-[10px] font-semibold text-foreground"
+            title={awayLabel}
+          >
+            {awayLabel}
+          </p>
+          <div
+            className="grid gap-1"
+            style={{
+              gridTemplateColumns: `2rem repeat(${maxGoals + 1}, minmax(2.5rem, 1fr))`,
+            }}
+          >
+            <div />
+            {Array.from({ length: maxGoals + 1 }, (_, a) => (
+              <div
+                key={`away-h-${a}`}
+                className="pb-1 text-center text-[10px] font-medium text-muted"
+              >
+                {a}
+              </div>
+            ))}
+            {grid.map((row, h) => (
+              <div key={`row-${h}`} className="contents">
+                <div className="flex items-center justify-end pr-1 text-[10px] font-medium text-muted">
+                  {h}
+                </div>
+                {row.map((cell) => {
+                  const intensity = cell.probability / peak;
+                  return (
+                    <div
+                      key={`${cell.home}-${cell.away}`}
+                      className="flex aspect-square min-h-[2.5rem] flex-col items-center justify-center rounded-lg border border-white/25 text-center transition dark:border-slate-700/40"
+                      style={{
+                        background: `color-mix(in srgb, var(--primary) ${Math.round(intensity * 55)}%, transparent)`,
+                      }}
+                      title={`${cell.home}-${cell.away}: ${cell.probability}%`}
+                    >
+                      <span className="text-[10px] font-bold text-foreground">
+                        {cell.home}-{cell.away}
+                      </span>
+                      <span className="text-[9px] tabular-nums text-muted">
+                        {cell.probability > 0 ? `${cell.probability}%` : "-"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 function formatFormMatchDate(isoDate: string): string {
-  const kickoff = new Date(`${isoDate}T12:00:00`);
-  if (Number.isNaN(kickoff.getTime())) return isoDate;
-  return kickoff.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatCalendarDateLocal(isoDate);
 }
 
 function FormResultBadge({ result }: { result: TeamFormMatch["result"] }) {
@@ -221,8 +248,10 @@ function FormResultBadge({ result }: { result: TeamFormMatch["result"] }) {
   );
 }
 
+const FORM_TIMELINE_LIMIT = 10;
+
 function FormStrip({ matches }: { matches: TeamFormMatch[] }) {
-  const recent = matches.slice(0, 10);
+  const recent = matches.slice(0, FORM_TIMELINE_LIMIT);
 
   if (!recent.length) {
     return <p className="text-xs text-muted">No recent form data</p>;
@@ -328,7 +357,7 @@ export function PredictionCharts({
         <div>
           <h3 className="text-sm font-semibold text-foreground">Statistical insights</h3>
           <p className="text-xs text-muted">
-            Charts derived from our Poisson goal model and synced season data — useful for match
+            Charts derived from our Poisson goal model and season data - useful for match
             result, goals, and team form markets.
           </p>
         </div>
@@ -341,7 +370,7 @@ export function PredictionCharts({
           tipBody={
             <>
               Each cell is the model&apos;s estimated chance of that exact scoreline (e.g. 2-1).
-              Darker cells are more likely — popular for correct-score and scorecast-style bets.
+              Darker cells are more likely - popular for correct-score and scorecast-style bets.
             </>
           }
           className="lg:col-span-2"
@@ -377,7 +406,7 @@ export function PredictionCharts({
         </ChartCardWithTip>
 
         <ChartCardWithTip
-          title="Goals markets (Over / Under) — model"
+          title="Goals markets (Over / Under) - model"
           tipLabel="Over/Under goals (model)"
           tipBody={
             <>
@@ -398,20 +427,22 @@ export function PredictionCharts({
         </ChartCardWithTip>
 
         {analytics.historicalMarkets ? (
-          <ChartCardWithTip
+          <ChartCard
             title="Historical vs model markets"
-            tipLabel="Historical vs model"
-            tipBody={
-              <>
-                <strong>Historical</strong> rates come from each team&apos;s last stored results.
-                <strong> Model</strong> rates use our Poisson xG grid for this specific matchup.
-              </>
-            }
+            description="Historical bars use each team's past results. Model % is for this fixture only."
             className="lg:col-span-2"
           >
             <div className="grid gap-6 lg:grid-cols-2">
               <HistoricalMarketCompare
                 label="BTTS Yes %"
+                tipLabel="BTTS Yes %"
+                tipBody={
+                  <>
+                    Share of each team&apos;s last finished games where <strong>both</strong> teams
+                    scored at least once. The model % below is our Poisson estimate for this
+                    specific matchup.
+                  </>
+                }
                 homeHistorical={analytics.historicalMarkets.home.bttsYesPct}
                 awayHistorical={analytics.historicalMarkets.away.bttsYesPct}
                 modelPct={analytics.btts.yesPct}
@@ -422,6 +453,14 @@ export function PredictionCharts({
               />
               <HistoricalMarketCompare
                 label="Over 2.5 %"
+                tipLabel="Over 2.5 %"
+                tipBody={
+                  <>
+                    Share of each team&apos;s last games with <strong>three or more</strong> total
+                    goals. The model % below is our Poisson estimate for over 2.5 goals in this
+                    fixture.
+                  </>
+                }
                 homeHistorical={analytics.historicalMarkets.home.over25Pct}
                 awayHistorical={analytics.historicalMarkets.away.over25Pct}
                 modelPct={
@@ -433,11 +472,11 @@ export function PredictionCharts({
                 sampleAway={analytics.historicalMarkets.away.sampleSize}
               />
             </div>
-          </ChartCardWithTip>
+          </ChartCard>
         ) : null}
 
         <ChartCardWithTip
-          title="Both teams to score (BTTS) — model"
+          title="Both teams to score (BTTS) - model"
           tipLabel="Both teams to score (model)"
           tipBody={
             <>
@@ -497,19 +536,17 @@ export function PredictionCharts({
           tipBody={
             <>
               Side-by-side expected goals after all model adjustments. The taller bar suggests more
-              scoring chances — not a guaranteed goal count.
+              scoring chances - not a guaranteed goal count.
             </>
           }
         >
-          <DualHorizontalBar
-            label="Expected goals"
-            homeValue={result.expectedGoals.home}
-            awayValue={result.expectedGoals.away}
-            homeLabel={homeShort}
-            awayLabel={awayShort}
-            homeLabelTitle={homeLabel}
-            awayLabelTitle={awayLabel}
-            maxValue={Math.max(result.expectedGoals.home, result.expectedGoals.away, 0.5)}
+          <XgComparisonBlock
+            result={result}
+            analytics={analytics}
+            homeShort={homeShort}
+            awayShort={awayShort}
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
           />
         </ChartCardWithTip>
 
@@ -520,7 +557,7 @@ export function PredictionCharts({
             <>
               <strong>Form score</strong> reflects recent results (recent games weighted more).{" "}
               <strong>Momentum index</strong> blends form (35%) and head-to-head history (65%) into
-              one number — positive favours the home side in our model.
+              one number - positive favours the home side in our model.
             </>
           }
         >
@@ -629,8 +666,78 @@ function MiniStat({
   );
 }
 
+function XgComparisonBlock({
+  result,
+  analytics,
+  homeShort,
+  awayShort,
+  homeLabel,
+  awayLabel,
+}: {
+  result: PredictionResult;
+  analytics: PredictionAnalytics;
+  homeShort: string;
+  awayShort: string;
+  homeLabel: string;
+  awayLabel: string;
+}) {
+  const homeXg = result.expectedGoals.home;
+  const awayXg = result.expectedGoals.away;
+  const totalXg = homeXg + awayXg;
+  const diff = homeXg - awayXg;
+  const zeroZero =
+    analytics.scoreHeatmap.find((c) => c.home === 0 && c.away === 0)?.probability ?? 0;
+  const goalsFor = analytics.statComparison?.find((s) => {
+    const m = s.metric.toLowerCase();
+    return m.includes("goal") && (m.includes("scored") || m.includes("for"));
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-lg border border-white/25 bg-white/15 px-2 py-2 dark:border-slate-800/50 dark:bg-slate-900/25">
+          <p className="text-[10px] uppercase tracking-wide text-muted">Total xG</p>
+          <p className="text-lg font-bold tabular-nums text-foreground">{totalXg.toFixed(2)}</p>
+        </div>
+        <div className="rounded-lg border border-white/25 bg-white/15 px-2 py-2 dark:border-slate-800/50 dark:bg-slate-900/25">
+          <p className="text-[10px] uppercase tracking-wide text-muted">xG diff</p>
+          <p className="text-lg font-bold tabular-nums text-foreground">
+            {diff >= 0 ? "+" : ""}
+            {diff.toFixed(2)}
+          </p>
+          <p className="text-[10px] text-muted">
+            {diff > 0.05 ? homeShort : diff < -0.05 ? awayShort : "Even"}
+          </p>
+        </div>
+        <div className="rounded-lg border border-white/25 bg-white/15 px-2 py-2 dark:border-slate-800/50 dark:bg-slate-900/25">
+          <p className="text-[10px] uppercase tracking-wide text-muted">0-0 chance</p>
+          <p className="text-lg font-bold tabular-nums text-foreground">{zeroZero}%</p>
+        </div>
+      </div>
+      <DualHorizontalBar
+        label="Expected goals"
+        homeValue={homeXg}
+        awayValue={awayXg}
+        homeLabel={homeShort}
+        awayLabel={awayShort}
+        homeLabelTitle={homeLabel}
+        awayLabelTitle={awayLabel}
+        maxValue={Math.max(homeXg, awayXg, 0.5)}
+      />
+      {goalsFor ? (
+        <p className="text-center text-[10px] text-muted">
+          Season goals per game (model inputs): {homeShort} {goalsFor.home.toFixed(2)} · {awayShort}{" "}
+          {goalsFor.away.toFixed(2)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function HistoricalMarketCompare({
   label,
+  tipLabel,
+  tipBody,
   homeHistorical,
   awayHistorical,
   modelPct,
@@ -640,6 +747,8 @@ function HistoricalMarketCompare({
   sampleAway,
 }: {
   label: string;
+  tipLabel: string;
+  tipBody: ReactNode;
   homeHistorical: number;
   awayHistorical: number;
   modelPct: number;
@@ -648,17 +757,20 @@ function HistoricalMarketCompare({
   sampleHome: number;
   sampleAway: number;
 }) {
-  const max = Math.max(homeHistorical, awayHistorical, modelPct, 1);
   return (
     <div className="space-y-3 rounded-xl border border-white/25 bg-white/15 p-4 dark:border-slate-800/50 dark:bg-slate-900/25">
-      <p className="text-center text-xs font-semibold text-foreground">{label}</p>
+      <div className="flex items-center justify-center gap-1.5">
+        <p className="text-center text-xs font-semibold text-foreground">{label}</p>
+        <InfoTip label={tipLabel}>{tipBody}</InfoTip>
+      </div>
       <DualHorizontalBar
         label="Historical (team trend)"
         homeValue={homeHistorical}
         awayValue={awayHistorical}
         homeLabel={homeShort}
         awayLabel={awayShort}
-        maxValue={max}
+        maxValue={100}
+        scaleAsPercent
       />
       <p className="text-center text-[10px] text-muted">
         Based on last {sampleHome} / {sampleAway} results per team
@@ -683,7 +795,7 @@ function FormTrendSection({
   return (
     <ChartCard
       title="Recent form timeline"
-      description="Last five matches — date, opponent, and score from this team's perspective (W/D/L badge)."
+      description="Up to ten recent matches - date, opponent, and score from this team's perspective (W/D/L badge)."
     >
       <div className="grid gap-6 sm:grid-cols-2">
         <div>

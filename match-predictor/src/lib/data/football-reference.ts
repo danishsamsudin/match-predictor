@@ -2,7 +2,12 @@ import type { CountryOption, EntityType, LeagueOption, SyncTier, TeamOption } fr
 import { enrichTeamsWithLogos } from "@/lib/data/team-logos";
 import { getClubHomeCity } from "@/lib/data/team-home-cities";
 import { isNationalTeamId } from "@/lib/data/national-team-geography";
-import { WORLD_CUP_2026_TEAMS } from "@/lib/data/world-cup-2026-teams";
+import {
+  WORLD_CUP_2026_TEAMS,
+  WORLD_CUP_REFERENCE_LEAGUE_ID,
+} from "@/lib/data/world-cup-2026-teams";
+
+export { WORLD_CUP_REFERENCE_LEAGUE_ID };
 
 export const REFERENCE_SEASON = 2025;
 
@@ -143,18 +148,7 @@ const TEAMS_BY_LEAGUE: Record<number, TeamOption[]> = {
 };
 
 export function getNationalTeamCountries(): CountryOption[] {
-  const fromTeams = WORLD_CUP_2026_TEAMS.map((team) => ({
-    name: team.name,
-    code: team.name.slice(0, 3).toUpperCase(),
-  }));
-  return [{ name: "International", code: "INT" }, ...fromTeams];
-}
-
-export function isNationalTeamCountry(country: string): boolean {
-  if (country === "International") return false;
-  return WORLD_CUP_2026_TEAMS.some(
-    (t) => t.name.toLowerCase() === country.trim().toLowerCase()
-  );
+  return [{ name: "International", code: "INT" }];
 }
 
 export function getCountries(entityType?: EntityType): CountryOption[] {
@@ -167,13 +161,18 @@ export function getCountries(entityType?: EntityType): CountryOption[] {
 }
 
 export function getLeaguesByCountry(country: string, entityType?: EntityType): LeagueOption[] {
-  if (entityType === "national" && isNationalTeamCountry(country)) {
-    return FOOTBALL_LEAGUES.filter((league) => league.entityType === "national");
-  }
-  return FOOTBALL_LEAGUES.filter(
+  const leagues = FOOTBALL_LEAGUES.filter(
     (league) =>
       league.country === country && (entityType === undefined || league.entityType === entityType)
   );
+  if (entityType === "national" && country === "International") {
+    return [...leagues].sort((a, b) => {
+      if (a.id === WORLD_CUP_REFERENCE_LEAGUE_ID) return -1;
+      if (b.id === WORLD_CUP_REFERENCE_LEAGUE_ID) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+  return leagues;
 }
 
 export function getAllLeagues(): LeagueOption[] {

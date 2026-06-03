@@ -97,6 +97,7 @@ export function PredictionForm() {
         open={homeSheetOpen}
         onClose={() => setHomeSheetOpen(false)}
         side="Home"
+        entityType={form.entityType}
         country={form.homeCountry}
         leagueId={form.homeLeagueId}
         teamId={form.homeTeamId}
@@ -113,6 +114,7 @@ export function PredictionForm() {
         open={awaySheetOpen}
         onClose={() => setAwaySheetOpen(false)}
         side="Away"
+        entityType={form.entityType}
         country={form.awayCountry}
         leagueId={form.awayLeagueId}
         teamId={form.awayTeamId}

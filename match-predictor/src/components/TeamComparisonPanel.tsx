@@ -6,6 +6,7 @@ import { TeamBettingInsightsPanel } from "@/components/TeamBettingInsightsPanel"
 import { TeamSquadComparison } from "@/components/TeamSquadComparison";
 import { resolveTeamShortLabel } from "@/lib/utils/team-display-name";
 import { displayValue } from "@/lib/data/build-team-comparison";
+import { formatCalendarDateLocal } from "@/lib/utils/kickoff-display";
 import { TEAM_COMPARISON_GLOSSARY } from "@/lib/prediction/team-comparison-glossary";
 import type {
   TeamComparisonSide,
@@ -137,13 +138,7 @@ function FormBadge({ result }: { result: TeamFormMatch["result"] }) {
 }
 
 function formatFormMatchDate(isoDate: string): string {
-  const kickoff = new Date(`${isoDate}T12:00:00`);
-  if (Number.isNaN(kickoff.getTime())) return isoDate;
-  return kickoff.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatCalendarDateLocal(isoDate);
 }
 
 function RecentFormColumn({ matches }: { matches: TeamFormMatch[] }) {
@@ -188,7 +183,7 @@ function TeamColumnHeader({ side }: { side: TeamComparisonSide }) {
 }
 
 export function TeamComparisonPanel({ comparison }: { comparison: TeamComparisonSnapshot }) {
-  const { home, away, usesDatabaseStats } = comparison;
+  const { home, away } = comparison;
   const homeShort = resolveTeamShortLabel({ name: home.teamName });
   const awayShort = resolveTeamShortLabel({ name: away.teamName });
 
@@ -201,18 +196,10 @@ export function TeamComparisonPanel({ comparison }: { comparison: TeamComparison
           </span>
           Team comparison
           <InfoTip label="Team comparison">
-            Side-by-side season averages and recent results from our synced database. Values show
-            N/A when we do not have data for that team.
+            Side-by-side season averages and recent results. Values show N/A when data is not
+            available for that team.
           </InfoTip>
         </h3>
-
-        {usesDatabaseStats ? (
-          <p className="mb-3 text-xs leading-relaxed text-muted">
-            Goals and form come from synced league standings; recent matches from synced results;
-            stadium names from home fixtures. Corners, fouls, cards, and shots use synced team
-            metrics when available (N/A if that team has not been synced yet).
-          </p>
-        ) : null}
 
         <div className="liquid-glass-pill rounded-2xl p-4">
           <div className="mb-3 grid grid-cols-2 gap-3">
@@ -233,8 +220,7 @@ export function TeamComparisonPanel({ comparison }: { comparison: TeamComparison
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
           Recent matches
           <InfoTip label="Recent matches">
-            Last finished games stored in our database (up to 10). W/D/L shows the result from this
-            team&apos;s perspective.
+            Last five finished games. W/D/L shows the result from this team&apos;s perspective.
           </InfoTip>
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -242,13 +228,13 @@ export function TeamComparisonPanel({ comparison }: { comparison: TeamComparison
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-primary">
               {home.teamName}
             </p>
-            <RecentFormColumn matches={home.recentForm} />
+            <RecentFormColumn matches={home.recentForm.slice(0, 5)} />
           </div>
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-accent">
               {away.teamName}
             </p>
-            <RecentFormColumn matches={away.recentForm} />
+            <RecentFormColumn matches={away.recentForm.slice(0, 5)} />
           </div>
         </div>
       </div>

@@ -15,7 +15,7 @@ function performanceBadgeClass(score: number | null): string {
 }
 
 function formatPerformance(score: number | null): string {
-  if (score == null || score <= 0) return "—";
+  if (score == null || score <= 0) return "-";
   return String(score);
 }
 
@@ -99,25 +99,18 @@ function SquadColumn({
     return (
       <div>
         <p className={labelClass}>{side.teamName}</p>
-        <p className="mt-2 text-sm text-muted">
-          No squad data for this team. For World Cup nations, run{" "}
-          <code className="text-[10px]">npm run parse:fifa-squads</code> to load official lists.
-        </p>
+        <p className="mt-2 text-sm text-muted">No squad data available for this team yet.</p>
       </div>
     );
   }
 
-  const formationNote = squad.preferredFormation
-    ? ` Formation: ${squad.preferredFormation}.`
-    : "";
-  const sourceNote =
-    squad.squadSource === "fifa_official"
-      ? `Official FIFA 26-man squad (Jun 2026). Starting XI picked from this list.${formationNote}`
-      : squad.squadSource === "lineups"
-        ? `XI from recent synced match lineups.${formationNote}`
-        : squad.squadSource === "fbref"
-          ? `XI estimated from imported FBref squad stats.${formationNote}`
-          : `XI estimated from Scoutlyst ratings.${formationNote} Import lineups for match-based squads.`;
+  const formationLine = squad.preferredFormation
+    ? `Preferred formation: ${squad.preferredFormation}.`
+    : null;
+  const incompleteXi =
+    squad.starters.length > 0 && squad.starters.length < 11
+      ? "Starting XI estimated from available data."
+      : null;
 
   return (
     <div className="space-y-4">
@@ -131,14 +124,12 @@ function SquadColumn({
             ) : null}
           </p>
         ) : null}
-        {squad.snapshotDate ? (
-          <p className="mt-0.5 text-[11px] text-muted">
-            {squad.squadSource === "fifa_official"
-              ? `FIFA squad list ${squad.snapshotDate}`
-              : `Scoutlyst snapshot ${squad.snapshotDate}`}
-          </p>
+        {formationLine ? (
+          <p className="mt-0.5 text-[11px] text-muted">{formationLine}</p>
         ) : null}
-        <p className="mt-0.5 text-[11px] text-muted">{sourceNote}</p>
+        {incompleteXi ? (
+          <p className="mt-0.5 text-[11px] text-muted">{incompleteXi}</p>
+        ) : null}
       </div>
 
       <div>
@@ -156,7 +147,7 @@ function SquadColumn({
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted">N/A — no recent lineups synced.</p>
+          <p className="text-sm text-muted">N/A - no recent lineups available.</p>
         )}
       </div>
 
@@ -196,19 +187,10 @@ export function TeamSquadComparison({
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
         Squad comparison
         <InfoTip label="Squad comparison">
-          Usual starting XI and bench from recent synced match lineups. Performance score (0–100)
-          uses Scoutlyst ratings when imported, otherwise recent match ratings. Tap a player for
-          the same detail stats for everyone.
+          Usual starting XI and bench from recent match lineups. Performance score (0-100) blends
+          player ratings and recent form. Tap a player for detail stats.
         </InfoTip>
       </h3>
-
-      {hasAnyData ? (
-        <p className="mb-3 text-xs leading-relaxed text-muted">
-          World Cup nations use the official FIFA 26-player squad lists. The starting XI is chosen
-          from those 26 by position and recent form ratings where available. Performance is mapped to
-          0–100, then adjusted vs the Premier League benchmark by domestic league.
-        </p>
-      ) : null}
 
       <div className="grid gap-6 sm:grid-cols-2">
         <SquadColumn side={home} squad={home.squad} accent="primary" />

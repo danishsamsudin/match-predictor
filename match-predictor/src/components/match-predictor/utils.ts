@@ -1,46 +1,22 @@
 import type { FixtureOption } from "@/lib/types/football-lookup";
+import {
+  formatFixtureKickoffLocal,
+  getDefaultMatchDateTimeLocal,
+  utcIsoToLocalDateTime,
+} from "@/lib/utils/kickoff-display";
 
 export function formatFixtureLabel(fixture: FixtureOption): string {
-  const kickoff = new Date(fixture.date);
-  const dateLabel = kickoff.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  const timeLabel = kickoff.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-    timeZoneName: "short",
-  });
-  return `${fixture.home.name} vs ${fixture.away.name} · ${dateLabel} ${timeLabel}`;
+  const timePart = formatFixtureKickoffLocal(fixture.date);
+  return `${fixture.home.name} vs ${fixture.away.name} · ${timePart}`;
 }
 
 export function parseFixtureDateTime(isoDate: string): { date: string; time: string } {
-  const kickoff = new Date(isoDate);
-  return {
-    date: kickoff.toISOString().slice(0, 10),
-    time: kickoff.toISOString().slice(11, 16),
-  };
+  return utcIsoToLocalDateTime(isoDate);
 }
 
-/** UTC date (YYYY-MM-DD) and time (HH:MM) rounded to the nearest hour. */
+/** Local date (YYYY-MM-DD) and time (HH:MM) rounded to the nearest hour. */
 export function getDefaultMatchDateTime(now = new Date()): { date: string; time: string } {
-  const rounded = new Date(now);
-  if (rounded.getUTCMinutes() >= 30) {
-    rounded.setUTCHours(rounded.getUTCHours() + 1);
-  }
-  rounded.setUTCMinutes(0, 0, 0);
-
-  const date = [
-    rounded.getUTCFullYear(),
-    String(rounded.getUTCMonth() + 1).padStart(2, "0"),
-    String(rounded.getUTCDate()).padStart(2, "0"),
-  ].join("-");
-
-  const time = `${String(rounded.getUTCHours()).padStart(2, "0")}:00`;
-
-  return { date, time };
+  return getDefaultMatchDateTimeLocal(now);
 }
 
 export function teamInitials(name: string): string {

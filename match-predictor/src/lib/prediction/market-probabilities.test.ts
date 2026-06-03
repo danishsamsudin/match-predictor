@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildScoreMatrix,
+  computeFirstTeamToScoreFromMatrix,
   computeOutcomeProbabilities,
   resolveScoreMatrixCorrelation,
   resolveScoreMatrixMaxGoals,
@@ -52,5 +53,15 @@ describe("score matrix consistency", () => {
     const drawInTop3 = top.filter((c) => c.home === c.away).length;
     expect(drawInTop3).toBeLessThanOrEqual(1);
     expect(top[0].away).toBeGreaterThan(top[0].home);
+  });
+});
+
+describe("computeFirstTeamToScoreFromMatrix", () => {
+  it("varies no-goal share with xG instead of a flat 10%", () => {
+    const low = computeFirstTeamToScoreFromMatrix(0.35, 0.4, 8);
+    const high = computeFirstTeamToScoreFromMatrix(2.2, 2.4, 8);
+    expect(low.none).toBeGreaterThan(high.none);
+    expect(low.home + low.away + low.none).toBeGreaterThanOrEqual(98);
+    expect(low.none).not.toBe(10);
   });
 });

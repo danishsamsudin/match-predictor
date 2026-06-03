@@ -24,7 +24,7 @@ APP_URL="${APP_URL:-http://localhost:3000}"
 TODAY="$(date +%Y-%m-%d)"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Match Predictor — live API smoke test"
+echo "  DynamixG — live API smoke test"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "USE_MOCK_APIS=${USE_MOCK_APIS:-<unset>}"
 echo "APP_URL=$APP_URL"

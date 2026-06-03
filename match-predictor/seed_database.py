@@ -1,20 +1,52 @@
 """
 Deep SofaScore → Supabase ingest: club leagues by tournament season, plus
 international friendlies/qualifiers via per-team event history (since Nov 2022).
+National sides come from `fifa_ranking_snapshots` (latest snapshot, all Sofascore ids),
+with a fallback to `src/lib/data/world-cup-2026-teams.ts` (48 World Cup teams).
+
+Writes synced_fixtures, synced_events, and synced_team_statistics. Goal averages
+are computed from finished matches; corners/fouls/cards/SoT in team rows are
+placeholders until you backfill per-match stats:
+
+  python scripts/backfill_event_statistics.py 39 80
+  npm run lineups:backfill -- 39 40
 
 Requires: pip install curl_cffi supabase
-Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+Env: reads match-predictor/.env.local (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 """
 
 from __future__ import annotations
 
 import os
+import re
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from curl_cffi import requests
 from supabase import Client, create_client
+
+
+def load_env_local() -> None:
+    """Load match-predictor/.env.local when vars are not already exported."""
+    env_path = Path(__file__).resolve().parent / ".env.local"
+    if not env_path.is_file():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        t = line.strip()
+        if not t or t.startswith("#"):
+            continue
+        if "=" not in t:
+            continue
+        key, _, val = t.partition("=")
+        key = key.strip()
+        val = val.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
+load_env_local()
 
 # =====================================================================
 # 1. DATABASE CONNECTIVITY
@@ -26,7 +58,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise SystemExit(
         "Set NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY "
-        "before running seed_database.py"
+        "in .env.local or your shell before running seed_database.py"
     )
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -44,21 +76,9 @@ CLUB_LEAGUE_CATALOG = {
     3: {"tournament_id": 679, "label": "UEFA Europa League"},
 }
 
-# Sofascore IDs aligned with src/lib/data/world-cup-2026-teams.ts (12 headline nations)
-NATIONAL_TEAMS = [
-    {"id": 4748, "name": "Brazil"},
-    {"id": 4705, "name": "Netherlands"},
-    {"id": 4481, "name": "France"},
-    {"id": 4711, "name": "Germany"},
-    {"id": 4819, "name": "Argentina"},
-    {"id": 4713, "name": "England"},
-    {"id": 4698, "name": "Spain"},
-    {"id": 4704, "name": "Portugal"},
-    {"id": 4717, "name": "Belgium"},
-    {"id": 4715, "name": "Croatia"},
-    {"id": 4770, "name": "Japan"},
-    {"id": 4724, "name": "USA"},
-]
+WORLD_CUP_TEAMS_CATALOG = (
+    Path(__file__).resolve().parent / "src/lib/data/world-cup-2026-teams.ts"
+)
 
 REFERENCE_LEAGUE_WORLD_CUP = 1
 UNIQUE_TOURNAMENT_WORLD_CUP = 16
@@ -275,6 +295,80 @@ def resolve_current_season(tournament_id: int) -> Optional[Tuple[int, str]]:
     return int(current["id"]), current.get("name", "Unknown")
 
 
+def load_national_teams_from_world_cup_catalog() -> List[Dict[str, Any]]:
+    """Fallback: parse WORLD_CUP_2026_TEAMS from src/lib/data/world-cup-2026-teams.ts."""
+    if not WORLD_CUP_TEAMS_CATALOG.is_file():
+        return []
+    text = WORLD_CUP_TEAMS_CATALOG.read_text(encoding="utf-8")
+    teams: List[Dict[str, Any]] = []
+    for match in re.finditer(r'\{ id: (\d+), name: "([^"]+)" \}', text):
+        teams.append({"id": int(match.group(1)), "name": match.group(2)})
+    return teams
+
+
+def load_national_teams_from_db() -> List[Dict[str, Any]]:
+    """
+    All national sides in fifa_ranking_snapshots for the latest (year, semester)
+    that have a Sofascore team id (211 teams as of 2026-1, includes all WC 2026 sides).
+    """
+    snap_res = (
+        supabase.table("fifa_ranking_snapshots")
+        .select("ranking_year, semester")
+        .order("ranking_year", desc=True)
+        .order("semester", desc=True)
+        .limit(1)
+        .execute()
+    )
+    snap_rows = snap_res.data or []
+    if not snap_rows:
+        return []
+
+    year = int(snap_rows[0]["ranking_year"])
+    semester = int(snap_rows[0]["semester"])
+    rows_res = (
+        supabase.table("fifa_ranking_snapshots")
+        .select("team_name, sofascore_team_id, rank")
+        .eq("ranking_year", year)
+        .eq("semester", semester)
+        .not_.is_("sofascore_team_id", "null")
+        .order("rank")
+        .execute()
+    )
+
+    teams: List[Dict[str, Any]] = []
+    seen_ids: set[int] = set()
+    for row in rows_res.data or []:
+        team_id = row.get("sofascore_team_id")
+        if team_id is None:
+            continue
+        tid = int(team_id)
+        if tid in seen_ids:
+            continue
+        seen_ids.add(tid)
+        teams.append({"id": tid, "name": row["team_name"]})
+
+    return teams
+
+
+def resolve_national_teams() -> List[Dict[str, Any]]:
+    from_db = load_national_teams_from_db()
+    if from_db:
+        return from_db
+
+    fallback = load_national_teams_from_world_cup_catalog()
+    if fallback:
+        print(
+            "   ⚠️ No fifa_ranking_snapshots in Supabase; "
+            f"using {len(fallback)} teams from world-cup-2026-teams.ts."
+        )
+        return fallback
+
+    raise SystemExit(
+        "No national teams to seed. Run `npm run fifa:import` (or import FIFA rankings) "
+        "so fifa_ranking_snapshots is populated, or ensure world-cup-2026-teams.ts exists."
+    )
+
+
 def harvest_team_history(team_id: int) -> List[Dict[str, Any]]:
     collected: List[Dict[str, Any]] = []
     page = 0
@@ -377,11 +471,14 @@ def main() -> None:
     print("\n" + "=" * 70)
     print("🌎 Starting deep international matrix harvesting (since Nov 2022)...")
 
+    national_teams = resolve_national_teams()
+    print(f"   Using {len(national_teams)} national teams from database catalog.")
+
     wc_season = resolve_current_season(UNIQUE_TOURNAMENT_WORLD_CUP)
     intl_season_id = int(wc_season[0]) if wc_season else 58210
 
     all_national_events: List[Dict[str, Any]] = []
-    for team in NATIONAL_TEAMS:
+    for team in national_teams:
         team_id = team["id"]
         print(f"   📥 Harvesting history for: {team['name']}...")
         team_events = harvest_team_history(team_id)

@@ -10,7 +10,13 @@ import type {
   TeamFormRecord,
 } from "@/lib/types/team-betting-insights";
 import type { TeamComparisonSide, TeamComparisonSnapshot } from "@/lib/types/team-comparison";
+import { formatCalendarDateLocal, formatKickoffLocal } from "@/lib/utils/kickoff-display";
 import { InfoTip } from "./ui/InfoTip";
+
+function formatKickoffDisplay(kickoff: string): string {
+  if (kickoff.includes("T")) return formatKickoffLocal(kickoff);
+  return formatCalendarDateLocal(kickoff);
+}
 
 function formatPct(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "N/A";
@@ -99,9 +105,9 @@ function FormRecordBar({
         )}
       </div>
       <p className="text-center text-xs tabular-nums text-muted">
-        <span className="font-semibold text-foreground">{record.wins}W</span> ·{" "}
-        <span className="font-semibold text-foreground">{record.draws}D</span> ·{" "}
-        <span className="font-semibold text-foreground">{record.losses}L</span>
+        <span className="font-semibold text-foreground">{record.wins} W</span> ·{" "}
+        <span className="font-semibold text-foreground">{record.draws} D</span> ·{" "}
+        <span className="font-semibold text-foreground">{record.losses} L</span>
       </p>
     </div>
   );
@@ -120,7 +126,6 @@ function DualRateBar({
   homeLabel: string;
   awayLabel: string;
 }) {
-  const max = Math.max(homePct, awayPct, 1);
   return (
     <div className="space-y-2 border-b border-white/15 py-3 last:border-0 dark:border-slate-800/40">
       <p className="text-center text-[11px] font-medium uppercase tracking-wide text-muted">
@@ -133,8 +138,8 @@ function DualRateBar({
           </span>
           <div className="relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/8">
             <div
-              className="absolute right-0 top-0 h-full rounded-full bg-primary"
-              style={{ width: `${(homePct / max) * 100}%` }}
+              className="absolute left-0 top-0 h-full rounded-full bg-primary"
+              style={{ width: `${Math.min(100, Math.max(0, homePct))}%` }}
             />
           </div>
           <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-primary">
@@ -147,8 +152,8 @@ function DualRateBar({
           </span>
           <div className="relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/8">
             <div
-              className="absolute right-0 top-0 h-full rounded-full bg-accent"
-              style={{ width: `${(awayPct / max) * 100}%` }}
+              className="absolute left-0 top-0 h-full rounded-full bg-accent"
+              style={{ width: `${Math.min(100, Math.max(0, awayPct))}%` }}
             />
           </div>
           <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-accent">
@@ -206,7 +211,7 @@ function FixtureContextBlock({
         />
       </div>
       <p className="mt-3 text-center text-[10px] text-muted">
-        Kickoff {ctx.kickoffDate}
+        Kickoff {formatKickoffDisplay(ctx.kickoffDate)}
       </p>
     </div>
   );
@@ -265,13 +270,12 @@ export function TeamBettingInsightsPanel({
           </span>
           Data-backed betting insights
           <InfoTip label="Data-backed insights">
-            Calculated from stored match results and FBref season tables. These are historical
-            facts — not the same as the Poisson model probabilities below.
+            Historical rates from each team&apos;s recent finished matches. These differ from the
+            Poisson model probabilities shown in the charts below.
           </InfoTip>
         </h3>
         <p className="text-xs leading-relaxed text-muted">
-          Source: {home.insights?.source ?? "none"} / {away.insights?.source ?? "none"} · Window
-          uses up to 10 most recent finished matches with scores.
+          Based on up to 10 most recent finished matches with scores per team.
         </p>
       </div>
 

@@ -20,6 +20,7 @@ import {
   resolveTeamStatsForFixture,
 } from "@/lib/prediction/continental-cup";
 import {
+  computeFirstTeamToScoreFromMatrix,
   computeMarketAnalytics,
   computeOutcomeProbabilities,
   parseSeasonStat,
@@ -36,7 +37,6 @@ import { tryCreateServiceClient } from "@/lib/supabase";
 import { resolveCityCoordinates } from "@/lib/utils/geo";
 import { resolveTeamShortLabelsForMatch } from "@/lib/utils/team-display-name";
 import type {
-  FirstTeamToScorePct,
   PredictRequest,
   PredictionResult,
   TeamStatAverages,
@@ -44,33 +44,6 @@ import type {
 
 /** Minimum xG floor before Poisson grid evaluation. */
 const XG_FLOOR = 0.3;
-const LEAGUE_AVG_GOALS = 1.35;
-
-export function computeFirstTeamToScorePct(
-  homeStats: TeamStatAverages,
-  awayStats: TeamStatAverages,
-  homeFormScore: number,
-  awayFormScore: number
-): FirstTeamToScorePct {
-  const homeFtsRaw =
-    (homeStats.goalsFor / LEAGUE_AVG_GOALS) *
-    (awayStats.goalsAgainst / LEAGUE_AVG_GOALS) *
-    homeFormScore;
-
-  const awayFtsRaw =
-    (awayStats.goalsFor / LEAGUE_AVG_GOALS) *
-    (homeStats.goalsAgainst / LEAGUE_AVG_GOALS) *
-    awayFormScore;
-
-  const totalFtsIntensity = homeFtsRaw + awayFtsRaw || 1;
-
-  return {
-    home: Math.round((homeFtsRaw / totalFtsIntensity) * 0.9 * 100),
-    away: Math.round((awayFtsRaw / totalFtsIntensity) * 0.9 * 100),
-    none: 10,
-  };
-}
-
 function normalizeTo100(
   home: number,
   draw: number,
@@ -210,13 +183,6 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     awayStats: awayStatsBenchmark,
   });
 
-  const firstTeamToScorePct = computeFirstTeamToScorePct(
-    homeStatsBenchmark,
-    awayStatsBenchmark,
-    homeFormScore,
-    awayFormScore
-  );
-
   let lineupsForImpact = bundle.lineups;
   const supabase = tryCreateServiceClient();
   if (supabase) {
@@ -320,6 +286,13 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     probs.awayWin
   );
 
+  const firstTeamToScorePct = computeFirstTeamToScoreFromMatrix(
+    homeXg,
+    awayXg,
+    scoreMatrixMaxGoals,
+    { correlation: scoreCorrelation }
+  );
+
   const homeTeamName =
     input.homeTeamName?.trim() ||
     bundle.fixture.teams.home.name ||
@@ -351,10 +324,10 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     "",
     `## Base Analysis`,
     neutralVenue
-      ? `Neutral venue — team stats use overall averages; home/away momentum tilt suppressed.`
+      ? `Neutral venue - team stats use overall averages; home/away momentum tilt suppressed.`
       : `Home/away split stats and momentum coefficients active.`,
     highStakesCup
-      ? `High-stakes cup tie — xG deflated ${((1 - HIGH_STAKES_XG_CAUTION) * 100).toFixed(0)}% and Dixon-Coles draw correlation ρ=${scoreCorrelation.toFixed(2)} applied.`
+      ? `High-stakes cup tie - xG deflated ${((1 - HIGH_STAKES_XG_CAUTION) * 100).toFixed(0)}% and Dixon-Coles draw correlation ρ=${scoreCorrelation.toFixed(2)} applied.`
       : null,
     formatStrengthExplanationLine(
       homeTeamName,

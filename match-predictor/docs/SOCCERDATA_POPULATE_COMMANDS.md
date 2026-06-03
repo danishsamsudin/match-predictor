@@ -6,7 +6,7 @@ This guide is for **anyone new to the project**. It explains what each command d
 
 ## How this app gets football data (big picture)
 
-The Match Predictor uses **two complementary data paths**:
+DynamixG uses **two complementary data paths**:
 
 | Path | Technology | What it provides | When you run it |
 |------|------------|------------------|-----------------|
@@ -124,7 +124,7 @@ curl http://localhost:3000/api/soccerdata/status
 
 ## 1) Populate canonical SofaScore data (teams, events, ratings)
 
-**Goal:** Fill the **primary** tables from RapidAPI (SofaScore first, SportAPI7 as fallback). This is what the match predictor and pickers rely on first.
+**Goal:** Fill the **primary** tables from RapidAPI (SofaScore first, SportAPI7 as fallback). This is what DynamixG and the pickers rely on first.
 
 **What gets written:**
 

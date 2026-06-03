@@ -399,6 +399,52 @@ export async function loadTeamSquadForComparison(
       })
     );
 
+    if (starters.length < 11 && hasScoutlystData) {
+      const scoutRows: ScoutlystSquadRow[] = scoutlyst.allRows.map((r) => ({
+        scoutlyst_player_key: r.scoutlyst_player_key,
+        player_name: r.player_name,
+        sofascore_player_id: r.sofascore_player_id,
+        position: r.position,
+        age: r.age,
+        rating: r.rating,
+        stats: r.stats,
+      }));
+      const formationForFill = preferredFormation ?? storedFormation ?? "4-3-3";
+      const { starters: scoutStarters } = buildSquadFromScoutlyst(
+        scoutRows,
+        formationForFill
+      );
+      const starterIds = new Set(starters.map((p) => p.sofascorePlayerId));
+      for (const row of scoutStarters) {
+        if (starters.length >= 11) break;
+        const sofascoreId =
+          row.sofascore_player_id ?? stableSyntheticPlayerId(row.scoutlyst_player_key);
+        if (starterIds.has(sofascoreId)) continue;
+        const scoutRow: ScoutlystRow = {
+          ...row,
+          snapshot_date: scoutlyst.snapshotDate ?? "",
+          reference_league_id: benchmarkLeagueId ?? null,
+        };
+        starters.push(
+          toSquadPlayer({
+            sofascorePlayerId: sofascoreId,
+            name: row.player_name,
+            position: row.position,
+            fieldPosition: row.position,
+            scoutlyst: scoutRow,
+            matchAvgRating: matchRatings.get(sofascoreId) ?? null,
+            startSharePct: null,
+            benchmarkLeagueId,
+            teamId,
+            teamName,
+            entityType,
+          })
+        );
+        starterIds.add(sofascoreId);
+      }
+      starters = sortSquadPlayers(starters);
+    }
+
     substitutes = sortSquadPlayers(
       inferredSubs.map((p) => {
         const scout = resolveScoutlyst(
@@ -475,12 +521,27 @@ export async function loadTeamSquadForComparison(
 
   const shouldTryFbref =
     Boolean(teamName?.trim()) &&
-    (squadSource === "none" || starters.length === 0);
+    (squadSource === "none" || starters.length === 0 || starters.length < 11);
   if (shouldTryFbref) {
     const fbref = await loadFbrefTeamSquadSnapshot(teamName!, teamId);
     if (fbref?.starters.length) {
       return fbref;
     }
+  }
+
+  if (starters.length === 0 && substitutes.length > 0) {
+    const promoted = substitutes.slice(0, 11);
+    const remaining = substitutes.slice(11);
+    return {
+      starters: promoted,
+      substitutes: remaining,
+      hasLineupData,
+      hasScoutlystData,
+      squadSource,
+      preferredFormation,
+      snapshotDate: scoutlyst.snapshotDate,
+      coach: null,
+    };
   }
 
   return {

@@ -96,10 +96,12 @@ export function pickStartersByFormation<T extends PickablePlayer>(
   const used = new Set<number>();
   let gkCount = 0;
 
+  const hasAppearances = (p: T) => p.starts > 0 || p.subAppearances > 0;
+
   const take = (pos: "G" | "D" | "M" | "F", count: number) => {
     for (const player of sorted) {
       if (picked.length >= limit) break;
-      if (player.starts <= 0) continue;
+      if (!hasAppearances(player)) continue;
       if (used.has(player.id)) continue;
       if (player.dominantPosition() !== pos) continue;
       picked.push(player);
@@ -116,12 +118,20 @@ export function pickStartersByFormation<T extends PickablePlayer>(
 
   for (const player of sorted) {
     if (picked.length >= limit) break;
-    if (player.starts <= 0) continue;
+    if (!hasAppearances(player)) continue;
     if (used.has(player.id)) continue;
     if (player.dominantPosition() === "G" && gkCount >= targets.G) continue;
     picked.push(player);
     used.add(player.id);
     if (player.dominantPosition() === "G") gkCount += 1;
+  }
+
+  for (const player of sorted) {
+    if (picked.length >= limit) break;
+    if (!hasAppearances(player)) continue;
+    if (used.has(player.id)) continue;
+    picked.push(player);
+    used.add(player.id);
   }
 
   return picked;

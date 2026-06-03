@@ -51,7 +51,12 @@ export function squadPickRecordFromStats(input: {
     "gamesSubs",
   ]);
   const minutes = parseIntStat(statsObj, ["minutes", "min", "Minutes"]);
-  const inferredStarts = starts > 0 ? starts : minutes >= 45 ? 1 : 0;
+  const hasAppearanceData = starts > 0 || subAppearances > 0 || minutes > 0;
+  let inferredStarts = starts > 0 ? starts : minutes >= 45 ? Math.max(1, Math.floor(minutes / 90)) : 0;
+  if (!hasAppearanceData) {
+    // Scoutlyst-only exports often lack games started / subs columns — still pick an XI.
+    inferredStarts = 1;
+  }
 
   return {
     id: input.id,
@@ -94,7 +99,18 @@ export function pickSquadFromRecords(
     dominantPosition: () => normalizePlayerPosition(r.position),
   }));
 
-  const pickedSlots = pickStartersByFormation(pickable, formation, { qualityById });
+  let pickedSlots = pickStartersByFormation(pickable, formation, { qualityById });
+  if (!pickedSlots.length) {
+    pickedSlots = [...pickable]
+      .sort((a, b) => {
+        const qa = qualityById.get(a.id) ?? 0;
+        const qb = qualityById.get(b.id) ?? 0;
+        if (qb !== qa) return qb - qa;
+        return b.starts + b.subAppearances - (a.starts + a.subAppearances);
+      })
+      .slice(0, 11);
+  }
+
   const starters: SquadPickRecord[] = [];
   const starterIds = new Set<string>();
 

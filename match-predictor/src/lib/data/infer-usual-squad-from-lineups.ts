@@ -133,16 +133,27 @@ export function pickLineupStartersFromAppearances(
   formation: string | null,
   qualityById?: Map<number, number>
 ): LineupAppearanceAgg[] {
-  return pickStartersByFormation(
-    players.map((p) => ({
-      ...p,
-      id: p.sofascorePlayerId,
-      dominantPosition: () =>
-        dominantStartPosition(p.startPositionCounts, p.fieldPosition ?? p.position),
-    })),
-    formation,
-    { qualityById }
-  );
+  const mapped = players.map((p) => ({
+    ...p,
+    id: p.sofascorePlayerId,
+    dominantPosition: () =>
+      dominantStartPosition(p.startPositionCounts, p.fieldPosition ?? p.position),
+  }));
+  const picked = pickStartersByFormation(mapped, formation, { qualityById });
+  if (picked.length > 0) {
+    return picked.map(({ id, ...rest }) => {
+      const source = players.find((p) => p.sofascorePlayerId === id);
+      return source ?? (rest as LineupAppearanceAgg);
+    });
+  }
+  return [...players]
+    .sort(
+      (a, b) =>
+        b.starts - a.starts ||
+        b.subAppearances - a.subAppearances ||
+        a.name.localeCompare(b.name)
+    )
+    .slice(0, 11);
 }
 
 export function pickLineupSubstitutesFromAppearances(

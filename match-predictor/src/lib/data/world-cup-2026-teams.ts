@@ -1,5 +1,10 @@
 import type { TeamOption } from "@/lib/types/football-lookup";
 
+/** Reference league id for FIFA World Cup in football-reference / Supabase sync. */
+export const WORLD_CUP_REFERENCE_LEAGUE_ID = 1;
+
+const WORLD_CUP_TEAM_IDS = new Set<number>();
+
 /** Sofascore / SportAPI7 national team ids for FIFA World Cup 2026 (48 nations). */
 export const WORLD_CUP_2026_TEAMS: TeamOption[] = [
   { id: 4691, name: "Algeria" },
@@ -51,6 +56,25 @@ export const WORLD_CUP_2026_TEAMS: TeamOption[] = [
   { id: 4724, name: "USA" },
   { id: 4723, name: "Uzbekistan" },
 ];
+
+for (const team of WORLD_CUP_2026_TEAMS) {
+  WORLD_CUP_TEAM_IDS.add(team.id);
+}
+
+export function isWorldCupLeague(leagueId: number): boolean {
+  return leagueId === WORLD_CUP_REFERENCE_LEAGUE_ID;
+}
+
+/** Keep only the 48 World Cup nations (stable reference order when merging). */
+export function filterToWorldCupTeams(teams: TeamOption[]): TeamOption[] {
+  const byId = new Map(WORLD_CUP_2026_TEAMS.map((t) => [t.id, t]));
+  for (const team of teams) {
+    if (WORLD_CUP_TEAM_IDS.has(team.id)) {
+      byId.set(team.id, { ...byId.get(team.id), ...team, name: team.name });
+    }
+  }
+  return WORLD_CUP_2026_TEAMS.map((ref) => byId.get(ref.id) ?? ref);
+}
 
 const NATIONAL_TEAM_NAME_ALIASES: Record<string, string> = {
   "bosnia and herzegovina": "bosnia & herzegovina",

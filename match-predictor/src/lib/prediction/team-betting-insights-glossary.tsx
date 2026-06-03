@@ -29,7 +29,7 @@ export const TEAM_BETTING_INSIGHTS_GLOSSARY: Record<string, ReactNode> = {
   "Shots on target / 90": <>Team total shots on target per 90 minutes played.</>,
   "Crosses / 90": <>Crosses attempted per 90 from FBref miscellaneous stats.</>,
   "Top scorer goal share": (
-    <>Leading scorer&apos;s goals as a % of all team goals — higher means more talisman reliance.</>
+    <>Leading scorer&apos;s goals as a % of all team goals - higher means more talisman reliance.</>
   ),
   "GK save %": <>Minutes-weighted average save percentage from FBref keeper tables.</>,
   "Tackles / 90": <>Tackles won per 90 from FBref miscellaneous stats.</>,

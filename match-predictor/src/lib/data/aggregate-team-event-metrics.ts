@@ -1,3 +1,5 @@
+import { gatewayGetMatchStatistics } from "@/lib/api/football-gateway";
+import { getRapidApiKey } from "@/lib/config/rapidapi";
 import { readMatchStatValue } from "@/lib/api/sportapi/mappers";
 import { loadRecentFormEvents, loadRecentFormEventsForTeam } from "@/lib/data/assemble-football-bundle";
 import { pickPreferredFormation } from "@/lib/data/formation-lineup";
@@ -40,6 +42,58 @@ function average(values: number[]): number | null {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+async function loadFinishedEventsForTeam(
+  supabase: ServiceClient,
+  leagueId: number,
+  teamId: number,
+  teamName: string | undefined,
+  limit: number
+): Promise<SportApiEvent[]> {
+  let events = (
+    await loadRecentFormEvents(supabase, leagueId, teamId, teamName, limit)
+  ).filter((event) => event.status?.type === "finished" || event.status?.type === "ended");
+
+  if (!events.length) {
+    events = (await loadRecentFormEventsForTeam(supabase, teamId, teamName, limit)).filter(
+      (event) => event.status?.type === "finished" || event.status?.type === "ended"
+    );
+  }
+
+  return events.slice(0, limit);
+}
+
+async function resolveStatsByEvent(
+  supabase: ServiceClient,
+  events: SportApiEvent[]
+): Promise<Map<number, SportApiStatisticsResponse>> {
+  const statsByEvent = new Map<number, SportApiStatisticsResponse>();
+  if (!events.length) return statsByEvent;
+
+  const eventIds = events.map((event) => event.id);
+  const { data: statsRows } = await supabase
+    .from("synced_event_statistics")
+    .select("event_id, payload")
+    .in("event_id", eventIds);
+
+  for (const row of statsRows ?? []) {
+    if (row.payload) statsByEvent.set(row.event_id, row.payload as SportApiStatisticsResponse);
+  }
+
+  if (!getRapidApiKey()) return statsByEvent;
+
+  for (const event of events) {
+    if (statsByEvent.has(event.id)) continue;
+    try {
+      const { data } = await gatewayGetMatchStatistics(event.id);
+      if (data) statsByEvent.set(event.id, data);
+    } catch {
+      // skip events without live stats
+    }
+  }
+
+  return statsByEvent;
+}
+
 /** Per-match averages from synced event statistics and lineups for one team. */
 export async function aggregateTeamMetricsFromSyncedEvents(
   supabase: ServiceClient,
@@ -48,33 +102,29 @@ export async function aggregateTeamMetricsFromSyncedEvents(
   teamName?: string,
   maxMatches = 10
 ): Promise<AggregatedTeamEventMetrics | null> {
-  let events = (
-    await loadRecentFormEvents(supabase, leagueId, teamId, teamName, maxMatches * 2)
-  )
-    .filter((event) => event.status?.type === "finished" || event.status?.type === "ended")
-    .slice(0, maxMatches);
+  const pool = await loadFinishedEventsForTeam(
+    supabase,
+    leagueId,
+    teamId,
+    teamName,
+    maxMatches * 3
+  );
+  if (!pool.length) return null;
 
-  if (!events.length) {
-    events = (await loadRecentFormEventsForTeam(supabase, teamId, teamName, maxMatches * 2))
-      .filter((event) => event.status?.type === "finished" || event.status?.type === "ended")
-      .slice(0, maxMatches);
-  }
+  const statsByEvent = await resolveStatsByEvent(supabase, pool);
+  const withStats = pool.filter((event) => statsByEvent.has(event.id));
+  const events = (withStats.length ? withStats : pool).slice(0, maxMatches);
 
   if (!events.length) return null;
 
   const eventIds = events.map((event) => event.id);
-  const [statsRows, lineupRows] = await Promise.all([
-    supabase.from("synced_event_statistics").select("event_id, payload").in("event_id", eventIds),
-    supabase.from("synced_event_lineups").select("event_id, payload").in("event_id", eventIds),
-  ]);
-
-  const statsByEvent = new Map<number, SportApiStatisticsResponse>();
-  for (const row of statsRows.data ?? []) {
-    if (row.payload) statsByEvent.set(row.event_id, row.payload as SportApiStatisticsResponse);
-  }
+  const { data: lineupRows } = await supabase
+    .from("synced_event_lineups")
+    .select("event_id, payload")
+    .in("event_id", eventIds);
 
   const lineupsByEvent = new Map<number, SportApiLineupsResponse>();
-  for (const row of lineupRows.data ?? []) {
+  for (const row of lineupRows ?? []) {
     if (row.payload) lineupsByEvent.set(row.event_id, row.payload as SportApiLineupsResponse);
   }
 
@@ -91,13 +141,25 @@ export async function aggregateTeamMetricsFromSyncedEvents(
 
     const stats = statsByEvent.get(event.id);
     if (stats) {
-      const cornerValue = readMatchStatValue(stats, ["Corner kicks", "Corners"], side);
-      const foulValue = readMatchStatValue(stats, "Fouls", side);
-      const yellowValue = readMatchStatValue(stats, ["Yellow cards", "Yellow card"], side);
-      const redValue = readMatchStatValue(stats, ["Red cards", "Red card"], side);
+      const cornerValue = readMatchStatValue(
+        stats,
+        ["Corner kicks", "Corners", "Corner Kicks", "corner kicks"],
+        side
+      );
+      const foulValue = readMatchStatValue(stats, ["Fouls", "fouls"], side);
+      const yellowValue = readMatchStatValue(
+        stats,
+        ["Yellow cards", "Yellow card", "Yellow Cards"],
+        side
+      );
+      const redValue = readMatchStatValue(
+        stats,
+        ["Red cards", "Red card", "Red Cards"],
+        side
+      );
       const shotsValue = readMatchStatValue(
         stats,
-        ["Shots on target", "Shots on goal"],
+        ["Shots on target", "Shots on goal", "Shots On Target", "On target"],
         side
       );
 

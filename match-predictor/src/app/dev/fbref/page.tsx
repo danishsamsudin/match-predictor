@@ -93,7 +93,7 @@ export default function FbrefDevPage() {
       <header>
         <h1 className="text-2xl font-semibold">FBref World Cup data (dev)</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Browse imported Supabase tables (teams, players, stats, schedule). The main predictor
+          Browse imported Supabase tables (teams, players, stats, schedule). DynamixG
           still uses SofaScore sync + lineups unless integrated further.
         </p>
       </header>

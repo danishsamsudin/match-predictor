@@ -1,5 +1,6 @@
 /** Poisson-based score grid and common betting market probabilities. */
 
+import type { FirstTeamToScorePct } from "@/lib/types/prediction";
 import type { OverUnderLine, PredictionAnalytics, ScoreCell } from "@/lib/types/prediction";
 
 export type { PredictionAnalytics, ScoreCell };
@@ -64,6 +65,44 @@ export function buildScoreMatrix(
   }
   const total = cells.reduce((s, c) => s + c.probability, 0) || 1;
   return cells.map((c) => ({ ...c, probability: c.probability / total }));
+}
+
+/** First team to score and no-goal share from the same Dixon-Coles grid as the heatmap. */
+export function computeFirstTeamToScoreFromMatrix(
+  homeXg: number,
+  awayXg: number,
+  maxGoals = 8,
+  options?: OutcomeProbabilityOptions
+): FirstTeamToScorePct {
+  const matrix = buildScoreMatrix(homeXg, awayXg, maxGoals, options);
+  const rateSum = homeXg + awayXg || 1;
+  const homeFirstRate = homeXg / rateSum;
+  const awayFirstRate = awayXg / rateSum;
+
+  let none = 0;
+  let homeFirst = 0;
+  let awayFirst = 0;
+
+  for (const cell of matrix) {
+    const p = cell.probability;
+    if (cell.home === 0 && cell.away === 0) {
+      none += p;
+    } else if (cell.home > 0 && cell.away === 0) {
+      homeFirst += p;
+    } else if (cell.home === 0 && cell.away > 0) {
+      awayFirst += p;
+    } else {
+      homeFirst += p * homeFirstRate;
+      awayFirst += p * awayFirstRate;
+    }
+  }
+
+  const total = none + homeFirst + awayFirst || 1;
+  return {
+    home: Math.round((homeFirst / total) * 100),
+    away: Math.round((awayFirst / total) * 100),
+    none: Math.round((none / total) * 100),
+  };
 }
 
 export function computeOutcomeProbabilities(

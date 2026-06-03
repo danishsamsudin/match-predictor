@@ -1,5 +1,6 @@
 "use client";
 
+import { getLocalTimezoneLabel } from "@/lib/utils/kickoff-display";
 import { Calendar, Clock, Loader2, MapPin } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -25,6 +26,7 @@ export function FooterPill({
   citySuggestions?: string[];
 }) {
   const [cityFocused, setCityFocused] = useState(false);
+  const timezoneLabel = useMemo(() => getLocalTimezoneLabel(), []);
 
   const filteredCities = useMemo(() => {
     const query = city.trim().toLowerCase();
@@ -36,8 +38,9 @@ export function FooterPill({
   }, [city, citySuggestions]);
 
   return (
-    <div className="liquid-glass-pill flex flex-col gap-3 overflow-visible rounded-2xl p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-full sm:p-2 sm:pl-6 md:pl-8">
-      <div className="grid min-w-0 grid-cols-1 gap-3 overflow-visible min-[400px]:grid-cols-3 sm:flex sm:flex-wrap sm:items-center sm:gap-6 md:gap-8">
+    <div className="flex flex-col gap-1.5">
+      <div className="liquid-glass-pill flex flex-col gap-3 overflow-visible rounded-2xl p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-full sm:p-2 sm:pl-6 md:pl-8">
+        <div className="grid min-w-0 grid-cols-1 gap-3 overflow-visible min-[400px]:grid-cols-3 sm:flex sm:flex-wrap sm:items-center sm:gap-6 md:gap-8">
         <label
           className={`relative flex min-w-0 items-center gap-2 border-b border-slate-200/80 pb-3 text-slate-700 dark:border-slate-800 dark:text-slate-300 min-[400px]:border-b-0 min-[400px]:pb-0 sm:border-b-0 sm:pb-0 sm:border-l-0 sm:pl-0 ${
             cityFocused ? "z-50" : ""
@@ -94,9 +97,12 @@ export function FooterPill({
           />
         </label>
 
-        <label className="flex min-w-0 items-center gap-2 text-slate-700 dark:text-slate-300 sm:border-l sm:border-slate-300/80 sm:pl-6 dark:sm:border-slate-800 md:pl-8">
+        <label
+          className="flex min-w-0 items-center gap-2 text-slate-700 dark:text-slate-300 sm:border-l sm:border-slate-300/80 sm:pl-6 dark:sm:border-slate-800 md:pl-8"
+          title={`Kickoff time in your local timezone (${timezoneLabel})`}
+        >
           <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-          <span className="sr-only">Kickoff time UTC</span>
+          <span className="sr-only">Kickoff time ({timezoneLabel})</span>
           <input
             type="time"
             name="time"
@@ -123,6 +129,10 @@ export function FooterPill({
           "Generate Prediction"
         )}
       </button>
+    </div>
+      <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 sm:text-left sm:pl-6 md:pl-8">
+        Date and kickoff use your local time ({timezoneLabel})
+      </p>
     </div>
   );
 }

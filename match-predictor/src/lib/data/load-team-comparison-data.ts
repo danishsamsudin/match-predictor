@@ -159,6 +159,15 @@ function isStandingsPlaceholderMetrics(metrics: TeamStatAverages): boolean {
   );
 }
 
+/** Standings-derived rows often persist corners/fouls/SoT as literal zeros. */
+function isZeroStoredPhysicalMetrics(metrics: TeamStatAverages): boolean {
+  return metrics.corners <= 0 && metrics.fouls <= 0 && metrics.shotsOnTarget <= 0;
+}
+
+function isUsableMetricAverage(value: number | undefined): boolean {
+  return value != null && value > 0;
+}
+
 function seasonAveragesFromSources(input: {
   metrics: TeamStatAverages | null;
   payloadStats: TeamStatistics | null;
@@ -177,7 +186,11 @@ function seasonAveragesFromSources(input: {
     ? parseTeamStats(input.payloadStats, input.isHomeSide)
     : null;
   const metrics =
-    input.metrics && !isStandingsPlaceholderMetrics(input.metrics) ? input.metrics : null;
+    input.metrics &&
+    !isStandingsPlaceholderMetrics(input.metrics) &&
+    !isZeroStoredPhysicalMetrics(input.metrics)
+      ? input.metrics
+      : null;
   const aggregates = input.eventAggregates;
 
   const pick = (
@@ -190,7 +203,7 @@ function seasonAveragesFromSources(input: {
     if (aggregateValue != null && aggregates && aggregates.sampleSize > 0) {
       return formatAvg(aggregateValue, decimals);
     }
-    if (metricsValue != null) return formatAvg(metricsValue, decimals);
+    if (isUsableMetricAverage(metricsValue)) return formatAvg(metricsValue!, decimals);
     if (requirePayloadCards && input.payloadStats && !hasCardTotals(input.payloadStats)) {
       return null;
     }
@@ -288,7 +301,11 @@ export async function loadSeasonStatsFromDatabase(
     hasStandings: Boolean(standingsRow),
     hasMetrics:
       Boolean(eventAggregates?.sampleSize) ||
-      Boolean(metrics && !isStandingsPlaceholderMetrics(metrics)) ||
+      Boolean(
+        metrics &&
+          !isStandingsPlaceholderMetrics(metrics) &&
+          !isZeroStoredPhysicalMetrics(metrics)
+      ) ||
       hasFullTeamStatisticsPayload(payload),
     stats: {
       formScorePct: null,
@@ -356,11 +373,23 @@ export function leagueNameForTeam(leagueId: number): string | null {
   return getLeagueById(leagueId)?.name ?? null;
 }
 
+function isEmptySeasonStatValue(value: string | null | undefined): boolean {
+  if (value == null || value === "") return true;
+  const t = value.trim();
+  return t === "N/A" || t === "0" || t === "0.0" || t === "0.00";
+}
+
 export function mergeSeasonStats(
   primary: TeamSeasonStats,
   fallback: TeamSeasonStats
 ): TeamSeasonStats {
-  const pick = (key: keyof TeamSeasonStats) => primary[key] ?? fallback[key] ?? null;
+  const pick = (key: keyof TeamSeasonStats) => {
+    const a = primary[key];
+    const b = fallback[key];
+    if (!isEmptySeasonStatValue(a)) return a;
+    if (!isEmptySeasonStatValue(b)) return b;
+    return null;
+  };
   return {
     formScorePct: pick("formScorePct"),
     form: pick("form"),

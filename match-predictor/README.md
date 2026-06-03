@@ -1,4 +1,4 @@
-# Match Predictor
+# DynamixG
 
 AI-powered sports match prediction engine built with Next.js 16, Supabase, [SofaScore](https://rapidapi.com/apidojo/api/sofascore) (primary football API), [SportAPI7](https://rapidapi.com/rapidsportapi/api/sportapi7) (secondary fallback), and [Open-Meteo](https://open-meteo.com/) (weather).
 

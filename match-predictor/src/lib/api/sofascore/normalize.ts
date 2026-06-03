@@ -270,7 +270,13 @@ function normalizeLineupSide(raw: unknown): SportApiLineupsResponse["home"] {
           position: pickString(player, ["position"]),
           jerseyNumber: pickString(player, ["jerseyNumber", "shirtNumber", "number"]),
         },
-        substitute: Boolean(row.substitute ?? row.isSubstitute),
+        substitute: (() => {
+          if (typeof row.substitute === "boolean") return row.substitute;
+          if (typeof row.isSubstitute === "boolean") return row.isSubstitute;
+          if (typeof row.starter === "boolean") return !row.starter;
+          if (typeof row.isStarter === "boolean") return !row.isStarter;
+          return false;
+        })(),
         position: pickString(row, ["position"]),
       };
     })

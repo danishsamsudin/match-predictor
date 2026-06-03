@@ -77,4 +77,21 @@ describe("pickSquadFromRecords", () => {
     expect(names).toContain("Virgil van Dijk");
     expect(names.filter((n) => n.startsWith("Defender")).length).toBe(4);
   });
+
+  it("picks a starting XI when Scoutlyst rows lack appearance columns", () => {
+    const squad = Array.from({ length: 18 }, (_, i) =>
+      squadPickRecordFromStats({
+        id: `player-${i}`,
+        name: `Player ${i}`,
+        position: i === 0 ? "GK" : i < 5 ? "DF" : i < 10 ? "MF" : "FW",
+        stats: { PPM: 2 + i * 0.01 },
+        rating: 6 + i * 0.1,
+      })
+    );
+
+    const { starters, substitutes } = pickSquadFromRecords(squad, "4-3-3");
+    expect(starters).toHaveLength(11);
+    expect(substitutes.length).toBeGreaterThan(0);
+    expect(substitutes.length).toBeLessThan(squad.length);
+  });
 });

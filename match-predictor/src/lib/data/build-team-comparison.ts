@@ -247,5 +247,7 @@ export async function buildTeamComparisonSnapshot(
 
 export function displayValue(value: string | null | undefined): string {
   if (value == null || value === "") return "N/A";
+  const t = value.trim();
+  if (t === "0" || t === "0.0" || t === "0.00") return "N/A";
   return value;
 }

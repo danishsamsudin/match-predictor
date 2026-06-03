@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Nav } from "@/components/Nav";
+import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { THEME_STORAGE_KEY } from "@/lib/theme";
 import "./globals.css";
 
@@ -16,11 +18,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Match Predictor",
-  description: "AI-powered sports match prediction engine with weather and lineup analysis",
+  title: {
+    default: BRAND_NAME,
+    template: `%s | ${BRAND_NAME}`,
+  },
+  description: BRAND_TAGLINE,
+  applicationName: BRAND_NAME,
+  openGraph: {
+    title: BRAND_NAME,
+    siteName: BRAND_NAME,
+    description: BRAND_TAGLINE,
+    type: "website",
+  },
 };
 
-const themeInitScript = `(function(){try{var k=${JSON.stringify(THEME_STORAGE_KEY)};var t=localStorage.getItem(k);var theme=t==='dark'||t==='light'?t:'light';document.documentElement.dataset.theme=theme;}catch(e){document.documentElement.dataset.theme='light';}})();`;
+const themeInitScript = `(function(){try{var k=${JSON.stringify(THEME_STORAGE_KEY)};var leg="match-predictor-theme";var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){var o=localStorage.getItem(leg);if(o==='dark'||o==='light'){localStorage.setItem(k,o);t=o;}}var theme=t==='dark'||t==='light'?t:'light';document.documentElement.dataset.theme=theme;}catch(e){document.documentElement.dataset.theme='light';}})();`;
 
 export default function RootLayout({
   children,
@@ -43,6 +55,7 @@ export default function RootLayout({
           </div>
           <Nav />
           <main className="relative z-10 flex-1">{children}</main>
+          <SiteFooter />
         </ThemeProvider>
       </body>
     </html>

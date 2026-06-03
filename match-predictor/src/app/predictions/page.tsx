@@ -72,7 +72,7 @@ export default async function PredictionsPage() {
       <PageHero
         eyebrow="Archive"
         title="Prediction History"
-        description="Recent predictions saved to your Supabase database."
+        description="Recent predictions you have saved."
       />
 
       {error && (
@@ -112,7 +112,11 @@ export default async function PredictionsPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />
-                      {new Date(p.match_date).toLocaleDateString()}
+                      {new Date(p.match_date).toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZoneName: "short",
+                      })}
                     </span>
                     <span className="text-xs uppercase tracking-wide">
                       Fixture #{p.match_id}

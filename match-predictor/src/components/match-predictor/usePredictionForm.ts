@@ -14,6 +14,7 @@ import {
   sanitizeUserFacingMessage,
   shouldHideUserFacingWarning,
 } from "@/lib/api/user-facing-messages";
+import { localDateTimeToUtcIso } from "@/lib/utils/kickoff-display";
 import { getDefaultMatchDateTime, parseFixtureDateTime } from "./utils";
 
 const DEFAULT_CLUB_COUNTRY = "England";
@@ -32,12 +33,6 @@ function resolveLeagueIdForCountry(
 }
 const DEFAULT_NATIONAL_HOME_TEAM_ID = "4748";
 const DEFAULT_NATIONAL_AWAY_TEAM_ID = "4705";
-
-function teamsForNationalCountry(teams: TeamOption[], country: string): TeamOption[] {
-  if (country === "International") return teams;
-  const picked = teams.filter((t) => t.name.toLowerCase() === country.toLowerCase());
-  return picked.length ? picked : teams;
-}
 
 export function usePredictionForm() {
   const [loading, setLoading] = useState(false);
@@ -217,6 +212,12 @@ export function usePredictionForm() {
   }, [entityType]);
 
   useEffect(() => {
+    if (entityType !== "national") return;
+    if (homeCountry !== DEFAULT_NATIONAL_COUNTRY) setHomeCountry(DEFAULT_NATIONAL_COUNTRY);
+    if (awayCountry !== DEFAULT_NATIONAL_COUNTRY) setAwayCountry(DEFAULT_NATIONAL_COUNTRY);
+  }, [entityType, homeCountry, awayCountry]);
+
+  useEffect(() => {
     if (!matchCountry || inputMode !== "fixture") return;
     let cancelled = false;
     fetchLeagues(matchCountry, entityType)
@@ -291,11 +292,9 @@ export function usePredictionForm() {
     fetchTeams(leagueId, entityType)
       .then((teams) => {
         if (cancelled) return;
-        const list =
-          entityType === "national" ? teamsForNationalCountry(teams, homeCountry) : teams;
-        setHomeTeams(list);
-        if (!list.some((t) => String(t.id) === homeTeamId) && list.length) {
-          setHomeTeamId(String(list[0].id));
+        setHomeTeams(teams);
+        if (!teams.some((t) => String(t.id) === homeTeamId) && teams.length) {
+          setHomeTeamId(String(teams[0].id));
         }
       })
       .catch(() => {
@@ -313,11 +312,9 @@ export function usePredictionForm() {
     fetchTeams(leagueId, entityType)
       .then((teams) => {
         if (cancelled) return;
-        const list =
-          entityType === "national" ? teamsForNationalCountry(teams, awayCountry) : teams;
-        setAwayTeams(list);
-        if (!list.some((t) => String(t.id) === awayTeamId) && list.length) {
-          setAwayTeamId(String(list[0].id));
+        setAwayTeams(teams);
+        if (!teams.some((t) => String(t.id) === awayTeamId) && teams.length) {
+          setAwayTeamId(String(teams[0].id));
         }
       })
       .catch(() => {
@@ -434,7 +431,7 @@ export function usePredictionForm() {
     setError(null);
     setResult(null);
 
-    const matchDate = `${date}T${time}:00.000Z`;
+    const matchDate = localDateTimeToUtcIso(date, time);
     const payload =
       inputMode === "compare"
         ? {

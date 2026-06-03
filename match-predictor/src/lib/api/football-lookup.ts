@@ -1,3 +1,7 @@
+import {
+  formatFixtureKickoffLocal,
+  utcIsoToLocalDateTime,
+} from "@/lib/utils/kickoff-display";
 import { shouldUseMockApis } from "@/lib/config/api-mode";
 import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { usesSportApi } from "@/lib/config/football-provider";
@@ -24,7 +28,12 @@ import {
   isKnownClubTeamName,
 } from "@/lib/data/football-reference";
 import { enrichTeamsWithLogos } from "@/lib/data/team-logos";
-import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
+import {
+  filterToWorldCupTeams,
+  isWorldCupLeague,
+  normalizeNationalTeamName,
+  WORLD_CUP_2026_TEAMS,
+} from "@/lib/data/world-cup-2026-teams";
 import { cachedFetch, DAILY_LIMITS, TTL } from "@/lib/cache/api-cache";
 import type { Fixture } from "@/lib/types/football";
 import type {
@@ -244,13 +253,20 @@ export async function lookupTeams(
       }
     }
 
-    if (reference.length) {
-      return finishTeams(
-        live.length ? mergeNationalTeamLists(reference, live) : reference,
-        effectiveEntity
-      );
+    const referenceTeams = isWorldCupLeague(leagueId)
+      ? WORLD_CUP_2026_TEAMS
+      : reference.length
+        ? reference
+        : [];
+    const merged = live.length
+      ? mergeNationalTeamLists(referenceTeams, live)
+      : referenceTeams;
+    const teams = isWorldCupLeague(leagueId) ? filterToWorldCupTeams(merged) : merged;
+
+    if (teams.length) {
+      return finishTeams(teams, effectiveEntity);
     }
-    return finishTeams(live, effectiveEntity);
+    return finishTeams(isWorldCupLeague(leagueId) ? WORLD_CUP_2026_TEAMS : live, effectiveEntity);
   }
 
   const clubTeams = await resolveClubTeams(leagueId, entityType, reference);
@@ -367,24 +383,10 @@ export async function lookupFixtures(
 }
 
 export function formatFixtureLabel(fixture: FixtureOption): string {
-  const kickoff = new Date(fixture.date);
-  const dateLabel = kickoff.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  const timeLabel = kickoff.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-    timeZoneName: "short",
-  });
-  return `${fixture.home.name} vs ${fixture.away.name} · ${dateLabel} ${timeLabel}`;
+  const timePart = formatFixtureKickoffLocal(fixture.date);
+  return `${fixture.home.name} vs ${fixture.away.name} · ${timePart}`;
 }
 
 export function parseFixtureDateTime(isoDate: string): { date: string; time: string } {
-  const kickoff = new Date(isoDate);
-  const date = kickoff.toISOString().slice(0, 10);
-  const time = kickoff.toISOString().slice(11, 16);
-  return { date, time };
+  return utcIsoToLocalDateTime(isoDate);
 }

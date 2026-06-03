@@ -176,5 +176,8 @@ export function getExplanationTip(sectionTitle: string, line: string): Explanati
 }
 
 export function normalizeExplanationText(text: string): string {
-  return text.replace(/\u2014/g, "-");
+  return text
+    .replace(/\u2014/g, "-")
+    .replace(/\u2013/g, "-")
+    .replace(/([.!?])([A-Za-z])/g, "$1 $2");
 }

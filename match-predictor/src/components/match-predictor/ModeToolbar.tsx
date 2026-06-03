@@ -12,8 +12,9 @@ const ENTITY_TIPS = {
   ),
   national: (
     <>
-      Pick <strong>national</strong> teams for international tournaments (World Cup, Euros, Nations
-      League). Fixture mode is not available for national sides.
+      Pick <strong>national</strong> teams for international tournaments. Open a team badge, choose{" "}
+      <strong>FIFA World Cup</strong> as the tournament, then compare any of the 48 qualified
+      nations. Fixture mode is not available for national sides.
     </>
   ),
 } as const;
@@ -22,7 +23,7 @@ const MODE_TIPS = {
   fixture: (
     <>
       <strong>Fixture</strong> mode uses a real upcoming match from our database. Choose both clubs,
-      then use &quot;Find a match&quot; to load kickoff, venue, and synced stats. Only available
+      then use &quot;Find a match&quot; to load kickoff, venue, and team stats. Only available
       for club teams when fixtures exist in the selected league.
     </>
   ),
