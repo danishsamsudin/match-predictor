@@ -1,10 +1,14 @@
 import type { GeoPoint, StadiumImpactResult } from "@/lib/types/prediction";
+import { citiesMatch } from "@/lib/prediction/neutral-venue";
 import { getStadiumAltitude, haversineKm } from "@/lib/utils/geo";
 
 export interface TeamTravelContext {
   city: string;
   homeLocation: GeoPoint | null;
 }
+
+/** xG boost when a team plays in its home city (compare mode / neutral-ground exceptions). */
+export const HOME_CITY_XG_MULTIPLIER = 1.12;
 
 function applyTravelFatigue(
   distanceKm: number,
@@ -27,12 +31,27 @@ function applyTravelFatigue(
   return 1;
 }
 
+function applyHomeCityAdvantage(
+  matchCity: string,
+  teamCity: string,
+  side: "home" | "away",
+  notes: string[]
+): number {
+  if (!matchCity || !teamCity || !citiesMatch(matchCity, teamCity)) {
+    return 1;
+  }
+  notes.push(
+    `${side === "home" ? "Home" : "Away"} side plays in ${teamCity} — home-city xG boost ${((HOME_CITY_XG_MULTIPLIER - 1) * 100).toFixed(0)}% (δ_home_city = ${HOME_CITY_XG_MULTIPLIER}).`
+  );
+  return HOME_CITY_XG_MULTIPLIER;
+}
+
 export function computeStadiumImpact(
   venueName: string,
   matchLocation: GeoPoint,
   homeTeam: TeamTravelContext,
   awayTeam: TeamTravelContext,
-  options?: { isNeutralVenue?: boolean }
+  options?: { isNeutralVenue?: boolean; matchCity?: string }
 ): StadiumImpactResult {
   let homeXgMultiplier = 1;
   let awayXgMultiplier = 1;
@@ -40,6 +59,7 @@ export function computeStadiumImpact(
   let cardsMultiplier = 1;
   const notes: string[] = [];
   const isNeutral = options?.isNeutralVenue ?? false;
+  const matchCity = options?.matchCity ?? "";
 
   if (isNeutral) {
     if (homeTeam.homeLocation) {
@@ -60,6 +80,8 @@ export function computeStadiumImpact(
       );
       awayXgMultiplier *= applyTravelFatigue(distance, awayTeam.city, "away", notes);
     }
+    homeXgMultiplier *= applyHomeCityAdvantage(matchCity, homeTeam.city, "home", notes);
+    awayXgMultiplier *= applyHomeCityAdvantage(matchCity, awayTeam.city, "away", notes);
   } else if (awayTeam.homeLocation) {
     const distance = haversineKm(
       awayTeam.homeLocation.lat,

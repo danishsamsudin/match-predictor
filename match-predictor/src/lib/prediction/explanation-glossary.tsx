@@ -14,14 +14,27 @@ function matchTip(line: string, tests: Array<{ test: RegExp; tip: ExplanationTip
 
 const BASE_ANALYSIS_TIPS: Array<{ test: RegExp; tip: ExplanationTip }> = [
   {
-    test: /league strength/i,
+    test: /national team strength|fifa/i,
     tip: {
-      label: "League strength (Omega)",
+      label: "National team strength (FIFA Ω)",
       body: (
         <>
-          A multiplier that adjusts for how strong each team&apos;s league is compared to others.
-          Values above 1.0 mean a stronger competition; the model uses this so a leading team in a
-          weaker league is not automatically rated like a top team in the Premier League.
+          Quality index with the top FIFA-ranked nation in our dataset at 1.0. Lower-ranked sides
+          score below 1.0. Attack and conceded rates are mapped to that benchmark before xG, and
+          squad performance scores are discounted for weaker nations.
+        </>
+      ),
+    },
+  },
+  {
+    test: /league strength/i,
+    tip: {
+      label: "League strength vs Premier League (Ω)",
+      body: (
+        <>
+          Quality index with the Premier League at 1.0. Weaker leagues (e.g. Eredivisie, Ligue 1)
+          score lower; La Liga, Serie A, and Bundesliga sit between. Attack and conceded rates are
+          mapped to this benchmark before xG, and squad performance scores are discounted accordingly.
         </>
       ),
     },

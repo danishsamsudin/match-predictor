@@ -1,3 +1,5 @@
+import { computeStrengthMomentumEdge } from "@/lib/prediction/team-strength";
+import type { EntityType } from "@/lib/types/football-lookup";
 import type { FixtureResult } from "@/lib/types/football";
 import type { BaseProbabilityInput } from "@/lib/types/prediction";
 
@@ -143,7 +145,17 @@ export function computeH2HStrength(rates: H2HRates, meetingCount: number): numbe
 }
 
 export function computeMomentumIndex(
-  input: BaseProbabilityInput & { h2hHasData?: boolean; h2hMeetingCount?: number }
+  input: BaseProbabilityInput & {
+    h2hHasData?: boolean;
+    h2hMeetingCount?: number;
+    homeLeagueId?: number;
+    awayLeagueId?: number;
+    entityType?: EntityType;
+    homeTeamId?: number;
+    awayTeamId?: number;
+    homeTeamName?: string;
+    awayTeamName?: string;
+  }
 ): number {
   const formDiff = input.homeFormScore - input.awayFormScore;
   const h2hStrength = computeH2HStrength(
@@ -155,5 +167,26 @@ export function computeMomentumIndex(
     },
     input.h2hMeetingCount ?? 0
   );
-  return formDiff * W1_FORM + h2hStrength * W2_H2H;
+
+  const homeLeagueId = input.homeLeagueId ?? 0;
+  const awayLeagueId = input.awayLeagueId ?? 0;
+  const leagueEdge =
+    input.homeLeagueId != null && input.awayLeagueId != null
+      ? computeStrengthMomentumEdge(
+          {
+            entityType: input.entityType,
+            teamId: input.homeTeamId ?? 0,
+            teamName: input.homeTeamName,
+            leagueId: homeLeagueId,
+          },
+          {
+            entityType: input.entityType,
+            teamId: input.awayTeamId ?? 0,
+            teamName: input.awayTeamName,
+            leagueId: awayLeagueId,
+          }
+        )
+      : (input.homeLeagueStrength - input.awayLeagueStrength) * 0.18;
+
+  return formDiff * W1_FORM + h2hStrength * W2_H2H + leagueEdge;
 }

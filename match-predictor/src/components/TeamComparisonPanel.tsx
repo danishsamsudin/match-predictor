@@ -2,7 +2,9 @@
 
 import type { ReactNode } from "react";
 import { BarChart3 } from "lucide-react";
+import { TeamBettingInsightsPanel } from "@/components/TeamBettingInsightsPanel";
 import { TeamSquadComparison } from "@/components/TeamSquadComparison";
+import { resolveTeamShortLabel } from "@/lib/utils/team-display-name";
 import { displayValue } from "@/lib/data/build-team-comparison";
 import { TEAM_COMPARISON_GLOSSARY } from "@/lib/prediction/team-comparison-glossary";
 import type {
@@ -187,6 +189,8 @@ function TeamColumnHeader({ side }: { side: TeamComparisonSide }) {
 
 export function TeamComparisonPanel({ comparison }: { comparison: TeamComparisonSnapshot }) {
   const { home, away, usesDatabaseStats } = comparison;
+  const homeShort = resolveTeamShortLabel({ name: home.teamName });
+  const awayShort = resolveTeamShortLabel({ name: away.teamName });
 
   return (
     <div className="space-y-6">
@@ -219,11 +223,17 @@ export function TeamComparisonPanel({ comparison }: { comparison: TeamComparison
         </div>
       </div>
 
+      <TeamBettingInsightsPanel
+        comparison={comparison}
+        homeShort={homeShort}
+        awayShort={awayShort}
+      />
+
       <div>
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
           Recent matches
           <InfoTip label="Recent matches">
-            Last finished games stored in our database (up to 5). W/D/L shows the result from this
+            Last finished games stored in our database (up to 10). W/D/L shows the result from this
             team&apos;s perspective.
           </InfoTip>
         </h3>

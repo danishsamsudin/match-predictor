@@ -341,7 +341,7 @@ export function mapTeamInfo(
     team: { id: teamId, name: teamName, country: "" },
     venue: {
       id: 0,
-      name: venueName ?? canonical?.name ?? `${teamName} Stadium`,
+      name: canonical?.name ?? venueName ?? `${teamName} Stadium`,
       address: "",
       city,
       capacity: canonical?.capacity ?? 40000,

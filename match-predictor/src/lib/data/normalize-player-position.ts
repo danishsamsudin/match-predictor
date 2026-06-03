@@ -1,13 +1,58 @@
+/** Use the primary role when FBref lists multi-positions (e.g. "FW,MF"). */
+export function primaryPositionToken(pos?: string | null): string {
+  if (!pos) return "";
+  const first = pos.split(",")[0]?.trim() ?? "";
+  return first;
+}
+
 /** SofaScore-style single-letter position for sorting and display grouping. */
 export function normalizePlayerPosition(pos?: string | null): "G" | "D" | "M" | "F" {
   if (!pos) return "M";
-  const p = pos.trim().toUpperCase();
+  const p = primaryPositionToken(pos).toUpperCase();
   if (p === "G" || p === "GK" || p.includes("GOAL")) return "G";
-  if (p === "D" || p === "DEF" || p.includes("DEF") || p === "CB" || p === "LB" || p === "RB") {
+  if (
+    p === "D" ||
+    p === "DF" ||
+    p === "DEF" ||
+    p.includes("DEF") ||
+    p === "CB" ||
+    p === "LB" ||
+    p === "RB"
+  ) {
     return "D";
   }
-  if (p === "F" || p === "FW" || p === "FWD" || p.includes("FOR") || p.includes("ATT") || p === "ST") {
+  if (
+    p === "F" ||
+    p === "FW" ||
+    p === "FWD" ||
+    p.includes("FOR") ||
+    p.includes("ATT") ||
+    p === "ST" ||
+    p === "CF" ||
+    p === "SS" ||
+    p === "LW" ||
+    p === "RW" ||
+    p === "LF" ||
+    p === "RF" ||
+    p.endsWith("W")
+  ) {
     return "F";
+  }
+  if (
+    p === "DM" ||
+    p === "CDM" ||
+    p === "CM" ||
+    p === "AM" ||
+    p === "CAM" ||
+    p === "LM" ||
+    p === "RM" ||
+    p.includes("MID") ||
+    p === "MF"
+  ) {
+    return "M";
+  }
+  if (p === "WB" || p === "LWB" || p === "RWB") {
+    return "D";
   }
   return "M";
 }

@@ -1,6 +1,7 @@
 import { parseTeamStats } from "@/lib/api/football";
 import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { aggregateTeamMetricsFromSyncedEvents } from "@/lib/data/aggregate-team-event-metrics";
+import { loadPreferredFormationForTeam } from "@/lib/data/team-formations";
 import { getLeagueById } from "@/lib/data/football-reference";
 import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
 import type { TeamStatistics } from "@/lib/types/football";
@@ -112,8 +113,8 @@ function resolveTeamVenue(
 ): { name: string | null; capacity: string | null } {
   const canonical = getCanonicalTeamHomeVenue(teamId, teamName);
   return {
-    name: fromEvents.name ?? canonical?.name ?? null,
-    capacity: fromEvents.capacity ?? (canonical ? String(canonical.capacity) : null),
+    name: canonical?.name ?? fromEvents.name ?? null,
+    capacity: canonical ? String(canonical.capacity) : fromEvents.capacity ?? null,
   };
 }
 
@@ -163,6 +164,7 @@ function seasonAveragesFromSources(input: {
   payloadStats: TeamStatistics | null;
   isHomeSide: boolean;
   eventAggregates: Awaited<ReturnType<typeof aggregateTeamMetricsFromSyncedEvents>>;
+  storedFormation?: string | null;
 }): {
   cornersPerGame: string | null;
   foulsPerGame: string | null;
@@ -226,6 +228,7 @@ function seasonAveragesFromSources(input: {
     ),
     preferredFormation:
       aggregates?.preferredFormation ??
+      input.storedFormation ??
       (input.payloadStats ? pickFormationFromStatistics(input.payloadStats) : null),
   };
 }
@@ -238,14 +241,18 @@ export async function loadSeasonStatsFromDatabase(
   teamName?: string
 ): Promise<{ stats: TeamSeasonStats; hasStandings: boolean; hasMetrics: boolean }> {
   const supabase = tryCreateServiceClient();
-  const [standingsRow, venueFromEvents, storedRow, eventAggregates] = await Promise.all([
-    loadStandingsRow(teamId, leagueId, teamName),
-    loadHomeVenueFromEvents(teamId, leagueId, teamName),
-    loadSyncedTeamStatisticsRow(teamId, leagueId),
-    supabase
-      ? aggregateTeamMetricsFromSyncedEvents(supabase, leagueId, teamId, teamName)
-      : Promise.resolve(null),
-  ]);
+  const [standingsRow, venueFromEvents, storedRow, eventAggregates, storedFormation] =
+    await Promise.all([
+      loadStandingsRow(teamId, leagueId, teamName),
+      loadHomeVenueFromEvents(teamId, leagueId, teamName),
+      loadSyncedTeamStatisticsRow(teamId, leagueId),
+      supabase
+        ? aggregateTeamMetricsFromSyncedEvents(supabase, leagueId, teamId, teamName)
+        : Promise.resolve(null),
+      supabase
+        ? loadPreferredFormationForTeam(supabase, teamId, teamName)
+        : Promise.resolve(null),
+    ]);
 
   const venue = resolveTeamVenue(teamId, teamName, venueFromEvents);
 
@@ -258,6 +265,7 @@ export async function loadSeasonStatsFromDatabase(
     payloadStats,
     isHomeSide,
     eventAggregates,
+    storedFormation,
   });
 
   const matches = standingsRow?.matches ?? 0;

@@ -222,7 +222,7 @@ function FormResultBadge({ result }: { result: TeamFormMatch["result"] }) {
 }
 
 function FormStrip({ matches }: { matches: TeamFormMatch[] }) {
-  const recent = matches.slice(0, 5);
+  const recent = matches.slice(0, 10);
 
   if (!recent.length) {
     return <p className="text-xs text-muted">No recent form data</p>;
@@ -377,12 +377,12 @@ export function PredictionCharts({
         </ChartCardWithTip>
 
         <ChartCardWithTip
-          title="Goals markets (Over / Under)"
-          tipLabel="Over/Under goals"
+          title="Goals markets (Over / Under) — model"
+          tipLabel="Over/Under goals (model)"
           tipBody={
             <>
-              Chance of total goals going over or under common lines (1.5, 2.5, 3.5). Based on the
-              same expected-goals model as the main prediction.
+              Chance of total goals going over or under common lines (1.5, 2.5, 3.5) for this fixture.
+              Based on the same expected-goals model as the main prediction.
             </>
           }
         >
@@ -397,13 +397,52 @@ export function PredictionCharts({
           </div>
         </ChartCardWithTip>
 
+        {analytics.historicalMarkets ? (
+          <ChartCardWithTip
+            title="Historical vs model markets"
+            tipLabel="Historical vs model"
+            tipBody={
+              <>
+                <strong>Historical</strong> rates come from each team&apos;s last stored results.
+                <strong> Model</strong> rates use our Poisson xG grid for this specific matchup.
+              </>
+            }
+            className="lg:col-span-2"
+          >
+            <div className="grid gap-6 lg:grid-cols-2">
+              <HistoricalMarketCompare
+                label="BTTS Yes %"
+                homeHistorical={analytics.historicalMarkets.home.bttsYesPct}
+                awayHistorical={analytics.historicalMarkets.away.bttsYesPct}
+                modelPct={analytics.btts.yesPct}
+                homeShort={homeShort}
+                awayShort={awayShort}
+                sampleHome={analytics.historicalMarkets.home.sampleSize}
+                sampleAway={analytics.historicalMarkets.away.sampleSize}
+              />
+              <HistoricalMarketCompare
+                label="Over 2.5 %"
+                homeHistorical={analytics.historicalMarkets.home.over25Pct}
+                awayHistorical={analytics.historicalMarkets.away.over25Pct}
+                modelPct={
+                  analytics.overUnder.find((l) => l.line === 2.5)?.overPct ?? 0
+                }
+                homeShort={homeShort}
+                awayShort={awayShort}
+                sampleHome={analytics.historicalMarkets.home.sampleSize}
+                sampleAway={analytics.historicalMarkets.away.sampleSize}
+              />
+            </div>
+          </ChartCardWithTip>
+        ) : null}
+
         <ChartCardWithTip
-          title="Both teams to score (BTTS)"
-          tipLabel="Both teams to score"
+          title="Both teams to score (BTTS) — model"
+          tipLabel="Both teams to score (model)"
           tipBody={
             <>
-              Estimated chance both teams score at least once. High when both xG values are strong;
-              low when one side is expected to shut out the other.
+              Estimated chance both teams score at least once in <em>this</em> fixture. High when
+              both xG values are strong. Compare with historical BTTS rates in team insights above.
             </>
           }
         >
@@ -586,6 +625,48 @@ function MiniStat({
         {label}
       </p>
       <p className="text-sm font-bold tabular-nums text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function HistoricalMarketCompare({
+  label,
+  homeHistorical,
+  awayHistorical,
+  modelPct,
+  homeShort,
+  awayShort,
+  sampleHome,
+  sampleAway,
+}: {
+  label: string;
+  homeHistorical: number;
+  awayHistorical: number;
+  modelPct: number;
+  homeShort: string;
+  awayShort: string;
+  sampleHome: number;
+  sampleAway: number;
+}) {
+  const max = Math.max(homeHistorical, awayHistorical, modelPct, 1);
+  return (
+    <div className="space-y-3 rounded-xl border border-white/25 bg-white/15 p-4 dark:border-slate-800/50 dark:bg-slate-900/25">
+      <p className="text-center text-xs font-semibold text-foreground">{label}</p>
+      <DualHorizontalBar
+        label="Historical (team trend)"
+        homeValue={homeHistorical}
+        awayValue={awayHistorical}
+        homeLabel={homeShort}
+        awayLabel={awayShort}
+        maxValue={max}
+      />
+      <p className="text-center text-[10px] text-muted">
+        Based on last {sampleHome} / {sampleAway} results per team
+      </p>
+      <div className="rounded-lg border border-dashed border-white/30 bg-foreground/5 px-3 py-2 text-center dark:border-slate-700/60">
+        <p className="text-[10px] uppercase tracking-wide text-muted">Model (this fixture)</p>
+        <p className="text-xl font-bold tabular-nums text-foreground">{modelPct}%</p>
+      </div>
     </div>
   );
 }

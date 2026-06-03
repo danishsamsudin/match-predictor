@@ -93,10 +93,6 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
       </div>
 
       <div className="space-y-6 p-6">
-        {result.mode === "compare" && result.teamComparison ? (
-          <TeamComparisonPanel comparison={result.teamComparison} />
-        ) : null}
-
         <WinProbabilityBar
           home={result.homeWinPct}
           draw={result.drawPct}
@@ -104,6 +100,10 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
           homeLabel={homeLabel}
           awayLabel={awayLabel}
         />
+
+        {result.teamComparison ? (
+          <TeamComparisonPanel comparison={result.teamComparison} />
+        ) : null}
 
         {result.firstTeamToScorePct ? (
           <FirstTeamToScoreSection

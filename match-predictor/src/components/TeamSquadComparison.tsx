@@ -100,17 +100,22 @@ function SquadColumn({
       <div>
         <p className={labelClass}>{side.teamName}</p>
         <p className="mt-2 text-sm text-muted">
-          No squad data for this team. Import Scoutlyst CSVs for its league, or run lineup backfill
-          after football sync.
+          No squad data for this team. Import Scoutlyst CSVs, run lineup backfill after football
+          sync, or import FBref World Cup squads into Supabase.
         </p>
       </div>
     );
   }
 
+  const formationNote = squad.preferredFormation
+    ? ` Formation: ${squad.preferredFormation}.`
+    : "";
   const sourceNote =
     squad.squadSource === "lineups"
-      ? "XI from recent synced match lineups."
-      : "XI estimated from Scoutlyst ratings (import lineups for match-based squads).";
+      ? `XI from recent synced match lineups.${formationNote}`
+      : squad.squadSource === "fbref"
+        ? `XI estimated from imported FBref squad stats.${formationNote}`
+        : `XI estimated from Scoutlyst ratings.${formationNote} Import lineups for match-based squads.`;
 
   return (
     <div className="space-y-4">
@@ -186,7 +191,8 @@ export function TeamSquadComparison({
       {hasAnyData ? (
         <p className="mb-3 text-xs leading-relaxed text-muted">
           Starting XI is inferred from who started most often in recent finished matches.
-          Performance combines Scoutlyst PPM and synced match ratings when available.
+          Performance is mapped to 0–100, then adjusted vs the Premier League benchmark by domestic
+          league (Eredivisie / Ligue 1 discounted vs La Liga / Serie A / Bundesliga).
         </p>
       ) : null}
 

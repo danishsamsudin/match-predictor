@@ -1,5 +1,9 @@
 import { computePlayerPerformanceScore } from "@/lib/data/compute-player-performance-score";
-import { normalizePlayerPosition } from "@/lib/data/normalize-player-position";
+import {
+  pickSquadFromRecords,
+  squadPickRecordFromStats,
+  type SquadPickRecord,
+} from "@/lib/data/pick-squad-from-records";
 
 export type ScoutlystSquadRow = {
   scoutlyst_player_key: string;
@@ -11,13 +15,6 @@ export type ScoutlystSquadRow = {
   stats: Record<string, string | number | null>;
 };
 
-const POSITION_TARGETS: Record<"G" | "D" | "M" | "F", number> = {
-  G: 1,
-  D: 4,
-  M: 4,
-  F: 2,
-};
-
 export function stableSyntheticPlayerId(seed: string): number {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
@@ -27,61 +24,43 @@ export function stableSyntheticPlayerId(seed: string): number {
   return -(h >>> 0 || 1);
 }
 
-function scorePlayer(row: ScoutlystSquadRow): number {
-  return (
-    computePlayerPerformanceScore({
-      scoutlystRating: row.rating,
-      matchAvgRating: null,
-      stats: row.stats,
-    }) ?? 0
-  );
-}
-
 /** Best-effort XI + bench when match lineups are not synced. */
-export function buildSquadFromScoutlyst(players: ScoutlystSquadRow[]): {
+export function buildSquadFromScoutlyst(
+  players: ScoutlystSquadRow[],
+  preferredFormation?: string | null
+): {
   starters: ScoutlystSquadRow[];
   substitutes: ScoutlystSquadRow[];
 } {
   if (!players.length) return { starters: [], substitutes: [] };
 
-  const ranked = [...players]
-    .map((row) => ({
-      row,
-      pos: normalizePlayerPosition(row.position),
-      score: scorePlayer(row),
-    }))
-    .sort((a, b) => b.score - a.score);
+  const records: SquadPickRecord[] = players.map((row) =>
+    squadPickRecordFromStats({
+      id: row.scoutlyst_player_key,
+      name: row.player_name,
+      position: row.position,
+      stats: row.stats,
+      rating: row.rating,
+    })
+  );
 
-  const starters: ScoutlystSquadRow[] = [];
-  const used = new Set<string>();
+  const { starters, substitutes } = pickSquadFromRecords(records, preferredFormation);
+  const byKey = new Map(players.map((p) => [p.scoutlyst_player_key, p]));
 
-  const takeFrom = (pos: "G" | "D" | "M" | "F", count: number) => {
-    for (const entry of ranked) {
-      if (starters.length >= 11) break;
-      if (entry.pos !== pos) continue;
-      if (used.has(entry.row.scoutlyst_player_key)) continue;
-      starters.push(entry.row);
-      used.add(entry.row.scoutlyst_player_key);
-      if (--count <= 0) break;
-    }
+  return {
+    starters: starters.map((r) => byKey.get(r.id)!).filter(Boolean),
+    substitutes: substitutes.map((r) => byKey.get(r.id)!).filter(Boolean),
   };
+}
 
-  takeFrom("G", POSITION_TARGETS.G);
-  takeFrom("D", POSITION_TARGETS.D);
-  takeFrom("M", POSITION_TARGETS.M);
-  takeFrom("F", POSITION_TARGETS.F);
-
-  for (const entry of ranked) {
-    if (starters.length >= 11) break;
-    if (used.has(entry.row.scoutlyst_player_key)) continue;
-    starters.push(entry.row);
-    used.add(entry.row.scoutlyst_player_key);
-  }
-
-  const substitutes = ranked
-    .filter((e) => !used.has(e.row.scoutlyst_player_key))
-    .slice(0, 9)
-    .map((e) => e.row);
-
-  return { starters, substitutes };
+/** @deprecated Use squadPickRecordFromStats + pickSquadFromRecords */
+export function scorePlayer(row: ScoutlystSquadRow): number {
+  return (
+    computePlayerPerformanceScore({
+      scoutlystRating: row.rating,
+      matchAvgRating: null,
+      stats: row.stats,
+      position: row.position,
+    }) ?? 0
+  );
 }

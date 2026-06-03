@@ -49,7 +49,7 @@ export interface SquadPlayer {
   age: number | null;
 }
 
-export type TeamSquadSource = "lineups" | "scoutlyst" | "none";
+export type TeamSquadSource = "lineups" | "scoutlyst" | "fbref" | "none";
 
 export interface TeamSquadSnapshot {
   starters: SquadPlayer[];
@@ -58,8 +58,15 @@ export interface TeamSquadSnapshot {
   hasScoutlystData: boolean;
   /** How starters/bench were chosen. */
   squadSource: TeamSquadSource;
+  /** Formation used to slot the inferred XI (from recent lineups when available). */
+  preferredFormation: string | null;
   snapshotDate: string | null;
 }
+
+import type {
+  FixtureContextInsights,
+  TeamBettingInsights,
+} from "@/lib/types/team-betting-insights";
 
 export interface TeamComparisonSide {
   teamId: number;
@@ -69,6 +76,8 @@ export interface TeamComparisonSide {
   recentForm: TeamFormMatch[];
   players: TeamPlayerStat[];
   squad: TeamSquadSnapshot;
+  /** Rolling metrics from stored match results and FBref aggregates. */
+  insights: TeamBettingInsights | null;
 }
 
 export interface TeamComparisonSnapshot {
@@ -76,4 +85,5 @@ export interface TeamComparisonSnapshot {
   away: TeamComparisonSide;
   /** When true, season rows use Supabase standings/events (not API placeholders). */
   usesDatabaseStats?: boolean;
+  fixtureContext: FixtureContextInsights | null;
 }

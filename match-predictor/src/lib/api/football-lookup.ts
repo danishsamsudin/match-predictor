@@ -4,6 +4,7 @@ import { usesSportApi } from "@/lib/config/football-provider";
 import {
   loadFixturesFromStore,
   loadLeaguesFromReference,
+  loadTeamsFromStandingsStore,
   loadTeamsFromStore,
 } from "@/lib/data/football-store";
 import { importFixturesFromFbref } from "@/lib/soccerdata/import-fixtures";
@@ -161,6 +162,61 @@ function finishTeams(teams: TeamOption[], effectiveEntity: EntityType): TeamOpti
   return enrichTeamsWithLogos(teams, effectiveEntity);
 }
 
+function mergeClubTeamLists(...lists: TeamOption[][]): TeamOption[] {
+  const byId = new Map<number, TeamOption>();
+  for (const list of lists) {
+    for (const team of list) {
+      if (!team.id || !team.name) continue;
+      const existing = byId.get(team.id);
+      byId.set(team.id, existing ? { ...existing, ...team, name: team.name } : team);
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Domestic leagues should list essentially the full table; cups vary. */
+function isIncompleteClubTeamList(leagueId: number, teams: TeamOption[]): boolean {
+  const league = getLeagueById(leagueId);
+  if (!league || league.entityType !== "club") return false;
+  const minTeams = league.type === "Cup" ? 8 : 14;
+  return teams.length < minTeams;
+}
+
+async function resolveClubTeams(
+  leagueId: number,
+  entityType: EntityType | undefined,
+  reference: TeamOption[]
+): Promise<TeamOption[]> {
+  const sources: TeamOption[][] = [reference];
+
+  if (isSupabaseDataStore()) {
+    const fromTable = await loadTeamsFromStore(leagueId, entityType);
+    if (fromTable.length) sources.push(fromTable);
+    const fromStandings = await loadTeamsFromStandingsStore(leagueId);
+    if (fromStandings.length) sources.push(fromStandings);
+  }
+
+  let merged = mergeClubTeamLists(...sources);
+
+  if (isIncompleteClubTeamList(leagueId, merged) && usesSportApi()) {
+    try {
+      const live = await sportApiLookupTeams(leagueId, "club");
+      if (live.length) merged = mergeClubTeamLists(merged, live);
+    } catch {
+      // keep merged store/reference list
+    }
+  } else if (!isSupabaseDataStore() && usesSportApi()) {
+    try {
+      const live = await sportApiLookupTeams(leagueId, "club");
+      if (live.length) merged = mergeClubTeamLists(merged, live);
+    } catch {
+      // keep reference
+    }
+  }
+
+  return merged.length ? merged : reference;
+}
+
 export async function lookupTeams(
   leagueId: number,
   entityType?: EntityType
@@ -197,20 +253,8 @@ export async function lookupTeams(
     return finishTeams(live, effectiveEntity);
   }
 
-  if (isSupabaseDataStore()) {
-    const teams = await loadTeamsFromStore(leagueId, entityType);
-    if (teams.length) return finishTeams(teams, effectiveEntity);
-    return getTeamsByLeague(leagueId);
-  }
-  if (usesSportApi()) {
-    try {
-      const teams = await sportApiLookupTeams(leagueId, "club");
-      if (teams.length) return finishTeams(teams, effectiveEntity);
-    } catch {
-      // fall through to reference
-    }
-  }
-  return getTeamsByLeague(leagueId);
+  const clubTeams = await resolveClubTeams(leagueId, entityType, reference);
+  return finishTeams(clubTeams, effectiveEntity);
 }
 
 export type FixtureDataSource = "live" | "mock" | "reference";
@@ -255,7 +299,7 @@ export async function lookupFixtures(
         fixtures: upcomingFromStore,
         source: "live",
         message:
-          "Fixtures loaded from Supabase (synced on demand when needed; SoccerData backfill when RapidAPI is empty).",
+          "Fixtures loaded from Supabase (synced on demand when needed; SoccerData backfill when live feeds are empty).",
       };
     }
 
@@ -277,7 +321,7 @@ export async function lookupFixtures(
       fixtures: [],
       source: "live",
       message:
-        "No upcoming matches found for this competition. Check your RapidAPI key and daily limit, or try again later.",
+        "No upcoming matches found for this competition. Try again later or choose another league.",
     };
   }
 

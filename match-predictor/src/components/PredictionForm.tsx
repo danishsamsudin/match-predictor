@@ -6,6 +6,7 @@ import { FixturePickerSheet } from "./match-predictor/FixturePickerSheet";
 import { MatchPredictorShell } from "./match-predictor/MatchPredictorShell";
 import { SystemBanner } from "./match-predictor/SystemBanner";
 import { TeamPickerSheet } from "./match-predictor/TeamPickerSheet";
+import { sanitizeUserFacingMessage } from "@/lib/api/user-facing-messages";
 import { usePredictionForm } from "./match-predictor/usePredictionForm";
 
 export function PredictionForm() {
@@ -21,42 +22,26 @@ export function PredictionForm() {
       message: React.ReactNode;
     }> = [];
 
-    if (form.fixtureNotice) {
+    const fixtureNotice = sanitizeUserFacingMessage(form.fixtureNotice);
+    if (fixtureNotice) {
       items.push({
         id: "fixture-notice",
         variant: "info",
-        message: form.fixtureNotice,
+        message: fixtureNotice,
       });
     }
 
-    if (
-      form.fixtureSource &&
-      form.fixtureSource !== "live" &&
-      !form.dataMode &&
-      !form.fixtureNotice
-    ) {
-      items.push({
-        id: "fixture-source",
-        variant: "warning",
-        message: (
-          <>
-            Fixtures are from <strong className="font-semibold">{form.fixtureSource}</strong> data,
-            not SportAPI7 live. Subscribe on RapidAPI or fix your API key.
-          </>
-        ),
-      });
-    }
-
-    if (form.error) {
+    const error = sanitizeUserFacingMessage(form.error);
+    if (error) {
       items.push({
         id: "error",
         variant: "warning",
-        message: form.error,
+        message: error,
       });
     }
 
     return items;
-  }, [form.dataMode, form.fixtureNotice, form.fixtureSource, form.error]);
+  }, [form.fixtureNotice, form.error]);
 
   const showFixturePicker =
     form.inputMode === "fixture" && form.entityType === "club";

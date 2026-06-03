@@ -63,9 +63,9 @@ const TEAM_ABBREVIATIONS_BY_ID: Record<number, string> = {
   496: "Juventus",
   497: "Roma",
   505: "Inter",
-  193: "PSV",
-  194: "Ajax",
-  195: "Feyenoord",
+  2952: "PSV",
+  2953: "Ajax",
+  2959: "Feyenoord",
 };
 
 /** Normalized full-name aliases (synced_teams / API naming variants). */

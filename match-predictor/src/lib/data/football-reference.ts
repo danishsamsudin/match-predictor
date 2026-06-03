@@ -1,5 +1,7 @@
 import type { CountryOption, EntityType, LeagueOption, SyncTier, TeamOption } from "@/lib/types/football-lookup";
 import { enrichTeamsWithLogos } from "@/lib/data/team-logos";
+import { getClubHomeCity } from "@/lib/data/team-home-cities";
+import { isNationalTeamId } from "@/lib/data/national-team-geography";
 import { WORLD_CUP_2026_TEAMS } from "@/lib/data/world-cup-2026-teams";
 
 export const REFERENCE_SEASON = 2025;
@@ -107,9 +109,9 @@ const TEAMS_BY_LEAGUE: Record<number, TeamOption[]> = {
     { id: 91, name: "Monaco" },
   ],
   88: [
-    { id: 193, name: "PSV Eindhoven" },
-    { id: 194, name: "Ajax" },
-    { id: 195, name: "Feyenoord" },
+    { id: 2952, name: "PSV Eindhoven" },
+    { id: 2953, name: "AFC Ajax" },
+    { id: 2959, name: "Feyenoord" },
   ],
   2: [
     { id: 33, name: "Manchester United" },
@@ -127,7 +129,7 @@ const TEAMS_BY_LEAGUE: Record<number, TeamOption[]> = {
     { id: 47, name: "Tottenham" },
     { id: 66, name: "Aston Villa" },
     { id: 489, name: "AC Milan" },
-    { id: 195, name: "Feyenoord" },
+    { id: 2959, name: "Feyenoord" },
   ],
   1: WORLD_CUP_2026_TEAMS,
   5: [
@@ -138,25 +140,6 @@ const TEAMS_BY_LEAGUE: Record<number, TeamOption[]> = {
     { id: 4713, name: "England" },
     { id: 4711, name: "Spain" },
   ],
-};
-
-const TEAM_CITIES: Record<number, string> = {
-  33: "Manchester",
-  40: "Liverpool",
-  42: "London",
-  47: "London",
-  49: "London",
-  50: "Manchester",
-  51: "Brighton",
-  529: "Barcelona",
-  530: "Madrid",
-  541: "Madrid",
-  157: "Munich",
-  165: "Dortmund",
-  496: "Turin",
-  505: "Milan",
-  85: "Paris",
-  194: "Amsterdam",
 };
 
 export function getNationalTeamCountries(): CountryOption[] {
@@ -215,8 +198,14 @@ export function getLeagueById(leagueId: number): LeagueOption | undefined {
   return FOOTBALL_LEAGUES.find((league) => league.id === leagueId);
 }
 
-export function getTeamCity(teamId: number): string {
-  return TEAM_CITIES[teamId] ?? "London";
+export function getTeamCity(
+  teamId: number,
+  options?: { teamName?: string; entityType?: EntityType }
+): string {
+  if (options?.entityType === "national" || isNationalTeamId(teamId)) {
+    return getClubHomeCity(teamId, options?.teamName);
+  }
+  return getClubHomeCity(teamId, options?.teamName);
 }
 
 /** Domestic league id for a club team, when registered in reference data. */
@@ -257,30 +246,7 @@ export function getAllSyncLeagueIds(): number[] {
   return FOOTBALL_LEAGUES.map((l) => l.id);
 }
 
-export function getLeagueStrengthMultiplier(leagueId: number): number {
-  return LEAGUE_STRENGTH[leagueId] ?? 0.8;
-}
-
-/** Heuristic league strength for cross-league xG normalization (1.0 = top tier). */
-const LEAGUE_STRENGTH: Record<number, number> = {
-  39: 1.0,
-  140: 0.98,
-  78: 0.96,
-  135: 0.95,
-  61: 0.93,
-  88: 0.85,
-  2: 1.0,
-  3: 0.92,
-  40: 0.78,
-  141: 0.72,
-  79: 0.7,
-  136: 0.68,
-  62: 0.65,
-  253: 0.72,
-  307: 0.76,
-  848: 0.88,
-  1: 1.0,
-  4: 1.0,
-  5: 0.95,
-  6: 0.95,
-};
+export {
+  getLeagueStrengthMultiplier,
+  PREMIER_LEAGUE_ID,
+} from "@/lib/prediction/league-benchmark";

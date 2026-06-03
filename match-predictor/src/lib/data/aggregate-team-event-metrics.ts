@@ -1,5 +1,6 @@
 import { readMatchStatValue } from "@/lib/api/sportapi/mappers";
 import { loadRecentFormEvents, loadRecentFormEventsForTeam } from "@/lib/data/assemble-football-bundle";
+import { pickPreferredFormation } from "@/lib/data/formation-lineup";
 import type { Database } from "@/lib/supabase";
 import type {
   SportApiEvent,
@@ -37,17 +38,6 @@ function teamSideInEvent(
 function average(values: number[]): number | null {
   if (!values.length) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function pickPreferredFormation(formations: string[]): string | null {
-  const counts = new Map<string, number>();
-  for (const formation of formations) {
-    const trimmed = formation.trim();
-    if (!trimmed) continue;
-    counts.set(trimmed, (counts.get(trimmed) ?? 0) + 1);
-  }
-  if (!counts.size) return null;
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
 /** Per-match averages from synced event statistics and lineups for one team. */

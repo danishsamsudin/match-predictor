@@ -5,7 +5,7 @@ import type { OverUnderLine, PredictionAnalytics, ScoreCell } from "@/lib/types/
 export type { PredictionAnalytics, ScoreCell };
 
 export interface OutcomeProbabilityOptions {
-  /** Dixon-Coles correlation ρ; negative values inflate low-score draw mass. */
+  /** Dixon-Coles correlation ρ; negative inflates draws, positive deflates 0-0 / 1-1. */
   correlation?: number;
 }
 
@@ -107,6 +107,33 @@ export function resolveCupFinalCorrelation(
   return -0.18;
 }
 
+/**
+ * Grid size for Poisson score matrices. Truncating too low renormalizes mass into
+ * low-score draws; size scales with expected goals.
+ */
+export function resolveScoreMatrixMaxGoals(homeXg: number, awayXg: number): number {
+  const peak = Math.max(homeXg, awayXg);
+  return Math.min(10, Math.max(5, Math.ceil(peak + 3)));
+}
+
+/**
+ * Dixon-Coles ρ for score heatmaps / correct-score markets. Cup finals use negative ρ;
+ * lopsided league/compare ties use mild positive ρ to avoid overstated 0-0 / 1-1 cells.
+ */
+export function resolveScoreMatrixCorrelation(
+  homeXg: number,
+  awayXg: number,
+  isHighStakesCup: boolean
+): number {
+  if (isHighStakesCup) {
+    return resolveCupFinalCorrelation(homeXg, awayXg, true);
+  }
+  const diff = Math.abs(homeXg - awayXg);
+  if (diff >= 1.25) return 0.1;
+  if (diff >= 0.75) return 0.06;
+  return 0;
+}
+
 function roundPct(n: number): number {
   return Math.round(n * 10) / 10;
 }
@@ -128,7 +155,9 @@ export function computeMarketAnalytics(
   }
 ): PredictionAnalytics {
   const scoreOptions = { correlation: opts.correlation ?? 0 };
-  const matrix = buildScoreMatrix(homeXg, awayXg, opts.heatmapMaxGoals ?? 4, scoreOptions);
+  const maxGoals =
+    opts.heatmapMaxGoals ?? resolveScoreMatrixMaxGoals(homeXg, awayXg);
+  const matrix = buildScoreMatrix(homeXg, awayXg, maxGoals, scoreOptions);
   const topScores = [...matrix]
     .sort((a, b) => b.probability - a.probability)
     .slice(0, 8)

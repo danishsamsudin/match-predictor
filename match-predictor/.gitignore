@@ -24,6 +24,12 @@
 /data/imports/scoutlyst/incoming/**/*.csv
 /data/imports/scoutlyst/archive/**/*.csv
 
+# Local FBref / FIFA scrape exports (not committed)
+/data/imports/fbref/**/*.html
+/data/imports/fbref/**/*.htm
+/data/imports/fifa/**/*
+!/data/imports/fifa/**/.gitkeep
+
 # misc
 .DS_Store
 *.pem

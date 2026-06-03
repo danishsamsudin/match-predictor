@@ -2,6 +2,10 @@ import type { TeamStatAverages, WeatherForecast, WeatherImpactResult } from "@/l
 
 /** Reference max shots-on-target density for heat penalty normalization. */
 export const SOT_CATALOG_MAX = 7;
+/** Reference max corners per game for wind penalty normalization. */
+export const CORNERS_CATALOG_MAX = 7;
+/** 10 m wind speed (km/h) at or above this is treated as match-disrupting. */
+export const HIGH_WIND_KPH = 35;
 
 function isHeavyPrecipitation(forecast: WeatherForecast): boolean {
   return forecast.precipMm > 2;
@@ -10,6 +14,14 @@ function isHeavyPrecipitation(forecast: WeatherForecast): boolean {
 function isHighHeatOrHumidity(forecast: WeatherForecast): boolean {
   const temp = forecast.tempC;
   return (typeof temp === "number" && temp > 30) || forecast.humidity > 70;
+}
+
+export function isHighWind(forecast: WeatherForecast): boolean {
+  return (
+    typeof forecast.windKph === "number" &&
+    Number.isFinite(forecast.windKph) &&
+    forecast.windKph >= HIGH_WIND_KPH
+  );
 }
 
 function formatTempForNote(tempC: number | undefined): string {
@@ -42,6 +54,21 @@ function computeHeatMultiplier(
   return 1.0 - 0.1 * sotRatio;
 }
 
+/** Shared conversion drag when wind disrupts passing and ball flight. */
+function computeWindBaseMultiplier(forecast: WeatherForecast): number {
+  return isHighWind(forecast) ? 1.0 - 0.08 : 1.0;
+}
+
+/** Extra drag for sides that rely on crosses and set pieces (corner volume proxy). */
+function computeWindStyleMultiplier(
+  teamStats: TeamStatAverages,
+  forecast: WeatherForecast
+): number {
+  if (!isHighWind(forecast)) return 1.0;
+  const cornerRatio = Math.min(1, teamStats.corners / CORNERS_CATALOG_MAX);
+  return 1.0 - 0.08 * cornerRatio;
+}
+
 export function computeWeatherImpact(
   forecast: WeatherForecast,
   homeStats: TeamStatAverages,
@@ -54,9 +81,14 @@ export function computeWeatherImpact(
   const deltaPhysicalAway = computePhysicalMultiplier(awayStats, homeStats, forecast);
   const deltaHeatHome = computeHeatMultiplier(homeStats, forecast);
   const deltaHeatAway = computeHeatMultiplier(awayStats, forecast);
+  const deltaWind = computeWindBaseMultiplier(forecast);
+  const deltaWindHome = computeWindStyleMultiplier(homeStats, forecast);
+  const deltaWindAway = computeWindStyleMultiplier(awayStats, forecast);
 
-  const homeXgMultiplier = deltaRain * deltaPhysicalHome * deltaHeatHome;
-  const awayXgMultiplier = deltaRain * deltaPhysicalAway * deltaHeatAway;
+  const homeXgMultiplier =
+    deltaRain * deltaPhysicalHome * deltaHeatHome * deltaWind * deltaWindHome;
+  const awayXgMultiplier =
+    deltaRain * deltaPhysicalAway * deltaHeatAway * deltaWind * deltaWindAway;
 
   const foulsMultiplier = isHeavyPrecipitation(forecast) ? 1.1 : 1.0;
   const cardsMultiplier = foulsMultiplier;
@@ -90,6 +122,22 @@ export function computeWeatherImpact(
     if (deltaHeatAway < 1) {
       notes.push(
         `Away pressing penalty: δ_heat = ${deltaHeatAway.toFixed(3)} (SOT density ${awayStats.shotsOnTarget}/${SOT_CATALOG_MAX}).`
+      );
+    }
+  }
+
+  if (isHighWind(forecast)) {
+    notes.push(
+      `Strong wind (${forecast.windKph} km/h) reduces open-play conversion by 8% (δ_wind = ${deltaWind.toFixed(2)}).`
+    );
+    if (deltaWindHome < 1) {
+      notes.push(
+        `Home wide-play penalty: δ_wind_style = ${(deltaWind * deltaWindHome).toFixed(3)} (corners ${homeStats.corners}/${CORNERS_CATALOG_MAX} per game).`
+      );
+    }
+    if (deltaWindAway < 1) {
+      notes.push(
+        `Away wide-play penalty: δ_wind_style = ${(deltaWind * deltaWindAway).toFixed(3)} (corners ${awayStats.corners}/${CORNERS_CATALOG_MAX} per game).`
       );
     }
   }

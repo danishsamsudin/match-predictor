@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runPrediction } from "@/lib/prediction/engine";
 import { tryCreateServiceClient, type Database } from "@/lib/supabase";
 import type { PredictRequest } from "@/lib/types/prediction";
+import { sanitizeUserFacingMessage } from "@/lib/api/user-facing-messages";
 import { RateLimitError, UpstreamApiError } from "@/lib/types/prediction";
 
 type PredictionInsert = Database["public"]["Tables"]["predictions"]["Insert"];
@@ -162,11 +163,16 @@ export async function POST(request: NextRequest) {
       entityType: input.entityType ?? "club",
     });
   } catch (error) {
-    if (error instanceof RateLimitError) {
-      return NextResponse.json({ error: error.message }, { status: 429 });
-    }
-    if (error instanceof UpstreamApiError) {
-      return NextResponse.json({ error: error.message }, { status: 502 });
+    if (error instanceof RateLimitError || error instanceof UpstreamApiError) {
+      const status = error instanceof RateLimitError ? 503 : 502;
+      return NextResponse.json(
+        {
+          error:
+            sanitizeUserFacingMessage(error.message) ??
+            "Unable to complete prediction. Please try again.",
+        },
+        { status }
+      );
     }
     console.error("Prediction error:", error);
     return NextResponse.json(

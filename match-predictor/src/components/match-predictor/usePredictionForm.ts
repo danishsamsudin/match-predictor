@@ -10,7 +10,11 @@ import type {
   LeagueOption,
   TeamOption,
 } from "@/lib/types/football-lookup";
-import { parseFixtureDateTime } from "./utils";
+import {
+  sanitizeUserFacingMessage,
+  shouldHideUserFacingWarning,
+} from "@/lib/api/user-facing-messages";
+import { getDefaultMatchDateTime, parseFixtureDateTime } from "./utils";
 
 const DEFAULT_CLUB_COUNTRY = "England";
 const DEFAULT_CLUB_LEAGUE_ID = 39;
@@ -63,14 +67,13 @@ export function usePredictionForm() {
   const [awayLeagues, setAwayLeagues] = useState<LeagueOption[]>([]);
   const [awayLeagueId, setAwayLeagueId] = useState(String(DEFAULT_AWAY_CLUB_LEAGUE_ID));
   const [awayTeams, setAwayTeams] = useState<TeamOption[]>([]);
-  const [awayTeamId, setAwayTeamId] = useState("194");
+  const [awayTeamId, setAwayTeamId] = useState("2953");
 
   const [matchId, setMatchId] = useState("");
   const [city, setCity] = useState("Manchester");
-  const [date, setDate] = useState("2026-05-29");
-  const [time, setTime] = useState("15:00");
-  const [dataMode, setDataMode] = useState<string | null>(null);
-  const [fixtureSource, setFixtureSource] = useState<string | null>(null);
+  const [{ date: defaultDate, time: defaultTime }] = useState(getDefaultMatchDateTime);
+  const [date, setDate] = useState(defaultDate);
+  const [time, setTime] = useState(defaultTime);
   const [fixtureNotice, setFixtureNotice] = useState<string | null>(null);
 
   const fetchLeagues = useCallback(async (country: string, type: EntityType) => {
@@ -95,10 +98,13 @@ export function usePredictionForm() {
     const res = await fetch(`/api/football/fixtures?league=${leagueId}`);
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error ?? "Failed to load fixtures");
+      if (shouldHideUserFacingWarning(data.error)) {
+        setFixtureNotice(null);
+        return [];
+      }
+      throw new Error(sanitizeUserFacingMessage(data.error) ?? "Failed to load fixtures");
     }
-    setFixtureSource(data.source ?? null);
-    setFixtureNotice(data.message ?? null);
+    setFixtureNotice(sanitizeUserFacingMessage(data.message));
     return (data.fixtures ?? []) as FixtureOption[];
   }, []);
 
@@ -121,21 +127,6 @@ export function usePredictionForm() {
     },
     [matchCountry]
   );
-
-  useEffect(() => {
-    fetch("/api/football/status")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.mode === "mock") {
-          setDataMode(data.mockReason ?? data.message ?? "Mock data mode");
-        } else if (data.ok === false) {
-          setDataMode(data.message ?? "SportAPI7 not connected");
-        } else if (data.mode === "live") {
-          setDataMode(null);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,7 +168,7 @@ export function usePredictionForm() {
       setHomeLeagueId(String(DEFAULT_CLUB_LEAGUE_ID));
       setAwayLeagueId(String(DEFAULT_AWAY_CLUB_LEAGUE_ID));
       setHomeTeamId("33");
-      setAwayTeamId("194");
+      setAwayTeamId("2953");
     }
     setMatchId("");
     setSelectedFixtureId("");
@@ -315,9 +306,9 @@ export function usePredictionForm() {
         if (cancelled) return;
         setFixtures([]);
         setFixtureNotice(null);
-        setError(
-          err instanceof Error ? err.message : "Could not load upcoming matches."
-        );
+        const message =
+          err instanceof Error ? err.message : "Could not load upcoming matches.";
+        setError(sanitizeUserFacingMessage(message));
       })
       .finally(() => {
         if (!cancelled) setLoadingFixtures(false);
@@ -442,7 +433,9 @@ export function usePredictionForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Prediction failed");
+        setError(
+          sanitizeUserFacingMessage(data.error) ?? "Unable to complete prediction. Please try again."
+        );
         return;
       }
       setResult(data);
@@ -496,8 +489,6 @@ export function usePredictionForm() {
     setDate,
     time,
     setTime,
-    dataMode,
-    fixtureSource,
     fixtureNotice,
     homeLeagueName,
     awayLeagueName,

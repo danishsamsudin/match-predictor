@@ -3,6 +3,7 @@
   "private": true,
   "description": "Run npm scripts from the repo root; the Next.js app lives in match-predictor/.",
   "scripts": {
+    "postinstall": "npm install --prefix match-predictor",
     "dev": "npm run dev --prefix match-predictor",
     "build": "npm run build --prefix match-predictor",
     "start": "npm run start --prefix match-predictor",

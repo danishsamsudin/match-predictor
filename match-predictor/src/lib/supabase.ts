@@ -643,6 +643,40 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["soccerdata_players"]["Insert"]>;
         Relationships: [];
       };
+      fifa_ranking_snapshots: {
+        Row: {
+          id: number;
+          ranking_year: number;
+          semester: number;
+          rank: number;
+          team_name: string;
+          acronym: string | null;
+          total_points: number;
+          previous_points: number | null;
+          points_diff: number | null;
+          normalized_team_name: string;
+          data_source: string | null;
+          sofascore_team_id: number | null;
+          synced_at: string;
+        };
+        Insert: {
+          id?: number;
+          ranking_year: number;
+          semester: number;
+          rank: number;
+          team_name: string;
+          acronym?: string | null;
+          total_points: number;
+          previous_points?: number | null;
+          points_diff?: number | null;
+          normalized_team_name: string;
+          data_source?: string | null;
+          sofascore_team_id?: number | null;
+          synced_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["fifa_ranking_snapshots"]["Insert"]>;
+        Relationships: [];
+      };
       scoutlyst_import_batches: {
         Row: {
           id: number;
@@ -731,6 +765,109 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      teams: {
+        Row: { id: string; name: string };
+        Insert: { id: string; name: string };
+        Update: Partial<{ name: string }>;
+        Relationships: [];
+      };
+      managers: {
+        Row: { id: number; name: string; team_id: string };
+        Insert: { id?: number; name: string; team_id: string };
+        Update: Partial<{ name: string; team_id: string }>;
+        Relationships: [];
+      };
+      matches: {
+        Row: {
+          id: string;
+          date: string | null;
+          time: string | null;
+          venue: string | null;
+          home_team_id: string | null;
+          away_team_id: string | null;
+          attendance: number | null;
+          referee: string | null;
+          home_manager_id: number | null;
+          away_manager_id: number | null;
+          competition: string | null;
+          round: string | null;
+          day_of_week: string | null;
+          result: string | null;
+          home_goals: number | null;
+          away_goals: number | null;
+          home_formation: string | null;
+          away_formation: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["matches"]["Row"]> & { id: string };
+        Update: Partial<Database["public"]["Tables"]["matches"]["Row"]>;
+        Relationships: [];
+      };
+      players: {
+        Row: { id: string; name: string; current_team_id: string | null };
+        Insert: { id: string; name: string; current_team_id?: string | null };
+        Update: Partial<{ name: string; current_team_id: string | null }>;
+        Relationships: [];
+      };
+      lineups: {
+        Row: {
+          id: string;
+          match_id: string;
+          player_id: string;
+          team_id: string;
+          is_starting: boolean;
+          jersey_number: number | null;
+          position: string | null;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          player_id: string;
+          team_id: string;
+          is_starting?: boolean;
+          jersey_number?: number | null;
+          position?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["lineups"]["Insert"]>;
+        Relationships: [];
+      };
+      player_season_stats: {
+        Row: {
+          id: string;
+          player_id: string;
+          team_id: string;
+          stat_type: string;
+          competition: string | null;
+          stats: Record<string, unknown>;
+        };
+        Insert: {
+          id?: string;
+          player_id: string;
+          team_id: string;
+          stat_type: string;
+          competition?: string | null;
+          stats?: Record<string, unknown>;
+        };
+        Update: Partial<Database["public"]["Tables"]["player_season_stats"]["Insert"]>;
+        Relationships: [];
+      };
+      team_formation_usage: {
+        Row: {
+          reference_team_id: number;
+          formation: string;
+          match_count: number;
+          source: string;
+          updated_at: string;
+        };
+        Insert: {
+          reference_team_id: number;
+          formation: string;
+          match_count?: number;
+          source?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["team_formation_usage"]["Insert"]>;
+        Relationships: [];
       };
       soccerdata_team_aliases: {
         Row: {

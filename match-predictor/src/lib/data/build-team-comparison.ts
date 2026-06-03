@@ -1,4 +1,5 @@
 import { computeFormScore, parseTeamStats } from "@/lib/api/football";
+import { resolveDomesticLeagueId } from "@/lib/data/football-reference";
 import { loadTeamPlayersForComparison } from "@/lib/data/load-team-players";
 import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
 import {
@@ -9,6 +10,12 @@ import {
   shouldUseDatabaseComparisonStats,
 } from "@/lib/data/load-team-comparison-data";
 import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
+import {
+  loadFixtureContextInsights,
+  loadTeamBettingInsights,
+} from "@/lib/data/load-team-betting-insights";
+import { formStringFromRecentFixtures } from "@/lib/data/team-comparison-form";
+import { BETTING_INSIGHTS_WINDOW } from "@/lib/data/compute-team-betting-insights";
 import type { FootballBundle, FixtureResult } from "@/lib/types/football";
 import type {
   TeamComparisonSnapshot,
@@ -78,14 +85,13 @@ function buildSeasonStatsFromBundle(
     shotsOnTargetPerGame:
       parsed.shotsOnTarget > 0 ? parsed.shotsOnTarget.toFixed(1) : null,
     preferredFormation: topFormation?.formation ?? null,
-    venueName: venueIsPlaceholder
-      ? canonicalVenue?.name ?? null
-      : teamInfo.venue.name || canonicalVenue?.name || null,
-    venueCapacity:
-      venueIsPlaceholder || teamInfo.venue.capacity <= 0
-        ? canonicalVenue
-          ? String(canonicalVenue.capacity)
-          : null
+    venueName:
+      canonicalVenue?.name ??
+      (venueIsPlaceholder ? null : teamInfo.venue.name || null),
+    venueCapacity: canonicalVenue
+      ? String(canonicalVenue.capacity)
+      : venueIsPlaceholder || teamInfo.venue.capacity <= 0
+        ? null
         : String(teamInfo.venue.capacity),
   };
 }
@@ -94,6 +100,7 @@ async function buildSide(input: {
   teamId: number;
   teamName: string;
   leagueId: number;
+  entityType?: PredictRequest["entityType"];
   isHomeSide: boolean;
   stats: FootballBundle["homeStats"];
   form: FixtureResult[];
@@ -103,9 +110,22 @@ async function buildSide(input: {
   useDatabaseStats: boolean;
 }): Promise<TeamComparisonSide> {
   const supabase = tryCreateServiceClient();
-  const [players, squad] = await Promise.all([
+  const [players, squad, insights] = await Promise.all([
     loadTeamPlayersForComparison(supabase, input.teamId, input.topScorers, 5),
-    loadTeamSquadForComparison(supabase, input.teamId, input.teamName),
+    loadTeamSquadForComparison(
+      supabase,
+      input.teamId,
+      input.teamName,
+      resolveDomesticLeagueId(input.teamId) ?? input.leagueId,
+      input.entityType
+    ),
+    loadTeamBettingInsights({
+      teamId: input.teamId,
+      teamName: input.teamName,
+      leagueId: input.leagueId,
+      entityType: input.entityType,
+      formFixtures: input.form,
+    }),
   ]);
 
   const fromBundle = buildSeasonStatsFromBundle(
@@ -136,17 +156,23 @@ async function buildSide(input: {
   }
 
   const recentForm = input.form.length
-    ? mapRecentForm(input.form, input.teamId)
+    ? mapRecentForm(input.form.slice(0, BETTING_INSIGHTS_WINDOW), input.teamId)
     : [];
+
+  const formFromFixtures = formStringFromRecentFixtures(input.form, input.teamId);
 
   return {
     teamId: input.teamId,
     teamName: input.teamName,
     leagueName: leagueNameForTeam(input.leagueId),
-    seasonStats,
+    seasonStats: {
+      ...seasonStats,
+      form: formFromFixtures ?? seasonStats.form,
+    },
     recentForm,
     players,
     squad,
+    insights,
   };
 }
 
@@ -154,8 +180,14 @@ export async function buildTeamComparisonSnapshot(
   input: PredictRequest,
   bundle: FootballBundle
 ): Promise<TeamComparisonSnapshot> {
-  const homeLeagueId = input.homeLeagueId ?? bundle.fixture.league.id;
-  const awayLeagueId = input.awayLeagueId ?? bundle.fixture.league.id;
+  const homeLeagueId =
+    input.homeLeagueId ??
+    resolveDomesticLeagueId(input.homeTeamId) ??
+    bundle.fixture.league.id;
+  const awayLeagueId =
+    input.awayLeagueId ??
+    resolveDomesticLeagueId(input.awayTeamId) ??
+    bundle.fixture.league.id;
   const useDatabaseStats = shouldUseDatabaseComparisonStats();
   const homeFormScore = computeFormScore(bundle.homeForm, input.homeTeamId);
   const awayFormScore = computeFormScore(bundle.awayForm, input.awayTeamId);
@@ -174,6 +206,7 @@ export async function buildTeamComparisonSnapshot(
       teamId: input.homeTeamId,
       teamName: homeName,
       leagueId: homeLeagueId,
+      entityType: input.entityType,
       isHomeSide: true,
       stats: bundle.homeStats,
       form: bundle.homeForm,
@@ -186,6 +219,7 @@ export async function buildTeamComparisonSnapshot(
       teamId: input.awayTeamId,
       teamName: awayName,
       leagueId: awayLeagueId,
+      entityType: input.entityType,
       isHomeSide: false,
       stats: bundle.awayStats,
       form: bundle.awayForm,
@@ -196,7 +230,19 @@ export async function buildTeamComparisonSnapshot(
     }),
   ]);
 
-  return { home, away, usesDatabaseStats: useDatabaseStats };
+  const fixtureContext = await loadFixtureContextInsights({
+    kickoffDate: input.matchDate,
+    homeTeamId: input.homeTeamId,
+    awayTeamId: input.awayTeamId,
+    homeTeamName: homeName,
+    awayTeamName: awayName,
+    homeLeagueId,
+    awayLeagueId,
+    homeForm: bundle.homeForm,
+    awayForm: bundle.awayForm,
+  });
+
+  return { home, away, usesDatabaseStats: useDatabaseStats, fixtureContext };
 }
 
 export function displayValue(value: string | null | undefined): string {

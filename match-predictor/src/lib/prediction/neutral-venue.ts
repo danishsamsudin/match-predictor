@@ -14,13 +14,16 @@ export function isContinentalCupLeagueId(leagueId: number): boolean {
   return leagueId === 2 || leagueId === 3 || leagueId === 848;
 }
 
-function normalizeCity(city: string | undefined): string {
+export function normalizeMatchCity(city: string | undefined): string {
   return city?.trim().toLowerCase() ?? "";
 }
 
-function citiesMatch(a: string, b: string): boolean {
-  if (!a || !b) return false;
-  return a === b || a.includes(b) || b.includes(a);
+/** True when two venue/city labels refer to the same place (e.g. "Breda" vs "NAC Breda"). */
+export function citiesMatch(a: string, b: string): boolean {
+  const left = normalizeMatchCity(a);
+  const right = normalizeMatchCity(b);
+  if (!left || !right) return false;
+  return left === right || left.includes(right) || right.includes(left);
 }
 
 function isCupCompetition(bundle: FootballBundle): boolean {
@@ -40,9 +43,9 @@ export function isNeutralVenue(
 
   if (!isCupCompetition(bundle)) return false;
 
-  const venueCity = normalizeCity(bundle.fixture.fixture.venue.city);
-  const homeCity = normalizeCity(bundle.homeTeamInfo.venue.city);
-  const awayCity = normalizeCity(bundle.awayTeamInfo.venue.city);
+  const venueCity = normalizeMatchCity(bundle.fixture.fixture.venue.city);
+  const homeCity = normalizeMatchCity(bundle.homeTeamInfo.venue.city);
+  const awayCity = normalizeMatchCity(bundle.awayTeamInfo.venue.city);
 
   if (venueCity && homeCity && citiesMatch(venueCity, homeCity)) return false;
   if (venueCity && awayCity && citiesMatch(venueCity, awayCity)) return false;

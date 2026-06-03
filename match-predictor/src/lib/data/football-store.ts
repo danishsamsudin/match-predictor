@@ -1,9 +1,11 @@
+import { collectTeamsFromStandings } from "@/lib/api/sportapi/standings-teams";
 import { assembleFootballBundleFromStore } from "@/lib/data/assemble-football-bundle";
 import { teamStatisticsFromMetrics } from "@/lib/sync/team-prediction-metrics";
 import type { EntityType } from "@/lib/types/football-lookup";
 import { getLeagueById, getLeaguesByCountry } from "@/lib/data/football-reference";
 import type { FootballBundle, TeamStatistics } from "@/lib/types/football";
 import type { FixtureOption, TeamOption } from "@/lib/types/football-lookup";
+import type { SportApiStandingsResponse } from "@/lib/types/sportapi";
 import type { TeamStatAverages, WeatherForecast } from "@/lib/types/prediction";
 import { UpstreamApiError } from "@/lib/types/prediction";
 import { tryCreateServiceClient } from "@/lib/supabase";
@@ -57,6 +59,25 @@ export async function loadTeamsFromStore(
     name: row.team_name,
     shortName: row.short_name?.trim() || undefined,
   }));
+}
+
+/** Full table from the latest synced standings payload when synced_teams is sparse. */
+export async function loadTeamsFromStandingsStore(leagueId: number): Promise<TeamOption[]> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("synced_standings")
+    .select("payload")
+    .eq("reference_league_id", leagueId)
+    .eq("standing_type", "total")
+    .order("synced_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data?.payload) return [];
+
+  return collectTeamsFromStandings(data.payload as SportApiStandingsResponse);
 }
 
 export async function loadTeamStatisticsFromStore(

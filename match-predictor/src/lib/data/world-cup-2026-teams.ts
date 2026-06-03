@@ -54,6 +54,7 @@ export const WORLD_CUP_2026_TEAMS: TeamOption[] = [
 
 const NATIONAL_TEAM_NAME_ALIASES: Record<string, string> = {
   "bosnia and herzegovina": "bosnia & herzegovina",
+  "bosnia-herzegovina": "bosnia & herzegovina",
   "cape verde": "cabo verde",
   "cote d'ivoire": "côte d'ivoire",
   "côte d ivoire": "côte d'ivoire",

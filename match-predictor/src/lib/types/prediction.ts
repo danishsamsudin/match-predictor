@@ -49,6 +49,11 @@ export interface PredictionAnalytics {
     awayMultiplier: number;
   }[];
   statComparison: { metric: string; home: number; away: number }[];
+  /** BTTS / Over 2.5 rates from stored results (not the Poisson model). */
+  historicalMarkets?: {
+    home: { bttsYesPct: number; over25Pct: number; sampleSize: number };
+    away: { bttsYesPct: number; over25Pct: number; sampleSize: number };
+  };
 }
 
 export interface PredictionResult {

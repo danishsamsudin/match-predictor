@@ -1,4 +1,10 @@
 import { loadRecentFormEventsForTeam } from "@/lib/data/assemble-football-bundle";
+import {
+  dominantStartPosition,
+  pickPreferredFormation,
+  pickStartersByFormation,
+} from "@/lib/data/formation-lineup";
+import { lineupRecencyWeight } from "@/lib/data/lineup-appearance-weights";
 import { normalizePlayerPosition } from "@/lib/data/normalize-player-position";
 import type { Database } from "@/lib/supabase";
 import type { SportApiEvent, SportApiLineupsResponse } from "@/lib/types/sportapi";
@@ -15,13 +21,14 @@ export type InferredSquadPlayer = {
   subAppearances: number;
 };
 
-type AppearanceAgg = {
+export type LineupAppearanceAgg = {
   sofascorePlayerId: number;
   name: string;
   position: string | null;
   fieldPosition: string | null;
   starts: number;
   subAppearances: number;
+  startPositionCounts: Partial<Record<"G" | "D" | "M" | "F", number>>;
 };
 
 function teamSideInEvent(
@@ -40,7 +47,8 @@ function teamSideInEvent(
 
 function collectFromSide(
   side: SportApiLineupsResponse["home"],
-  agg: Map<number, AppearanceAgg>
+  agg: Map<number, LineupAppearanceAgg>,
+  weight: number
 ) {
   if (!side?.players?.length) return;
   for (const row of side.players) {
@@ -50,64 +58,43 @@ function collectFromSide(
     const existing = agg.get(id) ?? {
       sofascorePlayerId: id,
       name,
-      position: row.position ?? row.player.position ?? null,
+      position: row.player.position ?? null,
       fieldPosition: row.position ?? null,
       starts: 0,
       subAppearances: 0,
+      startPositionCounts: {},
     };
+    const slotPosition = row.position ?? row.player.position ?? null;
     if (row.substitute) {
-      existing.subAppearances += 1;
+      existing.subAppearances += weight;
     } else {
-      existing.starts += 1;
+      existing.starts += weight;
+      const role = normalizePlayerPosition(slotPosition);
+      existing.startPositionCounts[role] =
+        (existing.startPositionCounts[role] ?? 0) + weight;
+      if (row.position) existing.fieldPosition = row.position;
     }
-    if (!existing.position && (row.position ?? row.player.position)) {
-      existing.position = row.position ?? row.player.position ?? null;
+    if (!existing.position && row.player.position) {
+      existing.position = row.player.position;
     }
     agg.set(id, existing);
   }
 }
 
-function pickUsualStarters(players: AppearanceAgg[], limit = 11): AppearanceAgg[] {
-  const sorted = [...players].sort((a, b) => b.starts - a.starts || b.subAppearances - a.subAppearances);
-  const picked: AppearanceAgg[] = [];
-  const used = new Set<number>();
-
-  const gk = sorted.find((p) => normalizePlayerPosition(p.position) === "G" && p.starts > 0);
-  if (gk) {
-    picked.push(gk);
-    used.add(gk.sofascorePlayerId);
-  }
-
-  for (const player of sorted) {
-    if (picked.length >= limit) break;
-    if (used.has(player.sofascorePlayerId)) continue;
-    if (player.starts <= 0) continue;
-    picked.push(player);
-    used.add(player.sofascorePlayerId);
-  }
-
-  return picked;
-}
-
-function pickUsualSubstitutes(
-  players: AppearanceAgg[],
-  starterIds: Set<number>,
-  limit = 9
-): AppearanceAgg[] {
-  return [...players]
-    .filter((p) => !starterIds.has(p.sofascorePlayerId) && p.subAppearances > 0)
-    .sort((a, b) => b.subAppearances - a.subAppearances || b.starts - a.starts)
-    .slice(0, limit);
-}
-
-export async function inferUsualSquadFromLineups(
+export async function aggregateLineupAppearances(
   supabase: ServiceClient,
   teamId: number,
   teamName?: string,
   maxMatches = 12
-): Promise<{ starters: InferredSquadPlayer[]; substitutes: InferredSquadPlayer[] }> {
+): Promise<{
+  players: LineupAppearanceAgg[];
+  formations: string[];
+  preferredFormation: string | null;
+}> {
   const events = await loadRecentFormEventsForTeam(supabase, teamId, teamName, maxMatches);
-  if (!events.length) return { starters: [], substitutes: [] };
+  if (!events.length) {
+    return { players: [], formations: [], preferredFormation: null };
+  }
 
   const eventIds = events.map((e) => e.id);
   const { data: lineupRows } = await supabase
@@ -120,18 +107,98 @@ export async function inferUsualSquadFromLineups(
     if (row.payload) lineupsByEvent.set(row.event_id, row.payload as SportApiLineupsResponse);
   }
 
-  const agg = new Map<number, AppearanceAgg>();
-  for (const event of events) {
+  const agg = new Map<number, LineupAppearanceAgg>();
+  const formations: string[] = [];
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    const weight = lineupRecencyWeight(i);
     const side = teamSideInEvent(event, teamId, teamName);
     const lineups = lineupsByEvent.get(event.id);
     if (!side || !lineups) continue;
-    collectFromSide(side === "home" ? lineups.home : lineups.away, agg);
+    const lineupSide = side === "home" ? lineups.home : lineups.away;
+    if (lineupSide?.formation?.trim()) formations.push(lineupSide.formation.trim());
+    collectFromSide(lineupSide, agg, weight);
   }
 
-  const all = [...agg.values()];
-  const starters = pickUsualStarters(all);
-  const starterIds = new Set(starters.map((p) => p.sofascorePlayerId));
-  const substitutes = pickUsualSubstitutes(all, starterIds);
+  const preferredFormation = pickPreferredFormation(formations);
+  return {
+    players: [...agg.values()],
+    formations,
+    preferredFormation,
+  };
+}
 
-  return { starters, substitutes };
+export function pickLineupStartersFromAppearances(
+  players: LineupAppearanceAgg[],
+  formation: string | null,
+  qualityById?: Map<number, number>
+): LineupAppearanceAgg[] {
+  return pickStartersByFormation(
+    players.map((p) => ({
+      ...p,
+      id: p.sofascorePlayerId,
+      dominantPosition: () =>
+        dominantStartPosition(p.startPositionCounts, p.fieldPosition ?? p.position),
+    })),
+    formation,
+    { qualityById }
+  );
+}
+
+export function pickLineupSubstitutesFromAppearances(
+  players: LineupAppearanceAgg[],
+  starterIds: Set<number>,
+  limit = 9
+): LineupAppearanceAgg[] {
+  return [...players]
+    .filter((p) => !starterIds.has(p.sofascorePlayerId) && p.subAppearances > 0)
+    .sort((a, b) => b.subAppearances - a.subAppearances || b.starts - a.starts)
+    .slice(0, limit);
+}
+
+function mapPlayer(p: LineupAppearanceAgg): InferredSquadPlayer {
+  return {
+    sofascorePlayerId: p.sofascorePlayerId,
+    name: p.name,
+    position: p.position,
+    fieldPosition: p.fieldPosition,
+    starts: p.starts,
+    subAppearances: p.subAppearances,
+  };
+}
+
+export async function inferUsualSquadFromLineups(
+  supabase: ServiceClient,
+  teamId: number,
+  teamName?: string,
+  maxMatches = 12,
+  qualityById?: Map<number, number>
+): Promise<{
+  starters: InferredSquadPlayer[];
+  substitutes: InferredSquadPlayer[];
+  preferredFormation: string | null;
+}> {
+  const { players, preferredFormation } = await aggregateLineupAppearances(
+    supabase,
+    teamId,
+    teamName,
+    maxMatches
+  );
+  if (!players.length) {
+    return { starters: [], substitutes: [], preferredFormation: null };
+  }
+
+  const starters = pickLineupStartersFromAppearances(
+    players,
+    preferredFormation,
+    qualityById
+  );
+  const starterIds = new Set(starters.map((p) => p.sofascorePlayerId));
+  const substitutes = pickLineupSubstitutesFromAppearances(players, starterIds);
+
+  return {
+    starters: starters.map(mapPlayer),
+    substitutes: substitutes.map(mapPlayer),
+    preferredFormation,
+  };
 }

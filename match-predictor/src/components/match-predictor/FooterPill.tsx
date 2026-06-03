@@ -89,6 +89,7 @@ export function FooterPill({
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
             required
+            suppressHydrationWarning
             className="min-w-0 flex-1 border-none bg-transparent p-0 text-sm font-medium text-slate-800 outline-none focus:ring-0 dark:text-slate-200 dark:[color-scheme:dark]"
           />
         </label>
@@ -102,6 +103,7 @@ export function FooterPill({
             value={time}
             onChange={(e) => onTimeChange(e.target.value)}
             required
+            suppressHydrationWarning
             className="min-w-0 flex-1 border-none bg-transparent p-0 text-sm font-medium text-slate-800 outline-none focus:ring-0 dark:text-slate-200 dark:[color-scheme:dark]"
           />
         </label>

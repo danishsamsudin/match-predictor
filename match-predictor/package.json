@@ -8,13 +8,17 @@
     "start": "next start",
     "lint": "eslint",
     "logos:download": "node scripts/download-team-logos.mjs",
+    "cities:generate": "node scripts/generate-team-cities.mjs",
     "test:live": "bash scripts/test-live-apis.sh",
     "soccerdata:install": "python3 -m pip install -r services/soccerdata/requirements.txt",
     "soccerdata:populate": "bash scripts/soccerdata-populate.sh",
     "scoutlyst:import": "bash scripts/scoutlyst-import.sh",
     "scoutlyst:import:direct": "npx tsx scripts/run-scoutlyst-import.ts",
     "lineups:backfill": "npx tsx scripts/backfill-event-lineups.ts",
-    "squad:diagnose": "npx tsx scripts/diagnose-squad-data.ts"
+    "formations:backfill": "npx tsx scripts/backfill-fbref-match-formations.ts",
+    "formations:sync": "npx tsx scripts/sync-team-formations.ts",
+    "squad:diagnose": "npx tsx scripts/diagnose-squad-data.ts",
+    "fifa:import": "python3 scripts/import_fifa_rankings.py"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

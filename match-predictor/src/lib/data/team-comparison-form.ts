@@ -15,8 +15,8 @@ export function resultCharForFixture(
 }
 
 /**
- * Last N results as a form string (e.g. "WDWLW"), oldest match on the left.
- * `fixtures` must be newest-first (same order as synced recent form).
+ * Last N results as a form string (e.g. "WDWLW"). Leftmost letter is the most recent match.
+ * `fixtures` must be newest-first (same order as synced recent form / Recent Matches).
  */
 export function formStringFromRecentFixtures(
   fixtures: FixtureResult[],
@@ -29,5 +29,5 @@ export function formStringFromRecentFixtures(
     .filter((char): char is FormResultChar => char != null);
 
   if (!chars.length) return null;
-  return [...chars].reverse().join("");
+  return chars.join("");
 }

@@ -9,8 +9,8 @@ import {
 } from "@/lib/api/sportapi";
 import { getLeagueById, getTeamCity } from "@/lib/data/football-reference";
 import { loadH2HEventsFromSyncedEvents } from "@/lib/data/assemble-football-bundle";
+import { resolveRecentFormFixturesForTeam } from "@/lib/data/assemble-football-bundle";
 import {
-  resolveRecentFormEvents,
   resolveTeamStatistics,
 } from "@/lib/data/resolve-team-statistics";
 import { tryCreateServiceClient } from "@/lib/supabase";
@@ -83,26 +83,48 @@ export async function fetchComparisonBundle(
   let awayTopScorers: FootballBundle["topScorers"] = [];
 
   if (readOnlyStore) {
-    const [homeFormEvents, awayFormEvents] = await Promise.all([
-      resolveRecentFormEvents(
-        input.homeLeagueId,
-        input.homeTeamId,
-        input.homeTeamName,
-        entityType
-      ),
-      resolveRecentFormEvents(
-        input.awayLeagueId,
-        input.awayTeamId,
-        input.awayTeamName,
-        entityType
-      ),
-    ]);
-    homeForm = homeFormEvents.slice(0, 5).map(mapEventToFixtureResult);
-    awayForm = awayFormEvents.slice(0, 5).map(mapEventToFixtureResult);
+    const supabase = tryCreateServiceClient();
+    if (supabase) {
+      [homeForm, awayForm] = await Promise.all([
+        resolveRecentFormFixturesForTeam(
+          supabase,
+          input.homeLeagueId,
+          input.homeTeamId,
+          input.homeTeamName
+        ),
+        resolveRecentFormFixturesForTeam(
+          supabase,
+          input.awayLeagueId,
+          input.awayTeamId,
+          input.awayTeamName
+        ),
+      ]);
+    }
   } else if (usesSportApi()) {
+    const supabase = tryCreateServiceClient();
     [homeForm, awayForm, homeTopScorers, awayTopScorers] = await Promise.all([
-      sportApiGetRecentForm(input.homeTeamId).catch(() => []),
-      sportApiGetRecentForm(input.awayTeamId).catch(() => []),
+      sportApiGetRecentForm(input.homeTeamId)
+        .catch(() => [] as FootballBundle["homeForm"])
+        .then(async (form) => {
+          if (form.length >= 5 || !supabase || !input.homeTeamName?.trim()) return form;
+          return resolveRecentFormFixturesForTeam(
+            supabase,
+            input.homeLeagueId,
+            input.homeTeamId,
+            input.homeTeamName
+          );
+        }),
+      sportApiGetRecentForm(input.awayTeamId)
+        .catch(() => [] as FootballBundle["awayForm"])
+        .then(async (form) => {
+          if (form.length >= 5 || !supabase || !input.awayTeamName?.trim()) return form;
+          return resolveRecentFormFixturesForTeam(
+            supabase,
+            input.awayLeagueId,
+            input.awayTeamId,
+            input.awayTeamName
+          );
+        }),
       sportApiGetTopScorers(input.homeLeagueId, homeLeague.season).catch(() => []),
       sportApiGetTopScorers(input.awayLeagueId, awayLeague.season).catch(() => []),
     ]);

@@ -5,16 +5,52 @@ export const PLAYER_DETAIL_STAT_SPECS: Array<{
 }> = [
   { label: "Goals", suffixes: ["Gls", "Goals", "goals", "Goal"] },
   { label: "Assists", suffixes: ["Ast", "Assists", "assists", "Assist"] },
-  { label: "xG", suffixes: ["xG", "Expected goals", "xG/90"] },
-  { label: "xA", suffixes: ["xA", "Expected assists", "xA/90"] },
-  { label: "Shots", suffixes: ["Shots", "Sh", "shots"] },
-  { label: "Key passes", suffixes: ["KP", "Key passes", "key passes"] },
-  { label: "Passes", suffixes: ["Ps", "Passes", "passes"] },
-  { label: "Tackles", suffixes: ["Tk", "Tackles", "tackles"] },
-  { label: "Interceptions", suffixes: ["Int", "Interceptions", "interceptions"] },
-  { label: "Dribbles", suffixes: ["Drb", "Dribbles", "dribbles"] },
+  { label: "xG", suffixes: ["xG", "npxG", "Expected goals", "xG/90"] },
+  { label: "xA", suffixes: ["xA", "xAG", "Expected assists", "xA/90"] },
+  { label: "Shots", suffixes: ["Sh", "Shots", "shots"] },
+  {
+    label: "Key passes",
+    suffixes: ["KP", "Key passes", "key passes", "SCA"],
+  },
+  {
+    label: "Passes",
+    suffixes: [
+      "Passing — Total — Cmp",
+      "Passing — Total — Att",
+      "Cmp",
+      "Ps",
+      "Passes",
+      "passes",
+    ],
+  },
+  {
+    label: "Tackles",
+    suffixes: [
+      "Defense — Tackles — Tkl",
+      "Defense — Tackles — TklW",
+      "Tkl",
+      "TklW",
+      "Tackles",
+      "tackles",
+    ],
+  },
+  {
+    label: "Interceptions",
+    suffixes: ["Defense — Miscellaneous — Int", "Int", "Interceptions", "interceptions"],
+  },
+  {
+    label: "Dribbles",
+    suffixes: [
+      "Take-ons — Succ",
+      "Take-ons — Att",
+      "Succ",
+      "Drb",
+      "Dribbles",
+      "dribbles",
+    ],
+  },
   { label: "Minutes", suffixes: ["Min", "Minutes", "minutes", "Mins"] },
-  { label: "Appearances", suffixes: ["Apps", "Appearances", "appearances", "MP"] },
+  { label: "Appearances", suffixes: ["MP", "Apps", "Appearances", "appearances"] },
 ];
 
 export type PlayerDisplayStat = {
@@ -22,13 +58,21 @@ export type PlayerDisplayStat = {
   value: string;
 };
 
+/** Last segment of Scoutlyst / FBref multi-level column headers. */
+export function statKeyLeaf(key: string): string {
+  const parts = key.split(/\s*—\s*/);
+  return (parts[parts.length - 1] ?? key).trim();
+}
+
 function statKeyMatches(key: string, suffix: string): boolean {
   const trimmed = key.trim();
   const s = suffix.trim();
   if (trimmed === s) return true;
-  if (trimmed.endsWith(` — ${s}`)) return true;
-  if (trimmed.endsWith(`— ${s}`)) return true;
-  return trimmed.toLowerCase().endsWith(s.toLowerCase());
+  if (s.includes(" — ")) {
+    return trimmed.toLowerCase().endsWith(s.toLowerCase());
+  }
+  const leaf = statKeyLeaf(key);
+  return leaf.toLowerCase() === s.toLowerCase();
 }
 
 export function findStatInRecord(

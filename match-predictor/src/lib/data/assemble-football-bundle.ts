@@ -4,6 +4,11 @@ import { isMockFixtureForm } from "@/lib/mocks/football";
 import { getLeagueEntityType } from "@/lib/data/football-reference";
 import { resolveTeamStatistics } from "@/lib/data/resolve-team-statistics";
 import {
+  FBREF_FORM_MIN_SYNCED,
+  loadFbrefRecentFormFixtures,
+  mergeRecentFormFixtures,
+} from "@/lib/fbref/comparison-fallback";
+import {
   buildFootballBundleFromParts,
   filterFormForTeam,
   findStandingsRow,
@@ -146,6 +151,23 @@ export async function resolveFormEventsForTeam(
   return crossCompetition;
 }
 
+/** Synced events first; FBref match logs fill gaps when SofaScore/sync is sparse. */
+export async function resolveRecentFormFixturesForTeam(
+  supabase: ServiceClient,
+  leagueId: number,
+  teamId: number,
+  teamName?: string,
+  limit = 10
+) {
+  const events = await resolveFormEventsForTeam(supabase, leagueId, teamId, teamName, 20);
+  const synced = events.slice(0, limit).map(mapEventToFixtureResult);
+  if (synced.length >= FBREF_FORM_MIN_SYNCED || !teamName?.trim()) {
+    return synced;
+  }
+  const fbref = await loadFbrefRecentFormFixtures(teamName, teamId, limit);
+  return mergeRecentFormFixtures(synced, fbref, limit);
+}
+
 async function resolveH2HEvents(
   supabase: ServiceClient,
   matchId: number,
@@ -186,14 +208,14 @@ async function resolveH2HEvents(
 
 function attachLiveFormAndH2H(
   bundle: FootballBundle,
-  homeFormEvents: SportApiEvent[],
-  awayFormEvents: SportApiEvent[],
+  homeForm: FootballBundle["homeForm"],
+  awayForm: FootballBundle["awayForm"],
   h2hEvents: SportApiEvent[]
 ): FootballBundle {
   return {
     ...bundle,
-    homeForm: homeFormEvents.slice(0, 5).map(mapEventToFixtureResult),
-    awayForm: awayFormEvents.slice(0, 5).map(mapEventToFixtureResult),
+    homeForm,
+    awayForm,
     h2h: h2hEvents.slice(0, 10).map(mapEventToFixtureResult),
   };
 }
@@ -287,9 +309,19 @@ export async function assembleFootballBundleFromStore(
         ? (cachedH2hRow.payload as { events?: SportApiEvent[] })
         : undefined;
 
-    const [homeFormEvents, awayFormEvents, h2hEvents] = await Promise.all([
-      resolveFormEventsForTeam(supabase, cachedLeagueId, homeTeamId, cachedHomeName),
-      resolveFormEventsForTeam(supabase, cachedLeagueId, awayTeamId, cachedAwayName),
+    const [homeForm, awayForm, h2hEvents] = await Promise.all([
+      resolveRecentFormFixturesForTeam(
+        supabase,
+        cachedLeagueId,
+        homeTeamId,
+        cachedHomeName
+      ),
+      resolveRecentFormFixturesForTeam(
+        supabase,
+        cachedLeagueId,
+        awayTeamId,
+        cachedAwayName
+      ),
       resolveH2HEvents(
         supabase,
         matchId,
@@ -302,9 +334,9 @@ export async function assembleFootballBundleFromStore(
       ),
     ]);
 
-    const hasLiveForm = homeFormEvents.length > 0 || awayFormEvents.length > 0;
+    const hasLiveForm = homeForm.length > 0 || awayForm.length > 0;
     if (!cacheHasMockForm || hasLiveForm) {
-      return attachLiveFormAndH2H(cached, homeFormEvents, awayFormEvents, h2hEvents);
+      return attachLiveFormAndH2H(cached, homeForm, awayForm, h2hEvents);
     }
   }
 
@@ -385,9 +417,9 @@ export async function assembleFootballBundleFromStore(
       ? (h2hRow.data.payload as { events?: SportApiEvent[] })
       : undefined;
 
-  const [homeFormEvents, awayFormEvents, h2hEvents] = await Promise.all([
-    resolveFormEventsForTeam(supabase, leagueId, homeTeamId, homeName),
-    resolveFormEventsForTeam(supabase, leagueId, awayTeamId, awayName),
+  const [homeForm, awayForm, h2hEvents] = await Promise.all([
+    resolveRecentFormFixturesForTeam(supabase, leagueId, homeTeamId, homeName),
+    resolveRecentFormFixturesForTeam(supabase, leagueId, awayTeamId, awayName),
     resolveH2HEvents(
       supabase,
       matchId,
@@ -426,8 +458,8 @@ export async function assembleFootballBundleFromStore(
     awayStandingsRow: standingsRes
       ? findStandingsRow(standingsRes, awayTeamId, awayName)
       : undefined,
-    homeFormEvents,
-    awayFormEvents,
+    homeForm,
+    awayForm,
     h2hEvents,
     venueCity,
   });

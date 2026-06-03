@@ -1,5 +1,6 @@
 import type { EntityType, TeamOption } from "@/lib/types/football-lookup";
 import { TEAM_LOGO_ID_TO_NAME, TEAM_LOGO_NAME_TO_ID } from "@/lib/data/team-logo-manifest";
+import { normalizeTeamName as normalizeTeamNameKey } from "@/lib/soccerdata/normalize";
 
 /** Public path for a locally stored team badge (see scripts/download-team-logos.mjs). */
 export function localTeamLogoPath(teamId: number): string {
@@ -72,22 +73,23 @@ export function nationalFlagUrl(teamName: string): string | undefined {
   return `https://flagcdn.com/w160/${iso}.png`;
 }
 
-function normalizeTeamName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/&/g, "and");
+function logoLookupKeys(team: TeamOption): string[] {
+  const keys = new Set<string>();
+  for (const raw of [team.name, team.shortName]) {
+    if (!raw?.trim()) continue;
+    const norm = normalizeTeamNameKey(raw);
+    if (norm) keys.add(norm);
+  }
+  return [...keys];
 }
 
 function logoIdForTeam(team: TeamOption): number | null {
-  const byName = TEAM_LOGO_NAME_TO_ID[normalizeTeamName(team.name)];
-  if (byName) return byName;
-
-  const expectedName = TEAM_LOGO_ID_TO_NAME[team.id];
-  if (expectedName && normalizeTeamName(expectedName) === normalizeTeamName(team.name)) {
-    return team.id;
+  for (const key of logoLookupKeys(team)) {
+    const byName = TEAM_LOGO_NAME_TO_ID[key];
+    if (byName) return byName;
   }
+
+  if (TEAM_LOGO_ID_TO_NAME[team.id]) return team.id;
 
   return null;
 }
@@ -98,7 +100,8 @@ export function resolveTeamLogo(team: TeamOption, entityType?: EntityType): stri
     return nationalFlagUrl(team.name) ?? localTeamLogoPath(team.id);
   }
   const id = logoIdForTeam(team);
-  return id ? localTeamLogoPath(id) : "";
+  if (id) return localTeamLogoPath(id);
+  return localTeamLogoPath(team.id);
 }
 
 export function enrichTeamWithLogo(team: TeamOption, entityType?: EntityType): TeamOption {

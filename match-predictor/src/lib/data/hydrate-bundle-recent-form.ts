@@ -1,5 +1,7 @@
-import { mapEventToFixtureResult } from "@/lib/api/sportapi/mappers";
-import { resolveFormEventsForTeam } from "@/lib/data/assemble-football-bundle";
+import { resolveRecentFormFixturesForTeam } from "@/lib/data/assemble-football-bundle";
+import {
+  needsRecentFormHydration,
+} from "@/lib/fbref/comparison-fallback";
 import { isMockFixtureForm } from "@/lib/mocks/football";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import type { FootballBundle } from "@/lib/types/football";
@@ -19,7 +21,11 @@ export async function hydrateFootballBundleRecentForm(
     awayTeamName?: string;
   }
 ): Promise<FootballBundle> {
-  if (!isMockFixtureForm(bundle.homeForm) && !isMockFixtureForm(bundle.awayForm)) {
+  const homeNeeds =
+    isMockFixtureForm(bundle.homeForm) || needsRecentFormHydration(bundle.homeForm);
+  const awayNeeds =
+    isMockFixtureForm(bundle.awayForm) || needsRecentFormHydration(bundle.awayForm);
+  if (!homeNeeds && !awayNeeds) {
     return bundle;
   }
 
@@ -38,22 +44,32 @@ export async function hydrateFootballBundleRecentForm(
     bundle.fixture.teams.away.name ||
     bundle.awayTeamInfo.team.name;
 
-  const [homeFormEvents, awayFormEvents] = await Promise.all([
-    resolveFormEventsForTeam(supabase, homeLeagueId, options.homeTeamId, homeName),
-    resolveFormEventsForTeam(supabase, awayLeagueId, options.awayTeamId, awayName),
+  const [homeForm, awayForm] = await Promise.all([
+    homeNeeds
+      ? resolveRecentFormFixturesForTeam(
+          supabase,
+          homeLeagueId,
+          options.homeTeamId,
+          homeName
+        )
+      : Promise.resolve(bundle.homeForm),
+    awayNeeds
+      ? resolveRecentFormFixturesForTeam(
+          supabase,
+          awayLeagueId,
+          options.awayTeamId,
+          awayName
+        )
+      : Promise.resolve(bundle.awayForm),
   ]);
 
-  if (!homeFormEvents.length && !awayFormEvents.length) {
+  if (!homeForm.length && !awayForm.length) {
     return bundle;
   }
 
   return {
     ...bundle,
-    homeForm: homeFormEvents.length
-      ? homeFormEvents.slice(0, 5).map(mapEventToFixtureResult)
-      : bundle.homeForm,
-    awayForm: awayFormEvents.length
-      ? awayFormEvents.slice(0, 5).map(mapEventToFixtureResult)
-      : bundle.awayForm,
+    homeForm: homeForm.length ? homeForm : bundle.homeForm,
+    awayForm: awayForm.length ? awayForm : bundle.awayForm,
   };
 }

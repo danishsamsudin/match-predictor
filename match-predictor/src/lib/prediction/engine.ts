@@ -6,7 +6,14 @@ import {
 } from "@/lib/api/football";
 import { getWeatherForecast } from "@/lib/api/weather";
 import { enrichLineupsWithRatings } from "@/lib/data/enrich-lineup-ratings";
-import { getLeagueStrengthMultiplier, getTeamCity, resolveDomesticLeagueId } from "@/lib/data/football-reference";
+import { getTeamCity, resolveDomesticLeagueId } from "@/lib/data/football-reference";
+import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
+import {
+  formatStrengthExplanationLine,
+  getTeamStrengthMultiplier,
+  normalizeFormScoreToBenchmark,
+  normalizeTeamStatsToBenchmark,
+} from "@/lib/prediction/team-strength";
 import { computeBaseProbability, computeMomentumIndex } from "@/lib/prediction/base-probability";
 import {
   resolveLeagueStrengthForTeam,
@@ -16,13 +23,15 @@ import {
   computeMarketAnalytics,
   computeOutcomeProbabilities,
   parseSeasonStat,
-  resolveCupFinalCorrelation,
+  resolveScoreMatrixCorrelation,
+  resolveScoreMatrixMaxGoals,
 } from "@/lib/prediction/market-probabilities";
 import { computeLineupImpact } from "@/lib/prediction/lineup-impact";
 import { isHighStakesCupFinal, isNeutralVenue } from "@/lib/prediction/neutral-venue";
 import { computeStadiumImpact } from "@/lib/prediction/stadium-impact";
 import { computeWeatherImpact } from "@/lib/prediction/weather-impact";
 import { buildTeamComparisonSnapshot } from "@/lib/data/build-team-comparison";
+import { ensureFifaRankingsLoaded } from "@/lib/data/fifa-rankings-store";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { resolveCityCoordinates } from "@/lib/utils/geo";
 import { resolveTeamShortLabelsForMatch } from "@/lib/utils/team-display-name";
@@ -81,6 +90,7 @@ function normalizeTo100(
 const HIGH_STAKES_XG_CAUTION = 0.92;
 
 export async function runPrediction(input: PredictRequest): Promise<PredictionResult> {
+  await ensureFifaRankingsLoaded();
   const { homeTeamId, awayTeamId, city, matchDate } = input;
 
   const [bundle, weather] = await Promise.all([
@@ -119,24 +129,52 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     }),
   ]);
 
-  const homeFormScore = computeFormScore(bundle.homeForm, homeTeamId);
-  const awayFormScore = computeFormScore(bundle.awayForm, awayTeamId);
+  const homeLeagueIdForStrength = resolveLeagueStrengthForTeam({
+    fixtureLeagueId,
+    domesticLeagueId: homeDomesticLeagueId,
+    explicitLeagueId: input.homeLeagueId,
+  });
+  const awayLeagueIdForStrength = resolveLeagueStrengthForTeam({
+    fixtureLeagueId,
+    domesticLeagueId: awayDomesticLeagueId,
+    explicitLeagueId: input.awayLeagueId,
+  });
+
+  const strengthCtx = {
+    entityType: input.entityType,
+    leagueId: fixtureLeagueId,
+    homeTeamId,
+    awayTeamId,
+  };
+
+  const homeStrengthCtx = {
+    entityType: input.entityType,
+    teamId: homeTeamId,
+    teamName: input.homeTeamName,
+    leagueId: homeLeagueIdForStrength,
+  };
+  const awayStrengthCtx = {
+    entityType: input.entityType,
+    teamId: awayTeamId,
+    teamName: input.awayTeamName,
+    leagueId: awayLeagueIdForStrength,
+  };
+
+  const homeLeagueStrength = getTeamStrengthMultiplier(homeStrengthCtx);
+  const awayLeagueStrength = getTeamStrengthMultiplier(awayStrengthCtx);
+
+  const homeFormScore = normalizeFormScoreToBenchmark(
+    computeFormScore(bundle.homeForm, homeTeamId),
+    homeStrengthCtx
+  );
+  const awayFormScore = normalizeFormScoreToBenchmark(
+    computeFormScore(bundle.awayForm, awayTeamId),
+    awayStrengthCtx
+  );
   const h2h = computeH2HRates(bundle.h2h, homeTeamId);
 
-  const homeLeagueStrength = getLeagueStrengthMultiplier(
-    resolveLeagueStrengthForTeam({
-      fixtureLeagueId,
-      domesticLeagueId: homeDomesticLeagueId,
-      explicitLeagueId: input.homeLeagueId,
-    })
-  );
-  const awayLeagueStrength = getLeagueStrengthMultiplier(
-    resolveLeagueStrengthForTeam({
-      fixtureLeagueId,
-      domesticLeagueId: awayDomesticLeagueId,
-      explicitLeagueId: input.awayLeagueId,
-    })
-  );
+  const homeStatsBenchmark = normalizeTeamStatsToBenchmark(homeStats, homeStrengthCtx);
+  const awayStatsBenchmark = normalizeTeamStatsToBenchmark(awayStats, awayStrengthCtx);
 
   const base = computeBaseProbability({
     homeFormScore,
@@ -146,8 +184,8 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     h2hAwayWinRate: h2h.awayWinRate,
     homeLeagueStrength,
     awayLeagueStrength,
-    homeStats,
-    awayStats,
+    homeStats: homeStatsBenchmark,
+    awayStats: awayStatsBenchmark,
     isNeutralVenue: neutralVenue,
   });
 
@@ -161,13 +199,20 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     h2hMeetingCount: bundle.h2h.length,
     homeLeagueStrength,
     awayLeagueStrength,
-    homeStats,
-    awayStats,
+    homeLeagueId: homeLeagueIdForStrength,
+    awayLeagueId: awayLeagueIdForStrength,
+    entityType: input.entityType,
+    homeTeamId,
+    awayTeamId,
+    homeTeamName: input.homeTeamName,
+    awayTeamName: input.awayTeamName,
+    homeStats: homeStatsBenchmark,
+    awayStats: awayStatsBenchmark,
   });
 
   const firstTeamToScorePct = computeFirstTeamToScorePct(
-    homeStats,
-    awayStats,
+    homeStatsBenchmark,
+    awayStatsBenchmark,
     homeFormScore,
     awayFormScore
   );
@@ -188,7 +233,11 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     awayTeamId
   );
 
-  const weatherImpact = computeWeatherImpact(weather, homeStats, awayStats);
+  const weatherImpact = computeWeatherImpact(
+    weather,
+    homeStatsBenchmark,
+    awayStatsBenchmark
+  );
 
   const matchLocation =
     weather.lat != null && weather.lon != null
@@ -199,11 +248,24 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
           lon: -0.12,
         };
 
-  const homeTeamCity = getTeamCity(homeTeamId) || bundle.homeTeamInfo.venue.city;
-  const awayTeamCity = getTeamCity(awayTeamId) || bundle.awayTeamInfo.venue.city;
+  const homeTeamCity =
+    getTeamCity(homeTeamId, {
+      entityType: input.entityType,
+      teamName: input.homeTeamName ?? bundle.homeTeamInfo.team.name,
+    }) || bundle.homeTeamInfo.venue.city;
+  const awayTeamCity =
+    getTeamCity(awayTeamId, {
+      entityType: input.entityType,
+      teamName: input.awayTeamName ?? bundle.awayTeamInfo.team.name,
+    }) || bundle.awayTeamInfo.venue.city;
+
+  const homeVenueName =
+    getCanonicalTeamHomeVenue(homeTeamId, bundle.homeTeamInfo.team.name)?.name ??
+    bundle.homeTeamInfo.venue.name ??
+    bundle.fixture.fixture.venue.name;
 
   const stadium = computeStadiumImpact(
-    bundle.fixture.fixture.venue.name,
+    homeVenueName,
     matchLocation,
     {
       city: homeTeamCity,
@@ -217,7 +279,7 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
         resolveCityCoordinates(awayTeamCity) ??
         resolveCityCoordinates(bundle.awayTeamInfo.venue.city),
     },
-    { isNeutralVenue: neutralVenue }
+    { isNeutralVenue: neutralVenue, matchCity: city }
   );
 
   let homeXg = base.homeXg;
@@ -247,8 +309,9 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   homeXg = Math.round(homeXg * 100) / 100;
   awayXg = Math.round(awayXg * 100) / 100;
 
-  const scoreCorrelation = resolveCupFinalCorrelation(homeXg, awayXg, highStakesCup);
-  const probs = computeOutcomeProbabilities(homeXg, awayXg, 8, {
+  const scoreMatrixMaxGoals = resolveScoreMatrixMaxGoals(homeXg, awayXg);
+  const scoreCorrelation = resolveScoreMatrixCorrelation(homeXg, awayXg, highStakesCup);
+  const probs = computeOutcomeProbabilities(homeXg, awayXg, scoreMatrixMaxGoals, {
     correlation: scoreCorrelation,
   });
   const { homeWinPct, drawPct, awayWinPct } = normalizeTo100(
@@ -293,7 +356,13 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     highStakesCup
       ? `High-stakes cup tie — xG deflated ${((1 - HIGH_STAKES_XG_CAUTION) * 100).toFixed(0)}% and Dixon-Coles draw correlation ρ=${scoreCorrelation.toFixed(2)} applied.`
       : null,
-    `League strength Ω - ${homeTeamName}: ${homeLeagueStrength.toFixed(2)}, ${awayTeamName}: ${awayLeagueStrength.toFixed(2)}.`,
+    formatStrengthExplanationLine(
+      homeTeamName,
+      awayTeamName,
+      homeLeagueStrength,
+      awayLeagueStrength,
+      strengthCtx
+    ),
     `Momentum index: ${momentumIndex.toFixed(3)} (form 35% + H2H 65%).`,
     `${homeTeamName} form score: ${(homeFormScore * 100).toFixed(0)}% | ${awayTeamName} form score: ${(awayFormScore * 100).toFixed(0)}%.`,
     h2h.hasData
@@ -343,13 +412,33 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   }
 
   if (!statComparison.length) {
+    const crossLeague = homeLeagueIdForStrength !== awayLeagueIdForStrength;
+    const h = crossLeague ? homeStatsBenchmark : homeStats;
+    const a = crossLeague ? awayStatsBenchmark : awayStats;
     statComparison.push(
-      { metric: "Goals scored / game", home: homeStats.goalsFor, away: awayStats.goalsFor },
-      { metric: "Goals conceded / game", home: homeStats.goalsAgainst, away: awayStats.goalsAgainst },
-      { metric: "Corners / game", home: homeStats.corners, away: awayStats.corners },
-      { metric: "Shots on target / game", home: homeStats.shotsOnTarget, away: awayStats.shotsOnTarget }
+      { metric: "Goals scored / game", home: h.goalsFor, away: a.goalsFor },
+      { metric: "Goals conceded / game", home: h.goalsAgainst, away: a.goalsAgainst },
+      { metric: "Corners / game", home: h.corners, away: a.corners },
+      { metric: "Shots on target / game", home: h.shotsOnTarget, away: a.shotsOnTarget }
     );
   }
+
+  const historicalMarkets =
+    teamComparison?.home.insights?.bettingTrends &&
+    teamComparison?.away.insights?.bettingTrends
+      ? {
+          home: {
+            bttsYesPct: teamComparison.home.insights.bettingTrends.bttsYesPct,
+            over25Pct: teamComparison.home.insights.bettingTrends.over25Pct,
+            sampleSize: teamComparison.home.insights.bettingTrends.windowSize,
+          },
+          away: {
+            bttsYesPct: teamComparison.away.insights.bettingTrends.bttsYesPct,
+            over25Pct: teamComparison.away.insights.bettingTrends.over25Pct,
+            sampleSize: teamComparison.away.insights.bettingTrends.windowSize,
+          },
+        }
+      : undefined;
 
   const analytics = computeMarketAnalytics(homeXg, awayXg, {
     h2hHomeWinRate: h2h.homeWinRate,
@@ -373,7 +462,12 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     ],
     statComparison,
     correlation: scoreCorrelation,
+    heatmapMaxGoals: scoreMatrixMaxGoals,
   });
+
+  if (historicalMarkets) {
+    analytics.historicalMarkets = historicalMarkets;
+  }
 
   return {
     homeTeamName,

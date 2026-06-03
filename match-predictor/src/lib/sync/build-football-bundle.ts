@@ -4,8 +4,9 @@ import {
   mapLineups,
   mapStandingsRowToTeamStatistics,
   enrichTeamStatsFromMatchStatistics,
+  mapTeamInfo,
 } from "@/lib/api/sportapi/mappers";
-import type { FootballBundle, TopScorer } from "@/lib/types/football";
+import type { FixtureResult, FootballBundle, TopScorer } from "@/lib/types/football";
 import type { SportApiEvent, SportApiLineupsResponse, SportApiStatisticsResponse } from "@/lib/types/sportapi";
 
 export function buildFootballBundleFromParts(input: {
@@ -18,8 +19,10 @@ export function buildFootballBundleFromParts(input: {
   lineups?: SportApiLineupsResponse;
   homeStandingsRow?: Parameters<typeof mapStandingsRowToTeamStatistics>[0];
   awayStandingsRow?: Parameters<typeof mapStandingsRowToTeamStatistics>[0];
-  homeFormEvents: SportApiEvent[];
-  awayFormEvents: SportApiEvent[];
+  homeFormEvents?: SportApiEvent[];
+  awayFormEvents?: SportApiEvent[];
+  homeForm?: FixtureResult[];
+  awayForm?: FixtureResult[];
   h2hEvents: SportApiEvent[];
   topScorers?: TopScorer[];
   venueCity?: string;
@@ -96,35 +99,26 @@ export function buildFootballBundleFromParts(input: {
     fixture,
     homeStats,
     awayStats,
-    homeForm: input.homeFormEvents.slice(0, 5).map(mapEventToFixtureResult),
-    awayForm: input.awayFormEvents.slice(0, 5).map(mapEventToFixtureResult),
+    homeForm: input.homeForm?.length
+      ? input.homeForm.slice(0, 10)
+      : (input.homeFormEvents ?? []).slice(0, 10).map(mapEventToFixtureResult),
+    awayForm: input.awayForm?.length
+      ? input.awayForm.slice(0, 10)
+      : (input.awayFormEvents ?? []).slice(0, 10).map(mapEventToFixtureResult),
     h2h: input.h2hEvents.slice(0, 10).map(mapEventToFixtureResult),
     lineups,
     topScorers: input.topScorers ?? [],
-    homeTeamInfo: {
-      team: { id: input.homeTeamId, name: input.event.homeTeam.name, country: "" },
-      venue: {
-        id: 0,
-        name: fixture.fixture.venue.name,
-        address: "",
-        city: fixture.fixture.venue.city,
-        capacity: 40000,
-        surface: "grass",
-        image: "",
-      },
-    },
-    awayTeamInfo: {
-      team: { id: input.awayTeamId, name: input.event.awayTeam.name, country: "" },
-      venue: {
-        id: 0,
-        name: `${input.event.awayTeam.name} Stadium`,
-        address: "",
-        city: fixture.fixture.venue.city,
-        capacity: 40000,
-        surface: "grass",
-        image: "",
-      },
-    },
+    homeTeamInfo: mapTeamInfo(
+      input.homeTeamId,
+      input.event.homeTeam.name,
+      fixture.fixture.venue.city,
+      fixture.fixture.venue.name
+    ),
+    awayTeamInfo: mapTeamInfo(
+      input.awayTeamId,
+      input.event.awayTeam.name,
+      fixture.fixture.venue.city
+    ),
   };
 }
 

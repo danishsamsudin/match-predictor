@@ -160,6 +160,29 @@ export async function importScoutlystCsv(input: {
 
   for (let i = 0; i < upsertPayloads.length; i += UPSERT_CHUNK) {
     const chunk = upsertPayloads.slice(i, i + UPSERT_CHUNK);
+    const playerKeys = [...new Set(chunk.map((row) => row.scoutlyst_player_key))];
+    const { data: existingRows } = await supabase
+      .from("scoutlyst_player_snapshots")
+      .select("scoutlyst_player_key, stats")
+      .eq("snapshot_date", snapshotDate)
+      .in("scoutlyst_player_key", playerKeys);
+
+    const existingStatsByKey = new Map<string, Record<string, string | number | null>>();
+    for (const row of existingRows ?? []) {
+      const stats =
+        row.stats && typeof row.stats === "object" && !Array.isArray(row.stats)
+          ? (row.stats as Record<string, string | number | null>)
+          : {};
+      existingStatsByKey.set(row.scoutlyst_player_key, stats);
+    }
+
+    for (const row of chunk) {
+      const previous = existingStatsByKey.get(row.scoutlyst_player_key);
+      if (previous) {
+        row.stats = { ...previous, ...row.stats };
+      }
+    }
+
     const { error } = await supabase
       .from("scoutlyst_player_snapshots")
       .upsert(chunk, { onConflict: "scoutlyst_player_key,snapshot_date" });

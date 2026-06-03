@@ -50,8 +50,8 @@ export const TEAM_COMPARISON_GLOSSARY: Record<string, ReactNode> = {
   Position: <>Usual playing position (GK, DEF, MID, FWD).</>,
   "Performance score": (
     <>
-      0–100 score from Scoutlyst PPM when imported, otherwise rolling match ratings from our
-      database. Higher is better.
+      0–100 score from Scoutlyst PPM and/or SofaScore match ratings, then adjusted to a Premier
+      League benchmark (weaker domestic leagues are discounted). Higher is better.
     </>
   ),
 };
