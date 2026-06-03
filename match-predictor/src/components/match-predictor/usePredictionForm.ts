@@ -75,6 +75,48 @@ export function usePredictionForm() {
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState(defaultTime);
   const [fixtureNotice, setFixtureNotice] = useState<string | null>(null);
+  const [systemNotice, setSystemNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSystemStatus() {
+      try {
+        const res = await fetch("/api/football/status");
+        const data = (await res.json()) as {
+          mode?: string;
+          mockReason?: string | null;
+          dataSource?: string;
+          syncStatus?: { lastSuccessAt?: string | null };
+          message?: string;
+        };
+        if (cancelled) return;
+
+        if (data.mode === "mock") {
+          setSystemNotice(
+            "This deployment is using placeholder football data because live data is not configured. Add RAPIDAPI_KEY or DATA_SOURCE=supabase with Supabase sync on the host."
+          );
+          return;
+        }
+
+        if (data.dataSource === "supabase" && !data.syncStatus?.lastSuccessAt) {
+          setSystemNotice(
+            "Football data sync has not completed yet. Predictions may be incomplete until the daily sync runs or you trigger POST /api/cron/sync."
+          );
+          return;
+        }
+
+        setSystemNotice(null);
+      } catch {
+        if (!cancelled) setSystemNotice(null);
+      }
+    }
+
+    void loadSystemStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const fetchLeagues = useCallback(async (country: string, type: EntityType) => {
     const res = await fetch(
@@ -490,6 +532,7 @@ export function usePredictionForm() {
     time,
     setTime,
     fixtureNotice,
+    systemNotice,
     homeLeagueName,
     awayLeagueName,
     matchLeagueName,

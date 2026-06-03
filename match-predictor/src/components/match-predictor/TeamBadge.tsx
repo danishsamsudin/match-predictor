@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { EntityType, TeamOption } from "@/lib/types/football-lookup";
-import { localTeamLogoPath, resolveTeamLogo } from "@/lib/data/team-logos";
+import { resolveTeamLogo } from "@/lib/data/team-logos";
 import { teamInitials } from "./utils";
 
 export function TeamBadge({
@@ -17,7 +17,6 @@ export function TeamBadge({
   className?: string;
 }) {
   const primary = team ? resolveTeamLogo(team, entityType) : "";
-  const fallback = team ? localTeamLogoPath(team.id) : "";
   const [src, setSrc] = useState(primary);
   const [broken, setBroken] = useState(false);
 
@@ -49,11 +48,7 @@ export function TeamBadge({
       className={`rounded-xl object-contain ${className}`}
       referrerPolicy="no-referrer"
       onError={() => {
-        if (src !== fallback && fallback) {
-          setSrc(fallback);
-        } else {
-          setBroken(true);
-        }
+        setBroken(true);
       }}
     />
   );

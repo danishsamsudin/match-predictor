@@ -1,5 +1,5 @@
 import type { EntityType, TeamOption } from "@/lib/types/football-lookup";
-import { TEAM_LOGO_ID_TO_NAME, TEAM_LOGO_NAME_TO_ID } from "@/lib/data/team-logo-manifest";
+import { TEAM_LOGO_NAME_TO_ID } from "@/lib/data/team-logo-manifest";
 import { normalizeTeamName as normalizeTeamNameKey } from "@/lib/soccerdata/normalize";
 
 /** Public path for a locally stored team badge (see scripts/download-team-logos.mjs). */
@@ -83,25 +83,27 @@ function logoLookupKeys(team: TeamOption): string[] {
   return [...keys];
 }
 
-function logoIdForTeam(team: TeamOption): number | null {
+/** SofaScore logo id from team name (never use upstream team.id — API-Football ids collide). */
+export function resolveLogoIdForTeam(team: TeamOption): number | null {
   for (const key of logoLookupKeys(team)) {
     const byName = TEAM_LOGO_NAME_TO_ID[key];
     if (byName) return byName;
   }
-
-  if (TEAM_LOGO_ID_TO_NAME[team.id]) return team.id;
-
   return null;
 }
 
 export function resolveTeamLogo(team: TeamOption, entityType?: EntityType): string {
-  if (team.logo) return team.logo;
   if (entityType === "national") {
-    return nationalFlagUrl(team.name) ?? localTeamLogoPath(team.id);
+    const flag = nationalFlagUrl(team.name);
+    if (flag) return flag;
+    const id = resolveLogoIdForTeam(team);
+    return id ? localTeamLogoPath(id) : "";
   }
-  const id = logoIdForTeam(team);
+
+  const id = resolveLogoIdForTeam(team);
   if (id) return localTeamLogoPath(id);
-  return localTeamLogoPath(team.id);
+
+  return "";
 }
 
 export function enrichTeamWithLogo(team: TeamOption, entityType?: EntityType): TeamOption {

@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "logos:download": "node scripts/download-team-logos.mjs",
+    "logos:download:force": "node scripts/download-team-logos.mjs --force",
+    "logos:repair": "node scripts/repair-team-logos.mjs",
     "cities:generate": "node scripts/generate-team-cities.mjs",
     "test:live": "bash scripts/test-live-apis.sh",
     "soccerdata:install": "python3 -m pip install -r services/soccerdata/requirements.txt",

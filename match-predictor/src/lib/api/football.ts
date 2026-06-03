@@ -1,4 +1,4 @@
-import { shouldUseMockApis } from "@/lib/config/api-mode";
+import { assertProductionFootballDataConfigured, shouldUseMockApis } from "@/lib/config/api-mode";
 import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { usesSportApi } from "@/lib/config/football-provider";
 import { loadFootballBundleFromStore } from "@/lib/data/football-store";
@@ -234,6 +234,8 @@ export async function fetchFootballBundle(
   if (!matchId) {
     throw new UpstreamApiError("Fixture mode requires matchId.");
   }
+
+  assertProductionFootballDataConfigured();
 
   let bundle: FootballBundle;
   if (isSupabaseDataStore()) {

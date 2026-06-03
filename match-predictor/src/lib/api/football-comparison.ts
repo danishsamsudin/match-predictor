@@ -1,4 +1,4 @@
-import { shouldUseMockApis } from "@/lib/config/api-mode";
+import { assertProductionFootballDataConfigured, shouldUseMockApis } from "@/lib/config/api-mode";
 import { isSupabaseDataStore } from "@/lib/config/data-source";
 import { usesSportApi } from "@/lib/config/football-provider";
 import { mapEventToFixtureResult, mapTeamInfo } from "@/lib/api/sportapi/mappers";
@@ -43,6 +43,7 @@ export async function fetchComparisonBundle(
   input: ComparisonBundleInput
 ): Promise<FootballBundle> {
   const readOnlyStore = isSupabaseDataStore();
+  assertProductionFootballDataConfigured();
 
   if (shouldUseMockApis() && !readOnlyStore) {
     return getMockFootballBundle(0, input.homeTeamId, input.awayTeamId);

@@ -22,6 +22,15 @@ export function PredictionForm() {
       message: React.ReactNode;
     }> = [];
 
+    const systemNotice = sanitizeUserFacingMessage(form.systemNotice);
+    if (systemNotice) {
+      items.push({
+        id: "system-notice",
+        variant: "warning",
+        message: systemNotice,
+      });
+    }
+
     const fixtureNotice = sanitizeUserFacingMessage(form.fixtureNotice);
     if (fixtureNotice) {
       items.push({
@@ -41,7 +50,7 @@ export function PredictionForm() {
     }
 
     return items;
-  }, [form.fixtureNotice, form.error]);
+  }, [form.systemNotice, form.fixtureNotice, form.error]);
 
   const showFixturePicker =
     form.inputMode === "fixture" && form.entityType === "club";

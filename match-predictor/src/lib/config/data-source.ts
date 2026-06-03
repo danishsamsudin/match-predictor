@@ -1,10 +1,14 @@
 import { serverEnv } from "@/lib/env/server-env";
 import { getAllSyncLeagueIds, getLeaguesBySyncTier } from "@/lib/data/football-reference";
+import { hasServiceRoleKey } from "@/lib/supabase";
 
 /** When true, predictions and lookups read Supabase tables only — no RapidAPI calls. */
 export function isSupabaseDataStore(): boolean {
   const raw = serverEnv.dataSource?.toLowerCase();
-  return raw === "supabase" || serverEnv.useSupabaseData;
+  if (raw === "live") return false;
+  if (raw === "supabase" || serverEnv.useSupabaseData) return true;
+  // Production-friendly default when Supabase is wired but DATA_SOURCE was not set.
+  return hasServiceRoleKey() && Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim());
 }
 
 export function getSyncIntervalDays(): number {

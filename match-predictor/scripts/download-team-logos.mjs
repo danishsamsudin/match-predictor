@@ -248,9 +248,13 @@ async function main() {
     process.exit(1);
   }
 
+  const force = process.argv.includes("--force");
+
   const host = getSofascoreHost();
   const wcPath = path.join(root, "src/lib/data/world-cup-2026-teams.ts");
-  let teams = uniqueTeams(collectTeamsFromSource(wcPath));
+  const wcTeams = uniqueTeams(collectTeamsFromSource(wcPath));
+  let teams = [...wcTeams];
+  let clubTeamsFromLeagues = 0;
 
   console.log(`SofaScore host: ${host}`);
   console.log(`Fetching club teams from ${UNIQUE_TOURNAMENT_IDS.length} competitions…`);
@@ -258,6 +262,7 @@ async function main() {
   for (const tournamentId of UNIQUE_TOURNAMENT_IDS) {
     try {
       const fromLeague = await fetchLeagueTeams(apiKey, host, tournamentId);
+      clubTeamsFromLeagues += fromLeague.length;
       teams = uniqueTeams([...teams, ...fromLeague]);
       process.stdout.write(`  tournament ${tournamentId}: ${fromLeague.length} teams\n`);
     } catch (err) {
@@ -266,9 +271,24 @@ async function main() {
     await new Promise((r) => setTimeout(r, 120));
   }
 
+  const minClubTeamsForManifest = 80;
+  if (clubTeamsFromLeagues < minClubTeamsForManifest) {
+    console.warn(
+      `\nOnly ${clubTeamsFromLeagues} club teams from leagues (API quota/errors). ` +
+        `Keeping existing team-logo-manifest.ts — run npm run logos:repair to fix badge files.`
+    );
+    const manifestText = fs.readFileSync(manifestPath, "utf8");
+    const existing = [];
+    for (const m of manifestText.matchAll(/"(\d+)":\s*"([^"]+)"/g)) {
+      existing.push({ id: Number(m[1]), name: m[2] });
+    }
+    teams = uniqueTeams([...existing, ...teams]);
+  } else {
+    writeManifest(teams);
+  }
+
   console.log(`\nTotal unique teams: ${teams.length}`);
   fs.mkdirSync(outDir, { recursive: true });
-  writeManifest(teams);
 
   let ok = 0;
   let fail = 0;
@@ -276,7 +296,7 @@ async function main() {
 
   for (const team of teams) {
     const dest = path.join(outDir, `${team.id}.png`);
-    if (fs.existsSync(dest) && fs.statSync(dest).size > 200) {
+    if (!force && fs.existsSync(dest) && fs.statSync(dest).size > 200) {
       skipped++;
       continue;
     }
@@ -305,18 +325,6 @@ async function main() {
         }
       } catch {
         /* try api-sports fallback below */
-      }
-    }
-
-    if (!saved) {
-      const apiSportsBuf = await downloadBytes(
-        `https://media.api-sports.io/football/teams/${team.id}.png`
-      );
-      if (apiSportsBuf) {
-        fs.writeFileSync(dest, apiSportsBuf);
-        ok++;
-        saved = true;
-        process.stdout.write(`✓ ${team.id} ${team.name} (api-sports)\n`);
       }
     }
 
