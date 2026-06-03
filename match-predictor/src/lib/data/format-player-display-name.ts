@@ -124,7 +124,7 @@ export function formatPlayerDisplayName(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed || !CORRUPT_NAME_PATTERN.test(trimmed)) return trimmed;
 
-  let blob = unglue(trimmed);
+  const blob = unglue(trimmed);
   const words: string[] = [];
   for (const token of blob.split(/\s+/)) {
     words.push(splitRepeatedToken(token));

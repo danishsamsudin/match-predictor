@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { SofascoreFifaRankingRow } from "@/lib/data/parse-sofascore-fifa-html";
 import bundledSnapshot from "../../../data/imports/fifa/fifa-rankings-2026.json";
 

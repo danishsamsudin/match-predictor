@@ -20,14 +20,19 @@ import type {
   TeamSquadProfileInsights,
   TeamVsTop20Insights,
 } from "@/lib/types/team-betting-insights";
+import { BETTING_INSIGHTS_WINDOW } from "@/lib/data/team-comparison-utils";
 
-export const BETTING_INSIGHTS_WINDOW = 10;
+export { BETTING_INSIGHTS_WINDOW };
 
 const WCQ_COMPETITION_RE =
   /wcq|world cup qual|qualification|qualifying|play-?off|playoff|inter-confederation/i;
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 function roundPct(n: number): number {
@@ -377,7 +382,7 @@ export function buildFifaRankingInsights(
   if (!entry || !snapshot) return null;
   return {
     rank: entry.rank,
-    points: round1(entry.points),
+    points: round2(entry.points),
     snapshotLabel: formatFifaSnapshotLabel(snapshot, getLatestFifaDataSource()),
   };
 }

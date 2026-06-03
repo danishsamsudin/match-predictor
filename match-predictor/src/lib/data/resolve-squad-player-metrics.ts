@@ -20,11 +20,22 @@ export function playerNameLookupKeys(displayName: string): string[] {
   const norm = normalizeText(displayName);
   const parts = norm.split(" ").filter(Boolean);
   const keys = [norm];
+  if (parts.length === 1) {
+    return keys;
+  }
   if (parts.length >= 2) {
     keys.push(`${parts[0]} ${parts[parts.length - 1]}`);
     keys.push(`${parts[parts.length - 1]} ${parts[0]}`);
+    keys.push(parts[parts.length - 1]);
+    keys.push(parts[0]);
   }
   return [...new Set(keys)];
+}
+
+function surnameLookupKeys(displayName: string): string[] {
+  const parts = normalizeText(displayName).split(" ").filter(Boolean);
+  if (parts.length < 2) return parts.length === 1 ? [parts[0]] : [];
+  return [...new Set([parts[parts.length - 1], parts[0]])];
 }
 
 function pickHigherOverall(
@@ -148,6 +159,37 @@ export async function loadScoutlystSnapshotsByNames(
     }
   }
 
+  if (options?.teamId != null) {
+    const teamMissing = displayNames.filter((displayName) => !isResolved(displayName));
+    for (const displayName of teamMissing) {
+      for (const surname of surnameLookupKeys(displayName)) {
+        if (!surname || surname.length < 3) continue;
+        const { data } = await supabase
+          .from("scoutlyst_player_snapshots")
+          .select(
+            "scoutlyst_player_key, player_name, sofascore_player_id, position, age, rating, stats, snapshot_date, reference_league_id, reference_team_id"
+          )
+          .eq("reference_team_id", options.teamId)
+          .ilike("player_name", `%${surname}%`)
+          .order("snapshot_date", { ascending: false })
+          .limit(8);
+
+        for (const row of data ?? []) {
+          const rowKeys = playerNameLookupKeys(row.player_name);
+          const rowSurnames = surnameLookupKeys(row.player_name);
+          const matches =
+            rowKeys.some((key) => wanted.has(key)) ||
+            rowSurnames.some((s) => surnameLookupKeys(displayName).includes(s));
+          if (!matches) continue;
+          for (const key of playerNameLookupKeys(displayName)) {
+            if (byName.has(key)) continue;
+            byName.set(key, mapRow(row));
+          }
+        }
+      }
+    }
+  }
+
   return byName;
 }
 
@@ -243,9 +285,11 @@ export async function loadSofifaOverallByTeam(
 
   const byName = new Map<string, number>();
   for (const row of data ?? []) {
-    const key = normalizeText(row.name);
-    if (!key || row.sofifa_overall == null || byName.has(key)) continue;
-    byName.set(key, Number(row.sofifa_overall));
+    if (row.sofifa_overall == null) continue;
+    const overall = Number(row.sofifa_overall);
+    for (const key of playerNameLookupKeys(row.name)) {
+      pickHigherOverall(byName, key, overall);
+    }
   }
   return byName;
 }

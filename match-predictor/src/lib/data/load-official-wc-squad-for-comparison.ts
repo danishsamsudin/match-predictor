@@ -23,6 +23,7 @@ import {
   loadMatchRatingsByPlayerIds,
   loadScoutlystSnapshotsByNames,
   loadSofifaOverallByNames,
+  loadSofifaOverallByTeam,
   maxPerformanceInputs,
   resolveScoutlystSnapshot,
   resolveSofifaOverall,
@@ -164,13 +165,19 @@ export async function loadOfficialWcSquadForComparison(
     : null;
   const formationForXi = formation ?? "4-3-3";
 
-  const [scoutlystByName, sofifaGlobal, lineupAgg] = supabase
+  const [scoutlystByName, sofifaGlobal, sofifaTeam, lineupAgg] = supabase
     ? await Promise.all([
         loadScoutlystSnapshotsByNames(supabase, displayNames, { teamId }),
         loadSofifaOverallByNames(supabase, displayNames),
+        loadSofifaOverallByTeam(supabase, teamId),
         aggregateLineupAppearances(supabase, teamId, teamName),
       ])
-    : [new Map<string, ScoutlystSnapshotRow>(), new Map<string, number>(), null];
+    : [
+        new Map<string, ScoutlystSnapshotRow>(),
+        new Map<string, number>(),
+        new Map<string, number>(),
+        null,
+      ];
 
   const lineupIdByName = new Map<string, number>();
   for (const p of lineupAgg?.players ?? []) {
@@ -232,7 +239,7 @@ export async function loadOfficialWcSquadForComparison(
     return toSquadPlayer({
       official: { ...src, name: displayName },
       scoutlyst: scout,
-      sofifaOverall: resolveSofifaOverall(displayName, sofifaGlobal),
+      sofifaOverall: resolveSofifaOverall(displayName, sofifaGlobal, sofifaTeam),
       matchAvgRating: matchRatings.get(sofascorePlayerId) ?? null,
       sofascorePlayerId,
       isStarter,

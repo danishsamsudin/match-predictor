@@ -15,7 +15,7 @@ import {
   loadTeamBettingInsights,
 } from "@/lib/data/load-team-betting-insights";
 import { formStringFromRecentFixtures } from "@/lib/data/team-comparison-form";
-import { BETTING_INSIGHTS_WINDOW } from "@/lib/data/compute-team-betting-insights";
+import { BETTING_INSIGHTS_WINDOW } from "@/lib/data/team-comparison-utils";
 import type { FootballBundle, FixtureResult } from "@/lib/types/football";
 import type {
   TeamComparisonSnapshot,
@@ -243,11 +243,4 @@ export async function buildTeamComparisonSnapshot(
   });
 
   return { home, away, usesDatabaseStats: useDatabaseStats, fixtureContext };
-}
-
-export function displayValue(value: string | null | undefined): string {
-  if (value == null || value === "") return "N/A";
-  const t = value.trim();
-  if (t === "0" || t === "0.0" || t === "0.00") return "N/A";
-  return value;
 }

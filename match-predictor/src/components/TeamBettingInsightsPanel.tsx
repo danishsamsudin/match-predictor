@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Activity, Calendar, Shield, Swords, Target, Trophy, Users } from "lucide-react";
-import { displayValue } from "@/lib/data/build-team-comparison";
+import { displayValue, formatFifaRankingPoints } from "@/lib/data/team-comparison-utils";
 import { TEAM_BETTING_INSIGHTS_GLOSSARY } from "@/lib/prediction/team-betting-insights-glossary";
 import type {
   FixtureContextInsights,
@@ -312,12 +312,12 @@ export function TeamBettingInsightsPanel({
             label="Ranking points"
             homeValue={
               home.insights?.fifaRanking
-                ? String(home.insights.fifaRanking.points)
+                ? formatFifaRankingPoints(home.insights.fifaRanking.points)
                 : "N/A"
             }
             awayValue={
               away.insights?.fifaRanking
-                ? String(away.insights.fifaRanking.points)
+                ? formatFifaRankingPoints(away.insights.fifaRanking.points)
                 : "N/A"
             }
             info={TEAM_BETTING_INSIGHTS_GLOSSARY["FIFA points"]}

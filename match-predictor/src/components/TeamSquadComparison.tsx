@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { displayValue } from "@/lib/data/build-team-comparison";
+import { displayValue } from "@/lib/data/team-comparison-utils";
 import type { SquadPlayer, TeamComparisonSide, TeamSquadSnapshot } from "@/lib/types/team-comparison";
 import { TEAM_COMPARISON_GLOSSARY } from "@/lib/prediction/team-comparison-glossary";
 import { InfoTip } from "./ui/InfoTip";

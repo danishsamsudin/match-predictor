@@ -1,3 +1,5 @@
+import "server-only";
+
 import { normalizeFifaDatasetTeamName } from "@/lib/data/fifa-ranking-aliases";
 import { readOfficialFifaRankingsHtmlRows } from "@/lib/data/official-fifa-rankings-html";
 import type { SofascoreFifaRankingRow } from "@/lib/data/parse-sofascore-fifa-html";

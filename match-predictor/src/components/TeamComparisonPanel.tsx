@@ -5,7 +5,7 @@ import { BarChart3 } from "lucide-react";
 import { TeamBettingInsightsPanel } from "@/components/TeamBettingInsightsPanel";
 import { TeamSquadComparison } from "@/components/TeamSquadComparison";
 import { resolveTeamShortLabel } from "@/lib/utils/team-display-name";
-import { displayValue } from "@/lib/data/build-team-comparison";
+import { displayValue } from "@/lib/data/team-comparison-utils";
 import { formatCalendarDateLocal } from "@/lib/utils/kickoff-display";
 import { TEAM_COMPARISON_GLOSSARY } from "@/lib/prediction/team-comparison-glossary";
 import type {

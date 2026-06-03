@@ -29,6 +29,8 @@
 /data/imports/fbref/**/*.htm
 /data/imports/fifa/**/*
 !/data/imports/fifa/**/.gitkeep
+!/data/imports/fifa/fifa-rankings-2026.json
+!/data/imports/fifa/README.md
 
 # misc
 .DS_Store

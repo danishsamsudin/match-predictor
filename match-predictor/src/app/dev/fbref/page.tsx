@@ -31,6 +31,20 @@ export default function FbrefDevPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const loadPlayers = useCallback(async (teamId: string) => {
+    if (!teamId) return;
+    setError(null);
+    const res = await fetch(`/api/fbref/teams/${teamId}/players`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? res.statusText);
+      setPlayers([]);
+      return;
+    }
+    const json = await res.json();
+    setPlayers(json.players ?? []);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -48,8 +62,10 @@ export default function FbrefDevPage() {
         if (cancelled) return;
         setTeams(teamsJson.teams ?? []);
         setMatches(matchesJson.matches ?? []);
-        if (teamsJson.teams?.length) {
-          setSelectedId(teamsJson.teams[0].id);
+        const firstId = teamsJson.teams?.[0]?.id as string | undefined;
+        if (firstId) {
+          setSelectedId(firstId);
+          await loadPlayers(firstId);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Load failed");
@@ -60,25 +76,7 @@ export default function FbrefDevPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  const loadPlayers = useCallback(async (teamId: string) => {
-    if (!teamId) return;
-    setError(null);
-    const res = await fetch(`/api/fbref/teams/${teamId}/players`);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setError(body.error ?? res.statusText);
-      setPlayers([]);
-      return;
-    }
-    const json = await res.json();
-    setPlayers(json.players ?? []);
-  }, []);
-
-  useEffect(() => {
-    if (selectedId) void loadPlayers(selectedId);
-  }, [selectedId, loadPlayers]);
+  }, [loadPlayers]);
 
   if (loading) {
     return (
@@ -109,7 +107,11 @@ export default function FbrefDevPage() {
         <select
           className="w-full max-w-md rounded-md border bg-background px-3 py-2"
           value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
+          onChange={(e) => {
+            const teamId = e.target.value;
+            setSelectedId(teamId);
+            void loadPlayers(teamId);
+          }}
         >
           {teams.map((t) => (
             <option key={t.id} value={t.id}>
