@@ -47,6 +47,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `SOCCERDATA_DIR` | Cache directory (default `~/soccerdata`) |
 | `SOCCERDATA_TIMEOUT_MS` | Max wait per scrape (default `120000`) |
 
+On Vercel, server env vars must be referenced as literal `process.env.RAPIDAPI_KEY` (not `process.env[name]`) or Next.js will not embed them in production builds. After changing env vars in the Vercel dashboard, **redeploy Production** so the new values are picked up.
+
 ### RapidAPI setup (one key, different hosts)
 
 Every external API uses the same `X-RapidAPI-Key`. Only `X-RapidAPI-Host` changes per subscription:

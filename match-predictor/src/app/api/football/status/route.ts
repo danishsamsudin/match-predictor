@@ -56,6 +56,9 @@ export async function GET() {
       env: {
         useMockApis: serverEnv.useMockApis,
         hasRapidApiKey: Boolean(serverEnv.rapidApiKey),
+        dataSourceConfig: serverEnv.dataSource ?? null,
+        hasSupabaseServiceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+        hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
         primaryHost: getPrimaryFootballHost(),
         secondaryHost: getSecondaryFootballHost(),
       },

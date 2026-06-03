@@ -7,8 +7,7 @@ export const OPEN_METEO_VERSION = versionManifest.version;
 /** Open-Meteo free tier: 10,000 calls/day (see https://open-meteo.com/en/pricing). */
 export const OPEN_METEO_FREE_DAILY_LIMIT = 10_000;
 
-function read(name: string): string | undefined {
-  const value = process.env[name];
+function trimEnv(value: string | undefined): string | undefined {
   if (!value || value.trim() === "") return undefined;
   return value.trim();
 }
@@ -19,12 +18,14 @@ function stripTrailingSlash(url: string): string {
 
 /** Forecast API base URL (default: public free tier). */
 export function getOpenMeteoForecastBaseUrl(): string {
-  const custom = read("OPEN_METEO_FORECAST_URL");
+  const custom = trimEnv(process.env.OPEN_METEO_FORECAST_URL);
   if (custom) return stripTrailingSlash(custom);
 
   const apiKey = getOpenMeteoApiKey();
   if (apiKey) {
-    return stripTrailingSlash(read("OPEN_METEO_CUSTOMER_URL") ?? "https://customer-api.open-meteo.com");
+    return stripTrailingSlash(
+      trimEnv(process.env.OPEN_METEO_CUSTOMER_URL) ?? "https://customer-api.open-meteo.com"
+    );
   }
 
   return "https://api.open-meteo.com";
@@ -32,13 +33,14 @@ export function getOpenMeteoForecastBaseUrl(): string {
 
 /** Geocoding API base URL. */
 export function getOpenMeteoGeocodingBaseUrl(): string {
-  const custom = read("OPEN_METEO_GEOCODING_URL");
+  const custom = trimEnv(process.env.OPEN_METEO_GEOCODING_URL);
   if (custom) return stripTrailingSlash(custom);
 
   const apiKey = getOpenMeteoApiKey();
   if (apiKey) {
     return stripTrailingSlash(
-      read("OPEN_METEO_CUSTOMER_GEOCODING_URL") ?? "https://customer-geocoding-api.open-meteo.com"
+      trimEnv(process.env.OPEN_METEO_CUSTOMER_GEOCODING_URL) ??
+        "https://customer-geocoding-api.open-meteo.com"
     );
   }
 
@@ -47,7 +49,7 @@ export function getOpenMeteoGeocodingBaseUrl(): string {
 
 /** Commercial / self-hosted API key (optional). */
 export function getOpenMeteoApiKey(): string | undefined {
-  return read("OPEN_METEO_API_KEY") ?? serverEnv.openMeteoApiKey;
+  return trimEnv(process.env.OPEN_METEO_API_KEY) ?? serverEnv.openMeteoApiKey;
 }
 
 /**

@@ -1,9 +1,8 @@
 /**
- * Server-only environment reads with literal variable names so Next.js
- * includes them from .env.local at dev/build time.
+ * Server-only environment reads with literal `process.env.*` names so Next.js
+ * can inline them at build time (dynamic `process.env[name]` is undefined in production).
  */
-function read(name: string): string | undefined {
-  const value = process.env[name];
+function trimEnv(value: string | undefined): string | undefined {
   if (!value || value.trim() === "") return undefined;
   return value.trim();
 }
@@ -11,44 +10,44 @@ function read(name: string): string | undefined {
 export const serverEnv = {
   get rapidApiKey(): string | undefined {
     return (
-      read("RAPIDAPI_KEY") ??
-      read("FOOTBALL_API_KEY") ??
-      read("WEATHER_API_KEY") ??
-      read("SPORTAPI_KEY")
+      trimEnv(process.env.RAPIDAPI_KEY) ??
+      trimEnv(process.env.FOOTBALL_API_KEY) ??
+      trimEnv(process.env.WEATHER_API_KEY) ??
+      trimEnv(process.env.SPORTAPI_KEY)
     );
   },
   get useMockApis(): boolean {
-    return read("USE_MOCK_APIS") === "true";
+    return trimEnv(process.env.USE_MOCK_APIS) === "true";
   },
   get footballProvider(): string | undefined {
-    return read("FOOTBALL_PROVIDER");
+    return trimEnv(process.env.FOOTBALL_PROVIDER);
   },
   get weatherProvider(): string | undefined {
-    return read("WEATHER_PROVIDER");
+    return trimEnv(process.env.WEATHER_PROVIDER);
   },
   get openMeteoApiKey(): string | undefined {
-    return read("OPEN_METEO_API_KEY");
+    return trimEnv(process.env.OPEN_METEO_API_KEY);
   },
   get sportApiRapidApiHost(): string | undefined {
-    return read("SPORTAPI_RAPIDAPI_HOST");
+    return trimEnv(process.env.SPORTAPI_RAPIDAPI_HOST);
   },
   get footballPrimaryProvider(): string | undefined {
-    return read("FOOTBALL_PRIMARY_PROVIDER");
+    return trimEnv(process.env.FOOTBALL_PRIMARY_PROVIDER);
   },
   get footballSecondaryProvider(): string | undefined {
-    return read("FOOTBALL_SECONDARY_PROVIDER");
+    return trimEnv(process.env.FOOTBALL_SECONDARY_PROVIDER);
   },
   get dataSource(): string | undefined {
-    return read("DATA_SOURCE");
+    return trimEnv(process.env.DATA_SOURCE);
   },
   get useSupabaseData(): boolean {
-    return read("USE_SUPABASE_DATA") === "true";
+    return trimEnv(process.env.USE_SUPABASE_DATA) === "true";
   },
   get soccerdataDir(): string | undefined {
-    return read("SOCCERDATA_DIR");
+    return trimEnv(process.env.SOCCERDATA_DIR);
   },
   get soccerdataEnabled(): boolean {
-    return read("SOCCERDATA_ENABLED") !== "false";
+    return trimEnv(process.env.SOCCERDATA_ENABLED) !== "false";
   },
 };
 

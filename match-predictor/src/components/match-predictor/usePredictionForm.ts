@@ -94,7 +94,7 @@ export function usePredictionForm() {
 
         if (data.mode === "mock") {
           setSystemNotice(
-            "This deployment is using placeholder football data because live data is not configured. Add RAPIDAPI_KEY or DATA_SOURCE=supabase with Supabase sync on the host."
+            "This deployment is using placeholder football data. Confirm RAPIDAPI_KEY and DATA_SOURCE=supabase are set for Production on Vercel, then redeploy. If they are already set, the latest app build may still be required to pick them up."
           );
           return;
         }
