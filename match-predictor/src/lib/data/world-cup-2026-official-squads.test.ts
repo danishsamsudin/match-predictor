@@ -23,4 +23,24 @@ describe("world-cup-2026-official-squads", () => {
     expect(resolveWc2026TeamLabel("IR Iran")).toBe("Iran");
     expect(resolveWc2026TeamLabel(undefined, 4819)).toBe("Argentina");
   });
+
+  it("uses clean display names without PDF glue artifacts", () => {
+    const duplicateWord = /\b(\S+)\s+\1\b/i;
+    const longAllCapsRun = /[A-Z]{6,}/;
+
+    for (const squad of Object.values(OFFICIAL_WC_2026_SQUADS.teams)) {
+      for (const player of squad.players) {
+        expect(player.name, player.name).not.toMatch(duplicateWord);
+        expect(player.name, player.name).not.toMatch(longAllCapsRun);
+      }
+    }
+
+    const netherlands = getOfficialWcTeamSquad("Netherlands");
+    expect(netherlands?.players.find((p) => p.name.includes("Verbruggen"))?.name).toBe(
+      "Bart Verbruggen"
+    );
+    expect(netherlands?.players.find((p) => p.name.includes("Dijk"))?.name).toBe(
+      "Virgil van Dijk"
+    );
+  });
 });

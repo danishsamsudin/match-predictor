@@ -1,4 +1,6 @@
 import { normalizeFifaDatasetTeamName } from "@/lib/data/fifa-ranking-aliases";
+import { readOfficialFifaRankingsHtmlRows } from "@/lib/data/official-fifa-rankings-html";
+import type { SofascoreFifaRankingRow } from "@/lib/data/parse-sofascore-fifa-html";
 import {
   normalizeNationalTeamName,
   WORLD_CUP_2026_TEAMS,
@@ -84,10 +86,57 @@ function rebuildLatestByTeamId(): void {
   latestByTeamId = byId;
 }
 
+/** Latest official ranks from the saved FIFA 2026 HTML (overrides Supabase for that snapshot). */
+function applyOfficialFifaHtmlSnapshot(rows: SofascoreFifaRankingRow[]): void {
+  if (!rows.length) return;
+
+  const rankingYear = rows[0].rankingYear;
+  const semester = rows[0].semester;
+  const key = snapshotKey(rankingYear, semester);
+
+  if (!snapshotIndex) snapshotIndex = new Map();
+  if (!snapshotMeta) snapshotMeta = new Map();
+
+  const byName = new Map<string, FifaRankingEntry>();
+  const byId = new Map<number, FifaRankingEntry>();
+
+  for (const row of rows) {
+    const entry: FifaRankingEntry = {
+      rank: row.rank,
+      points: row.totalPoints,
+      teamName: row.teamName,
+      normalizedName: row.normalizedTeamName,
+    };
+    byName.set(row.normalizedTeamName, entry);
+    if (row.sofascoreTeamId != null) {
+      byId.set(row.sofascoreTeamId, entry);
+    }
+  }
+
+  snapshotIndex.set(key, byName);
+  snapshotMeta.set(key, { dataSource: "fifa" });
+
+  latestSnapshot = { year: rankingYear, semester };
+  latestDataSource = "fifa";
+  latestByTeam = byName;
+  latestByTeamId = byId.size ? byId : null;
+  if (!latestByTeamId?.size) rebuildLatestByTeamId();
+}
+
+async function loadFifaRankings(): Promise<void> {
+  await loadFromSupabase();
+  try {
+    const officialRows = readOfficialFifaRankingsHtmlRows();
+    applyOfficialFifaHtmlSnapshot(officialRows);
+  } catch (err) {
+    console.warn("[fifa-rankings] Could not load official HTML snapshot:", err);
+  }
+}
+
 export async function ensureFifaRankingsLoaded(): Promise<boolean> {
   const cached = snapshotIndex;
   if (cached != null && cached.size > 0) return true;
-  if (!loadPromise) loadPromise = loadFromSupabase();
+  if (!loadPromise) loadPromise = loadFifaRankings();
   await loadPromise;
   const loaded = snapshotIndex;
   return loaded != null && loaded.size > 0;
@@ -235,7 +284,7 @@ export function formatFifaSnapshotLabel(
   const half = snapshot.semester === 1 ? "H1" : "H2";
   const base = `${snapshot.year} ${half}`;
   const source = dataSource ?? latestDataSource;
-  if (source === "sofascore") return `${base} · Sofascore`;
+  if (source === "fifa" || source === "sofascore") return `${base} · FIFA`;
   if (source === "kaggle") return `${base} · Kaggle`;
   return base;
 }

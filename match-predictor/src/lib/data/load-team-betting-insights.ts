@@ -263,7 +263,7 @@ export async function loadTeamBettingInsights(input: {
     shotsConcededPerGame: shotsConceded,
     source,
     teamName: input.teamName,
-    fifaRanking: buildFifaRankingInsights(input.teamName),
+    fifaRanking: buildFifaRankingInsights(input.teamName, input.teamId),
   });
 }
 

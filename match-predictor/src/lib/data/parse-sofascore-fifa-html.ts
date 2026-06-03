@@ -11,7 +11,7 @@ export interface SofascoreFifaRankingRow {
   pointsDiff: number | null;
   acronym: string | null;
   sofascoreTeamId: number | null;
-  dataSource: "sofascore";
+  dataSource: "sofascore" | "fifa";
 }
 
 interface SofascoreRankingRowRaw {

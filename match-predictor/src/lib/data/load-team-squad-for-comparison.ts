@@ -11,6 +11,18 @@ import {
   computePlayerPerformanceScore,
   sofifaOverallToScore,
 } from "@/lib/data/compute-player-performance-score";
+import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
+import {
+  loadMatchRatingsByPlayerIds,
+  loadScoutlystSnapshotsByNames,
+  loadSofifaOverallByNames,
+  loadSofifaOverallByTeam,
+  maxPerformanceInputs,
+  playerNameLookupKeys,
+  resolveScoutlystSnapshot,
+  resolveSofifaOverall,
+  type ScoutlystSnapshotRow,
+} from "@/lib/data/resolve-squad-player-metrics";
 import {
   aggregateLineupAppearances,
   pickLineupStartersFromAppearances,
@@ -35,17 +47,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 type ServiceClient = SupabaseClient<Database>;
 
-type ScoutlystRow = {
-  scoutlyst_player_key: string;
-  player_name: string;
-  sofascore_player_id: number | null;
-  position: string | null;
-  age: number | null;
-  rating: number | null;
-  stats: Record<string, string | number | null>;
-  snapshot_date: string;
-  reference_league_id: number | null;
-};
+type ScoutlystRow = ScoutlystSnapshotRow;
 
 async function loadLatestScoutlystByTeam(
   supabase: ServiceClient,
@@ -87,94 +89,29 @@ async function loadLatestScoutlystByTeam(
         row.reference_league_id != null ? Number(row.reference_league_id) : null,
     };
     if (!snapshotDate) snapshotDate = row.snapshot_date;
-    if (!byName.has(normalizeText(row.player_name))) {
-      byName.set(normalizeText(row.player_name), mapped);
+    for (const key of playerNameLookupKeys(row.player_name)) {
+      if (!byName.has(key)) byName.set(key, mapped);
     }
     if (row.sofascore_player_id != null && !bySofascoreId.has(row.sofascore_player_id)) {
       bySofascoreId.set(row.sofascore_player_id, mapped);
     }
   }
 
-  return { bySofascoreId, byName, allRows: [...byName.values()], snapshotDate };
-}
-
-/** Latest snapshot per player name when team_id on the row is wrong or missing. */
-async function loadScoutlystByPlayerNames(
-  supabase: ServiceClient,
-  normalizedNames: string[]
-): Promise<Map<string, ScoutlystRow>> {
-  const wanted = new Set(normalizedNames.filter(Boolean));
-  if (!wanted.size) return new Map();
-
-  const { data } = await supabase
-    .from("scoutlyst_player_snapshots")
-    .select(
-      "scoutlyst_player_key, player_name, sofascore_player_id, position, age, rating, stats, snapshot_date, reference_league_id"
-    )
-    .order("snapshot_date", { ascending: false })
-    .limit(4000);
-
-  const byName = new Map<string, ScoutlystRow>();
-  for (const row of data ?? []) {
-    const key = normalizeText(row.player_name);
-    if (!wanted.has(key) || byName.has(key)) continue;
-    const stats =
-      row.stats && typeof row.stats === "object" && !Array.isArray(row.stats)
-        ? (row.stats as Record<string, string | number | null>)
-        : {};
-    byName.set(key, {
-      scoutlyst_player_key: row.scoutlyst_player_key,
-      player_name: row.player_name,
-      sofascore_player_id: row.sofascore_player_id,
-      position: row.position,
-      age: row.age != null ? Number(row.age) : null,
-      rating: row.rating != null ? Number(row.rating) : null,
-      stats,
-      snapshot_date: row.snapshot_date,
-      reference_league_id:
-        row.reference_league_id != null ? Number(row.reference_league_id) : null,
-    });
+  const uniqueRows = new Map<string, ScoutlystRow>();
+  for (const row of byName.values()) {
+    if (!uniqueRows.has(row.scoutlyst_player_key)) {
+      uniqueRows.set(row.scoutlyst_player_key, row);
+    }
   }
-  return byName;
+
+  return {
+    bySofascoreId,
+    byName,
+    allRows: [...uniqueRows.values()],
+    snapshotDate,
+  };
 }
 
-async function loadMatchRatings(
-  supabase: ServiceClient,
-  playerIds: number[]
-): Promise<Map<number, number>> {
-  if (!playerIds.length) return new Map();
-  const { data } = await supabase
-    .from("synced_player_ratings")
-    .select("player_id, club_avg_rating")
-    .in("player_id", playerIds);
-
-  const map = new Map<number, number>();
-  for (const row of data ?? []) {
-    if (row.club_avg_rating != null) map.set(row.player_id, Number(row.club_avg_rating));
-  }
-  return map;
-}
-
-async function loadSofifaOverallByTeam(
-  supabase: ServiceClient,
-  teamId: number
-): Promise<Map<string, number>> {
-  const { data } = await supabase
-    .from("soccerdata_players")
-    .select("name, sofifa_overall")
-    .eq("team_id", teamId)
-    .not("sofifa_overall", "is", null)
-    .limit(500);
-
-  const byName = new Map<string, number>();
-  for (const row of data ?? []) {
-    const key = normalizeText(row.name);
-    const overall = row.sofifa_overall;
-    if (!key || overall == null || byName.has(key)) continue;
-    byName.set(key, Number(overall));
-  }
-  return byName;
-}
 
 function buildLineupQualityMap(
   players: LineupAppearanceAgg[],
@@ -184,14 +121,16 @@ function buildLineupQualityMap(
     globalByName: Map<string, ScoutlystRow>;
     matchRatings: Map<number, number>;
     sofifaByName: Map<string, number>;
+    sofifaGlobalByName: Map<string, number>;
   }
 ): Map<number, number> {
   const qualityById = new Map<number, number>();
   for (const p of players) {
+    const displayName = formatPlayerDisplayNameIfNeeded(p.name);
     const scout =
       ctx.bySofascoreId.get(p.sofascorePlayerId) ??
-      ctx.byName.get(normalizeText(p.name)) ??
-      ctx.globalByName.get(normalizeText(p.name)) ??
+      resolveScoutlystSnapshot(displayName, ctx.byName) ??
+      resolveScoutlystSnapshot(displayName, ctx.globalByName) ??
       null;
     const position = p.fieldPosition ?? scout?.position ?? p.position;
     const fromStats = computePlayerPerformanceScore({
@@ -200,11 +139,15 @@ function buildLineupQualityMap(
       stats: scout?.stats ?? {},
       position,
     });
-    const sofifaOverall = ctx.sofifaByName.get(normalizeText(p.name));
+    const sofifaOverall = resolveSofifaOverall(
+      displayName,
+      ctx.sofifaGlobalByName,
+      ctx.sofifaByName
+    );
     const fromSofifa =
       sofifaOverall != null ? sofifaOverallToScore(sofifaOverall) : null;
-    const score = Math.max(fromStats ?? 0, fromSofifa ?? 0);
-    if (score > 0) qualityById.set(p.sofascorePlayerId, score);
+    const score = maxPerformanceInputs(fromStats, fromSofifa);
+    if (score != null && score > 0) qualityById.set(p.sofascorePlayerId, score);
   }
   return qualityById;
 }
@@ -216,11 +159,11 @@ function resolveScoutlyst(
   byName: Map<string, ScoutlystRow>,
   byGlobalName?: Map<string, ScoutlystRow>
 ): ScoutlystRow | null {
+  const displayName = formatPlayerDisplayNameIfNeeded(name);
   return (
     bySofascoreId.get(sofascorePlayerId) ??
-    byName.get(normalizeText(name)) ??
-    byGlobalName?.get(normalizeText(name)) ??
-    null
+    resolveScoutlystSnapshot(displayName, byName) ??
+    (byGlobalName ? resolveScoutlystSnapshot(displayName, byGlobalName) : null)
   );
 }
 
@@ -231,6 +174,7 @@ function toSquadPlayer(input: {
   fieldPosition: string | null;
   scoutlyst: ScoutlystRow | null;
   matchAvgRating: number | null;
+  sofifaOverall?: number | null;
   startSharePct: number | null;
   benchmarkLeagueId: number | undefined;
   teamId: number;
@@ -239,12 +183,15 @@ function toSquadPlayer(input: {
 }): SquadPlayer {
   const stats = input.scoutlyst?.stats ?? {};
   const positionLabel = input.fieldPosition ?? input.scoutlyst?.position ?? input.position;
-  const rawPerformanceScore = computePlayerPerformanceScore({
+  const fromStats = computePlayerPerformanceScore({
     scoutlystRating: input.scoutlyst?.rating ?? null,
     matchAvgRating: input.matchAvgRating,
     stats,
     position: positionLabel,
   });
+  const fromSofifa =
+    input.sofifaOverall != null ? sofifaOverallToScore(input.sofifaOverall) : null;
+  const rawPerformanceScore = maxPerformanceInputs(fromStats, fromSofifa);
   const playerLeagueId =
     input.scoutlyst?.reference_league_id ?? input.benchmarkLeagueId;
   const performanceScore = applyBenchmarkToPerformanceScore(rawPerformanceScore, {
@@ -255,10 +202,12 @@ function toSquadPlayer(input: {
   });
   const detailStats: PlayerDisplayStat[] = buildPlayerDetailStats(stats);
 
+  const displayName = formatPlayerDisplayNameIfNeeded(input.name);
+
   return {
     sofascorePlayerId: input.sofascorePlayerId,
     scoutlystPlayerKey: input.scoutlyst?.scoutlyst_player_key ?? null,
-    name: input.name,
+    name: displayName,
     position: positionDisplayLabel(
       input.fieldPosition ?? input.scoutlyst?.position ?? input.position
     ),
@@ -338,19 +287,14 @@ export async function loadTeamSquadForComparison(
   if (hasLineupData) {
     squadSource = "lineups";
     const allIds = lineupAgg.players.map((p) => p.sofascorePlayerId);
-    const lineupNames = lineupAgg.players.map((p) => p.name);
-    const unmatchedNames = lineupNames.filter(
-      (name) => !scoutlyst.byName.has(normalizeText(name))
+    const lineupNames = lineupAgg.players.map((p) =>
+      formatPlayerDisplayNameIfNeeded(p.name)
     );
-    const [globalByName, matchRatings, sofifaByName] = await Promise.all([
-      unmatchedNames.length
-        ? loadScoutlystByPlayerNames(
-            supabase,
-            unmatchedNames.map((name) => normalizeText(name))
-          )
-        : Promise.resolve(new Map<string, ScoutlystRow>()),
-      loadMatchRatings(supabase, allIds),
+    const [globalByName, matchRatings, sofifaByTeam, sofifaGlobal] = await Promise.all([
+      loadScoutlystSnapshotsByNames(supabase, lineupNames, { teamId }),
+      loadMatchRatingsByPlayerIds(supabase, allIds),
       loadSofifaOverallByTeam(supabase, teamId),
+      loadSofifaOverallByNames(supabase, lineupNames),
     ]);
 
     const qualityById = buildLineupQualityMap(lineupAgg.players, {
@@ -358,8 +302,16 @@ export async function loadTeamSquadForComparison(
       byName: scoutlyst.byName,
       globalByName,
       matchRatings,
-      sofifaByName,
+      sofifaByName: sofifaByTeam,
+      sofifaGlobalByName: sofifaGlobal,
     });
+
+    const resolvePlayerSofifa = (playerName: string) =>
+      resolveSofifaOverall(
+        formatPlayerDisplayNameIfNeeded(playerName),
+        sofifaGlobal,
+        sofifaByTeam
+      );
 
     const inferredStarters = pickLineupStartersFromAppearances(
       lineupAgg.players,
@@ -390,6 +342,7 @@ export async function loadTeamSquadForComparison(
           fieldPosition: p.fieldPosition,
           scoutlyst: scout,
           matchAvgRating: matchRatings.get(p.sofascorePlayerId) ?? null,
+          sofifaOverall: resolvePlayerSofifa(p.name),
           startSharePct: Math.round((p.starts / totalStarts) * 100),
           benchmarkLeagueId,
           teamId,
@@ -433,6 +386,7 @@ export async function loadTeamSquadForComparison(
             fieldPosition: row.position,
             scoutlyst: scoutRow,
             matchAvgRating: matchRatings.get(sofascoreId) ?? null,
+            sofifaOverall: resolvePlayerSofifa(row.player_name),
             startSharePct: null,
             benchmarkLeagueId,
             teamId,
@@ -461,6 +415,7 @@ export async function loadTeamSquadForComparison(
           fieldPosition: p.fieldPosition,
           scoutlyst: scout,
           matchAvgRating: matchRatings.get(p.sofascorePlayerId) ?? null,
+          sofifaOverall: resolvePlayerSofifa(p.name),
           startSharePct: null,
           benchmarkLeagueId,
           teamId,
@@ -490,7 +445,12 @@ export async function loadTeamSquadForComparison(
       ...slStarters.map((p) => p.sofascore_player_id ?? stableSyntheticPlayerId(p.scoutlyst_player_key)),
       ...slSubs.map((p) => p.sofascore_player_id ?? stableSyntheticPlayerId(p.scoutlyst_player_key)),
     ];
-    const matchRatings = await loadMatchRatings(supabase, slIds.filter((id) => id > 0));
+    const slNames = [...slStarters, ...slSubs].map((r) => r.player_name);
+    const [matchRatings, sofifaGlobal] = await Promise.all([
+      loadMatchRatingsByPlayerIds(supabase, slIds.filter((id) => id > 0)),
+      loadSofifaOverallByNames(supabase, slNames),
+    ]);
+    const sofifaByTeam = await loadSofifaOverallByTeam(supabase, teamId);
 
     const mapRow = (row: ScoutlystSquadRow, isStarter: boolean): SquadPlayer => {
       const sofascoreId =
@@ -507,6 +467,11 @@ export async function loadTeamSquadForComparison(
         fieldPosition: row.position,
         scoutlyst: scoutRow,
         matchAvgRating: matchRatings.get(sofascoreId) ?? null,
+        sofifaOverall: resolveSofifaOverall(
+          formatPlayerDisplayNameIfNeeded(row.player_name),
+          sofifaGlobal,
+          sofifaByTeam
+        ),
         startSharePct: null,
         benchmarkLeagueId,
         teamId,

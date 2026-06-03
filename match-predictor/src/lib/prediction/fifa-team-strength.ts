@@ -1,6 +1,7 @@
 import { isNationalTeamId } from "@/lib/data/national-team-geography";
 import {
   getLatestFifaRankingForTeam,
+  getLatestFifaRankingForTeamId,
   getMaxFifaPointsInLatestSnapshot,
   getTopFifaTeamInLatestSnapshot,
 } from "@/lib/data/fifa-rankings-store";
@@ -75,8 +76,9 @@ const DEFAULT_FIFA_POINTS = 1400;
 
 function resolvePoints(teamId: number, teamName?: string): number {
   const fromDb = teamName?.trim()
-    ? getLatestFifaRankingForTeam(teamName)?.points
-    : null;
+    ? (getLatestFifaRankingForTeamId(teamId, teamName)?.points ??
+      getLatestFifaRankingForTeam(teamName)?.points)
+    : getLatestFifaRankingForTeamId(teamId)?.points ?? null;
   if (fromDb != null) return fromDb;
 
   let points = FIFA_RANKING_POINTS_BY_TEAM_ID[teamId];
@@ -98,8 +100,9 @@ export function getFifaStrengthMultiplier(teamId: number, teamName?: string): nu
 
 export function getFifaRankingPoints(teamId: number, teamName?: string): number | null {
   const fromDb = teamName?.trim()
-    ? getLatestFifaRankingForTeam(teamName)?.points
-    : null;
+    ? (getLatestFifaRankingForTeamId(teamId, teamName)?.points ??
+      getLatestFifaRankingForTeam(teamName)?.points)
+    : getLatestFifaRankingForTeamId(teamId)?.points ?? null;
   if (fromDb != null) return fromDb;
 
   let points = FIFA_RANKING_POINTS_BY_TEAM_ID[teamId];

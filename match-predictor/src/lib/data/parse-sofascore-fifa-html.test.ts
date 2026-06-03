@@ -20,5 +20,12 @@ describe("parseSofascoreFifaRankingsHtml", () => {
     expect(france?.rankingYear).toBe(2026);
     const capeVerde = rows.find((r) => r.normalizedTeamName === "cabo verde");
     expect(capeVerde?.rank).toBeGreaterThan(0);
+
+    const mexico = rows.find((r) => r.teamName === "Mexico");
+    expect(mexico?.rank).toBe(15);
+    expect(mexico?.sofascoreTeamId).toBe(4781);
+
+    const morocco = rows.find((r) => r.teamName === "Morocco");
+    expect(morocco?.rank).toBe(8);
   });
 });

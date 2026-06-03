@@ -292,7 +292,7 @@ export function TeamBettingInsightsPanel({
           <SectionHeader
             icon={Trophy}
             title="FIFA world ranking"
-            description="Latest snapshot in our database (Sofascore 2026 when imported, otherwise Kaggle history through 2024). Drives national-team strength in the model."
+            description="Latest official FIFA men's ranking from our saved 2026 HTML snapshot. Historical vs-top-20 stats use Kaggle through 2024 when needed."
           />
           <ComparisonRow
             label="Rank"

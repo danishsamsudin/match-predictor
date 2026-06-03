@@ -3,6 +3,8 @@ import {
   computePlayerPerformanceScore,
   sofifaOverallToScore,
 } from "@/lib/data/compute-player-performance-score";
+import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
+import { aggregateLineupAppearances } from "@/lib/data/infer-usual-squad-from-lineups";
 import {
   buildPlayerDetailStats,
   type PlayerDisplayStat,
@@ -18,6 +20,15 @@ import {
 } from "@/lib/data/pick-squad-from-records";
 import { loadPreferredFormationForTeam } from "@/lib/data/team-formations";
 import {
+  loadMatchRatingsByPlayerIds,
+  loadScoutlystSnapshotsByNames,
+  loadSofifaOverallByNames,
+  maxPerformanceInputs,
+  resolveScoutlystSnapshot,
+  resolveSofifaOverall,
+  type ScoutlystSnapshotRow,
+} from "@/lib/data/resolve-squad-player-metrics";
+import {
   getOfficialWcTeamSquad,
   officialWcSquadPublishedDate,
   type OfficialWcPlayer,
@@ -30,16 +41,6 @@ import type { EntityType } from "@/lib/types/football-lookup";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type ServiceClient = SupabaseClient<Database>;
-
-type ScoutlystRow = {
-  scoutlyst_player_key: string;
-  player_name: string;
-  sofascore_player_id: number | null;
-  position: string | null;
-  age: number | null;
-  rating: number | null;
-  stats: Record<string, string | number | null>;
-};
 
 function ageFromDob(dob: string, asOf = new Date(2026, 5, 11)): number | null {
   const parts = dob.split("/").map((p) => Number(p.trim()));
@@ -56,66 +57,6 @@ function ageFromDob(dob: string, asOf = new Date(2026, 5, 11)): number | null {
   return age >= 0 && age < 60 ? age : null;
 }
 
-async function loadScoutlystByNames(
-  supabase: ServiceClient,
-  normalizedNames: string[]
-): Promise<Map<string, ScoutlystRow>> {
-  const wanted = new Set(normalizedNames.filter(Boolean));
-  if (!wanted.size) return new Map();
-
-  const { data } = await supabase
-    .from("scoutlyst_player_snapshots")
-    .select(
-      "scoutlyst_player_key, player_name, sofascore_player_id, position, age, rating, stats, snapshot_date"
-    )
-    .order("snapshot_date", { ascending: false })
-    .limit(6000);
-
-  const byName = new Map<string, ScoutlystRow>();
-  for (const row of data ?? []) {
-    const key = normalizeText(row.player_name);
-    if (!wanted.has(key) || byName.has(key)) continue;
-    const stats =
-      row.stats && typeof row.stats === "object" && !Array.isArray(row.stats)
-        ? (row.stats as Record<string, string | number | null>)
-        : {};
-    byName.set(key, {
-      scoutlyst_player_key: row.scoutlyst_player_key,
-      player_name: row.player_name,
-      sofascore_player_id: row.sofascore_player_id,
-      position: row.position,
-      age: row.age != null ? Number(row.age) : null,
-      rating: row.rating != null ? Number(row.rating) : null,
-      stats,
-    });
-  }
-  return byName;
-}
-
-async function loadSofifaByNames(
-  supabase: ServiceClient,
-  teamId: number,
-  normalizedNames: string[]
-): Promise<Map<string, number>> {
-  const wanted = new Set(normalizedNames.filter(Boolean));
-  if (!wanted.size) return new Map();
-
-  const { data } = await supabase
-    .from("soccerdata_players")
-    .select("name, sofifa_overall")
-    .eq("team_id", teamId)
-    .not("sofifa_overall", "is", null)
-    .limit(500);
-
-  const byName = new Map<string, number>();
-  for (const row of data ?? []) {
-    const key = normalizeText(row.name);
-    if (!wanted.has(key) || row.sofifa_overall == null || byName.has(key)) continue;
-    byName.set(key, Number(row.sofifa_overall));
-  }
-  return byName;
-}
-
 function sortSquadPlayers(players: SquadPlayer[]): SquadPlayer[] {
   return [...players].sort((a, b) => {
     const pos = comparePlayersByPosition(
@@ -129,18 +70,18 @@ function sortSquadPlayers(players: SquadPlayer[]): SquadPlayer[] {
 
 function toSquadPlayer(input: {
   official: OfficialWcPlayer;
-  scoutlyst: ScoutlystRow | null;
+  scoutlyst: ScoutlystSnapshotRow | null;
   sofifaOverall: number | null;
+  matchAvgRating: number | null;
+  sofascorePlayerId: number;
   isStarter: boolean;
   teamId: number;
   teamName: string;
   entityType?: EntityType;
   benchmarkLeagueId?: number;
 }): SquadPlayer {
-  const normName = normalizeText(input.official.name);
-  const playerKey = `wc2026:${input.teamName}:${normName}`;
-  const sofascorePlayerId =
-    input.scoutlyst?.sofascore_player_id ?? stableSyntheticPlayerId(playerKey);
+  const displayName = formatPlayerDisplayNameIfNeeded(input.official.name);
+  const playerKey = `wc2026:${input.teamName}:${normalizeText(displayName)}`;
   const positionLabel = input.scoutlyst?.position ?? input.official.position;
   const stats = {
     ...input.scoutlyst?.stats,
@@ -150,13 +91,13 @@ function toSquadPlayer(input: {
   };
   const fromStats = computePlayerPerformanceScore({
     scoutlystRating: input.scoutlyst?.rating ?? null,
-    matchAvgRating: null,
+    matchAvgRating: input.matchAvgRating,
     stats,
     position: positionLabel,
   });
   const fromSofifa =
     input.sofifaOverall != null ? sofifaOverallToScore(input.sofifaOverall) : null;
-  const rawPerformanceScore = Math.max(fromStats ?? 0, fromSofifa ?? 0) || null;
+  const rawPerformanceScore = maxPerformanceInputs(fromStats, fromSofifa);
   const performanceScore = applyBenchmarkToPerformanceScore(rawPerformanceScore, {
     entityType: input.entityType,
     teamId: input.teamId,
@@ -166,9 +107,9 @@ function toSquadPlayer(input: {
   const detailStats: PlayerDisplayStat[] = buildPlayerDetailStats(stats);
 
   return {
-    sofascorePlayerId,
+    sofascorePlayerId: input.sofascorePlayerId,
     scoutlystPlayerKey: input.scoutlyst?.scoutlyst_player_key ?? playerKey,
-    name: input.official.name,
+    name: displayName,
     position: positionDisplayLabel(positionLabel),
     fieldPosition: positionLabel,
     performanceScore,
@@ -183,10 +124,11 @@ function officialPlayerToRecord(
   teamName: string,
   rating: number | null
 ): SquadPickRecord {
-  const id = `wc2026:${teamName}:${normalizeText(player.name)}`;
+  const displayName = formatPlayerDisplayNameIfNeeded(player.name);
+  const id = `wc2026:${teamName}:${normalizeText(displayName)}`;
   const row = squadPickRecordFromStats({
     id,
-    name: player.name,
+    name: displayName,
     position: player.position,
     stats: {
       club: player.club,
@@ -194,7 +136,6 @@ function officialPlayerToRecord(
     },
     rating,
   });
-  // FIFA lists have no appearance data; treat everyone as pickable for formation slots.
   return { ...row, starts: 1 };
 }
 
@@ -213,22 +154,49 @@ export async function loadOfficialWcSquadForComparison(
   if (!official?.players.length) return null;
 
   const benchmarkLeagueId = options?.domesticLeagueId ?? 1;
+  const teamName = options?.teamName ?? teamLabel;
+  const displayNames = official.players.map((p) =>
+    formatPlayerDisplayNameIfNeeded(p.name)
+  );
+
   const formation = supabase
     ? await loadPreferredFormationForTeam(supabase, teamId, teamLabel)
     : null;
   const formationForXi = formation ?? "4-3-3";
 
-  const normalizedNames = official.players.map((p) => normalizeText(p.name));
-  const [scoutlystByName, sofifaByName] = supabase
+  const [scoutlystByName, sofifaGlobal, lineupAgg] = supabase
     ? await Promise.all([
-        loadScoutlystByNames(supabase, normalizedNames),
-        loadSofifaByNames(supabase, teamId, normalizedNames),
+        loadScoutlystSnapshotsByNames(supabase, displayNames, { teamId }),
+        loadSofifaOverallByNames(supabase, displayNames),
+        aggregateLineupAppearances(supabase, teamId, teamName),
       ])
-    : [new Map<string, ScoutlystRow>(), new Map<string, number>()];
+    : [new Map<string, ScoutlystSnapshotRow>(), new Map<string, number>(), null];
+
+  const lineupIdByName = new Map<string, number>();
+  for (const p of lineupAgg?.players ?? []) {
+    const key = normalizeText(formatPlayerDisplayNameIfNeeded(p.name));
+    if (!lineupIdByName.has(key)) lineupIdByName.set(key, p.sofascorePlayerId);
+  }
+
+  const sofascoreIds = new Set<number>();
+  for (const name of displayNames) {
+    const scout = resolveScoutlystSnapshot(name, scoutlystByName);
+    const lineupId = lineupIdByName.get(normalizeText(name));
+    const id =
+      scout?.sofascore_player_id ??
+      lineupId ??
+      stableSyntheticPlayerId(`wc2026:${teamLabel}:${normalizeText(name)}`);
+    if (id > 0) sofascoreIds.add(id);
+  }
+
+  const matchRatings = await loadMatchRatingsByPlayerIds(
+    supabase,
+    [...sofascoreIds]
+  );
 
   const records = official.players.map((player) => {
-    const norm = normalizeText(player.name);
-    const scout = scoutlystByName.get(norm);
+    const displayName = formatPlayerDisplayNameIfNeeded(player.name);
+    const scout = resolveScoutlystSnapshot(displayName, scoutlystByName);
     return officialPlayerToRecord(player, teamLabel, scout?.rating ?? null);
   });
   const { starters: starterRecords, substitutes: subRecords } = pickSquadFromRecords(
@@ -238,37 +206,52 @@ export async function loadOfficialWcSquadForComparison(
   );
 
   const officialByNorm = new Map(
-    official.players.map((p) => [normalizeText(p.name), p] as const)
+    official.players.map(
+      (p) => [normalizeText(formatPlayerDisplayNameIfNeeded(p.name)), p] as const
+    )
   );
 
   const mapRecord = (record: SquadPickRecord, isStarter: boolean): SquadPlayer => {
+    const displayName = formatPlayerDisplayNameIfNeeded(record.name);
     const src =
-      officialByNorm.get(normalizeText(record.name)) ??
+      officialByNorm.get(normalizeText(displayName)) ??
       ({
-        name: record.name,
+        name: displayName,
         position: record.position ?? "MID",
         dob: "",
         club: String(record.stats.club ?? ""),
         heightCm: Number(record.stats.height_cm ?? 0),
       } satisfies OfficialWcPlayer);
-    const norm = normalizeText(src.name);
+    const scout = resolveScoutlystSnapshot(displayName, scoutlystByName);
+    const lineupId = lineupIdByName.get(normalizeText(displayName));
+    const sofascorePlayerId =
+      scout?.sofascore_player_id ??
+      lineupId ??
+      stableSyntheticPlayerId(`wc2026:${teamLabel}:${normalizeText(displayName)}`);
+
     return toSquadPlayer({
-      official: src,
-      scoutlyst: scoutlystByName.get(norm) ?? null,
-      sofifaOverall: sofifaByName.get(norm) ?? null,
+      official: { ...src, name: displayName },
+      scoutlyst: scout,
+      sofifaOverall: resolveSofifaOverall(displayName, sofifaGlobal),
+      matchAvgRating: matchRatings.get(sofascorePlayerId) ?? null,
+      sofascorePlayerId,
       isStarter,
       teamId,
-      teamName: options?.teamName ?? teamLabel,
+      teamName,
       entityType: options?.entityType,
       benchmarkLeagueId,
     });
   };
 
+  const hasScoutlystData = displayNames.some((name) =>
+    Boolean(resolveScoutlystSnapshot(name, scoutlystByName))
+  );
+
   return {
     starters: sortSquadPlayers(starterRecords.map((r) => mapRecord(r, true))),
     substitutes: sortSquadPlayers(subRecords.map((r) => mapRecord(r, false))),
-    hasLineupData: false,
-    hasScoutlystData: scoutlystByName.size > 0,
+    hasLineupData: Boolean(lineupAgg?.players.length),
+    hasScoutlystData,
     squadSource: "fifa_official",
     preferredFormation: formationForXi,
     snapshotDate: officialWcSquadPublishedDate(),

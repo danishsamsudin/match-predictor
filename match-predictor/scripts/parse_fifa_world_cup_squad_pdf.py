@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 from pypdf import PdfReader
@@ -146,40 +147,221 @@ NATIONALITIES = {
 }
 
 
+NAME_PARTICLES = {
+    "van",
+    "de",
+    "der",
+    "den",
+    "von",
+    "del",
+    "la",
+    "le",
+    "di",
+    "da",
+    "du",
+    "dos",
+    "das",
+    "do",
+    "el",
+    "al",
+}
+
+
 def unglue(value: str) -> str:
-    value = re.sub(r"([a-zà-ÿ])([A-ZÀ-Ÿ])", r"\1 \2", value)
-    value = re.sub(r"([A-ZÀ-Ÿ]{2,})([A-ZÀ-Ÿ][a-zà-ÿ])", r"\1 \2", value)
+    value = re.sub(r"-\s+", "-", value)
+    chars: list[str] = []
+    for index, char in enumerate(value):
+        if (
+            index > 0
+            and value[index - 1].islower()
+            and char.isupper()
+            and not char.islower()
+        ):
+            chars.append(" ")
+        chars.append(char)
+    value = "".join(chars)
+    value = re.sub(r"([A-Z]{3,})([A-Z][a-zà-ÿ])", r"\1 \2", value)
+    value = re.sub(r"([A-Za-zÀ-ÿ])- ([A-Za-zÀ-ÿ])", r"\1-\2", value)
     return re.sub(r"\s+", " ", value).strip()
 
 
 def fix_split_accents(value: str) -> str:
-    return re.sub(r"(\w) ([\u00c0-\u017f])", r"\1\2", value)
+    """Rejoin accents split by PDF extraction (e.g. KOVÁ Ř), not intentional word breaks."""
+    return re.sub(r"([a-zà-ÿ]) ([\u00c0-\u017f])", r"\1\2", value)
+
+
+def fold_name_key(word: str) -> str:
+    folded = unicodedata.normalize("NFKD", word)
+    folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z]", "", folded.lower())
 
 
 def dedupe_words(words: list[str]) -> list[str]:
     out: list[str] = []
     for word in words:
-        if out and out[-1].lower() == word.lower():
+        if out and fold_name_key(out[-1]) == fold_name_key(word):
+            if len(word) >= len(out[-1]):
+                out[-1] = word
             continue
         out.append(word)
     return out
 
 
+def split_repeated_token(token: str) -> list[str]:
+    """Split glued duplicates such as VERBRUGGENVERBRUGGEN or AKÉAKÉ."""
+    if not token:
+        return []
+    letters = re.sub(r"[^A-Za-zÀ-ÿ]", "", token)
+    if len(letters) >= 6 and letters.isalpha():
+        upper = letters.upper()
+        for size in range(len(upper) // 2, 2, -1):
+            if len(upper) % size != 0:
+                continue
+            chunk = upper[:size]
+            if chunk * (len(upper) // size) == upper:
+                prefix = token[: token.index(letters[0])] if letters else ""
+                suffix = token[len(prefix) + len(letters) :]
+                token = f"{prefix}{chunk}{suffix}"
+                break
+    return [token]
+
+
+def normalize_token(token: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", token.lower())
+
+
+def is_surname_token(word: str) -> bool:
+    parts = [part for part in word.split("-") if part]
+    return bool(parts) and all(part.isupper() for part in parts)
+
+
+def is_given_name_word(word: str) -> bool:
+    if not word:
+        return False
+    if word.isupper():
+        return False
+    if word.islower():
+        return True
+    if word[0].isupper() and len(word) > 1:
+        return True
+    return False
+
+
+def title_name_word(word: str) -> str:
+    lower = word.lower()
+    if lower in NAME_PARTICLES:
+        return lower
+    if word.isupper():
+        return word.capitalize()
+    if "-" in word:
+        return "-".join(title_name_word(part) for part in word.split("-"))
+    return word
+
+
+def collapse_hyphenated_names(
+    first_names: list[str], source_words: list[str]
+) -> list[str]:
+    hyphenated = [word for word in source_words if "-" in word and not word.startswith("-")]
+    result = list(first_names)
+    for candidate in hyphenated:
+        parts = candidate.split("-", 1)
+        if len(parts) != 2:
+            continue
+        part_a, part_b = fold_name_key(parts[0]), fold_name_key(parts[1])
+        for index in range(len(result) - 1):
+            if (
+                fold_name_key(result[index]) == part_a
+                and fold_name_key(result[index + 1]) == part_b
+            ):
+                result = result[:index] + [candidate] + result[index + 2 :]
+                break
+    cleaned: list[str] = []
+    for word in result:
+        if cleaned and "-" in word:
+            head = word.split("-", 1)[0]
+            if fold_name_key(cleaned[-1]) == fold_name_key(head):
+                cleaned[-1] = word
+                continue
+        cleaned.append(word)
+    return dedupe_words(cleaned)
+
+
+def format_display_name(first_names: list[str], surname_parts: list[str]) -> str:
+    first = " ".join(title_name_word(w) for w in dedupe_words(first_names))
+    last = " ".join(title_name_word(w) for w in surname_parts)
+    if first and last:
+        return f"{first} {last}"
+    return first or last
+
+
 def parse_name_blob(blob: str) -> str:
-    blob = fix_split_accents(unglue(blob))
-    words = dedupe_words(blob.split())
+    """
+    FIFA squad PDF rows concatenate:
+    PLAYER_NAME + FIRST_NAME(S) + LAST_NAME(S)/NAME_ON_SHIRT (often duplicated).
+    """
+    blob = unglue(fix_split_accents(blob))
+    words: list[str] = []
+    for token in blob.split():
+        words.extend(split_repeated_token(token))
+    words = dedupe_words(words)
     if not words:
         return blob
-    surname = words[0]
-    core: list[str] = []
-    for word in words[1:]:
-        if word.upper() == surname.upper():
+
+    first_name_start = 0
+    while first_name_start < len(words) and (
+        words[first_name_start].isupper() or is_surname_token(words[first_name_start])
+    ):
+        first_name_start += 1
+    while first_name_start < len(words) and not is_given_name_word(words[first_name_start]):
+        first_name_start += 1
+    if first_name_start >= len(words):
+        return format_display_name([], words)
+
+    surname_parts = words[:first_name_start]
+    rest = words[first_name_start:]
+    surname_keys = {fold_name_key(part) for part in surname_parts}
+    surname_norm = normalize_token("".join(surname_parts))
+
+    first_names: list[str] = []
+    for word in rest:
+        word_key = fold_name_key(word)
+        word_norm = normalize_token(word)
+        if word_key and word_key in surname_keys:
             break
-        core.append(word)
-    core = dedupe_words(core)
-    if not core:
-        return surname.title()
-    return f"{' '.join(core)} {surname.title()}"
+        if word_norm and (
+            word_norm == surname_norm
+            or (len(word_norm) >= 4 and word_norm in surname_norm)
+        ):
+            break
+        if word.isupper() and len(word) >= 4 and not is_given_name_word(word):
+            break
+        first_names.append(word)
+
+    first_names = dedupe_words(first_names)
+    if len(first_names) >= 2:
+        compact = [fold_name_key(w) for w in first_names]
+        for index in range(len(first_names) - 1, 0, -1):
+            if compact[index] == compact[index - 1]:
+                first_names.pop(index - 1)
+    first_names = collapse_hyphenated_names(first_names, words)
+    for index, part in enumerate(surname_parts):
+        for word in words:
+            if fold_name_key(word) == fold_name_key(part) and word != part:
+                surname_parts[index] = word
+                break
+    if (
+        len(surname_parts) == 1
+        and "-" in surname_parts[0]
+        and first_names
+    ):
+        head, tail = surname_parts[0].split("-", 1)
+        if fold_name_key(first_names[-1]) == fold_name_key(head):
+            merged = f"{title_name_word(first_names[-1])}-{title_name_word(tail)}"
+            first_names = first_names[:-1]
+            surname_parts = [merged]
+    if not surname_parts and first_names:
+        surname_parts = [first_names.pop()]
+    return format_display_name(first_names, surname_parts)
 
 
 def parse_player_line(line: str) -> dict | None:
@@ -187,7 +369,7 @@ def parse_player_line(line: str) -> dict | None:
     if not re.match(r"^(GK|DF|MF|FW)", line):
         return None
     match = re.match(
-        r"^(GK|DF|MF|FW)\s*(.+?)(\d{2}/\d{2}/\d{4})(.+)\s+(\d{2,3})\s*$",
+        r"^(GK|DF|MF|FW)\s*(.+?)(\d{2}/\d{2}/\d{4})(.+?)(\d{2,3})\s*$",
         line,
     )
     if not match:

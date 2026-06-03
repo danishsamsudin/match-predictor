@@ -3,6 +3,13 @@ import {
   computePlayerPerformanceScore,
   sofifaOverallToScore,
 } from "@/lib/data/compute-player-performance-score";
+import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
+import {
+  loadScoutlystSnapshotsByNames,
+  loadSofifaOverallByNames,
+  resolveScoutlystSnapshot,
+  resolveSofifaOverall,
+} from "@/lib/data/resolve-squad-player-metrics";
 import { normalizeText } from "@/lib/soccerdata/normalize";
 import {
   comparePlayersByPosition,
@@ -255,59 +262,6 @@ type ScoutlystRatingRow = {
   stats: Record<string, string | number | null>;
 };
 
-async function loadScoutlystByPlayerNames(
-  supabase: SupabaseClient<Database> | null,
-  normalizedNames: string[]
-): Promise<Map<string, ScoutlystRatingRow>> {
-  const wanted = new Set(normalizedNames.filter(Boolean));
-  if (!supabase || !wanted.size) return new Map();
-
-  const { data } = await supabase
-    .from("scoutlyst_player_snapshots")
-    .select("player_name, rating, stats, snapshot_date")
-    .order("snapshot_date", { ascending: false })
-    .limit(4000);
-
-  const byName = new Map<string, ScoutlystRatingRow>();
-  for (const row of data ?? []) {
-    const key = normalizeText(row.player_name);
-    if (!wanted.has(key) || byName.has(key)) continue;
-    const stats =
-      row.stats && typeof row.stats === "object" && !Array.isArray(row.stats)
-        ? (row.stats as Record<string, string | number | null>)
-        : {};
-    byName.set(key, {
-      rating: row.rating != null ? Number(row.rating) : null,
-      stats,
-    });
-  }
-  return byName;
-}
-
-async function loadSofifaOverallByName(
-  supabase: SupabaseClient<Database> | null,
-  normalizedNames: string[]
-): Promise<Map<string, number>> {
-  const wanted = new Set(normalizedNames.filter(Boolean));
-  if (!supabase || !wanted.size) return new Map();
-
-  const { data } = await supabase
-    .from("soccerdata_players")
-    .select("name, sofifa_overall")
-    .not("sofifa_overall", "is", null)
-    .limit(20000);
-
-  const byName = new Map<string, number>();
-  for (const row of data ?? []) {
-    const key = normalizeText(row.name);
-    if (!wanted.has(key) || row.sofifa_overall == null) continue;
-    const overall = Number(row.sofifa_overall);
-    const prev = byName.get(key);
-    if (prev == null || overall > prev) byName.set(key, overall);
-  }
-  return byName;
-}
-
 function resolveFbrefPerformanceScore(input: {
   stats: Record<string, string | number | null>;
   position: string | null;
@@ -370,7 +324,7 @@ function toFbrefSquadPlayer(input: {
   return {
     sofascorePlayerId: fbrefNumericId(`player:${input.player.id}`),
     scoutlystPlayerKey: `fbref:${input.player.id}`,
-    name: input.player.name,
+    name: formatPlayerDisplayNameIfNeeded(input.player.name),
     position: positionDisplayLabel(positionLabel),
     fieldPosition: positionLabel,
     performanceScore,
@@ -406,18 +360,24 @@ export async function loadFbrefTeamSquadSnapshot(
 
   if (!players.length) return null;
 
-  const normalizedNames = players.map((p) => normalizeText(p.name));
-  const [scoutlyst, sofifa] = await Promise.all([
-    loadScoutlystByPlayerNames(supabase, normalizedNames),
-    loadSofifaOverallByName(supabase, normalizedNames),
+  const displayNames = players.map((p) => formatPlayerDisplayNameIfNeeded(p.name));
+  const [scoutlystByName, sofifaGlobal] = await Promise.all([
+    loadScoutlystSnapshotsByNames(supabase, displayNames, {
+      teamId: sofascoreTeamId,
+    }),
+    loadSofifaOverallByNames(supabase, displayNames),
   ]);
 
   const records = players.map((player) => {
     const merged = mergeAllFbrefStatsForPlayer(stats, player.id);
-    const scout = scoutlyst.get(normalizeText(player.name)) ?? null;
+    const displayName = formatPlayerDisplayNameIfNeeded(player.name);
+    const scoutRow = resolveScoutlystSnapshot(displayName, scoutlystByName);
+    const scout: ScoutlystRatingRow | null = scoutRow
+      ? { rating: scoutRow.rating, stats: scoutRow.stats }
+      : null;
     return squadPickRecordFromStats({
       id: player.id,
-      name: player.name,
+      name: displayName,
       position: fbrefPositionLabel(merged),
       stats: merged,
       rating: scout?.rating ?? null,
@@ -438,12 +398,16 @@ export async function loadFbrefTeamSquadSnapshot(
     const player = playerById.get(record.id);
     if (!player) return null;
     const merged = mergeAllFbrefStatsForPlayer(stats, player.id);
-    const nameKey = normalizeText(player.name);
+    const displayName = formatPlayerDisplayNameIfNeeded(player.name);
+    const scoutRow = resolveScoutlystSnapshot(displayName, scoutlystByName);
+    const scout: ScoutlystRatingRow | null = scoutRow
+      ? { rating: scoutRow.rating, stats: scoutRow.stats }
+      : null;
     return toFbrefSquadPlayer({
-      player,
+      player: { ...player, name: displayName },
       stats: merged,
-      scoutlyst: scoutlyst.get(nameKey) ?? null,
-      sofifaOverall: sofifa.get(nameKey) ?? null,
+      scoutlyst: scout,
+      sofifaOverall: resolveSofifaOverall(displayName, sofifaGlobal),
       startSharePct: Math.round((record.starts / totalStarts) * 100),
     });
   };

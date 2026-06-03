@@ -5,6 +5,7 @@ import {
   pickStartersByFormation,
 } from "@/lib/data/formation-lineup";
 import { lineupRecencyWeight } from "@/lib/data/lineup-appearance-weights";
+import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
 import { normalizePlayerPosition } from "@/lib/data/normalize-player-position";
 import type { Database } from "@/lib/supabase";
 import type { SportApiEvent, SportApiLineupsResponse } from "@/lib/types/sportapi";
@@ -53,7 +54,7 @@ function collectFromSide(
   if (!side?.players?.length) return;
   for (const row of side.players) {
     const id = row.player?.id;
-    const name = row.player?.name?.trim();
+    const name = formatPlayerDisplayNameIfNeeded(row.player?.name?.trim() ?? "");
     if (!id || !name) continue;
     const existing = agg.get(id) ?? {
       sofascorePlayerId: id,

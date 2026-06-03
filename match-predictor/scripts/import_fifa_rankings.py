@@ -228,7 +228,7 @@ def load_sofascore_rows(html_path: Path) -> list[dict[str, Any]]:
                 "previous_points": round(float(prev), 2) if prev is not None else None,
                 "points_diff": diff,
                 "normalized_team_name": normalize_fifa_team_name(team_name),
-                "data_source": "sofascore",
+                "data_source": "fifa",
                 "sofascore_team_id": team.get("id"),
             }
         )

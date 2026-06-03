@@ -3,6 +3,7 @@ import {
   getFifaRankingAtDate,
   getLatestFifaDataSource,
   getLatestFifaRankingForTeam,
+  getLatestFifaRankingForTeamId,
   getLatestFifaSnapshot,
   isTop20FifaRank,
 } from "@/lib/data/fifa-rankings-store";
@@ -364,8 +365,14 @@ export function computeTeamBettingInsights(input: {
   };
 }
 
-export function buildFifaRankingInsights(teamName: string): TeamFifaRankingInsights | null {
-  const entry = getLatestFifaRankingForTeam(teamName);
+export function buildFifaRankingInsights(
+  teamName: string,
+  teamId?: number
+): TeamFifaRankingInsights | null {
+  const entry =
+    teamId != null
+      ? getLatestFifaRankingForTeamId(teamId, teamName)
+      : getLatestFifaRankingForTeam(teamName);
   const snapshot = getLatestFifaSnapshot();
   if (!entry || !snapshot) return null;
   return {

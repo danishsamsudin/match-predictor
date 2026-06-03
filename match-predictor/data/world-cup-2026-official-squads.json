@@ -7,7 +7,7 @@
       "fifaName": "Algeria",
       "code": "ALG",
       "coach": {
-        "name": "Petkovic Vladimir Petković",
+        "name": "Petkovic Vladimir Petkovi Ć",
         "nationality": "Switzerland",
         "role": "Head coach"
       },
@@ -41,14 +41,14 @@
           "heightCm": 186
         },
         {
-          "name": "Zineddine BELAÏD Belaid",
+          "name": "Zineddine Belaid",
           "position": "DEF",
           "dob": "20/03/1999",
           "club": "JS Kabylie (ALG)",
           "heightCm": 186
         },
         {
-          "name": "Ramiz Larbi ZERROUKIZERROUKI Zerrouki",
+          "name": "Ramiz Larbi Zerrouki",
           "position": "MID",
           "dob": "26/05/1998",
           "club": "FC Twente (NED)",
@@ -62,14 +62,14 @@
           "heightCm": 179
         },
         {
-          "name": "Houssem Houssem-Eddine Chaabane Aouar",
+          "name": "Houssem-Eddine Chaabane Aouar",
           "position": "MID",
           "dob": "30/06/1998",
           "club": "Al Ittihad (KSA)",
           "heightCm": 175
         },
         {
-          "name": "Amine Ferid GHOUIRIGOUIRI Gouiri",
+          "name": "Amine Ferid Gouiri",
           "position": "FWD",
           "dob": "16/02/2000",
           "club": "Olympique Marseille (FRA)",
@@ -83,7 +83,7 @@
           "heightCm": 183
         },
         {
-          "name": "MOUSSA Anis Hadj",
+          "name": "Anis Hadj Moussa",
           "position": "FWD",
           "dob": "11/02/2002",
           "club": "Feyenoord Rotterdam (NED)",
@@ -111,7 +111,7 @@
           "heightCm": 175
         },
         {
-          "name": "Rayan AÏT-NOURI AÏT NOURI Ait-Nouri",
+          "name": "Rayan Aït-nouri",
           "position": "DEF",
           "dob": "06/06/2001",
           "club": "Manchester City FC (ENG)",
@@ -153,7 +153,7 @@
           "heightCm": 183
         },
         {
-          "name": "Ramy Amir Selmane Rami BENSEBAINIBENSEBAINI Bensebaini",
+          "name": "Ramy Amir Selmane Rami Bensebaini",
           "position": "DEF",
           "dob": "16/04/1995",
           "club": "Borussia Dortmund (GER)",
@@ -181,14 +181,14 @@
           "heightCm": 180
         },
         {
-          "name": "Fares GHEDJEMISGHEDJEMIS Ghedjemis",
+          "name": "Fares Ghedjemis",
           "position": "FWD",
           "dob": "06/09/2002",
           "club": "Frosinone (ITA)",
           "heightCm": 183
         },
         {
-          "name": "Samir Sophian CHERGUICHRGUI Chergui",
+          "name": "Samir Sophian Chergui",
           "position": "DEF",
           "dob": "06/02/1999",
           "club": "Paris FC (FRA)",
@@ -220,7 +220,7 @@
           "heightCm": 188
         },
         {
-          "name": "Nicolas Nicolás Alejandro Tagliafico",
+          "name": "Nicolás Alejandro Tagliafico",
           "position": "DEF",
           "dob": "31/08/1992",
           "club": "Olympique Lyonnais (FRA)",
@@ -241,14 +241,14 @@
           "heightCm": 182
         },
         {
-          "name": "Lisandro MARTÍNEZ Martinez",
+          "name": "Lisandro Martínez",
           "position": "DEF",
           "dob": "18/01/1998",
           "club": "Manchester United FC (ENG)",
           "heightCm": 175
         },
         {
-          "name": "PAUL Rodrigo Javier De",
+          "name": "Rodrigo Javier de Paul",
           "position": "MID",
           "dob": "24/05/1994",
           "club": "Inter Miami CF (USA)",
@@ -262,7 +262,7 @@
           "heightCm": 172
         },
         {
-          "name": "Julian JuliánÁLVAREZ J. Alvarez",
+          "name": "Julián Álvarez",
           "position": "FWD",
           "dob": "31/01/2000",
           "club": "Atlético De Madrid (ESP)",
@@ -276,7 +276,7 @@
           "heightCm": 170
         },
         {
-          "name": "CELSO Giovani Lo",
+          "name": "Giovani Lo Celso",
           "position": "MID",
           "dob": "09/04/1996",
           "club": "Real Betis (ESP)",
@@ -339,7 +339,7 @@
           "heightCm": 182
         },
         {
-          "name": "ALLISTER Alexis Mac",
+          "name": "Alexis Mac Allister",
           "position": "MID",
           "dob": "24/12/1998",
           "club": "Liverpool FC (ENG)",
@@ -353,21 +353,21 @@
           "heightCm": 190
         },
         {
-          "name": "Lautaro Javier MARTÍNEZ L. Martinez",
+          "name": "Lautaro Javier Martínez",
           "position": "FWD",
           "dob": "22/08/1997",
           "club": "FC Internazionale Milano (ITA)",
           "heightCm": 175
         },
         {
-          "name": "Emiliano Damián Emiliano MARTÍNEZ E. Martinez",
+          "name": "Emiliano Damián Emiliano Martínez",
           "position": "GK",
           "dob": "02/09/1992",
           "club": "Aston Villa FC (ENG)",
           "heightCm": 195
         },
         {
-          "name": "Enzo Jeremías FERNÁNDEZ E. Fernandez",
+          "name": "Enzo Jeremías Fernández",
           "position": "MID",
           "dob": "17/01/2001",
           "club": "Chelsea FC (ENG)",
@@ -483,7 +483,7 @@
           "heightCm": 184
         },
         {
-          "name": "Aiden Connor O'NEILL Oneill",
+          "name": "Aiden Connor O'neill",
           "position": "MID",
           "dob": "04/07/1998",
           "club": "New York City FC (USA)",
@@ -560,7 +560,7 @@
           "heightCm": 181
         },
         {
-          "name": "Paul Michael Junior OKON-ENGSTLEROKON-ENGSTLER Okon-Engstler",
+          "name": "Paul Michael Junior Okon-engstler",
           "position": "MID",
           "dob": "24/01/2005",
           "club": "Sydney FC (AUS)",
@@ -599,7 +599,7 @@
           "heightCm": 188
         },
         {
-          "name": "David Leopold AFFENGRUBERAFFENGRUBER Affengruber",
+          "name": "David Leopold Affengruber",
           "position": "DEF",
           "dob": "19/03/2001",
           "club": "Elche CF (ESP)",
@@ -683,7 +683,7 @@
           "heightCm": 183
         },
         {
-          "name": "Sasa Saš a KALAJDŽ IĆ Kalajdzic",
+          "name": "Sasa Saš a Kalajdzic",
           "position": "FWD",
           "dob": "07/07/1997",
           "club": "LASK Linz (AUT)",
@@ -704,7 +704,7 @@
           "heightCm": 170
         },
         {
-          "name": "Carney Chibueze CHUKWUEMEKACHUKWUEMEKA Chukwuemeka",
+          "name": "Carney Chibueze Chukwuemeka",
           "position": "MID",
           "dob": "20/10/2003",
           "club": "Borussia Dortmund (GER)",
@@ -767,7 +767,7 @@
           "heightCm": 195
         },
         {
-          "name": "Alessandro Andre SCHÖPF Schoepf",
+          "name": "Alessandro Andre Schoepf",
           "position": "MID",
           "dob": "07/02/1994",
           "club": "Wolfsberger AC (AUT)",
@@ -785,7 +785,7 @@
       },
       "players": [
         {
-          "name": "Thibaut Nicolas MCOURTOIS Courtois",
+          "name": "Thibaut Nicolas Courtois",
           "position": "GK",
           "dob": "11/05/1992",
           "club": "Real Madrid C. F. (ESP)",
@@ -799,7 +799,7 @@
           "heightCm": 189
         },
         {
-          "name": "Arthur Nicolas RTHEATE Theate",
+          "name": "Arthur Nicolas Theate",
           "position": "DEF",
           "dob": "25/05/2000",
           "club": "Eintracht Frankfurt (GER)",
@@ -813,7 +813,7 @@
           "heightCm": 190
         },
         {
-          "name": "CUYPER Maxim Peter M De",
+          "name": "Maxim Peter M de Cuyper",
           "position": "DEF",
           "dob": "22/12/2000",
           "club": "Brighton & Hove Albion FC (ENG)",
@@ -827,14 +827,14 @@
           "heightCm": 186
         },
         {
-          "name": "BRUYNE Kevin De",
+          "name": "Kevin de Bruyne",
           "position": "MID",
           "dob": "28/06/1991",
           "club": "SSC Napoli (ITA)",
           "heightCm": 181
         },
         {
-          "name": "Youri Marion ATIELEMANS Tielemans",
+          "name": "Youri Marion Tielemans",
           "position": "MID",
           "dob": "07/05/1997",
           "club": "Aston Villa FC (ENG)",
@@ -890,14 +890,14 @@
           "heightCm": 190
         },
         {
-          "name": "WINTER Koni De",
+          "name": "Koni de Winter",
           "position": "DEF",
           "dob": "12/06/2002",
           "club": "AC Milan (ITA)",
           "heightCm": 191
         },
         {
-          "name": "KETELAERE Charles Marc S De",
+          "name": "Charles Marc S de Ketelaere",
           "position": "FWD",
           "dob": "10/03/2001",
           "club": "Atalanta Bergamo (ITA)",
@@ -911,7 +911,7 @@
           "heightCm": 178
         },
         {
-          "name": "Diego Manuel JDA SILVA Moreira",
+          "name": "Diego Manuel Jda Moreira",
           "position": "MID",
           "dob": "06/08/2004",
           "club": "RC Strasbourg (FRA)",
@@ -932,7 +932,7 @@
           "heightCm": 185
         },
         {
-          "name": "Alexis Jesse MSAELEMAEKERS Saelemaekers",
+          "name": "Alexis Jesse Saelemaekers",
           "position": "MID",
           "dob": "27/06/1999",
           "club": "AC Milan (ITA)",
@@ -946,7 +946,7 @@
           "heightCm": 178
         },
         {
-          "name": "Amadou Ba ZMVOM Onana",
+          "name": "Amadou Ba Onana",
           "position": "MID",
           "dob": "16/08/2001",
           "club": "Aston Villa FC (ENG)",
@@ -960,7 +960,7 @@
           "heightCm": 183
         },
         {
-          "name": "Matias Fernandez-Pardo",
+          "name": "Matias Fernandez-pardo",
           "position": "FWD",
           "dob": "03/02/2005",
           "club": "Lille OSC (FRA)",
@@ -992,7 +992,7 @@
           "heightCm": 189
         },
         {
-          "name": "Dennis HADŽ IKADUNIĆ HADŽ IKADUNIĆ Hadzikadunic",
+          "name": "Dennis Had Ž Hadzikadunic",
           "position": "DEF",
           "dob": "09/07/1998",
           "club": "UC Sampdoria (ITA)",
@@ -1006,7 +1006,7 @@
           "heightCm": 192
         },
         {
-          "name": "Sead KOLAŠ INAC KOLAŠ INAC Kolasinac",
+          "name": "Sead Kolasinac",
           "position": "DEF",
           "dob": "20/06/1993",
           "club": "Atalanta Bergamo (ITA)",
@@ -1034,21 +1034,21 @@
           "heightCm": 187
         },
         {
-          "name": "Samed BAŽ DAR BAŽ DAR Bazdar",
+          "name": "Samed Ba Ž Dar Ba Ž Dar Bazdar",
           "position": "FWD",
           "dob": "31/01/2004",
           "club": "Jagiellonia Bia ł ystok (POL)",
           "heightCm": 189
         },
         {
-          "name": "Ermedin DEMIROVIĆ Demirovic",
+          "name": "Ermedin Demirovic",
           "position": "FWD",
           "dob": "25/03/1998",
           "club": "VfB Stuttgart (GER)",
           "heightCm": 185
         },
         {
-          "name": "Edin DŽ EKO DŽ EKO Dzeko",
+          "name": "Edin D Ž Eko D Ž Eko Dzeko",
           "position": "FWD",
           "dob": "17/03/1986",
           "club": "FC Schalke 04 (GER)",
@@ -1069,28 +1069,28 @@
           "heightCm": 178
         },
         {
-          "name": "Ivan IvanŠ UNJIĆ Š UNJIĆ Sunjic",
+          "name": "Ivan Š Sunjic",
           "position": "MID",
           "dob": "09/10/1996",
           "club": "Pafos FC (CYP)",
           "heightCm": 183
         },
         {
-          "name": "Amar MEMIĆ Memic",
+          "name": "Amar Memic",
           "position": "MID",
           "dob": "20/01/2001",
           "club": "FC Viktoria Plze ň  (CZE)",
           "heightCm": 176
         },
         {
-          "name": "Amir HADŽ IAHMETOVIĆ HADŽ IAHMETOVIĆ Hadziahmetovic",
+          "name": "Amir Had Ž Hadziahmetovic",
           "position": "MID",
           "dob": "08/03/1997",
           "club": "Hull City FC (ENG)",
           "heightCm": 179
         },
         {
-          "name": "Dzenis Dž enis BURNIĆ Burnic",
+          "name": "Dzenis D ž enis Burnic",
           "position": "MID",
           "dob": "22/05/1998",
           "club": "Karlsruher SC (GER)",
@@ -1139,7 +1139,7 @@
           "heightCm": 196
         },
         {
-          "name": "Nidal CELIKČ ELIK Celik",
+          "name": "Nidal Celik",
           "position": "DEF",
           "dob": "17/07/2006",
           "club": "RC Lens (FRA)",
@@ -1153,7 +1153,7 @@
           "heightCm": 190
         },
         {
-          "name": "Ermin MAHMIĆ Mahmic",
+          "name": "Ermin Mahmic",
           "position": "MID",
           "dob": "14/03/2005",
           "club": "FC Slovan Liberec (CZE)",
@@ -1171,91 +1171,91 @@
       },
       "players": [
         {
-          "name": "Ramsés BECKER A. BECKER Alissonálisson",
+          "name": "Álisson Ramsés",
           "position": "GK",
           "dob": "02/10/1992",
           "club": "Liverpool FC (ENG)",
           "heightCm": 193
         },
         {
-          "name": "VINÍCIUS FRANÇA LIMA Wesley",
+          "name": "Wesley",
           "position": "DEF",
           "dob": "06/09/2003",
           "club": "AS Roma (ITA)",
           "heightCm": 175
         },
         {
-          "name": "MAGALHAES Gabriel",
+          "name": "Gabriel Magalhães",
           "position": "DEF",
           "dob": "19/12/1997",
           "club": "Arsenal FC (ENG)",
           "heightCm": 190
         },
         {
-          "name": "Marcos AOAS CORREA Marquinhos",
+          "name": "Marcos Marquinhos",
           "position": "DEF",
           "dob": "14/05/1994",
           "club": "Paris Saint-Germain (FRA)",
           "heightCm": 183
         },
         {
-          "name": "Carlos Henrique CASIMIRO Casemiro",
+          "name": "Carlos Henrique Casemiro",
           "position": "MID",
           "dob": "23/02/1992",
           "club": "Manchester United FC (ENG)",
           "heightCm": 185
         },
         {
-          "name": "SANDRO Alex",
+          "name": "Alex Sandro",
           "position": "DEF",
           "dob": "26/01/1991",
           "club": "CR Flamengo (BRA)",
           "heightCm": 180
         },
         {
-          "name": "JUNIOR Vinicius",
+          "name": "Vinicius Junior",
           "position": "FWD",
           "dob": "12/07/2000",
           "club": "Real Madrid C. F. (ESP)",
           "heightCm": 176
         },
         {
-          "name": "GUIMARAES Bruno",
+          "name": "Bruno Guimarães",
           "position": "MID",
           "dob": "16/11/1997",
           "club": "Newcastle United FC (ENG)",
           "heightCm": 182
         },
         {
-          "name": "CUNHA Matheus",
+          "name": "Matheus Cunha",
           "position": "FWD",
           "dob": "27/05/1999",
           "club": "Manchester United FC (ENG)",
           "heightCm": 183
         },
         {
-          "name": "JR Neymar",
+          "name": "Neymar Jr",
           "position": "FWD",
           "dob": "05/02/1992",
           "club": "Santos FC (BRA)",
           "heightCm": 175
         },
         {
-          "name": "Raphael DIAS BELLOLI Raphinha",
+          "name": "Raphael Raphinha",
           "position": "FWD",
           "dob": "14/12/1996",
           "club": "FC Barcelona (ESP)",
           "heightCm": 176
         },
         {
-          "name": "PEREIRA DA SILVA Weverton",
+          "name": "Weverton",
           "position": "GK",
           "dob": "13/12/1987",
           "club": "Grêmio FBPA (BRA)",
           "heightCm": 189
         },
         {
-          "name": "Luiz DA SILVA Danilo",
+          "name": "Danilo Luiz da",
           "position": "DEF",
           "dob": "15/07/1991",
           "club": "CR Flamengo (BRA)",
@@ -1269,84 +1269,84 @@
           "heightCm": 188
         },
         {
-          "name": "PEREIRA Leonardo PEREIRA Leo",
+          "name": "Leonardo Leo Pereira",
           "position": "DEF",
           "dob": "31/01/1996",
           "club": "CR Flamengo (BRA)",
           "heightCm": 189
         },
         {
-          "name": "SANTOS Douglas",
+          "name": "Douglas Santos",
           "position": "DEF",
           "dob": "22/03/1994",
           "club": "FC Zenit St. Petersburg (RUS)",
           "heightCm": 173
         },
         {
-          "name": "Fabio Henrique TAVARES Fabinho",
+          "name": "Fabio Henrique Fabinho",
           "position": "MID",
           "dob": "23/10/1993",
           "club": "Al Ittihad (KSA)",
           "heightCm": 188
         },
         {
-          "name": "SANTOS Danilo",
+          "name": "Danilo Santos",
           "position": "MID",
           "dob": "29/04/2001",
           "club": "Botafogo (BRA)",
           "heightCm": 177
         },
         {
-          "name": "Felipe MOREIRA DE SOUSA PESSOA Endrick",
+          "name": "Endrick Felipe",
           "position": "FWD",
           "dob": "21/07/2006",
           "club": "Olympique Lyonnais (FRA)",
           "heightCm": 172
         },
         {
-          "name": "PAQUETA Lucas",
+          "name": "Lucas Paqueta",
           "position": "MID",
           "dob": "27/08/1997",
           "club": "CR Flamengo (BRA)",
           "heightCm": 183
         },
         {
-          "name": "HENRIQUE Luiz",
+          "name": "Luiz Henrique",
           "position": "FWD",
           "dob": "02/01/2001",
           "club": "FC Zenit St. Petersburg (RUS)",
           "heightCm": 182
         },
         {
-          "name": "MARTINELLI Gabriel",
+          "name": "Gabriel Martinelli",
           "position": "FWD",
           "dob": "18/06/2001",
           "club": "Arsenal FC (ENG)",
           "heightCm": 178
         },
         {
-          "name": "SANTANA DE MORAES Ederson",
+          "name": "Ederson",
           "position": "GK",
           "dob": "17/08/1993",
           "club": "Fenerbahçe SK (TUR)",
           "heightCm": 188
         },
         {
-          "name": "IBANEZ Roger",
+          "name": "Roger Ibañez",
           "position": "DEF",
           "dob": "23/11/1998",
           "club": "Al Ahli FC (KSA)",
           "heightCm": 186
         },
         {
-          "name": "THIAGO Igor",
+          "name": "Igor Thiago",
           "position": "FWD",
           "dob": "26/06/2001",
           "club": "Brentford FC (ENG)",
           "heightCm": 190
         },
         {
-          "name": "Vitor SIMPLICIO ROCHA Rayan",
+          "name": "Rayan Vitor",
           "position": "FWD",
           "dob": "03/08/2006",
           "club": "AFC Bournemouth (ENG)",
@@ -1364,182 +1364,182 @@
       },
       "players": [
         {
-          "name": "Josimar JoséÉVORA DIAS Vozinha",
+          "name": "Josimar José Vozinha",
           "position": "GK",
           "dob": "03/06/1986",
           "club": "GD Chaves (POR)",
           "heightCm": 189
         },
         {
-          "name": "Ianique DOS SANTOS TAVARES Stopira",
+          "name": "Ianique dos Stopira",
           "position": "DEF",
           "dob": "20/05/1988",
           "club": "SCU Torreense (POR)",
           "heightCm": 178
         },
         {
-          "name": "BORGES Edilson Alberto MONTEIRO SANCHES BORGESBORGES Diney",
+          "name": "Edilson Alberto Diney Borges",
           "position": "DEF",
           "dob": "17/01/1995",
           "club": "Al Bataeh Club (UAE)",
           "heightCm": 185
         },
         {
-          "name": "LOPES Roberto Carlos LOPES Pico",
+          "name": "Roberto Carlos Pico Lopes",
           "position": "DEF",
           "dob": "17/06/1992",
           "club": "Shamrock Rovers FC (IRL)",
           "heightCm": 186
         },
         {
-          "name": "COSTA Logan",
+          "name": "Logan Costa",
           "position": "DEF",
           "dob": "01/04/2001",
           "club": "Villarreal CF (ESP)",
           "heightCm": 190
         },
         {
-          "name": "PINA Kevin",
+          "name": "Kevin Pina",
           "position": "MID",
           "dob": "27/01/1997",
           "club": "FC Krasnodar (RUS)",
           "heightCm": 177
         },
         {
-          "name": "CABRAL Jovane",
+          "name": "Jovane Cabral",
           "position": "MID",
           "dob": "14/06/1998",
           "club": "CF Estrela Da Amadora (POR)",
           "heightCm": 174
         },
         {
-          "name": "PAULO João Paulo MOREIRA FERNANDES JOÃO PAULO Joao",
+          "name": "João Paulo",
           "position": "MID",
           "dob": "26/05/1998",
           "club": "FC FCSB (ROU)",
           "heightCm": 180
         },
         {
-          "name": "BENCHIMOL Gilson",
+          "name": "Gilson Benchimol",
           "position": "FWD",
           "dob": "29/12/2001",
           "club": "FC Akron Tolyatti (RUS)",
           "heightCm": 187
         },
         {
-          "name": "MONTEIRO Jamiro",
+          "name": "Jamiro Monteiro",
           "position": "MID",
           "dob": "23/11/1993",
           "club": "PEC Zwolle (NED)",
           "heightCm": 175
         },
         {
-          "name": "RODRIGUES Garry",
+          "name": "Garry Rodrigues",
           "position": "MID",
           "dob": "27/11/1990",
           "club": "Apollon Limassol (CYP)",
           "heightCm": 173
         },
         {
-          "name": "ROSAMárcio Salomão BRAZÃO DA ROSA Marcio",
+          "name": "Márcio Rosa",
           "position": "GK",
           "dob": "23/02/1997",
           "club": "PFC Montana (BUL)",
           "heightCm": 186
         },
         {
-          "name": "LOPES CABRAL Sidny",
+          "name": "Sidny Lopes Cabral",
           "position": "DEF",
           "dob": "18/09/2002",
           "club": "SL Ben\u0000ca (POR)",
           "heightCm": 176
         },
         {
-          "name": "DUARTE Deroy",
+          "name": "Deroy Duarte",
           "position": "MID",
           "dob": "04/07/1999",
           "club": "PFC Ludogorets Razgrad (BUL)",
           "heightCm": 177
         },
         {
-          "name": "DUARTE Laros",
+          "name": "Laros Duarte",
           "position": "MID",
           "dob": "28/02/1997",
           "club": "Puskás Akadémia FC (HUN)",
           "heightCm": 180
         },
         {
-          "name": "SEMEDO Jair SEMEDO MONTEIRO Y. SEMEDO Yannick",
+          "name": "Jair Yannick Semedo",
           "position": "MID",
           "dob": "29/12/1995",
           "club": "SC Farense (POR)",
           "heightCm": 176
         },
         {
-          "name": "SEMEDO Willy",
+          "name": "Willy Semedo",
           "position": "MID",
           "dob": "27/04/1994",
           "club": "AC Omonia (CYP)",
           "heightCm": 185
         },
         {
-          "name": "ARCANJO Telmo",
+          "name": "Telmo Arcanjo",
           "position": "MID",
           "dob": "21/06/2001",
           "club": "Vitória SC (POR)",
           "heightCm": 180
         },
         {
-          "name": "LIVRAMENTO Dailon",
+          "name": "Dailon Livramento",
           "position": "FWD",
           "dob": "04/05/2001",
           "club": "Casa Pia AC (POR)",
           "heightCm": 185
         },
         {
-          "name": "MENDES Ryan",
+          "name": "Ryan Mendes",
           "position": "FWD",
           "dob": "08/01/1990",
           "club": "I ğ dır FK (TUR)",
           "heightCm": 178
         },
         {
-          "name": "DA COSTA Nuno",
+          "name": "Nuno da Costa",
           "position": "MID",
           "dob": "10/02/1991",
           "club": "Ba ş ak ş ehir FK (TUR)",
           "heightCm": 182
         },
         {
-          "name": "MOREIRA Steven",
+          "name": "Steven Moreira",
           "position": "DEF",
           "dob": "13/08/1994",
           "club": "Columbus Crew (USA)",
           "heightCm": 178
         },
         {
-          "name": "DOS SANTOS Carlos Joaquim ANTUNES DOS SANTOS DOS SANTOS Cj",
+          "name": "Carlos Joaquim Cj dos Santos",
           "position": "GK",
           "dob": "24/08/2000",
           "club": "San Diego FC (USA)",
           "heightCm": 189
         },
         {
-          "name": "PINA Wagner",
+          "name": "Wagner Pina",
           "position": "DEF",
           "dob": "03/11/2002",
           "club": "Trabzonspor (TUR)",
           "heightCm": 180
         },
         {
-          "name": "PIRES Kelvin",
+          "name": "Kelvin Pires",
           "position": "DEF",
           "dob": "05/06/2000",
           "club": "SJK (FIN)",
           "heightCm": 193
         },
         {
-          "name": "VARELA Hélio Sandro OLIVEIRA ALVES VARELA HÉLIO Helio",
+          "name": "Hélio Varela",
           "position": "MID",
           "dob": "03/05/2002",
           "club": "Maccabi Tel-Aviv FC (ISR)",
@@ -1557,7 +1557,7 @@
       },
       "players": [
         {
-          "name": "CLAIR Dayne Tristan St.",
+          "name": "Dayne Tristan St. Clair",
           "position": "GK",
           "dob": "09/05/1997",
           "club": "Inter Miami CF (USA)",
@@ -1578,7 +1578,7 @@
           "heightCm": 191
         },
         {
-          "name": "FOUGEROLLES Luc ROLLET De",
+          "name": "Luc de Fougerolles",
           "position": "DEF",
           "dob": "12/10/2005",
           "club": "FCV Dender EH (BEL)",
@@ -1592,21 +1592,21 @@
           "heightCm": 185
         },
         {
-          "name": "Mathieu CHOINIÈRE Choiniere",
+          "name": "Mathieu Choinière",
           "position": "MID",
           "dob": "07/02/1999",
           "club": "LAFC (USA)",
           "heightCm": 173
         },
         {
-          "name": "Stephen ANTUNES EUSTÁQUIO EUSTÀQUIO Eustaquio",
+          "name": "Stephen Eustàquio",
           "position": "MID",
           "dob": "21/12/1996",
           "club": "LAFC (USA)",
           "heightCm": 175
         },
         {
-          "name": "Ismael Kenneth Jordan KONÉ Kone",
+          "name": "Ismael Kenneth Jordan Koné",
           "position": "MID",
           "dob": "16/06/2002",
           "club": "US Sassuolo (ITA)",
@@ -1655,14 +1655,14 @@
           "heightCm": 181
         },
         {
-          "name": "Moise Moïse Bombito",
+          "name": "Moïse Bombito",
           "position": "DEF",
           "dob": "30/03/2000",
           "club": "OGC Nice (FRA)",
           "heightCm": 190
         },
         {
-          "name": "Maxime CRÉPEAU Crepeau",
+          "name": "Maxime Crépeau",
           "position": "GK",
           "dob": "11/05/1994",
           "club": "Orlando City SC (USA)",
@@ -1725,7 +1725,7 @@
           "heightCm": 195
         },
         {
-          "name": "Nathan Nathan-Dylan Saliba",
+          "name": "Nathan-Dylan Saliba",
           "position": "MID",
           "dob": "07/02/2004",
           "club": "RSC Anderlecht (BEL)",
@@ -1757,7 +1757,7 @@
           "heightCm": 183
         },
         {
-          "name": "Daniel MUÑOZ MEJIA D. MUÑOZ Munoz",
+          "name": "Daniel Muñoz",
           "position": "DEF",
           "dob": "26/05/1996",
           "club": "Crystal Palace FC (ENG)",
@@ -1778,21 +1778,21 @@
           "heightCm": 177
         },
         {
-          "name": "Kevin Duvan CASTAÑO GIL K. CASTAÑO Castano",
+          "name": "Kevin Duvan Castaño",
           "position": "MID",
           "dob": "29/09/2000",
           "club": "CA River Plate (ARG)",
           "heightCm": 179
         },
         {
-          "name": "Richard RÍOS MONTOYA RICHARD Rios",
+          "name": "Richard Ríos",
           "position": "MID",
           "dob": "02/06/2000",
           "club": "SL Ben\u0000ca (POR)",
           "heightCm": 185
         },
         {
-          "name": "Luis Fernando DÍAZ MARULANDA LUIS Diaz",
+          "name": "Luis Fernando Díaz",
           "position": "FWD",
           "dob": "13/01/1997",
           "club": "FC Bayern München (GER)",
@@ -1806,14 +1806,14 @@
           "heightCm": 180
         },
         {
-          "name": "Jhon Andrés CÓRDOBA COPETE Cordoba",
+          "name": "Jhon Andrés Córdoba",
           "position": "FWD",
           "dob": "11/05/1993",
           "club": "FC Krasnodar (RUS)",
           "heightCm": 186
         },
         {
-          "name": "James David RODRÍGUEZ RUBIOJAMES Rodriguez",
+          "name": "James David Rodríguez",
           "position": "MID",
           "dob": "12/07/1991",
           "club": "Minnesota United FC (USA)",
@@ -1904,28 +1904,28 @@
           "heightCm": 173
         },
         {
-          "name": "Davinson SÁNCHEZ MINA Sanchez",
+          "name": "Davinson Sánchez",
           "position": "DEF",
           "dob": "12/06/1996",
           "club": "Galatasaray SK (TUR)",
           "heightCm": 188
         },
         {
-          "name": "AlvaroÁlvaro David Montero",
+          "name": "Álvaro David Montero",
           "position": "GK",
           "dob": "29/03/1995",
           "club": "CA Vélez Sars\u0000eld (ARG)",
           "heightCm": 201
         },
         {
-          "name": "Luis Javier SUÁREZ CHARRIS Suarez",
+          "name": "Luis Javier Suárez",
           "position": "FWD",
           "dob": "02/12/1997",
           "club": "Sporting CP (POR)",
           "heightCm": 179
         },
         {
-          "name": "Andres Carlos Andrés GÓMEZ HINESTROZA A. Gomez",
+          "name": "Andres Carlos Andrés Gómez",
           "position": "FWD",
           "dob": "12/09/2002",
           "club": "CR Vasco Da Gama (BRA)",
@@ -1950,7 +1950,7 @@
           "heightCm": 182
         },
         {
-          "name": "Aaron Wan BISSAKA WAN BISSAKA Wan-Bissaka",
+          "name": "Aaron Wan-Bissaka",
           "position": "DEF",
           "dob": "26/11/1997",
           "club": "West Ham United FC (ENG)",
@@ -1971,21 +1971,21 @@
           "heightCm": 188
         },
         {
-          "name": "Dylan Buduka BATUBINSIKABATUBINSIKA Batubinsika",
+          "name": "Dylan Buduka Batubinsika",
           "position": "DEF",
           "dob": "15/02/1996",
           "club": "AEL FC (GRE)",
           "heightCm": 185
         },
         {
-          "name": "Ngalayel Ngal’ayel Mukau",
+          "name": "Ngal’ayel Mukau",
           "position": "MID",
           "dob": "03/11/2004",
           "club": "Lille OSC (FRA)",
           "heightCm": 186
         },
         {
-          "name": "Nathanael Nathanaël Mbuku",
+          "name": "Nathanaël Mbuku",
           "position": "MID",
           "dob": "16/03/2002",
           "club": "Montpellier HSC (FRA)",
@@ -2020,7 +2020,7 @@
           "heightCm": 174
         },
         {
-          "name": "Joris KAYEMBE-DITU J. Kayembe",
+          "name": "Joris Kayembe",
           "position": "DEF",
           "dob": "08/08/1994",
           "club": "KRC Genk (BEL)",
@@ -2104,7 +2104,7 @@
           "heightCm": 189
         },
         {
-          "name": "Gedeon Gédéon Tchingoma Kyatengwa Kalulu",
+          "name": "Gédéon Tchingoma Kyatengwa Kalulu",
           "position": "DEF",
           "dob": "29/08/1997",
           "club": "Aris Limassol FC (CYP)",
@@ -2178,7 +2178,7 @@
           "heightCm": 185
         },
         {
-          "name": "Odilon Kouakou Odilon Dorgeless KOSSOUNOUKOSSOUNOU Kossounou",
+          "name": "Odilon Kouakou Odilon Dorgeless Kossounou",
           "position": "DEF",
           "dob": "04/01/2001",
           "club": "Atalanta Bergamo (ITA)",
@@ -2269,7 +2269,7 @@
           "heightCm": 183
         },
         {
-          "name": "Emmanuel Badobre Emmanuel Elysee Djedje Agbadou",
+          "name": "Emmanuel Badobre Emmanuel Elysee Dje Agbadou",
           "position": "DEF",
           "dob": "17/06/1997",
           "club": "Be ş ikta ş  JK (TUR)",
@@ -2283,14 +2283,14 @@
           "heightCm": 192
         },
         {
-          "name": "Evann Ludovic Vidjannagni GUESSANDGUESSAND Guessand",
+          "name": "Evann Ludovic Vidjannagni Guessand",
           "position": "FWD",
           "dob": "01/07/2001",
           "club": "Crystal Palace FC (ENG)",
           "heightCm": 188
         },
         {
-          "name": "Alban Alban-Marc Lafont",
+          "name": "Alban-Marc Lafont",
           "position": "GK",
           "dob": "23/01/1999",
           "club": "Panathinaikos FC (GRE)",
@@ -2323,27 +2323,27 @@
       "fifaName": "Croatia",
       "code": "CRO",
       "coach": {
-        "name": "Dalic Zlatko Dalić",
+        "name": "Dalic Zlatko Dali Ć",
         "nationality": "Croatia",
         "role": "Head coach"
       },
       "players": [
         {
-          "name": "Dominik LIVAKOVIĆ Livakovic",
+          "name": "Dominik Livakovic",
           "position": "GK",
           "dob": "09/01/1995",
           "club": "GNK Dinamo Zagreb (CRO)",
           "heightCm": 188
         },
         {
-          "name": "Josip STANIŠ IĆ STANIŠ IĆ Stanisic",
+          "name": "Josip Stanisic",
           "position": "DEF",
           "dob": "02/04/2000",
           "club": "FC Bayern München (GER)",
           "heightCm": 186
         },
         {
-          "name": "Marin PONGRAČ IĆ PONGRAČ IĆ Pongracic",
+          "name": "Marin Pongracic",
           "position": "DEF",
           "dob": "11/09/1997",
           "club": "ACF Fiorentina (ITA)",
@@ -2357,14 +2357,14 @@
           "heightCm": 185
         },
         {
-          "name": "Duje DujeĆ ALETA-CARĆ ALETA-CAR Caleta-Car",
+          "name": "Duje Ć Caleta-car",
           "position": "DEF",
           "dob": "17/09/1996",
           "club": "Real Sociedad (ESP)",
           "heightCm": 193
         },
         {
-          "name": "Josip JosipŠ UTALOŠ UTALO Sutalo",
+          "name": "Josip Š Sutalo",
           "position": "DEF",
           "dob": "28/02/2000",
           "club": "AFC Ajax (NED)",
@@ -2378,21 +2378,21 @@
           "heightCm": 183
         },
         {
-          "name": "Mateo KOVAČ IĆ KOVAČ IĆ Kovacic",
+          "name": "Mateo Kovacic",
           "position": "MID",
           "dob": "06/05/1994",
           "club": "Manchester City FC (ENG)",
           "heightCm": 178
         },
         {
-          "name": "Andrej KRAMARIĆ Kramaric",
+          "name": "Andrej Kramaric",
           "position": "FWD",
           "dob": "19/06/1991",
           "club": "TSG Hoffenheim (GER)",
           "heightCm": 177
         },
         {
-          "name": "Luka MODRIĆ Modric",
+          "name": "Luka Modric",
           "position": "MID",
           "dob": "09/09/1985",
           "club": "AC Milan (ITA)",
@@ -2413,21 +2413,21 @@
           "heightCm": 187
         },
         {
-          "name": "Nikola VLAŠ IĆ VLAŠ IĆ Vlasic",
+          "name": "Nikola Vla Š I Ć Vla Š I Ć Vlasic",
           "position": "MID",
           "dob": "04/10/1997",
           "club": "Torino FC (ITA)",
           "heightCm": 179
         },
         {
-          "name": "Ivan PERIŠ IĆ PERIŠ IĆ Perisic",
+          "name": "Ivan Perisic",
           "position": "FWD",
           "dob": "02/02/1989",
           "club": "PSV Eindhoven (NED)",
           "heightCm": 186
         },
         {
-          "name": "Mario PAŠ ALIĆ PAŠ ALIĆ Pasalic",
+          "name": "Mario Pa Š Ali Ć Pa Š Ali Ć Pasalic",
           "position": "MID",
           "dob": "09/02/1995",
           "club": "Atalanta Bergamo (ITA)",
@@ -2441,14 +2441,14 @@
           "heightCm": 172
         },
         {
-          "name": "Petar SUČ IĆ P. SUČ IĆ Sucic",
+          "name": "Petar Su Č I Ć P. Su Č I Ć Sucic",
           "position": "MID",
           "dob": "25/10/2003",
           "club": "FC Internazionale Milano (ITA)",
           "heightCm": 183
         },
         {
-          "name": "Kristijan JAKIĆ Jakic",
+          "name": "Kristijan Jakic",
           "position": "DEF",
           "dob": "14/05/1997",
           "club": "FC Augsburg (GER)",
@@ -2462,21 +2462,21 @@
           "heightCm": 177
         },
         {
-          "name": "Igor MATANOVIĆ Matanovic",
+          "name": "Igor Matanovic",
           "position": "FWD",
           "dob": "31/03/2003",
           "club": "SC Freiburg (GER)",
           "heightCm": 194
         },
         {
-          "name": "Luka SUČ IĆ SUČ IĆ Sucic",
+          "name": "Luka Su Č I Ć Su Č I Ć Sucic",
           "position": "MID",
           "dob": "08/09/2002",
           "club": "Real Sociedad (ESP)",
           "heightCm": 185
         },
         {
-          "name": "Luka VUŠ KOVIĆ VUŠ KOVIĆ Vuskovic",
+          "name": "Luka Vu Š Vuskovic",
           "position": "DEF",
           "dob": "24/02/2007",
           "club": "Hamburger SV (GER)",
@@ -2490,14 +2490,14 @@
           "heightCm": 190
         },
         {
-          "name": "Marco PAŠ ALIĆ M. PAŠ ALIĆ Pasalic",
+          "name": "Marco Pa Š Ali Ć M. Pa Š Ali Ć Pasalic",
           "position": "FWD",
           "dob": "14/09/2000",
           "club": "Orlando City SC (USA)",
           "heightCm": 177
         },
         {
-          "name": "Martin ERLIĆ Erlic",
+          "name": "Martin Erlic",
           "position": "DEF",
           "dob": "24/01/1998",
           "club": "FC Midtjylland (DEN)",
@@ -2536,14 +2536,14 @@
           "heightCm": 174
         },
         {
-          "name": "Jurien Juriën Godfried Juan Gaari",
+          "name": "Juriën Godfried Juan Gaari",
           "position": "DEF",
           "dob": "23/12/1993",
           "club": "Abha Club (KSA)",
           "heightCm": 183
         },
         {
-          "name": "EIJMA Roshon Felix Romar Jordan Van",
+          "name": "Roshon Felix Romar Jordan van Eijma",
           "position": "DEF",
           "dob": "09/06/1998",
           "club": "RKC Waalwijk (NED)",
@@ -2620,7 +2620,7 @@
           "heightCm": 174
         },
         {
-          "name": "Arjany Ar'jany Jainel Archenir Martha",
+          "name": "Ar'jany Jainel Archenir Martha",
           "position": "MID",
           "dob": "04/09/2003",
           "club": "Rotherham United FC (ENG)",
@@ -2683,7 +2683,7 @@
           "heightCm": 184
         },
         {
-          "name": "Deveron Lenny FONVILLEFONVILLE Fonville",
+          "name": "Deveron Lenny Fonville",
           "position": "DEF",
           "dob": "16/05/2003",
           "club": "NEC Nijmegen (NED)",
@@ -2697,7 +2697,7 @@
           "heightCm": 190
         },
         {
-          "name": "Trevor Irving DOORNBUSCHDOORNBUSCH Doornbusch",
+          "name": "Trevor Irving Doornbusch",
           "position": "GK",
           "dob": "06/07/1999",
           "club": "VVV Venlo (NED)",
@@ -2715,7 +2715,7 @@
       },
       "players": [
         {
-          "name": "Matej Matě j KOVÁŘ Kovar",
+          "name": "Matej Matě j Kovar",
           "position": "GK",
           "dob": "17/05/2000",
           "club": "PSV Eindhoven (NED)",
@@ -2729,49 +2729,49 @@
           "heightCm": 190
         },
         {
-          "name": "Tomas Tomá š HOLEŠ Holes",
+          "name": "Tomáš Holes",
           "position": "DEF",
           "dob": "31/03/1993",
           "club": "SK Slavia Praha (CZE)",
           "heightCm": 180
         },
         {
-          "name": "Robin HRANÁČ Hranac",
+          "name": "Robin Hranac",
           "position": "DEF",
           "dob": "29/01/2000",
           "club": "TSG Hoffenheim (GER)",
           "heightCm": 189
         },
         {
-          "name": "Vladimir Vladimír Coufal",
+          "name": "Vladimír Coufal",
           "position": "DEF",
           "dob": "22/08/1992",
           "club": "TSG Hoffenheim (GER)",
           "heightCm": 175
         },
         {
-          "name": "StepanŠ tě pán Chaloupek",
+          "name": "Stepan Š tě pán Chaloupek",
           "position": "DEF",
           "dob": "08/03/2003",
           "club": "SK Slavia Praha (CZE)",
           "heightCm": 188
         },
         {
-          "name": "Ladislav KREJČ Í KREJČ Í Krejci",
+          "name": "Ladislav Krejci",
           "position": "DEF",
           "dob": "20/04/1999",
           "club": "Wolverhampton Wanderers FC (ENG)",
           "heightCm": 191
         },
         {
-          "name": "Vladimir Vladimír Darida",
+          "name": "Vladimír Darida",
           "position": "MID",
           "dob": "08/08/1990",
           "club": "FC Hradec Králové (CZE)",
           "heightCm": 172
         },
         {
-          "name": "Adam HLOŽ EK HLOŽ EK Hlozek",
+          "name": "Adam Hlo Ž Ek Hlo Ž Ek Hlozek",
           "position": "FWD",
           "dob": "25/07/2002",
           "club": "TSG Hoffenheim (GER)",
@@ -2792,84 +2792,84 @@
           "heightCm": 185
         },
         {
-          "name": "Lukas Luká šČ ERVČ ERV Cerv",
+          "name": "Lukáš Č Erv Č Erv Cerv",
           "position": "MID",
           "dob": "10/04/2001",
           "club": "FC Viktoria Plze ň  (CZE)",
           "heightCm": 182
         },
         {
-          "name": "Mojmir Mojmír Chytil",
+          "name": "Mojmír Chytil",
           "position": "FWD",
           "dob": "29/04/1999",
           "club": "SK Slavia Praha (CZE)",
           "heightCm": 187
         },
         {
-          "name": "David JURÁSEK Jurasek",
+          "name": "David Jurásek",
           "position": "DEF",
           "dob": "07/08/2000",
           "club": "SK Slavia Praha (CZE)",
           "heightCm": 183
         },
         {
-          "name": "Pavel PavelŠ ULCŠ ULC Sulc",
+          "name": "Pavel Š Ulc Š Ulc Sulc",
           "position": "FWD",
           "dob": "29/12/2000",
           "club": "Olympique Lyonnais (FRA)",
           "heightCm": 177
         },
         {
-          "name": "Jindrich Jindř ich STANĚ K STANĚ K Stanek",
+          "name": "Jindrich Jindř ich Stanek",
           "position": "GK",
           "dob": "27/04/1996",
           "club": "SK Slavia Praha (CZE)",
           "heightCm": 192
         },
         {
-          "name": "Lukas Luká š Provod",
+          "name": "Lukáš Provod",
           "position": "MID",
           "dob": "23/10/1996",
           "club": "SK Slavia Praha (CZE)",
           "heightCm": 191
         },
         {
-          "name": "Michal SADÍLEKSADÍLEK Sadilek",
+          "name": "Michal Sadílek",
           "position": "MID",
           "dob": "31/05/1999",
           "club": "SK Slavia Praha (CZE)",
           "heightCm": 169
         },
         {
-          "name": "Tomas Tomá š CHORÝ Chory",
+          "name": "Tomáš Chorý",
           "position": "FWD",
           "dob": "26/01/1995",
           "club": "SK Slavia Praha (CZE)",
           "heightCm": 199
         },
         {
-          "name": "Jaroslav ZELENÝ Zeleny",
+          "name": "Jaroslav Zelený",
           "position": "DEF",
           "dob": "20/08/1992",
           "club": "AC Sparta Praha (CZE)",
           "heightCm": 190
         },
         {
-          "name": "David DOUDĚ RA DOUDĚ RA Doudera",
+          "name": "David Doudera",
           "position": "DEF",
           "dob": "31/05/1998",
           "club": "SK Slavia Praha (CZE)",
           "heightCm": 175
         },
         {
-          "name": "Tomas Tomá š SOUČ EK SOUČ EK Soucek",
+          "name": "Tomáš Sou Č Ek Sou Č Ek Soucek",
           "position": "MID",
           "dob": "27/02/1995",
           "club": "West Ham United FC (ENG)",
           "heightCm": 192
         },
         {
-          "name": "Lukas Luká š HORNÍČ EK HORNÍČ EK Hornicek",
+          "name": "Lukáš Hornicek",
           "position": "GK",
           "dob": "13/07/2002",
           "club": "SC Braga (POR)",
@@ -2883,14 +2883,14 @@
           "heightCm": 188
         },
         {
-          "name": "Hugo SOCHŮ REK SOCHŮ REK Sochurek",
+          "name": "Hugo Sochurek",
           "position": "MID",
           "dob": "07/06/2008",
           "club": "AC Sparta Praha (CZE)",
           "heightCm": 183
         },
         {
-          "name": "Denis VIŠ INSKÝ VIŠ INSKÝ Visinsky",
+          "name": "Denis Vi Š Visinsky",
           "position": "FWD",
           "dob": "21/03/2003",
           "club": "FC Viktoria Plze ň  (CZE)",
@@ -2902,41 +2902,41 @@
       "fifaName": "Ecuador",
       "code": "ECU",
       "coach": {
-        "name": "Beccacece Sebastian Sebastián Andrés",
+        "name": "Beccacece Sebastián Andrés",
         "nationality": "Argentina",
         "role": "Head coach"
       },
       "players": [
         {
-          "name": "Hernan Hernán Ismael GALÍNDEZ Galindez",
+          "name": "Hernán Ismael Galindez",
           "position": "GK",
           "dob": "30/03/1987",
           "club": "CA Huracán (ARG)",
           "heightCm": 189
         },
         {
-          "name": "Felix Félix Eduardo Torres",
+          "name": "Félix Eduardo Torres",
           "position": "DEF",
           "dob": "11/01/1997",
           "club": "SC Internacional (BRA)",
           "heightCm": 187
         },
         {
-          "name": "Piero Martin HINCAPIÉ REYNA Hincapie",
+          "name": "Piero Martin Hincapié",
           "position": "DEF",
           "dob": "09/01/2002",
           "club": "Arsenal FC (ENG)",
           "heightCm": 183
         },
         {
-          "name": "Joel Leandro ORDÓÑEZ GUERREROORDÓÑEZ Ordonez",
+          "name": "Joel Leandro Ordóñez",
           "position": "DEF",
           "dob": "21/04/2004",
           "club": "Club Brugge (BEL)",
           "heightCm": 188
         },
         {
-          "name": "Jordy Jose ALCÍVAR MACÍAS Alcivar",
+          "name": "Jordy Jose Alcívar",
           "position": "MID",
           "dob": "05/08/1999",
           "club": "Independiente Del Valle (ECU)",
@@ -2950,7 +2950,7 @@
           "heightCm": 188
         },
         {
-          "name": "Pervis Josue ESTUPIÑÁN TENORIOESTUPIÑÁN Estupinan",
+          "name": "Pervis Josue Estupiñán",
           "position": "DEF",
           "dob": "21/01/1998",
           "club": "AC Milan (ITA)",
@@ -2978,14 +2978,14 @@
           "heightCm": 178
         },
         {
-          "name": "Kevin Jose RODRÍGUEZ CORTEZ Rodriguez",
+          "name": "Kevin Jose Rodríguez",
           "position": "FWD",
           "dob": "04/03/2000",
           "club": "Royale Union Saint-Gilloise (BEL)",
           "heightCm": 190
         },
         {
-          "name": "Moises Wellington Moisés RAMÍREZ PRECIADO RAMÍREZ Ramirez",
+          "name": "Moises Wellington Moisés Ramírez",
           "position": "GK",
           "dob": "09/09/2000",
           "club": "AE Ki\u0000sia FC (GRE)",
@@ -3020,7 +3020,7 @@
           "heightCm": 186
         },
         {
-          "name": "AngeloÁngelo Smit Preciado",
+          "name": "Ángelo Smit Preciado",
           "position": "DEF",
           "dob": "18/02/1998",
           "club": "Atlético Mineiro (BRA)",
@@ -3062,7 +3062,7 @@
           "heightCm": 186
         },
         {
-          "name": "Moises Moisés Isaac Caicedo",
+          "name": "Moisés Isaac Caicedo",
           "position": "MID",
           "dob": "02/11/2001",
           "club": "Chelsea FC (ENG)",
@@ -3101,182 +3101,182 @@
       },
       "players": [
         {
-          "name": "ELSHENAWY Mohamed",
+          "name": "Mohamed Elshenawy",
           "position": "GK",
           "dob": "18/12/1988",
           "club": "Al Ahly FC (EGY)",
           "heightCm": 191
         },
         {
-          "name": "IBRAHIM Yasser",
+          "name": "Yasser Ibrahim",
           "position": "DEF",
           "dob": "10/02/1993",
           "club": "Al Ahly FC (EGY)",
           "heightCm": 185
         },
         {
-          "name": "HANY Mohamed",
+          "name": "Mohamed Hany",
           "position": "DEF",
           "dob": "02/02/1996",
           "club": "Al Ahly FC (EGY)",
           "heightCm": 175
         },
         {
-          "name": "ABDELMAGUID Hossam",
+          "name": "Hossam Abdelmaguid",
           "position": "DEF",
           "dob": "30/04/2001",
           "club": "Zamalek SC (EGY)",
           "heightCm": 193
         },
         {
-          "name": "RABIA Ramy",
+          "name": "Ramy Rabia",
           "position": "DEF",
           "dob": "20/05/1993",
           "club": "Al Ain FC (UAE)",
           "heightCm": 183
         },
         {
-          "name": "ABDELMONEIM Mohamed",
+          "name": "Mohamed Abdelmoneim",
           "position": "DEF",
           "dob": "01/02/1999",
           "club": "OGC Nice (FRA)",
           "heightCm": 184
         },
         {
-          "name": "Mahmoud Ahmed Ibrahim HASSAN M. Trezeguet",
+          "name": "Mahmoud Ahmed Ibrahim Trezeguet",
           "position": "FWD",
           "dob": "01/10/1994",
           "club": "Al Ahly FC (EGY)",
           "heightCm": 181
         },
         {
-          "name": "ASHOUR Emam",
+          "name": "Emam Ashour",
           "position": "MID",
           "dob": "20/02/1998",
           "club": "Al Ahly FC (EGY)",
           "heightCm": 180
         },
         {
-          "name": "ABDELKARIM Hamza",
+          "name": "Hamza Abdelkarim",
           "position": "FWD",
           "dob": "01/01/2008",
           "club": "FC Barcelona (ESP)",
           "heightCm": 182
         },
         {
-          "name": "SALAH Mohamed",
+          "name": "Mohamed Salah",
           "position": "FWD",
           "dob": "15/06/1992",
           "club": "Liverpool FC (ENG)",
           "heightCm": 175
         },
         {
-          "name": "ZICO Mostafa",
+          "name": "Mostafa Zico",
           "position": "MID",
           "dob": "27/04/1997",
           "club": "Pyramids FC (EGY)",
           "heightCm": 179
         },
         {
-          "name": "HASSAN Haissem",
+          "name": "Haissem Hassan",
           "position": "FWD",
           "dob": "08/02/2002",
           "club": "Real Oviedo (ESP)",
           "heightCm": 175
         },
         {
-          "name": "FATOUH Ahmed",
+          "name": "Ahmed Fatouh",
           "position": "DEF",
           "dob": "22/03/1998",
           "club": "Zamalek SC (EGY)",
           "heightCm": 177
         },
         {
-          "name": "FATHY Hamdy",
+          "name": "Hamdy Fathy",
           "position": "MID",
           "dob": "29/09/1994",
           "club": "Al Wakrah SC (QAT)",
           "heightCm": 183
         },
         {
-          "name": "HAFEZ Karim",
+          "name": "Karim Hafez",
           "position": "DEF",
           "dob": "12/03/1996",
           "club": "Pyramids FC (EGY)",
           "heightCm": 174
         },
         {
-          "name": "SOLIMAN Mahdy",
+          "name": "Mahdy Soliman",
           "position": "GK",
           "dob": "08/06/1987",
           "club": "Zamalek SC (EGY)",
           "heightCm": 189
         },
         {
-          "name": "LASHIN Mohanad",
+          "name": "Mohanad Lashin",
           "position": "MID",
           "dob": "29/05/1996",
           "club": "Pyramids FC (EGY)",
           "heightCm": 186
         },
         {
-          "name": "DONGA Nabil",
+          "name": "Nabil Donga",
           "position": "MID",
           "dob": "06/04/1996",
           "club": "Al Najmah SC (KSA)",
           "heightCm": 179
         },
         {
-          "name": "ATTIA Marawan",
+          "name": "Marawan Attia",
           "position": "MID",
           "dob": "01/08/1998",
           "club": "Al Ahly FC (EGY)",
           "heightCm": 176
         },
         {
-          "name": "ADEL Ibrahim",
+          "name": "Ibrahim Adel",
           "position": "FWD",
           "dob": "23/04/2001",
           "club": "FC Nordsjælland (DEN)",
           "heightCm": 178
         },
         {
-          "name": "SABER Mahmoud",
+          "name": "Mahmoud Saber",
           "position": "MID",
           "dob": "30/07/2001",
           "club": "ZED FC (EGY)",
           "heightCm": 170
         },
         {
-          "name": "MARMOUSH Omar",
+          "name": "Omar Marmoush",
           "position": "FWD",
           "dob": "07/02/1999",
           "club": "Manchester City FC (ENG)",
           "heightCm": 180
         },
         {
-          "name": "SHOUBIR Mostafa",
+          "name": "Mostafa Shoubir",
           "position": "GK",
           "dob": "15/05/2000",
           "club": "Al Ahly FC (EGY)",
           "heightCm": 195
         },
         {
-          "name": "ALAA Tarek",
+          "name": "Tarek Alaa",
           "position": "DEF",
           "dob": "05/01/2002",
           "club": "ZED FC (EGY)",
           "heightCm": 178
         },
         {
-          "name": "Ahmed Mostafa Mohamed SAYED Zizo",
+          "name": "Ahmed Mostafa Mohamed Zizo",
           "position": "FWD",
           "dob": "10/01/1996",
           "club": "Al Ahly FC (EGY)",
           "heightCm": 175
         },
         {
-          "name": "ALAA Mohamed",
+          "name": "Mohamed Alaa",
           "position": "GK",
           "dob": "01/01/1999",
           "club": "El Gouna FC (EGY)",
@@ -3294,7 +3294,7 @@
       },
       "players": [
         {
-          "name": "Jordan Lee PICKFORDPICKFORD Pickford",
+          "name": "Jordan Lee Pickford",
           "position": "GK",
           "dob": "07/03/1994",
           "club": "Everton FC (ENG)",
@@ -3308,7 +3308,7 @@
           "heightCm": 180
         },
         {
-          "name": "Nico O'REILLY Oreilly",
+          "name": "Nico O'reilly",
           "position": "DEF",
           "dob": "21/03/2005",
           "club": "Manchester City FC (ENG)",
@@ -3343,7 +3343,7 @@
           "heightCm": 178
         },
         {
-          "name": "Elliot Junior ANDERSONANDERSON Anderson",
+          "name": "Elliot Junior Anderson",
           "position": "MID",
           "dob": "06/11/2002",
           "club": "Nottingham Forest FC (ENG)",
@@ -3364,7 +3364,7 @@
           "heightCm": 183
         },
         {
-          "name": "Marcus RASHFORDRASHFORD Rashford",
+          "name": "Marcus Rashford",
           "position": "FWD",
           "dob": "31/10/1997",
           "club": "FC Barcelona (ESP)",
@@ -3378,14 +3378,14 @@
           "heightCm": 182
         },
         {
-          "name": "Dean Bradley HENDERSOND. Henderson",
+          "name": "Dean Bradley Henderson",
           "position": "GK",
           "dob": "12/03/1997",
           "club": "Crystal Palace FC (ENG)",
           "heightCm": 188
         },
         {
-          "name": "Jordan Brian HENDERSONJ. Henderson",
+          "name": "Jordan Brian Henderson",
           "position": "MID",
           "dob": "17/06/1990",
           "club": "Brentford FC (ENG)",
@@ -3448,7 +3448,7 @@
           "heightCm": 185
         },
         {
-          "name": "James Harrington TRAFFORDTRAFFORD Trafford",
+          "name": "James Harrington Trafford",
           "position": "GK",
           "dob": "10/10/2002",
           "club": "Manchester City FC (ENG)",
@@ -3536,14 +3536,14 @@
           "heightCm": 179
         },
         {
-          "name": "Aurelien Aurélien Djani Tchouameni",
+          "name": "Aurélien Djani Tchouameni",
           "position": "MID",
           "dob": "27/01/2000",
           "club": "Real Madrid C. F. (ESP)",
           "heightCm": 188
         },
         {
-          "name": "Marcus Lilian THURAM-ULIENTHURAM Thuram",
+          "name": "Marcus Lilian Thuram",
           "position": "FWD",
           "dob": "06/08/1997",
           "club": "FC Internazionale Milano (ITA)",
@@ -3564,14 +3564,14 @@
           "heightCm": 184
         },
         {
-          "name": "Bradley Jean-Manuel Essolisa ABARCOLA Barcola",
+          "name": "Bradley Jean-Manuel Essolisa Barcola",
           "position": "FWD",
           "dob": "02/09/2002",
           "club": "Paris Saint-Germain (FRA)",
           "heightCm": 187
         },
         {
-          "name": "Ngolo N'golo Kante",
+          "name": "N'golo Kante",
           "position": "MID",
           "dob": "29/03/1991",
           "club": "Fenerbahçe SK (TUR)",
@@ -3585,7 +3585,7 @@
           "heightCm": 191
         },
         {
-          "name": "Ibrahima KONATÉ Konate",
+          "name": "Ibrahima Konate",
           "position": "DEF",
           "dob": "25/05/1999",
           "club": "Liverpool FC (ENG)",
@@ -3606,21 +3606,21 @@
           "heightCm": 192
         },
         {
-          "name": "Warren Marie Jean-Pierre ZAÏRE-EMERY ZAIRE EMERY Zaire-Emery",
+          "name": "Warren Marie Jean-Pierre Zaïre-emery",
           "position": "MID",
           "dob": "08/03/2006",
           "club": "Paris Saint-Germain (FRA)",
           "heightCm": 176
         },
         {
-          "name": "Theo Théo Bernard François Hernandez",
+          "name": "Théo Bernard François Hernandez",
           "position": "DEF",
           "dob": "06/10/1997",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 184
         },
         {
-          "name": "Desire Désiré Nonka-Maho Doue",
+          "name": "Désiré Nonka-Maho Doue",
           "position": "FWD",
           "dob": "03/06/2005",
           "club": "Paris Saint-Germain (FRA)",
@@ -3655,7 +3655,7 @@
           "heightCm": 180
         },
         {
-          "name": "Maghnes AKLIOUCHEAKLIOUCHE Akliouche",
+          "name": "Maghnes Akliouche",
           "position": "MID",
           "dob": "25/02/2002",
           "club": "AS Monaco (FRA)",
@@ -3687,7 +3687,7 @@
           "heightCm": 193
         },
         {
-          "name": "Antonio RÜDIGER Ruediger",
+          "name": "Antonio Ruediger",
           "position": "DEF",
           "dob": "03/03/1993",
           "club": "Real Madrid C. F. (ESP)",
@@ -3708,7 +3708,7 @@
           "heightCm": 195
         },
         {
-          "name": "Aleksandar PAVLOVIĆ Pavlovic",
+          "name": "Aleksandar Pavlovic",
           "position": "MID",
           "dob": "03/05/2004",
           "club": "FC Bayern München (GER)",
@@ -3764,7 +3764,7 @@
           "heightCm": 187
         },
         {
-          "name": "Pascal Alexander Gross",
+          "name": "Pascal Alexander GROß Gross",
           "position": "MID",
           "dob": "15/06/1991",
           "club": "Brighton & Hove Albion FC (ENG)",
@@ -3778,7 +3778,7 @@
           "heightCm": 185
         },
         {
-          "name": "Nico Cédric SCHLOTTERBECKSCHLOTTERBECK Schlotterbeck",
+          "name": "Nico Cédric Schlotterbeck",
           "position": "DEF",
           "dob": "01/12/1999",
           "club": "Borussia Dortmund (GER)",
@@ -3806,7 +3806,7 @@
           "heightCm": 176
         },
         {
-          "name": "Leroy Aziz SANÉ Sane",
+          "name": "Leroy Aziz Sané",
           "position": "MID",
           "dob": "11/01/1996",
           "club": "Galatasaray SK (TUR)",
@@ -3820,7 +3820,7 @@
           "heightCm": 178
         },
         {
-          "name": "Alexander NÜBEL Nuebel",
+          "name": "Alexander Nuebel",
           "position": "GK",
           "dob": "30/09/1996",
           "club": "VfB Stuttgart (GER)",
@@ -3936,7 +3936,7 @@
           "heightCm": 182
         },
         {
-          "name": "Brandon Solomon Brandon Michael Clarke Thomas-Asante",
+          "name": "Brandon Solomon Brandon Michael Clarke Thomas-asante",
           "position": "FWD",
           "dob": "29/12/1998",
           "club": "Coventry City FC (ENG)",
@@ -3985,7 +3985,7 @@
           "heightCm": 188
         },
         {
-          "name": "Baba Abdul Rahaman BABA Rahman",
+          "name": "Baba Abdul Rahaman Rahman",
           "position": "DEF",
           "dob": "02/07/1994",
           "club": "PAOK Saloniki (GRE)",
@@ -4060,7 +4060,7 @@
       "fifaName": "Haiti",
       "code": "HAI",
       "coach": {
-        "name": "Migne Sebastien Sébastien Bernard Henri C Migné",
+        "name": "Migne Sébastien Bernard Henri C Migné",
         "nationality": "France",
         "role": "Head coach"
       },
@@ -4080,7 +4080,7 @@
           "heightCm": 180
         },
         {
-          "name": "Keeto THERMONCYTHERMONCY Thermoncy",
+          "name": "Keeto Thermoncy",
           "position": "DEF",
           "dob": "29/03/2006",
           "club": "BSC Young Boys (SUI)",
@@ -4094,7 +4094,7 @@
           "heightCm": 190
         },
         {
-          "name": "Hannes Piterson DDELCROIX Delcroix",
+          "name": "Hannes Piterson Delcroix",
           "position": "DEF",
           "dob": "28/02/1999",
           "club": "FC Lugano (SUI)",
@@ -4115,7 +4115,7 @@
           "heightCm": 178
         },
         {
-          "name": "Martin Yves Roberns Didier EXPERIENCEEXPERIENCE Experience",
+          "name": "Martin Yves Roberns Didier Experience",
           "position": "DEF",
           "dob": "09/03/1999",
           "club": "AS Nancy (FRA)",
@@ -4129,7 +4129,7 @@
           "heightCm": 181
         },
         {
-          "name": "Jean-Ricner Jean Ricner BELLEGARDEBELLEGARDE Bellegarde",
+          "name": "Jean-Ricner Bellegarde",
           "position": "MID",
           "dob": "27/06/1998",
           "club": "Wolverhampton Wanderers FC (ENG)",
@@ -4164,7 +4164,7 @@
           "heightCm": 181
         },
         {
-          "name": "Ruben Fritzner PROVIDENCEPROVIDENCE Providence",
+          "name": "Ruben Fritzner Providence",
           "position": "FWD",
           "dob": "07/07/2001",
           "club": "Almere City FC (NED)",
@@ -4178,7 +4178,7 @@
           "heightCm": 182
         },
         {
-          "name": "JACQUES Danley Jean",
+          "name": "Danley Jean Jacques",
           "position": "MID",
           "dob": "20/05/2000",
           "club": "Philadelphia Union (USA)",
@@ -4213,14 +4213,14 @@
           "heightCm": 178
         },
         {
-          "name": "Jean-Kevin Jean-Kévin Duverne",
+          "name": "Jean-Kévin Duverne",
           "position": "DEF",
           "dob": "12/07/1997",
           "club": "KAA Gent (BEL)",
           "heightCm": 184
         },
         {
-          "name": "Josue DUVERGERDUVERGER Duverger",
+          "name": "Josue Duverger",
           "position": "GK",
           "dob": "27/04/2000",
           "club": "FC Cosmos Koblenz (GER)",
@@ -4259,7 +4259,7 @@
       },
       "players": [
         {
-          "name": "Alireza Ali Reza SAFARBEIRANVAND Beiranvand",
+          "name": "Alireza Ali Reza Beiranvand",
           "position": "GK",
           "dob": "21/09/1992",
           "club": "Tractor Sazi Tabriz FC (IRN)",
@@ -4273,7 +4273,7 @@
           "heightCm": 176
         },
         {
-          "name": "Ehsan HAJI SAFI E. Hajisafi",
+          "name": "Ehsan Hajisafi",
           "position": "DEF",
           "dob": "25/02/1990",
           "club": "Sepahan SC (IRN)",
@@ -4287,7 +4287,7 @@
           "heightCm": 183
         },
         {
-          "name": "Milad MOHAMMADIKESHMARZI M. Mohammadi",
+          "name": "Milad Mohammadi",
           "position": "DEF",
           "dob": "29/09/1993",
           "club": "Persepolis FC (IRN)",
@@ -4329,7 +4329,7 @@
           "heightCm": 166
         },
         {
-          "name": "Ali ALIPOURGHARA A. Alipour",
+          "name": "Ali Alipour",
           "position": "FWD",
           "dob": "11/11/1995",
           "club": "Persepolis FC (IRN)",
@@ -4350,7 +4350,7 @@
           "heightCm": 188
         },
         {
-          "name": "Saman Seyed Saman GHODDOOS Ghoddos",
+          "name": "Saman Seyed Saman Ghoddos",
           "position": "MID",
           "dob": "06/09/1993",
           "club": "Al Ittihad Kalba SCC (UAE)",
@@ -4378,7 +4378,7 @@
           "heightCm": 181
         },
         {
-          "name": "Amirhossein HOSSEINZADEHTAZEHGHESHLAGH AMIRHOSSEIN Hosseinzadeh",
+          "name": "Amirhossein Hosseinzadeh",
           "position": "FWD",
           "dob": "30/10/2000",
           "club": "Tractor Sazi Tabriz FC (IRN)",
@@ -4406,14 +4406,14 @@
           "heightCm": 190
         },
         {
-          "name": "Hossein Seyedhossein Hosseini",
+          "name": "Hosseini",
           "position": "GK",
           "dob": "30/06/1992",
           "club": "Sepahan SC (IRN)",
           "heightCm": 189
         },
         {
-          "name": "Ramin REZAEIANSEMESKANDI RAMIN Rezaeian",
+          "name": "Ramin Rezaeian",
           "position": "DEF",
           "dob": "21/03/1990",
           "club": "Foolad Khuzestan FC (IRN)",
@@ -4452,182 +4452,182 @@
       },
       "players": [
         {
-          "name": "TALIB Fahad",
+          "name": "Fahad Talib",
           "position": "GK",
           "dob": "21/10/1994",
           "club": "Al Talaba SC (IRQ)",
           "heightCm": 192
         },
         {
-          "name": "GHAREEB Rebin",
+          "name": "Rebin Ghareeb",
           "position": "DEF",
           "dob": "12/04/1992",
           "club": "Port FC (THA)",
           "heightCm": 193
         },
         {
-          "name": "ALI Hussein",
+          "name": "Hussein Ali",
           "position": "DEF",
           "dob": "01/03/2002",
           "club": "Pogo ń  Szczecin (POL)",
           "heightCm": 182
         },
         {
-          "name": "TAHSEEN Zaid",
+          "name": "Zaid Tahseen",
           "position": "DEF",
           "dob": "29/01/2001",
           "club": "Pakhtakor Tashkent FK (UZB)",
           "heightCm": 187
         },
         {
-          "name": "HASHIM Akam",
+          "name": "Akam Hashim",
           "position": "DEF",
           "dob": "16/08/1998",
           "club": "Al Zawra'a SC (IRQ)",
           "heightCm": 184
         },
         {
-          "name": "YOUNUS Munaf",
+          "name": "Munaf Younus",
           "position": "DEF",
           "dob": "16/11/1996",
           "club": "Al Shorta SC (IRQ)",
           "heightCm": 184
         },
         {
-          "name": "AMYN Youssef",
+          "name": "Youssef Amyn",
           "position": "MID",
           "dob": "21/08/2003",
           "club": "AEK Larnaca FC (CYP)",
           "heightCm": 172
         },
         {
-          "name": "BAYESH Ibrahim",
+          "name": "Ibrahim Bayesh",
           "position": "MID",
           "dob": "01/05/2000",
           "club": "Al Dhafra SCC (UAE)",
           "heightCm": 180
         },
         {
-          "name": "ALHAMADI Ali",
+          "name": "Ali Alhamadi",
           "position": "FWD",
           "dob": "01/03/2002",
           "club": "Luton Town FC (ENG)",
           "heightCm": 187
         },
         {
-          "name": "ALI Mohanad",
+          "name": "Mohanad Ali",
           "position": "FWD",
           "dob": "20/06/2000",
           "club": "Dibba FC (UAE)",
           "heightCm": 183
         },
         {
-          "name": "QASIM Ahmed",
+          "name": "Ahmed Qasim",
           "position": "FWD",
           "dob": "12/07/2003",
           "club": "Nashville SC (USA)",
           "heightCm": 183
         },
         {
-          "name": "HASSAN Jalal",
+          "name": "Jalal Hassan",
           "position": "GK",
           "dob": "18/05/1991",
           "club": "Al Zawra'a SC (IRQ)",
           "heightCm": 188
         },
         {
-          "name": "YOUSIF Ali",
+          "name": "Ali Yousif",
           "position": "FWD",
           "dob": "19/01/1996",
           "club": "Al Talaba SC (IRQ)",
           "heightCm": 180
         },
         {
-          "name": "IQBAL Zidane",
+          "name": "Zidane Iqbal",
           "position": "MID",
           "dob": "27/04/2003",
           "club": "FC Utrecht (NED)",
           "heightCm": 183
         },
         {
-          "name": "YAHYA Ahmed",
+          "name": "Ahmed Yahya",
           "position": "DEF",
           "dob": "01/07/1995",
           "club": "Al Shorta SC (IRQ)",
           "heightCm": 187
         },
         {
-          "name": "ALAMMARI Amir",
+          "name": "Amir Al-ammari",
           "position": "MID",
           "dob": "27/07/1997",
           "club": "KS Cracovia (POL)",
           "heightCm": 180
         },
         {
-          "name": "JASIM Ali",
+          "name": "Ali Jasim",
           "position": "FWD",
           "dob": "20/01/2004",
           "club": "Al Najmah SC (KSA)",
           "heightCm": 178
         },
         {
-          "name": "HUSSEIN Aymen",
+          "name": "Aymen Hussein",
           "position": "FWD",
           "dob": "22/03/1996",
           "club": "Al Karma SC (IRQ)",
           "heightCm": 190
         },
         {
-          "name": "YAKOB Kevin",
+          "name": "Kevin Yakob",
           "position": "MID",
           "dob": "10/10/2000",
           "club": "Aarhus GF (DEN)",
           "heightCm": 180
         },
         {
-          "name": "SHER Aimar",
+          "name": "Aimar Sher",
           "position": "MID",
           "dob": "20/12/2002",
           "club": "Sarpsborg 08 FF (NOR)",
           "heightCm": 180
         },
         {
-          "name": "FARJI Marko",
+          "name": "Marko Farji",
           "position": "FWD",
           "dob": "16/03/2004",
           "club": "Venezia FC (ITA)",
           "heightCm": 185
         },
         {
-          "name": "BASIL Ahmed",
+          "name": "Ahmed Basil",
           "position": "GK",
           "dob": "19/08/1996",
           "club": "Al Shorta SC (IRQ)",
           "heightCm": 184
         },
         {
-          "name": "DOSKI Merchas",
+          "name": "Merchas Doski",
           "position": "DEF",
           "dob": "07/12/1999",
           "club": "FC Viktoria Plze ň  (CZE)",
           "heightCm": 173
         },
         {
-          "name": "ISMAEL Zaid",
+          "name": "Zaid Ismael",
           "position": "MID",
           "dob": "03/01/2002",
           "club": "Al Talaba SC (IRQ)",
           "heightCm": 185
         },
         {
-          "name": "SAADOON Mustafa",
+          "name": "Mustafa Saadoon",
           "position": "DEF",
           "dob": "25/05/2001",
           "club": "Al Shorta SC (IRQ)",
           "heightCm": 181
         },
         {
-          "name": "PUTROS Frans",
+          "name": "Frans Putros",
           "position": "DEF",
           "dob": "14/07/1993",
           "club": "Persib Bandung (IDN)",
@@ -4659,7 +4659,7 @@
           "heightCm": 179
         },
         {
-          "name": "Shogo TANIGUCHITANIGUCHI Taniguchi",
+          "name": "Shogo Taniguchi",
           "position": "DEF",
           "dob": "15/07/1991",
           "club": "Sint-Truiden VV (BEL)",
@@ -4838,182 +4838,182 @@
       },
       "players": [
         {
-          "name": "ABULAILA Yazeed",
+          "name": "Yazeed Abulaila",
           "position": "GK",
           "dob": "08/01/1993",
           "club": "Al Hussein SC (JOR)",
           "heightCm": 188
         },
         {
-          "name": "ABUHASHEESH Mohammad",
+          "name": "Mohammad Abuhasheesh",
           "position": "DEF",
           "dob": "09/05/1995",
           "club": "Al Karma SC (IRQ)",
           "heightCm": 179
         },
         {
-          "name": "NASIB Abdallah",
+          "name": "Abdallah Nasib",
           "position": "DEF",
           "dob": "25/02/1994",
           "club": "Al Zawra'a SC (IRQ)",
           "heightCm": 184
         },
         {
-          "name": "ABUDAHAB Husam",
+          "name": "Husam Abudahab",
           "position": "DEF",
           "dob": "13/05/2000",
           "club": "Al Faisaly SC (JOR)",
           "heightCm": 186
         },
         {
-          "name": "ALARAB Yazan",
+          "name": "Yazan Alarab",
           "position": "DEF",
           "dob": "31/01/1996",
           "club": "FC Seoul (KOR)",
           "heightCm": 185
         },
         {
-          "name": "JAMOUS Amer",
+          "name": "Amer Jamous",
           "position": "MID",
           "dob": "03/07/2002",
           "club": "Al Zawra'a SC (IRQ)",
           "heightCm": 177
         },
         {
-          "name": "ABUZRAIQ Mohammad",
+          "name": "Mohammad Abuzraiq",
           "position": "FWD",
           "dob": "30/12/1997",
           "club": "Raja Casablanca (MAR)",
           "heightCm": 170
         },
         {
-          "name": "ALRAWABDEH Noor",
+          "name": "Noor Alrawabdeh",
           "position": "MID",
           "dob": "24/02/1997",
           "club": "Selangor FC (MAS)",
           "heightCm": 182
         },
         {
-          "name": "OLWAN Ali",
+          "name": "Ali Olwan",
           "position": "FWD",
           "dob": "26/03/2000",
           "club": "Al Sailiya SC (QAT)",
           "heightCm": 182
         },
         {
-          "name": "ALTAMARI Mousa",
+          "name": "Mousa Altamari",
           "position": "FWD",
           "dob": "10/06/1997",
           "club": "Stade Rennais FC (FRA)",
           "heightCm": 176
         },
         {
-          "name": "FAKHOURY Odeh",
+          "name": "Odeh Fakhoury",
           "position": "FWD",
           "dob": "22/11/2005",
           "club": "Pyramids FC (EGY)",
           "heightCm": 180
         },
         {
-          "name": "BANIATEYAH Noureddin Zaid Khaleel BANI ATEYAH BANI ATEYAH Nour",
+          "name": "Noureddin Zaid Khaleel Nour Baniateyah",
           "position": "GK",
           "dob": "25/01/1993",
           "club": "Al Faisaly SC (JOR)",
           "heightCm": 179
         },
         {
-          "name": "ALMARDI Mahmoud",
+          "name": "Mahmoud Almardi",
           "position": "FWD",
           "dob": "06/10/1993",
           "club": "Al Hussein SC (JOR)",
           "heightCm": 173
         },
         {
-          "name": "AYED Raja'ei Ayed Fadel HASAN RAJA'EI Rajaei",
+          "name": "Raja'ei Ayed",
           "position": "MID",
           "dob": "25/07/1993",
           "club": "Al Hussein SC (JOR)",
           "heightCm": 175
         },
         {
-          "name": "SADEH Ibrahim",
+          "name": "Ibrahim Sa'deh",
           "position": "MID",
           "dob": "27/04/2000",
           "club": "Al Karma SC (IRQ)",
           "heightCm": 175
         },
         {
-          "name": "ABUALNADI Mohammad",
+          "name": "Mohammad Abualnadi",
           "position": "DEF",
           "dob": "08/02/2001",
           "club": "Selangor FC (MAS)",
           "heightCm": 185
         },
         {
-          "name": "OBAID Saleem",
+          "name": "Saleem Obaid",
           "position": "DEF",
           "dob": "17/01/1992",
           "club": "Al Hussein SC (JOR)",
           "heightCm": 187
         },
         {
-          "name": "SABRA Ibrahim",
+          "name": "Ibrahim Sabra",
           "position": "FWD",
           "dob": "01/02/2006",
           "club": "NK Lokomotiva Zagreb (CRO)",
           "heightCm": 184
         },
         {
-          "name": "ALROSAN Sa'ed Ahmad Salameh ALROSAN SA'ED Saed",
+          "name": "Sa'ed Alrosan",
           "position": "DEF",
           "dob": "01/02/1997",
           "club": "Al Hussein SC (JOR)",
           "heightCm": 186
         },
         {
-          "name": "ABUTAHA Mohannad",
+          "name": "Mohannad Abutaha",
           "position": "MID",
           "dob": "02/02/2003",
           "club": "Al-Quwa Al-Jawiya (IRQ)",
           "heightCm": 173
         },
         {
-          "name": "ALRASHDAN Nizar",
+          "name": "Nizar Al-rashdan",
           "position": "MID",
           "dob": "23/03/1999",
           "club": "Qatar SC (QAT)",
           "heightCm": 183
         },
         {
-          "name": "ALFAKHORI Abdallah",
+          "name": "Abdallah Alfakhori",
           "position": "GK",
           "dob": "22/01/2000",
           "club": "Al Wahdat SC (JOR)",
           "heightCm": 190
         },
         {
-          "name": "HADDAD Ehsan",
+          "name": "Ehsan Haddad",
           "position": "DEF",
           "dob": "05/02/1994",
           "club": "Al Hussein SC (JOR)",
           "heightCm": 174
         },
         {
-          "name": "AZAIZEH Ali",
+          "name": "Ali Azaizeh",
           "position": "FWD",
           "dob": "13/04/2004",
           "club": "Al Shabab FC (KSA)",
           "heightCm": 178
         },
         {
-          "name": "ALDAOUD Mohammad",
+          "name": "Mohammad Aldaoud",
           "position": "MID",
           "dob": "12/04/1992",
           "club": "Al Wahdat SC (JOR)",
           "heightCm": 185
         },
         {
-          "name": "BADAWI Anas",
+          "name": "Anas Badawi",
           "position": "DEF",
           "dob": "13/09/1997",
           "club": "Al Faisaly SC (JOR)",
@@ -5231,28 +5231,28 @@
           "heightCm": 190
         },
         {
-          "name": "Jorge Eduardo SÁNCHEZ RAMOS J. SÁNCHEZ Sanchez",
+          "name": "Jorge Eduardo Sánchez",
           "position": "DEF",
           "dob": "10/12/1997",
           "club": "PAOK Saloniki (GRE)",
           "heightCm": 176
         },
         {
-          "name": "Cesar César Jasib Montes",
+          "name": "César Jasib Montes",
           "position": "DEF",
           "dob": "24/02/1997",
           "club": "FC Lokomotiv Moscow (RUS)",
           "heightCm": 191
         },
         {
-          "name": "Edson OmarÁLVAREZ VELÁZQUEZ E. ÁLVAREZ Alvarez",
+          "name": "Edson Omar Álvarez",
           "position": "DEF",
           "dob": "24/10/1997",
           "club": "Fenerbahçe SK (TUR)",
           "heightCm": 180
         },
         {
-          "name": "Johan Felipe VÁSQUEZ IBARRAJ. VÁSQUEZ Vasquez",
+          "name": "Johan Felipe Vásquez",
           "position": "DEF",
           "dob": "22/10/1998",
           "club": "Genoa CFC (ITA)",
@@ -5273,14 +5273,14 @@
           "heightCm": 183
         },
         {
-          "name": "AlvaroÁlvaro Fidalgo",
+          "name": "Álvaro Fidalgo",
           "position": "MID",
           "dob": "09/04/1997",
           "club": "Real Betis (ESP)",
           "heightCm": 175
         },
         {
-          "name": "Raul Raúl Alonso JIMÉNEZ RODRÍGUEZRAÚL Jimenez",
+          "name": "Raúl Alonso Jiménez",
           "position": "FWD",
           "dob": "05/05/1991",
           "club": "Fulham FC (ENG)",
@@ -5315,7 +5315,7 @@
           "heightCm": 185
         },
         {
-          "name": "Armando GONZÁLEZ ALBA A. GONZÁLEZ Gonzalez",
+          "name": "Armando González",
           "position": "FWD",
           "dob": "20/04/2003",
           "club": "CD Guadalajara (MEX)",
@@ -5329,14 +5329,14 @@
           "heightCm": 181
         },
         {
-          "name": "Julian Julián Andrés QUIÑONES QUIÑONESJ. QUIÑONES Quinones",
+          "name": "Julián Andrés Quiñones",
           "position": "FWD",
           "dob": "24/03/1997",
           "club": "Al Qadsiah FC (KSA)",
           "heightCm": 177
         },
         {
-          "name": "Orbelin Orbelín Pineda",
+          "name": "Orbelín Pineda",
           "position": "MID",
           "dob": "24/03/1996",
           "club": "AEK Athens (GRE)",
@@ -5357,35 +5357,35 @@
           "heightCm": 175
         },
         {
-          "name": "Mateo CHÁVEZ GARCÍA M. CHÁVEZ Chavez",
+          "name": "Mateo Chávez",
           "position": "DEF",
           "dob": "12/05/2004",
           "club": "AZ Alkmaar (NED)",
           "heightCm": 178
         },
         {
-          "name": "Cesar César Saúl Huerta",
+          "name": "César Saúl Huerta",
           "position": "FWD",
           "dob": "03/12/2000",
           "club": "RSC Anderlecht (BEL)",
           "heightCm": 171
         },
         {
-          "name": "Guillermo MARTÍNEZ AYALA G. MARTÍNEZ Martinez",
+          "name": "Guillermo Martínez",
           "position": "FWD",
           "dob": "15/03/1995",
           "club": "Pumas UNAM (MEX)",
           "heightCm": 191
         },
         {
-          "name": "Jesus Jesús Daniel Gallardo",
+          "name": "Jesús Daniel Gallardo",
           "position": "DEF",
           "dob": "15/08/1994",
           "club": "Deportivo Toluca FC (MEX)",
           "heightCm": 174
         },
         {
-          "name": "Luis Gerardo CHÁVEZ MAGALLÓN L. CHÁVEZ Chavez",
+          "name": "Luis Gerardo Chávez",
           "position": "MID",
           "dob": "15/01/1996",
           "club": "FC Dynamo Moscow (RUS)",
@@ -5399,7 +5399,7 @@
           "heightCm": 176
         },
         {
-          "name": "Brian GUTIÉRREZ B. GUTIÉRREZ Gutierrez",
+          "name": "Brian Gutiérrez",
           "position": "MID",
           "dob": "17/06/2003",
           "club": "CD Guadalajara (MEX)",
@@ -5480,7 +5480,7 @@
           "heightCm": 180
         },
         {
-          "name": "Brahim ABDELKADER DÍAZ BRAHIM Diaz",
+          "name": "Brahim Díaz",
           "position": "FWD",
           "dob": "03/08/1999",
           "club": "Real Madrid C. F. (ESP)",
@@ -5494,14 +5494,14 @@
           "heightCm": 185
         },
         {
-          "name": "KAJOUI Munir Monir El",
+          "name": "Munir Monir el Kajoui",
           "position": "GK",
           "dob": "10/05/1989",
           "club": "RS Berkane (MAR)",
           "heightCm": 190
         },
         {
-          "name": "OUAHDI Zakaria El",
+          "name": "Zakaria el Ouahdi",
           "position": "DEF",
           "dob": "31/12/2001",
           "club": "KRC Genk (BEL)",
@@ -5515,7 +5515,7 @@
           "heightCm": 194
         },
         {
-          "name": "MOURABET Samir El",
+          "name": "Samir el Mourabet",
           "position": "MID",
           "dob": "06/10/2005",
           "club": "RC Strasbourg (FRA)",
@@ -5550,7 +5550,7 @@
           "heightCm": 175
         },
         {
-          "name": "KAABI Ayoub El",
+          "name": "Ayoub el Kaabi",
           "position": "FWD",
           "dob": "25/06/1993",
           "club": "Olympiacos FC (GRE)",
@@ -5571,28 +5571,28 @@
           "heightCm": 194
         },
         {
-          "name": "KHANNOUSS Bilal El",
+          "name": "Bilal el Khannouss",
           "position": "MID",
           "dob": "10/05/2004",
           "club": "VfB Stuttgart (GER)",
           "heightCm": 180
         },
         {
-          "name": "AYNAOUI Neil Yoni El",
+          "name": "Neil Yoni el Aynaoui",
           "position": "MID",
           "dob": "02/07/2001",
           "club": "AS Roma (ITA)",
           "heightCm": 185
         },
         {
-          "name": "Redouane Halhal",
+          "name": "Redouane Hal",
           "position": "DEF",
           "dob": "05/03/2003",
           "club": "KV Mechelen (BEL)",
           "heightCm": 189
         },
         {
-          "name": "EDDINE Anass Salah",
+          "name": "Anass Salah Eddine",
           "position": "DEF",
           "dob": "18/01/2002",
           "club": "PSV Eindhoven (NED)",
@@ -5610,42 +5610,42 @@
       },
       "players": [
         {
-          "name": "Bart VERBRUGGENVERBRUGGEN Verbruggen",
+          "name": "Bart Verbruggen",
           "position": "GK",
           "dob": "18/08/2002",
           "club": "Brighton & Hove Albion FC (ENG)",
           "heightCm": 193
         },
         {
-          "name": "Jurrien Jurriën David Norman Timber",
+          "name": "Jurriën David Norman Timber",
           "position": "DEF",
           "dob": "17/06/2001",
           "club": "Arsenal FC (ENG)",
           "heightCm": 179
         },
         {
-          "name": "ROON Marten Elco De",
+          "name": "Marten Elco de Roon",
           "position": "MID",
           "dob": "29/03/1991",
           "club": "Atalanta Bergamo (ITA)",
           "heightCm": 186
         },
         {
-          "name": "DIJK Virgil Van",
+          "name": "Virgil van Dijk",
           "position": "DEF",
           "dob": "08/07/1991",
           "club": "Liverpool FC (ENG)",
           "heightCm": 195
         },
         {
-          "name": "Nathan Benjamin AKÉ Ake",
+          "name": "Nathan Benjamin Aké",
           "position": "DEF",
           "dob": "18/02/1995",
           "club": "Manchester City FC (ENG)",
           "heightCm": 180
         },
         {
-          "name": "HECKE Jan Paul Jan-Paul Van",
+          "name": "Jan-Paul van Hecke",
           "position": "DEF",
           "dob": "08/06/2000",
           "club": "Brighton & Hove Albion FC (ENG)",
@@ -5659,14 +5659,14 @@
           "heightCm": 173
         },
         {
-          "name": "Ryan Jiro GRAVENBERCHGRAVENBERCH Gravenberch",
+          "name": "Ryan Jiro Gravenberch",
           "position": "MID",
           "dob": "16/05/2002",
           "club": "Liverpool FC (ENG)",
           "heightCm": 190
         },
         {
-          "name": "Wout François Maria WEGHORSTWEGHORST Weghorst",
+          "name": "Wout François Maria Weghorst",
           "position": "FWD",
           "dob": "07/08/1992",
           "club": "AFC Ajax (NED)",
@@ -5687,7 +5687,7 @@
           "heightCm": 193
         },
         {
-          "name": "Mats Henrik Berne WIEFFERWIEFFER Wieffer",
+          "name": "Mats Henrik Berne Wieffer",
           "position": "DEF",
           "dob": "16/11/1999",
           "club": "Brighton & Hove Albion FC (ENG)",
@@ -5701,14 +5701,14 @@
           "heightCm": 193
         },
         {
-          "name": "Tijjani Martinus Jan REIJNDERSREIJNDERS Reijnders",
+          "name": "Tijjani Martinus Jan Reijnders",
           "position": "MID",
           "dob": "29/07/1998",
           "club": "Manchester City FC (ENG)",
           "heightCm": 178
         },
         {
-          "name": "DE VEN Micky Van",
+          "name": "Micky van de Ven",
           "position": "DEF",
           "dob": "19/04/2001",
           "club": "Tottenham Hotspur FC (ENG)",
@@ -5736,28 +5736,28 @@
           "heightCm": 178
         },
         {
-          "name": "Brian Ebenezer Adjei BROBBEYBROBBEY Brobbey",
+          "name": "Brian Ebenezer Adjei Brobbey",
           "position": "FWD",
           "dob": "01/02/2002",
           "club": "Sunderland AFC (ENG)",
           "heightCm": 181
         },
         {
-          "name": "Teun KOOPMEINERSKOOPMEINERS Koopmeiners",
+          "name": "Teun Koopmeiners",
           "position": "MID",
           "dob": "28/02/1998",
           "club": "Juventus FC (ITA)",
           "heightCm": 185
         },
         {
-          "name": "JONG Frenkie De",
+          "name": "Frenkie de Jong",
           "position": "MID",
           "dob": "12/05/1997",
           "club": "FC Barcelona (ESP)",
           "heightCm": 181
         },
         {
-          "name": "Denzel Justus Morris DUMFRIESDUMFRIES Dumfries",
+          "name": "Denzel Justus Morris Dumfries",
           "position": "DEF",
           "dob": "18/04/1996",
           "club": "FC Internazionale Milano (ITA)",
@@ -5803,7 +5803,7 @@
       },
       "players": [
         {
-          "name": "Max Maxime Teremoana CROCOMBECROCOMBE Crocombe",
+          "name": "Max Maxime Teremoana Crocombe",
           "position": "GK",
           "dob": "12/08/1993",
           "club": "Millwall FC (ENG)",
@@ -5817,7 +5817,7 @@
           "heightCm": 179
         },
         {
-          "name": "VRIES Francis De",
+          "name": "Francis de Vries",
           "position": "DEF",
           "dob": "28/11/1994",
           "club": "Auckland FC (NZL)",
@@ -5915,7 +5915,7 @@
           "heightCm": 190
         },
         {
-          "name": "Kosta BARBAROUSESBARBAROUSES Barbarouses",
+          "name": "Kosta Barbarouses",
           "position": "FWD",
           "dob": "19/02/1990",
           "club": "WS Wanderers FC (AUS)",
@@ -5936,7 +5936,7 @@
           "heightCm": 173
         },
         {
-          "name": "COWATT Callum William MCCOWATT Mc",
+          "name": "Mc",
           "position": "MID",
           "dob": "30/04/1999",
           "club": "Silkeborg IF (DEN)",
@@ -5990,13 +5990,13 @@
       "fifaName": "Norway",
       "code": "NOR",
       "coach": {
-        "name": "Solbakken Stale Ståle",
+        "name": "Solbakken Ståle",
         "nationality": "Norway",
         "role": "Head coach"
       },
       "players": [
         {
-          "name": "OrjanØrjan Haskjold Nyland",
+          "name": "Orjan Ørjan Haskjold Nyland",
           "position": "GK",
           "dob": "10/09/1990",
           "club": "Sevilla FC (ESP)",
@@ -6017,14 +6017,14 @@
           "heightCm": 198
         },
         {
-          "name": "Leo SkiriØSTIGÅRDØSTIGÅRD Ostigard",
+          "name": "Leo Skiri Ostigard",
           "position": "DEF",
           "dob": "28/11/1999",
           "club": "Genoa CFC (ITA)",
           "heightCm": 183
         },
         {
-          "name": "WOLFE David Møller WOLFE MØLLER WOLFE Moller",
+          "name": "David Møller Moller Wolfe",
           "position": "DEF",
           "dob": "23/04/2002",
           "club": "Wolverhampton Wanderers FC (ENG)",
@@ -6038,7 +6038,7 @@
           "heightCm": 178
         },
         {
-          "name": "Alexander SØRLOTH Sorloth",
+          "name": "Alexander Sorloth",
           "position": "FWD",
           "dob": "05/12/1995",
           "club": "Atlético De Madrid (ESP)",
@@ -6059,14 +6059,14 @@
           "heightCm": 195
         },
         {
-          "name": "Martin MartínØDEGAARDØDEGAARD Odegaard",
+          "name": "Martín Odegaard",
           "position": "MID",
           "dob": "17/12/1998",
           "club": "Arsenal FC (ENG)",
           "heightCm": 178
         },
         {
-          "name": "LARSEN Jorgen Jørgen Strand",
+          "name": "Jorgen Jørgen Strand Larsen",
           "position": "FWD",
           "dob": "06/02/2000",
           "club": "Crystal Palace FC (ENG)",
@@ -6094,14 +6094,14 @@
           "heightCm": 181
         },
         {
-          "name": "Fredrik Andre Fredrik André BJØRKAN Bjorkan",
+          "name": "Fredrik Andre Fredrik André Bjorkan",
           "position": "DEF",
           "dob": "21/08/1998",
           "club": "FK Bodø/Glimt (NOR)",
           "heightCm": 180
         },
         {
-          "name": "PEDERSEN Marcus Holmgren",
+          "name": "Marcus Holmgren Pedersen",
           "position": "DEF",
           "dob": "16/07/2000",
           "club": "Torino FC (ITA)",
@@ -6122,7 +6122,7 @@
           "heightCm": 189
         },
         {
-          "name": "Thelo Thelonious Gerard AASGAARDAASGAARD Aasgaard",
+          "name": "Thelo Thelonious Gerard Aasgaard",
           "position": "MID",
           "dob": "02/05/2002",
           "club": "Rangers FC (SCO)",
@@ -6136,7 +6136,7 @@
           "heightCm": 183
         },
         {
-          "name": "Andreas Rædergård SCHJELDERUPSCHJELDERUP Schjelderup",
+          "name": "Andreas Rædergård Schjelderup",
           "position": "MID",
           "dob": "01/06/2004",
           "club": "SL Ben\u0000ca (POR)",
@@ -6157,14 +6157,14 @@
           "heightCm": 184
         },
         {
-          "name": "Sondre Klingen LANGÅS Langas",
+          "name": "Sondre Klingen Langås",
           "position": "DEF",
           "dob": "02/02/2001",
           "club": "Derby County FC (ENG)",
           "heightCm": 190
         },
         {
-          "name": "Henrik Sælebakke FALCHENERFALCHENER Falchener",
+          "name": "Henrik Sælebakke Falchener",
           "position": "DEF",
           "dob": "08/05/2003",
           "club": "Viking Stavanger (NOR)",
@@ -6189,21 +6189,21 @@
       },
       "players": [
         {
-          "name": "Luis Ricardo MEJÍA CAJAR MEJÍA Mejia",
+          "name": "Luis Ricardo Mejía",
           "position": "GK",
           "dob": "16/03/1991",
           "club": "Club Nacional (URU)",
           "heightCm": 193
         },
         {
-          "name": "Cesar César Rodolfo Blackman",
+          "name": "César Rodolfo Blackman",
           "position": "DEF",
           "dob": "02/04/1998",
           "club": "Š K Slovan Bratislava (SVK)",
           "heightCm": 174
         },
         {
-          "name": "Jose Angel CÓRDOBA CHAMBERS Cordoba",
+          "name": "Jose Angel Córdoba",
           "position": "DEF",
           "dob": "03/06/2001",
           "club": "Norwich City FC (ENG)",
@@ -6217,21 +6217,21 @@
           "heightCm": 184
         },
         {
-          "name": "Edgardo Issac FARIÑA WYNTER FARIÑA Farina",
+          "name": "Edgardo Issac Fariña",
           "position": "DEF",
           "dob": "19/10/2001",
           "club": "FC Pari Nizhny Novgorod (RUS)",
           "heightCm": 195
         },
         {
-          "name": "Cristian Jesus MARTÍNEZ Martinez",
+          "name": "Cristian Jesus Martínez",
           "position": "MID",
           "dob": "06/02/1997",
           "club": "Hapoel Kiryat Shmona FC (ISR)",
           "heightCm": 170
         },
         {
-          "name": "Jose Luis José Luis RODRÍGUEZ FRANCISJ.L. RODRÍGUEZ Rodriguez",
+          "name": "Jose Luis José Luis Rodríguez",
           "position": "MID",
           "dob": "19/06/1998",
           "club": "FC Juárez (MEX)",
@@ -6245,28 +6245,28 @@
           "heightCm": 171
         },
         {
-          "name": "Tomas Abdiel Rodriguez",
+          "name": "Tomas Abdiel Rodríguez",
           "position": "FWD",
           "dob": "09/03/1999",
           "club": "Deportivo Saprissa (CRC)",
           "heightCm": 183
         },
         {
-          "name": "Ismael DÍAZ DE LEON ISMAEL Diaz",
+          "name": "Ismael Díaz",
           "position": "MID",
           "dob": "12/05/1997",
           "club": "Club León (MEX)",
           "heightCm": 184
         },
         {
-          "name": "Edgar YoelÉdgar Yoel BÁRCENAS HERRERABÁRCENAS Barcenas",
+          "name": "Edgar Yoel Édgar Yoel Bárcenas",
           "position": "MID",
           "dob": "23/10/1993",
           "club": "Mazatlán FC (MEX)",
           "heightCm": 175
         },
         {
-          "name": "Cesar César Jair Samudio",
+          "name": "César Jair Samudio",
           "position": "GK",
           "dob": "23/02/1994",
           "club": "CD Marathón (HON)",
@@ -6301,7 +6301,7 @@
           "heightCm": 187
         },
         {
-          "name": "Jose José Fajardo",
+          "name": "José Fajardo",
           "position": "FWD",
           "dob": "18/08/1993",
           "club": "CD Universidad Católica (ECU)",
@@ -6322,14 +6322,14 @@
           "heightCm": 165
         },
         {
-          "name": "Anibal Aníbal Casis Godoy",
+          "name": "Aníbal Casis Godoy",
           "position": "MID",
           "dob": "10/02/1990",
           "club": "San Diego FC (USA)",
           "heightCm": 184
         },
         {
-          "name": "Cesar César Augusto Yanis",
+          "name": "César Augusto Yanis",
           "position": "MID",
           "dob": "28/01/1996",
           "club": "CD Cobresal (CHI)",
@@ -6350,7 +6350,7 @@
           "heightCm": 185
         },
         {
-          "name": "Azarias Emmanuel LONDOÑO GONZALEZ LONDOÑO Londono",
+          "name": "Azarias Emmanuel Londoño",
           "position": "FWD",
           "dob": "21/06/2001",
           "club": "CD Universidad Católica (ECU)",
@@ -6389,7 +6389,7 @@
           "heightCm": 191
         },
         {
-          "name": "Gustavo Víctor Gustavo VELÁZQUEZ RAMOSVELAZQUEZ Velazquez",
+          "name": "Gustavo Víctor Gustavo Velázquez",
           "position": "DEF",
           "dob": "17/04/1991",
           "club": "Cerro Porteño (PAR)",
@@ -6410,21 +6410,21 @@
           "heightCm": 187
         },
         {
-          "name": "Fabian Fabián Cornelio Balbuena",
+          "name": "Fabián Cornelio Balbuena",
           "position": "DEF",
           "dob": "23/08/1991",
           "club": "Grêmio FBPA (BRA)",
           "heightCm": 188
         },
         {
-          "name": "Junior Júnior Osmar Ignacio Alonso",
+          "name": "Júnior Osmar Ignacio Alonso",
           "position": "DEF",
           "dob": "09/02/1993",
           "club": "Atlético Mineiro (BRA)",
           "heightCm": 184
         },
         {
-          "name": "Ramon Ramón Sosa",
+          "name": "Ramón Sosa",
           "position": "MID",
           "dob": "31/08/1999",
           "club": "SE Palmeiras (BRA)",
@@ -6445,14 +6445,14 @@
           "heightCm": 180
         },
         {
-          "name": "Miguel Angel ALMIRÓN REJALA M. Almiron",
+          "name": "Miguel Angel Almirón",
           "position": "MID",
           "dob": "10/02/1994",
           "club": "Atlanta United FC (USA)",
           "heightCm": 178
         },
         {
-          "name": "MAGALHÃES PRADOMAURICIO Mauricio",
+          "name": "Mauricio",
           "position": "MID",
           "dob": "22/06/2001",
           "club": "SE Palmeiras (BRA)",
@@ -6480,21 +6480,21 @@
           "heightCm": 166
         },
         {
-          "name": "Gustavo Raul GÓMEZ PORTILLO G. Gomez",
+          "name": "Gustavo Raul Gómez",
           "position": "DEF",
           "dob": "06/05/1993",
           "club": "SE Palmeiras (BRA)",
           "heightCm": 179
         },
         {
-          "name": "Damian Damián Josue Bobadilla",
+          "name": "Damián Josue Bobadilla",
           "position": "MID",
           "dob": "11/07/2001",
           "club": "São Paulo FC (BRA)",
           "heightCm": 180
         },
         {
-          "name": "GAMARRA Alejandro Sebastian Romero",
+          "name": "Alejandro Sebastian Romero Gamarra",
           "position": "FWD",
           "dob": "11/01/1995",
           "club": "Al Ain FC (UAE)",
@@ -6529,7 +6529,7 @@
           "heightCm": 185
         },
         {
-          "name": "Gaston Gastón Hernán Olveira",
+          "name": "Gastón Hernán Olveira",
           "position": "GK",
           "dob": "21/04/1993",
           "club": "Club Olimpia (PAR)",
@@ -6575,182 +6575,182 @@
       },
       "players": [
         {
-          "name": "COSTA Diogo",
+          "name": "Diogo Costa",
           "position": "GK",
           "dob": "19/09/1999",
           "club": "FC Porto (POR)",
           "heightCm": 188
         },
         {
-          "name": "SEMEDONélson CABRAL SEMEDO N. SEMEDO Nelson",
+          "name": "Nélson Semedo",
           "position": "DEF",
           "dob": "16/11/1993",
           "club": "Fenerbahçe SK (TUR)",
           "heightCm": 179
         },
         {
-          "name": "DIAS Rúben DOS SANTOS GATO ALVES DIAS RÚBEN DIAS Ruben",
+          "name": "Rúben Dias",
           "position": "DEF",
           "dob": "14/05/1997",
           "club": "Manchester City FC (ENG)",
           "heightCm": 187
         },
         {
-          "name": "ARAUJO Tomás LEMOS ARAÚJO TOMÁS A. Tomas",
+          "name": "Tomás Araújo",
           "position": "DEF",
           "dob": "16/05/2002",
           "club": "SL Ben\u0000ca (POR)",
           "heightCm": 187
         },
         {
-          "name": "DALOT José Diogo",
+          "name": "José Diogo Dalot",
           "position": "DEF",
           "dob": "18/03/1999",
           "club": "Manchester United FC (ENG)",
           "heightCm": 184
         },
         {
-          "name": "NUNES Matheus",
+          "name": "Matheus Nunes",
           "position": "MID",
           "dob": "27/08/1998",
           "club": "Manchester City FC (ENG)",
           "heightCm": 183
         },
         {
-          "name": "RONALDO Cristiano",
+          "name": "Cristiano Ronaldo",
           "position": "FWD",
           "dob": "05/02/1985",
           "club": "Al Nassr FC (KSA)",
           "heightCm": 185
         },
         {
-          "name": "FERNANDES Bruno",
+          "name": "Bruno Fernandes",
           "position": "MID",
           "dob": "08/09/1994",
           "club": "Manchester United FC (ENG)",
           "heightCm": 183
         },
         {
-          "name": "RAMOS Gonçalo MATIAS RAMOS G. RAMOS Goncalo",
+          "name": "Gonçalo Ramos",
           "position": "FWD",
           "dob": "20/06/2001",
           "club": "Paris Saint-Germain (FRA)",
           "heightCm": 185
         },
         {
-          "name": "SILVA Bernardo",
+          "name": "Bernardo Silva",
           "position": "MID",
           "dob": "10/08/1994",
           "club": "Manchester City FC (ENG)",
           "heightCm": 173
         },
         {
-          "name": "FELIX João FÉLIX SEQUEIRA JOÃO FÉLIX Joao",
+          "name": "João Félix",
           "position": "FWD",
           "dob": "10/11/1999",
           "club": "Al Nassr FC (KSA)",
           "heightCm": 179
         },
         {
-          "name": "SA José Pedro MALHEIRO DE SÁ JOSÉ SÁ Jose",
+          "name": "José Sá",
           "position": "GK",
           "dob": "17/01/1993",
           "club": "Wolverhampton Wanderers FC (ENG)",
           "heightCm": 192
         },
         {
-          "name": "VEIGA Renato",
+          "name": "Renato Veiga",
           "position": "DEF",
           "dob": "29/07/2003",
           "club": "Villarreal CF (ESP)",
           "heightCm": 188
         },
         {
-          "name": "INACIO Gonçalo BERNARDO INÁCIO G. INÁCIO Goncalo",
+          "name": "Gonçalo Inácio",
           "position": "DEF",
           "dob": "25/08/2001",
           "club": "Sporting CP (POR)",
           "heightCm": 185
         },
         {
-          "name": "NEVES João Pedro GONÇALVES NEVES JOÃO NEVES Joao",
+          "name": "João Neves",
           "position": "MID",
           "dob": "27/09/2004",
           "club": "Paris Saint-Germain (FRA)",
           "heightCm": 171
         },
         {
-          "name": "TRINCAO Francisco",
+          "name": "Francisco Trincão",
           "position": "FWD",
           "dob": "29/12/1999",
           "club": "Sporting CP (POR)",
           "heightCm": 184
         },
         {
-          "name": "LEAO Rafael",
+          "name": "Rafael Leão",
           "position": "FWD",
           "dob": "10/06/1999",
           "club": "AC Milan (ITA)",
           "heightCm": 188
         },
         {
-          "name": "NETO Pedro",
+          "name": "Pedro Neto",
           "position": "FWD",
           "dob": "09/03/2000",
           "club": "Chelsea FC (ENG)",
           "heightCm": 174
         },
         {
-          "name": "GUEDES Gonçalo Manuel GANCHINHO GUEDES G. GUEDES Goncalo",
+          "name": "Gonçalo Guedes",
           "position": "FWD",
           "dob": "29/11/1996",
           "club": "Real Sociedad (ESP)",
           "heightCm": 179
         },
         {
-          "name": "CANCELO João Pedro CAVACO CANCELO JOÃO CANCELO Joao",
+          "name": "João Cancelo",
           "position": "DEF",
           "dob": "27/05/1994",
           "club": "FC Barcelona (ESP)",
           "heightCm": 173
         },
         {
-          "name": "NEVES Rúben Diogo DA SILVA NEVES R. NEVES Ruben",
+          "name": "Rúben Neves",
           "position": "MID",
           "dob": "13/03/1997",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 183
         },
         {
-          "name": "SILVA Rui",
+          "name": "Rui Silva",
           "position": "GK",
           "dob": "07/02/1994",
           "club": "Sporting CP (POR)",
           "heightCm": 191
         },
         {
-          "name": "Vitor MACHADO FERREIRA Vitinha",
+          "name": "Vitor Vitinha",
           "position": "MID",
           "dob": "13/02/2000",
           "club": "Paris Saint-Germain (FRA)",
           "heightCm": 170
         },
         {
-          "name": "COSTA Samuel DE ALMEIDA COSTA SAMÚ Samu",
+          "name": "Samuel de Samú Costa",
           "position": "DEF",
           "dob": "27/11/2000",
           "club": "RCD Mallorca (ESP)",
           "heightCm": 185
         },
         {
-          "name": "MENDES Nuno",
+          "name": "Nuno Mendes",
           "position": "DEF",
           "dob": "19/06/2002",
           "club": "Paris Saint-Germain (FRA)",
           "heightCm": 177
         },
         {
-          "name": "CONCEICAO Francisco",
+          "name": "Francisco Conceição",
           "position": "FWD",
           "dob": "14/12/2002",
           "club": "Juventus FC (ITA)",
@@ -6768,182 +6768,182 @@
       },
       "players": [
         {
-          "name": "ABUNADA Mahmoud",
+          "name": "Mahmoud Abunada",
           "position": "GK",
           "dob": "05/02/2000",
           "club": "Al Rayyan SC (QAT)",
           "heightCm": 185
         },
         {
-          "name": "MIGUEL Pedro",
+          "name": "Pedro Miguel",
           "position": "DEF",
           "dob": "06/08/1990",
           "club": "Al Sadd SC (QAT)",
           "heightCm": 180
         },
         {
-          "name": "MENDES Lucas",
+          "name": "Lucas Mendes",
           "position": "DEF",
           "dob": "03/07/1990",
           "club": "Al Wakrah SC (QAT)",
           "heightCm": 179
         },
         {
-          "name": "LAYE Gueye SEYDINAISSALAYE GUEYE Issa",
+          "name": "Gueye Issa Laye",
           "position": "DEF",
           "dob": "22/12/1997",
           "club": "Al Arabi SC (QAT)",
           "heightCm": 178
         },
         {
-          "name": "GABER Jassem",
+          "name": "Jassem Gaber",
           "position": "DEF",
           "dob": "20/02/2002",
           "club": "Al Rayyan SC (QAT)",
           "heightCm": 181
         },
         {
-          "name": "HATEM Abdelaziz Hatim AMOHAMED A. AZIZ Abdulaziz",
+          "name": "Abdelaziz Hatim Abdulaziz Hatem",
           "position": "MID",
           "dob": "01/01/1990",
           "club": "Al Rayyan SC (QAT)",
           "heightCm": 179
         },
         {
-          "name": "ALAAELDIN Ahmed",
+          "name": "Ahmed Alaaeldin",
           "position": "FWD",
           "dob": "31/01/1993",
           "club": "Al Rayyan SC (QAT)",
           "heightCm": 179
         },
         {
-          "name": "JUNIOR Edmilson",
+          "name": "Edmilson Junior",
           "position": "FWD",
           "dob": "19/08/1994",
           "club": "Al Duhail SC (QAT)",
           "heightCm": 180
         },
         {
-          "name": "MUNTARI Mohammed",
+          "name": "Mohammed Muntari",
           "position": "FWD",
           "dob": "20/12/1993",
           "club": "Al Gharafa SC (QAT)",
           "heightCm": 192
         },
         {
-          "name": "ALHAYDOS Hasan Khalid HALHAYDOS ALHAYDOS Hassan",
+          "name": "Hasan Khalid Hassan Alhaydos",
           "position": "FWD",
           "dob": "11/12/1990",
           "club": "Al Sadd SC (QAT)",
           "heightCm": 174
         },
         {
-          "name": "AFIF Akram",
+          "name": "Akram Afif",
           "position": "FWD",
           "dob": "18/11/1996",
           "club": "Al Sadd SC (QAT)",
           "heightCm": 176
         },
         {
-          "name": "BOUDIAF Karim",
+          "name": "Karim Boudiaf",
           "position": "MID",
           "dob": "16/09/1990",
           "club": "Al Duhail SC (QAT)",
           "heightCm": 190
         },
         {
-          "name": "ALOUI Ayoub",
+          "name": "Ayoub Aloui",
           "position": "DEF",
           "dob": "11/03/2005",
           "club": "Al Gharafa SC (QAT)",
           "heightCm": 181
         },
         {
-          "name": "AHMED Homam",
+          "name": "Homam Ahmed",
           "position": "DEF",
           "dob": "25/08/1999",
           "club": "Cultural Leonesa (ESP)",
           "heightCm": 188
         },
         {
-          "name": "ABDURISAG Yusuf",
+          "name": "Yusuf Abdurisag",
           "position": "FWD",
           "dob": "06/08/1999",
           "club": "Al Wakrah SC (QAT)",
           "heightCm": 171
         },
         {
-          "name": "KHOUKHI Boualem",
+          "name": "Boualem Khoukhi",
           "position": "DEF",
           "dob": "09/07/1990",
           "club": "Al Sadd SC (QAT)",
           "heightCm": 185
         },
         {
-          "name": "ALGANEHI Ahmed",
+          "name": "Ahmed Alganehi",
           "position": "MID",
           "dob": "22/09/2000",
           "club": "Al Gharafa SC (QAT)",
           "heightCm": 175
         },
         {
-          "name": "ALBRAKE Sultan",
+          "name": "Sultan Albrake",
           "position": "DEF",
           "dob": "07/04/1996",
           "club": "Al Duhail SC (QAT)",
           "heightCm": 178
         },
         {
-          "name": "ALI Almoez",
+          "name": "Almoez Ali",
           "position": "FWD",
           "dob": "19/08/1996",
           "club": "Al Duhail SC (QAT)",
           "heightCm": 180
         },
         {
-          "name": "FATHY Ahmed",
+          "name": "Ahmed Fathy",
           "position": "MID",
           "dob": "25/01/1993",
           "club": "Al Arabi SC (QAT)",
           "heightCm": 171
         },
         {
-          "name": "ZAKARIA Salah",
+          "name": "Salah Zakaria",
           "position": "GK",
           "dob": "24/04/1999",
           "club": "Al Duhail SC (QAT)",
           "heightCm": 186
         },
         {
-          "name": "BARSHAM Meshaal",
+          "name": "Meshaal Barsham",
           "position": "GK",
           "dob": "14/02/1998",
           "club": "Al Sadd SC (QAT)",
           "heightCm": 180
         },
         {
-          "name": "MADIBO Assim",
+          "name": "Assim Madibo",
           "position": "MID",
           "dob": "22/10/1996",
           "club": "Al Wakrah SC (QAT)",
           "heightCm": 168
         },
         {
-          "name": "JAMSHID Tahsin",
+          "name": "Tahsin Jamshid",
           "position": "FWD",
           "dob": "16/06/2006",
           "club": "Al Duhail SC (QAT)",
           "heightCm": 166
         },
         {
-          "name": "ALHUSSEIN Alhashmi",
+          "name": "Alhashmi Alhussein",
           "position": "DEF",
           "dob": "15/08/2003",
           "club": "Al Arabi SC (QAT)",
           "heightCm": 182
         },
         {
-          "name": "MANAI Mohamed",
+          "name": "Mohamed Manai",
           "position": "FWD",
           "dob": "25/10/2002",
           "club": "Al Shamal SC (QAT)",
@@ -6961,182 +6961,182 @@
       },
       "players": [
         {
-          "name": "ALAQIDI Nawaf",
+          "name": "Nawaf Alaqidi",
           "position": "GK",
           "dob": "10/05/2000",
           "club": "Al Nassr FC (KSA)",
           "heightCm": 186
         },
         {
-          "name": "MAJRASHI Ali",
+          "name": "Ali Majrashi",
           "position": "DEF",
           "dob": "02/10/1999",
           "club": "Al Ahli FC (KSA)",
           "heightCm": 169
         },
         {
-          "name": "LAJAMI Ali",
+          "name": "Ali Lajami",
           "position": "DEF",
           "dob": "24/04/1996",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 177
         },
         {
-          "name": "ALAMRI Abdulelah",
+          "name": "Abdulelah Alamri",
           "position": "DEF",
           "dob": "15/01/1997",
           "club": "Al Nassr FC (KSA)",
           "heightCm": 185
         },
         {
-          "name": "ALTAMBAKTI Hassan",
+          "name": "Hassan Altambakti",
           "position": "DEF",
           "dob": "09/02/1999",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 183
         },
         {
-          "name": "ALDAWSARI Nasser",
+          "name": "Nasser Aldawsari",
           "position": "MID",
           "dob": "19/12/1998",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 178
         },
         {
-          "name": "ALJUWAYR Musab",
+          "name": "Musab Aljuwayr",
           "position": "MID",
           "dob": "20/06/2003",
           "club": "Al Qadsiah FC (KSA)",
           "heightCm": 175
         },
         {
-          "name": "YAHYA Aiman",
+          "name": "Aiman Yahya",
           "position": "FWD",
           "dob": "14/05/2001",
           "club": "Al Nassr FC (KSA)",
           "heightCm": 173
         },
         {
-          "name": "ALBRIKAN Feras",
+          "name": "Feras Albrikan",
           "position": "FWD",
           "dob": "14/05/2000",
           "club": "Al Ahli FC (KSA)",
           "heightCm": 185
         },
         {
-          "name": "ALDAWSARI Salem",
+          "name": "Salem Aldawsari",
           "position": "FWD",
           "dob": "19/08/1991",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 173
         },
         {
-          "name": "ALSHEHRI Saleh",
+          "name": "Saleh Alshehri",
           "position": "FWD",
           "dob": "01/11/1993",
           "club": "Al Ittihad (KSA)",
           "heightCm": 184
         },
         {
-          "name": "ABDULHAMID Saud",
+          "name": "Saud Abdulhamid",
           "position": "DEF",
           "dob": "18/07/1999",
           "club": "RC Lens (FRA)",
           "heightCm": 172
         },
         {
-          "name": "BU WASHL Nawaf",
+          "name": "Nawaf Bu Washl",
           "position": "DEF",
           "dob": "16/09/1999",
           "club": "Al Nassr FC (KSA)",
           "heightCm": 173
         },
         {
-          "name": "KADISH Hassan",
+          "name": "Hassan Kadish",
           "position": "DEF",
           "dob": "26/09/1992",
           "club": "Al Ittihad (KSA)",
           "heightCm": 179
         },
         {
-          "name": "ALKHAIBARI Abdullah",
+          "name": "Abdullah Alkhaibari",
           "position": "MID",
           "dob": "16/08/1996",
           "club": "Al Nassr FC (KSA)",
           "heightCm": 175
         },
         {
-          "name": "ALJOHANI Ziyad",
+          "name": "Ziyad Aljohani",
           "position": "MID",
           "dob": "11/11/2001",
           "club": "Al Ahli FC (KSA)",
           "heightCm": 180
         },
         {
-          "name": "ALGHANNAM Khalid",
+          "name": "Khalid Alghannam",
           "position": "FWD",
           "dob": "08/11/2000",
           "club": "Al Ettifaq FC (KSA)",
           "heightCm": 171
         },
         {
-          "name": "ALHAJJI Ala",
+          "name": "Ala Alhajji",
           "position": "MID",
           "dob": "03/12/1995",
           "club": "Neom SC (KSA)",
           "heightCm": 178
         },
         {
-          "name": "ALHAMDDAN Abdullah",
+          "name": "Abdullah Alhamddan",
           "position": "FWD",
           "dob": "13/09/1999",
           "club": "Al Nassr FC (KSA)",
           "heightCm": 186
         },
         {
-          "name": "MANDASH Sultan",
+          "name": "Sultan Mandash",
           "position": "FWD",
           "dob": "17/10/1994",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 172
         },
         {
-          "name": "ALOWAIS Mohammed",
+          "name": "Mohammed Alowais",
           "position": "GK",
           "dob": "10/10/1991",
           "club": "Al Ula Saudi FC (KSA)",
           "heightCm": 185
         },
         {
-          "name": "ALKASSAR Ahmed",
+          "name": "Ahmed Alkassar",
           "position": "GK",
           "dob": "08/05/1991",
           "club": "Al Qadsiah FC (KSA)",
           "heightCm": 178
         },
         {
-          "name": "KANNO Mohamed",
+          "name": "Mohamed Kanno",
           "position": "MID",
           "dob": "22/09/1994",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 191
         },
         {
-          "name": "ALHARBI Moteb",
+          "name": "Moteb Alharbi",
           "position": "DEF",
           "dob": "20/02/2000",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 177
         },
         {
-          "name": "THIKRI Jehad",
+          "name": "Jehad Thikri",
           "position": "DEF",
           "dob": "21/07/2001",
           "club": "Al Qadsiah FC (KSA)",
           "heightCm": 184
         },
         {
-          "name": "ABU ALSHAMAT Mohammed",
+          "name": "Mohammed Abu Alshamat",
           "position": "DEF",
           "dob": "11/08/2002",
           "club": "Al Qadsiah FC (KSA)",
@@ -7175,7 +7175,7 @@
           "heightCm": 178
         },
         {
-          "name": "TOMINAY Scott Francis MCTOMINAY Mc",
+          "name": "Mc",
           "position": "MID",
           "dob": "08/12/1996",
           "club": "SSC Napoli (ITA)",
@@ -7196,7 +7196,7 @@
           "heightCm": 180
         },
         {
-          "name": "GINN John MCGINN Mc",
+          "name": "Mc",
           "position": "MID",
           "dob": "18/10/1994",
           "club": "Aston Villa FC (ENG)",
@@ -7224,7 +7224,7 @@
           "heightCm": 175
         },
         {
-          "name": "Ryan CHRISTIECHRISTIE Christie",
+          "name": "Ryan Christie",
           "position": "MID",
           "dob": "22/02/1995",
           "club": "AFC Bournemouth (ENG)",
@@ -7266,7 +7266,7 @@
           "heightCm": 188
         },
         {
-          "name": "Ben Gannon DOAK GANNON DOAK Gannon-Doak",
+          "name": "Ben Gannon-doak",
           "position": "FWD",
           "dob": "11/11/2005",
           "club": "AFC Bournemouth (ENG)",
@@ -7280,7 +7280,7 @@
           "heightCm": 191
         },
         {
-          "name": "Lewis FERGUSONFERGUSON Ferguson",
+          "name": "Lewis Ferguson",
           "position": "MID",
           "dob": "24/08/1999",
           "club": "Bologna FC (ITA)",
@@ -7308,7 +7308,7 @@
           "heightCm": 183
         },
         {
-          "name": "LEAN Kenny Kenneth MCLEAN Mc",
+          "name": "Mc",
           "position": "MID",
           "dob": "08/01/1992",
           "club": "Norwich City FC (ENG)",
@@ -7329,7 +7329,7 @@
           "heightCm": 180
         },
         {
-          "name": "KENNA Scott Fraser MCKENNA Mc",
+          "name": "Mc",
           "position": "DEF",
           "dob": "12/11/1996",
           "club": "GNK Dinamo Zagreb (CRO)",
@@ -7410,7 +7410,7 @@
           "heightCm": 178
         },
         {
-          "name": "Sadio MANÉ Mane",
+          "name": "Sadio Mané",
           "position": "FWD",
           "dob": "10/04/1992",
           "club": "Al Nassr FC (KSA)",
@@ -7445,7 +7445,7 @@
           "heightCm": 184
         },
         {
-          "name": "Krepin Krépin Diatta",
+          "name": "Krépin Diatta",
           "position": "DEF",
           "dob": "25/02/1999",
           "club": "AS Monaco (FRA)",
@@ -7473,7 +7473,7 @@
           "heightCm": 185
         },
         {
-          "name": "Moussa NIAKHATÉ Niakhate",
+          "name": "Moussa Niakhate",
           "position": "DEF",
           "dob": "08/03/1996",
           "club": "Olympique Lyonnais (FRA)",
@@ -7515,7 +7515,7 @@
           "heightCm": 187
         },
         {
-          "name": "El Hadji Malick El Hadji Malick Diouf",
+          "name": "el Hadji Malick el Hadji Malick Diouf",
           "position": "DEF",
           "dob": "29/12/2004",
           "club": "West Ham United FC (ENG)",
@@ -7582,7 +7582,7 @@
           "heightCm": 171
         },
         {
-          "name": "Oswin Reagan APPOLLISAPPOLLIS Appollis",
+          "name": "Oswin Reagan Appollis",
           "position": "FWD",
           "dob": "25/08/2001",
           "club": "Orlando Pirates FC (RSA)",
@@ -7708,7 +7708,7 @@
           "heightCm": 185
         },
         {
-          "name": "Kamogelo Michael SEBELEBELESEBELEBELE Sebelebele",
+          "name": "Kamogelo Michael Sebelebele",
           "position": "FWD",
           "dob": "21/07/2002",
           "club": "Orlando Pirates FC (RSA)",
@@ -7754,7 +7754,7 @@
           "heightCm": 171
         },
         {
-          "name": "Eric GARCÍA MARTRET ERIC Garcia",
+          "name": "Eric García",
           "position": "DEF",
           "dob": "09/01/2001",
           "club": "FC Barcelona (ESP)",
@@ -7789,7 +7789,7 @@
           "heightCm": 188
         },
         {
-          "name": "Pablo PAEZ GAVIRA Gavi",
+          "name": "Pablo Gavi",
           "position": "MID",
           "dob": "05/08/2004",
           "club": "FC Barcelona (ESP)",
@@ -7838,7 +7838,7 @@
           "heightCm": 172
         },
         {
-          "name": "Rodrigo HERNÁNDEZ CASCANTE RODRIGO Rodri",
+          "name": "Rodrigo Rodri",
           "position": "MID",
           "dob": "22/06/1996",
           "club": "Manchester City FC (ENG)",
@@ -7866,7 +7866,7 @@
           "heightCm": 183
         },
         {
-          "name": "Pedro GONZÁLEZ LÓPEZ Pedri",
+          "name": "Pedro Pedri",
           "position": "MID",
           "dob": "25/11/2002",
           "club": "FC Barcelona (ESP)",
@@ -7880,14 +7880,14 @@
           "heightCm": 181
         },
         {
-          "name": "Pau Cubarsi",
+          "name": "Pau Cubarsí",
           "position": "DEF",
           "dob": "22/01/2007",
           "club": "FC Barcelona (ESP)",
           "heightCm": 183
         },
         {
-          "name": "Unai SIMÓN MENDIBIL UNAI SIMÓN Simon",
+          "name": "Unai Simón",
           "position": "GK",
           "dob": "11/06/1997",
           "club": "Athletic Club (ESP)",
@@ -7901,7 +7901,7 @@
           "heightCm": 173
         },
         {
-          "name": "Victor MUÑOZ VILLANUEVA VICTOR M.V. Munoz",
+          "name": "Victor Muñoz",
           "position": "FWD",
           "dob": "13/07/2003",
           "club": "CA Osasuna (ESP)",
@@ -7926,21 +7926,21 @@
       },
       "players": [
         {
-          "name": "ZETTERSTROM Jacob Mikael Widell",
+          "name": "Jacob Mikael Widell Zetterström",
           "position": "GK",
           "dob": "11/07/1998",
           "club": "Derby County FC (ENG)",
           "heightCm": 197
         },
         {
-          "name": "Gustaf Johan LAGERBIELKELAGERBIELKE Lagerbielke",
+          "name": "Gustaf Johan Lagerbielke",
           "position": "DEF",
           "dob": "10/04/2000",
           "club": "SC Braga (POR)",
           "heightCm": 193
         },
         {
-          "name": "Victor Jörgen NILSSON LINDELÖF Lindelof",
+          "name": "Victor Jörgen Lindelöf",
           "position": "DEF",
           "dob": "17/07/1994",
           "club": "Aston Villa FC (ENG)",
@@ -8031,14 +8031,14 @@
           "heightCm": 185
         },
         {
-          "name": "Jesper Kewe KARLSTRÖM Karlstrom",
+          "name": "Jesper Kewe Karlström",
           "position": "MID",
           "dob": "21/06/1995",
           "club": "Udinese (ITA)",
           "heightCm": 182
         },
         {
-          "name": "Viktor Einar GYÖKERES Gyokeres",
+          "name": "Viktor Einar Gyökeres",
           "position": "FWD",
           "dob": "04/06/1998",
           "club": "Arsenal FC (ENG)",
@@ -8238,7 +8238,7 @@
           "heightCm": 179
         },
         {
-          "name": "Eray Ervin CÖMERT Coemert",
+          "name": "Eray Ervin Coemert",
           "position": "DEF",
           "dob": "04/02/1998",
           "club": "Valencia CF (ESP)",
@@ -8252,7 +8252,7 @@
           "heightCm": 185
         },
         {
-          "name": "Michel AEBISCHERAEBISCHER Aebischer",
+          "name": "Michel Aebischer",
           "position": "MID",
           "dob": "06/01/1997",
           "club": "Pisa SC (ITA)",
@@ -8280,7 +8280,7 @@
           "heightCm": 183
         },
         {
-          "name": "Aurele Aurèle Florian Amenda",
+          "name": "Aurèle Florian Amenda",
           "position": "DEF",
           "dob": "31/07/2003",
           "club": "Eintracht Frankfurt (GER)",
@@ -8319,7 +8319,7 @@
           "heightCm": 189
         },
         {
-          "name": "Ali ELABDI Abdi",
+          "name": "Ali Abdi",
           "position": "DEF",
           "dob": "20/12/1993",
           "club": "OGC Nice (FRA)",
@@ -8389,7 +8389,7 @@
           "heightCm": 180
         },
         {
-          "name": "OUANES Mortadha Ahmed Mortadha Ben",
+          "name": "Mortadha Ahmed Mortadha Ben Ouanes",
           "position": "DEF",
           "dob": "02/07/1994",
           "club": "Kasımpa ş a SK (TUR)",
@@ -8410,7 +8410,7 @@
           "heightCm": 174
         },
         {
-          "name": "MAHMOUD Mohamed BELHADJ MAHMOUD BELHADJ MAHMOUD Hadj",
+          "name": "Mohamed Hadj Mahmoud",
           "position": "MID",
           "dob": "24/04/2000",
           "club": "FC Lugano (SUI)",
@@ -8452,14 +8452,14 @@
           "heightCm": 181
         },
         {
-          "name": "HMIDA Mohamed Amine Mohamed Amine Ben",
+          "name": "Mohamed Amine Mohamed Amine Ben Hmida",
           "position": "DEF",
           "dob": "15/12/1995",
           "club": "Espérance De Tunisie (TUN)",
           "heightCm": 181
         },
         {
-          "name": "HESSEN Sabri Ben",
+          "name": "Sabri Ben Hessen",
           "position": "GK",
           "dob": "13/06/1996",
           "club": "Étoile Du Sahel (TUN)",
@@ -8480,7 +8480,7 @@
           "heightCm": 191
         },
         {
-          "name": "Anis BEN Slimane",
+          "name": "Anis Ben Slimane",
           "position": "MID",
           "dob": "16/03/2001",
           "club": "Norwich City FC (ENG)",
@@ -8505,70 +8505,70 @@
       },
       "players": [
         {
-          "name": "Mert Fehmi Mert GÜNOK MERT Gunok",
+          "name": "Mert Fehmi Mert Günok",
           "position": "GK",
           "dob": "01/03/1989",
           "club": "Fenerbahçe SK (TUR)",
           "heightCm": 196
         },
         {
-          "name": "Zeki Mehmet ZekiÇELIK ZEKİ ÇELİ K Celik",
+          "name": "Zeki Mehmet Zeki Çelik",
           "position": "DEF",
           "dob": "17/02/1997",
           "club": "AS Roma (ITA)",
           "heightCm": 180
         },
         {
-          "name": "Merih DEMİ RAL DEMİ RAL Demiral",
+          "name": "Merih Dem İ Ral Dem İ Ral Demiral",
           "position": "DEF",
           "dob": "05/03/1998",
           "club": "Al Ahli FC (KSA)",
           "heightCm": 190
         },
         {
-          "name": "CaglarÇağ lar SÖYÜNCÜÇAĞ LAR Soyuncu",
+          "name": "Caglar Çağ lar Söyüncü",
           "position": "DEF",
           "dob": "23/05/1996",
           "club": "Fenerbahçe SK (TUR)",
           "heightCm": 185
         },
         {
-          "name": "Salih SalihÖZCANÖZCAN Ozcan",
+          "name": "Salih Özcan",
           "position": "MID",
           "dob": "11/01/1998",
           "club": "Borussia Dortmund (GER)",
           "heightCm": 182
         },
         {
-          "name": "Orkun KÖKÇÜ ORKUN KÖKÇÜ Kokcu",
+          "name": "Orkun Kökçü",
           "position": "MID",
           "dob": "29/12/2000",
           "club": "Be ş ikta ş  JK (TUR)",
           "heightCm": 175
         },
         {
-          "name": "Kerem Muhammed Kerem AKTÜRKOĞ LU AKTÜRKOĞ LU Akturkoglu",
+          "name": "Kerem Muhammed Kerem Akturkoglu",
           "position": "FWD",
           "dob": "21/10/1998",
           "club": "Fenerbahçe SK (TUR)",
           "heightCm": 172
         },
         {
-          "name": "Arda GÜLER ARDA GÜLER Guler",
+          "name": "Arda Güler",
           "position": "FWD",
           "dob": "25/02/2005",
           "club": "Real Madrid C. F. (ESP)",
           "heightCm": 175
         },
         {
-          "name": "Deniz Daniel GÜL DENİ Z GÜL Gul",
+          "name": "Deniz Daniel Gül",
           "position": "FWD",
           "dob": "02/07/2004",
           "club": "FC Porto (POR)",
           "heightCm": 192
         },
         {
-          "name": "Hakan HakanÇALHANOĞ LUÇALHANOĞ LU Calhanoglu",
+          "name": "Hakan Calhanoglu",
           "position": "MID",
           "dob": "08/02/1994",
           "club": "FC Internazionale Milano (ITA)",
@@ -8596,7 +8596,7 @@
           "heightCm": 181
         },
         {
-          "name": "Abdulkerim Abdülkerİ m Bardakci",
+          "name": "Abdulkerim Abdülker İ m Bardakci",
           "position": "DEF",
           "dob": "07/09/1994",
           "club": "Galatasaray SK (TUR)",
@@ -8610,35 +8610,35 @@
           "heightCm": 187
         },
         {
-          "name": "Ismailİ smaİ l YÜKSEKİ SMAİ L Yuksek",
+          "name": "Ismail İ sma İ l Yüksek",
           "position": "MID",
           "dob": "26/01/1999",
           "club": "Fenerbahçe SK (TUR)",
           "heightCm": 183
         },
         {
-          "name": "Irfan Canİ rfan KAHVECİ Kahveci",
+          "name": "Irfan Can İ rfan Kahveci",
           "position": "FWD",
           "dob": "15/07/1995",
           "club": "Kasımpa ş a SK (TUR)",
           "heightCm": 180
         },
         {
-          "name": "Mert MÜLDÜR MERT MÜLDÜR Muldur",
+          "name": "Mert Müldür",
           "position": "DEF",
           "dob": "03/04/1999",
           "club": "Fenerbahçe SK (TUR)",
           "heightCm": 184
         },
         {
-          "name": "Yunus AKGÜN YUNUS Akgun",
+          "name": "Yunus Akgün",
           "position": "FWD",
           "dob": "07/07/2000",
           "club": "Galatasaray SK (TUR)",
           "heightCm": 173
         },
         {
-          "name": "Ferdi Erenay KADIOĞ LU F. KADIOĞ LU Kadioglu",
+          "name": "Ferdi Erenay Kadioglu",
           "position": "DEF",
           "dob": "07/10/1999",
           "club": "Brighton & Hove Albion FC (ENG)",
@@ -8659,14 +8659,14 @@
           "heightCm": 185
         },
         {
-          "name": "Ugurcan Uğ urcanÇAKIR UĞ URCAN Cakir",
+          "name": "Ugurcan U ğ urcan Çakir",
           "position": "GK",
           "dob": "05/04/1996",
           "club": "Galatasaray SK (TUR)",
           "heightCm": 191
         },
         {
-          "name": "Oguz Oğ uz Aydin",
+          "name": "Oguz O ğ uz Aydin",
           "position": "FWD",
           "dob": "27/10/2000",
           "club": "Fenerbahçe SK (TUR)",
@@ -8705,21 +8705,21 @@
           "heightCm": 189
         },
         {
-          "name": "Jose Maria José María GIMÉNEZ DE VARGAS J.M. GIMÉNEZ Gimenez",
+          "name": "Jose Maria José María Giménez",
           "position": "DEF",
           "dob": "20/01/1995",
           "club": "Atlético De Madrid (ESP)",
           "heightCm": 186
         },
         {
-          "name": "Sebastian Sebastián Enzo CÁCERES RAMOS S. Caceres",
+          "name": "Sebastián Enzo Cáceres",
           "position": "DEF",
           "dob": "18/08/1999",
           "club": "Club América (MEX)",
           "heightCm": 180
         },
         {
-          "name": "Ronald Federico ARAÚJO DA SILVA R. Araujo",
+          "name": "Ronald Federico Araújo",
           "position": "DEF",
           "dob": "07/03/1999",
           "club": "FC Barcelona (ESP)",
@@ -8740,7 +8740,7 @@
           "heightCm": 187
         },
         {
-          "name": "LA CRUZ Nicolas Diego Nicolás De",
+          "name": "Nicolas Diego Nicolás de la Cruz",
           "position": "MID",
           "dob": "01/06/1997",
           "club": "CR Flamengo (BRA)",
@@ -8754,14 +8754,14 @@
           "heightCm": 182
         },
         {
-          "name": "Darwin Gabriel NUÑEZ RIBEIROD. NUÑEZ Nunez",
+          "name": "Darwin Gabriel Nuñez",
           "position": "FWD",
           "dob": "24/06/1999",
           "club": "Al Hilal SC (KSA)",
           "heightCm": 185
         },
         {
-          "name": "ARRASCAETA Giorgian Daniel De",
+          "name": "Giorgian Daniel de Arrascaeta",
           "position": "MID",
           "dob": "01/06/1994",
           "club": "CR Flamengo (BRA)",
@@ -8796,28 +8796,28 @@
           "heightCm": 176
         },
         {
-          "name": "Emiliano MARTÍNEZ TORANZA E. Martinez",
+          "name": "Emiliano Martínez",
           "position": "MID",
           "dob": "17/08/1999",
           "club": "SE Palmeiras (BRA)",
           "heightCm": 184
         },
         {
-          "name": "Mathias Mathías Olivera",
+          "name": "Mathías Olivera",
           "position": "DEF",
           "dob": "31/10/1997",
           "club": "SSC Napoli (ITA)",
           "heightCm": 174
         },
         {
-          "name": "Matias Matías Nicolas VIÑA SUSPERREGUYM. VIÑA Vina",
+          "name": "Matías Nicolas Viña",
           "position": "DEF",
           "dob": "09/11/1997",
           "club": "CA River Plate (ARG)",
           "heightCm": 180
         },
         {
-          "name": "Brian Paul Brian RODRÍGUEZ BRAVO B. Rodriguez",
+          "name": "Brian Paul Brian Rodríguez",
           "position": "FWD",
           "dob": "20/05/2000",
           "club": "Club América (MEX)",
@@ -8831,14 +8831,14 @@
           "heightCm": 182
         },
         {
-          "name": "Maxi Maximiliano Javier ARAÚJO VILCHES M. Araujo",
+          "name": "Maxi Maximiliano Javier Araújo",
           "position": "MID",
           "dob": "15/02/2000",
           "club": "Sporting CP (POR)",
           "heightCm": 176
         },
         {
-          "name": "Federico Sebastian VIÑAS BARBOZA F. VIÑAS Vinas",
+          "name": "Federico Sebastian Viñas",
           "position": "FWD",
           "dob": "30/06/1998",
           "club": "Real Oviedo (ESP)",
@@ -8898,7 +8898,7 @@
           "heightCm": 190
         },
         {
-          "name": "Sergino Sergiño Gianni Dest",
+          "name": "Sergiño Gianni Dest",
           "position": "DEF",
           "dob": "03/11/2000",
           "club": "PSV Eindhoven (NED)",
@@ -8940,7 +8940,7 @@
           "heightCm": 187
         },
         {
-          "name": "KENNIE Weston James Earl Mc",
+          "name": "Mc",
           "position": "MID",
           "dob": "28/08/1998",
           "club": "Juventus FC (ITA)",
@@ -9038,7 +9038,7 @@
           "heightCm": 183
         },
         {
-          "name": "KENZIE Mark Alexander MCKENZIE Mc",
+          "name": "Mc",
           "position": "DEF",
           "dob": "25/02/1999",
           "club": "Toulouse FC (FRA)",
@@ -9189,7 +9189,7 @@
           "heightCm": 185
         },
         {
-          "name": "Botirali ERGASHEVERGASHEV Ergashev",
+          "name": "Botirali Ergashev",
           "position": "GK",
           "dob": "23/06/1995",
           "club": "FK Neftchi Farg'ona (UZB)",
@@ -9203,7 +9203,7 @@
           "heightCm": 178
         },
         {
-          "name": "Abdulla Abdullaev",
+          "name": "Abdullaev",
           "position": "DEF",
           "dob": "01/09/1997",
           "club": "Dibba FC (UAE)",
