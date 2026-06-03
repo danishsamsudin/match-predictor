@@ -123,97 +123,83 @@ function applyOfficialFifaHtmlSnapshot(rows: SofascoreFifaRankingRow[]): void {
   if (!latestByTeamId?.size) rebuildLatestByTeamId();
 }
 
+const SUPABASE_PAGE_SIZE = 1000;
+
 async function loadFifaRankings(): Promise<void> {
-  await loadFromSupabase();
-  try {
-    const officialRows = readOfficialFifaRankingsHtmlRows();
+  const officialRows = readOfficialFifaRankingsHtmlRows();
+  if (!officialRows.length) {
+    console.error(
+      "[fifa-rankings] Missing bundled fifa-rankings-2026.json — official ranks unavailable"
+    );
+  } else {
     applyOfficialFifaHtmlSnapshot(officialRows);
-  } catch (err) {
-    console.warn("[fifa-rankings] Could not load official HTML snapshot:", err);
   }
+  await loadHistoricalFromSupabase();
 }
 
 export async function ensureFifaRankingsLoaded(): Promise<boolean> {
-  const cached = snapshotIndex;
-  if (cached != null && cached.size > 0) return true;
+  if (latestByTeam != null && latestByTeam.size > 0) return true;
   if (!loadPromise) loadPromise = loadFifaRankings();
   await loadPromise;
-  const loaded = snapshotIndex;
-  return loaded != null && loaded.size > 0;
+  return latestByTeam != null && latestByTeam.size > 0;
 }
 
-async function loadFromSupabase(): Promise<void> {
+/** Kaggle history for vs-top-20 at match date. Latest ranks come from bundled FIFA JSON only. */
+async function loadHistoricalFromSupabase(): Promise<void> {
   const supabase = tryCreateServiceClient();
   if (!supabase) return;
 
-  const { data, error } = await supabase
-    .from("fifa_ranking_snapshots")
-    .select(
-      "ranking_year, semester, rank, team_name, total_points, normalized_team_name, data_source, sofascore_team_id"
-    )
-    .order("ranking_year", { ascending: true })
-    .order("semester", { ascending: true })
-    .order("rank", { ascending: true });
+  const index: SnapshotIndex = snapshotIndex ?? new Map();
+  const meta: SnapshotMetaIndex = snapshotMeta ?? new Map();
+  const officialYear = latestSnapshot?.year;
 
-  if (error || !data?.length) {
-    snapshotIndex = null;
-    snapshotMeta = null;
-    latestSnapshot = null;
-    latestDataSource = null;
-    latestByTeam = null;
-    latestByTeamId = null;
-    return;
-  }
+  let offset = 0;
+  let totalRows = 0;
 
-  const index: SnapshotIndex = new Map();
-  const meta: SnapshotMetaIndex = new Map();
-  const idToEntry = new Map<number, FifaRankingEntry>();
+  while (true) {
+    const { data, error } = await supabase
+      .from("fifa_ranking_snapshots")
+      .select(
+        "ranking_year, semester, rank, team_name, total_points, normalized_team_name, data_source"
+      )
+      .order("ranking_year", { ascending: true })
+      .order("semester", { ascending: true })
+      .order("rank", { ascending: true })
+      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
 
-  for (const row of data) {
-    const key = snapshotKey(row.ranking_year, row.semester);
-    if (!index.has(key)) index.set(key, new Map());
-    const entry: FifaRankingEntry = {
-      rank: row.rank,
-      points: Number(row.total_points),
-      teamName: row.team_name,
-      normalizedName: row.normalized_team_name,
-    };
-    index.get(key)!.set(row.normalized_team_name, entry);
+    if (error) {
+      console.warn("[fifa-rankings] Supabase historical load failed:", error.message);
+      break;
+    }
+    if (!data?.length) break;
 
-    if (!meta.has(key)) {
-      meta.set(key, { dataSource: row.data_source ?? null });
+    for (const row of data) {
+      if (officialYear != null && row.ranking_year >= officialYear) continue;
+
+      const key = snapshotKey(row.ranking_year, row.semester);
+      if (!index.has(key)) index.set(key, new Map());
+      const entry: FifaRankingEntry = {
+        rank: row.rank,
+        points: Number(row.total_points),
+        teamName: row.team_name,
+        normalizedName: row.normalized_team_name,
+      };
+      index.get(key)!.set(row.normalized_team_name, entry);
+
+      if (!meta.has(key)) {
+        meta.set(key, { dataSource: row.data_source ?? null });
+      }
     }
 
-    if (row.sofascore_team_id != null) {
-      idToEntry.set(row.sofascore_team_id, entry);
-    }
+    totalRows += data.length;
+    if (data.length < SUPABASE_PAGE_SIZE) break;
+    offset += SUPABASE_PAGE_SIZE;
   }
 
-  snapshotIndex = index;
-  snapshotMeta = meta;
-
-  let bestKey: FifaSnapshotKey | null = null;
-  for (const key of index.keys()) {
-    const [y, s] = key.split("-").map(Number);
-    const candidate = { year: y, semester: s as 1 | 2 };
-    if (
-      !bestKey ||
-      candidate.year > bestKey.year ||
-      (candidate.year === bestKey.year && candidate.semester > bestKey.semester)
-    ) {
-      bestKey = candidate;
-    }
+  if (totalRows > 0 || index.size > 0) {
+    snapshotIndex = index;
+    snapshotMeta = meta;
   }
-  latestSnapshot = bestKey;
-  latestDataSource = bestKey
-    ? (meta.get(snapshotKey(bestKey.year, bestKey.semester))?.dataSource ?? null)
-    : null;
-  latestByTeam = bestKey
-    ? new Map(index.get(snapshotKey(bestKey.year, bestKey.semester)))
-    : null;
-
-  latestByTeamId = idToEntry.size ? idToEntry : null;
-  if (!latestByTeamId?.size) rebuildLatestByTeamId();
 }
 
 export function getLatestFifaSnapshot(): FifaSnapshotKey | null {

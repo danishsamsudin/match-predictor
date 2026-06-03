@@ -4,7 +4,7 @@ Import FIFA men's world ranking history into Supabase.
 
 Sources:
   - Kaggle (1992–2024): lucasyukioimafuko/fifa-mens-world-ranking
-  - Sofascore saved HTML (2026): data/imports/fbref/world-cup/FIFA Football Rankings 2026 - Sofascore.html
+  - FIFA official HTML (2026): data/imports/fbref/world-cup/FIFA_Coca-Cola Men's World Ranking.html
 
 Usage (from match-predictor/):
   pip install kagglehub supabase python-dotenv
@@ -14,8 +14,8 @@ Usage (from match-predictor/):
   # Kaggle CSV only:
   python scripts/import_fifa_rankings.py --skip-sofascore
 
-  # Sofascore 2026 only:
-  python scripts/import_fifa_rankings.py --skip-kaggle --sofascore-html path/to/file.html
+  # FIFA 2026 official snapshot only:
+  python scripts/import_fifa_rankings.py --skip-kaggle --fifa-html path/to/file.html
 """
 
 from __future__ import annotations
@@ -36,6 +36,14 @@ logger = logging.getLogger("fifa_rankings_import")
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CSV_CACHE = ROOT / "data" / "imports" / "fifa" / "fifa_mens_rank.csv"
+DEFAULT_FIFA_HTML = (
+    ROOT
+    / "data"
+    / "imports"
+    / "fbref"
+    / "world-cup"
+    / "FIFA_Coca-Cola Men's World Ranking.html"
+)
 DEFAULT_SOFASCORE_HTML = (
     ROOT
     / "data"
@@ -45,6 +53,22 @@ DEFAULT_SOFASCORE_HTML = (
     / "FIFA Football Rankings 2026 - Sofascore.html"
 )
 MAX_KAGGLE_YEAR = 2024
+
+FIFA_OFFICIAL_ID_ALIASES: dict[str, str] = {
+    "kyrgyz republic": "kyrgyzstan",
+    "the gambia": "gambia",
+    "congo": "congo republic",
+    "st kitts and nevis": "saint kitts and nevis",
+    "hong kong, china": "hong kong",
+    "tahiti": "french polynesia",
+    "st lucia": "saint lucia",
+    "st vincent and the grenadines": "saint vincent and the grenadines",
+    "brunei darussalam": "brunei",
+    "macau": "macao",
+    "são tomé and príncipe": "sao tome and principe",
+    "sao tomé and príncipe": "sao tome and principe",
+    "timor-leste": "east timor",
+}
 
 FIFA_DATASET_ALIASES: dict[str, str] = {
     "usa": "usa",
@@ -178,6 +202,99 @@ def _year_from_timestamp(ts: int) -> int:
     return datetime.fromtimestamp(ts, tz=timezone.utc).year
 
 
+def _semester_from_iso(iso: str) -> int:
+    month = int(iso[5:7])
+    return 1 if month <= 6 else 2
+
+
+def _year_from_iso(iso: str) -> int:
+    return int(iso[0:4])
+
+
+def _normalize_for_id_lookup(name: str) -> str:
+    key = normalize_fifa_team_name(name)
+    return FIFA_OFFICIAL_ID_ALIASES.get(key, key)
+
+
+def _load_sofascore_id_lookup() -> dict[str, int]:
+    if not DEFAULT_SOFASCORE_HTML.is_file():
+        return {}
+    rows = load_sofascore_rows(DEFAULT_SOFASCORE_HTML)
+    lookup: dict[str, int] = {}
+    for row in rows:
+        team_id = row.get("sofascore_team_id")
+        if team_id is not None:
+            lookup[row["normalized_team_name"]] = int(team_id)
+    for alias, target in FIFA_OFFICIAL_ID_ALIASES.items():
+        if target in lookup:
+            lookup[alias] = lookup[target]
+    return lookup
+
+
+def load_fifa_official_rows(html_path: Path) -> list[dict[str, Any]]:
+    html = html_path.read_text(encoding="utf-8", errors="replace")
+
+    snapshot_iso: Optional[str] = None
+    next_match = re.search(
+        r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S
+    )
+    if next_match:
+        try:
+            data = json.loads(next_match.group(1))
+            snapshot_iso = (
+                data.get("props", {})
+                .get("pageProps", {})
+                .get("pageData", {})
+                .get("ranking", {})
+                .get("lastUpdateDate")
+            )
+        except json.JSONDecodeError:
+            snapshot_iso = None
+
+    ranking_year = _year_from_iso(snapshot_iso) if snapshot_iso else 2026
+    semester = _semester_from_iso(snapshot_iso) if snapshot_iso else 1
+
+    row_re = re.compile(
+        r'<tr class="row-(?:even|odd)[^"]*"[^>]*>([\s\S]*?)(?=<tr class="row-|</tbody>)'
+    )
+    id_lookup = _load_sofascore_id_lookup()
+    rows: list[dict[str, Any]] = []
+
+    for block in row_re.finditer(html):
+        row = block.group(0)
+        rank_m = re.search(r"rankNumber__[^>]*>(\d+)", row)
+        team_m = re.search(r"teamName__[^>]*>([^<]+)<", row)
+        pts_m = re.search(r"custom-points-cell_points__[^>]*><span>([^<]+)<", row)
+        code_m = re.search(r"fifa-world-ranking/([A-Z0-9]{3})\?gender=men", row)
+        if not rank_m or not team_m or not pts_m:
+            continue
+
+        team_name = team_m.group(1).strip()
+        points = float(pts_m.group(1).replace(",", ""))
+        norm = normalize_fifa_team_name(team_name)
+        lookup_key = _normalize_for_id_lookup(team_name)
+
+        rows.append(
+            {
+                "ranking_year": ranking_year,
+                "semester": semester,
+                "rank": int(rank_m.group(1)),
+                "team_name": team_name,
+                "acronym": code_m.group(1) if code_m else None,
+                "total_points": round(points, 2),
+                "previous_points": None,
+                "points_diff": None,
+                "normalized_team_name": norm,
+                "data_source": "fifa",
+                "sofascore_team_id": id_lookup.get(lookup_key),
+            }
+        )
+
+    if not rows:
+        raise RuntimeError(f"No ranking rows parsed from {html_path}")
+    return rows
+
+
 def load_sofascore_rows(html_path: Path) -> list[dict[str, Any]]:
     html = html_path.read_text(encoding="utf-8", errors="replace")
     match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
@@ -305,11 +422,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Import FIFA men's rankings into Supabase")
     parser.add_argument("--csv", help="Path to fifa_mens_rank.csv (skips kagglehub)")
     parser.add_argument(
+        "--fifa-html",
+        help="FIFA official saved rankings HTML (default: world-cup folder)",
+    )
+    parser.add_argument(
         "--sofascore-html",
-        help="Sofascore saved FIFA rankings HTML (default: world-cup folder)",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument("--skip-kaggle", action="store_true")
-    parser.add_argument("--skip-sofascore", action="store_true")
+    parser.add_argument(
+        "--skip-fifa",
+        action="store_true",
+        help="Skip FIFA official 2026 HTML snapshot",
+    )
+    parser.add_argument("--skip-sofascore", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -326,14 +452,19 @@ def main() -> int:
         )
         rows.extend(kaggle_rows)
 
-    if not args.skip_sofascore:
-        sofa_path = Path(args.sofascore_html).expanduser() if args.sofascore_html else DEFAULT_SOFASCORE_HTML
-        if not sofa_path.is_file():
-            logger.error("Sofascore HTML not found: %s", sofa_path)
+    skip_fifa = args.skip_fifa or args.skip_sofascore
+    if not skip_fifa:
+        fifa_path = (
+            Path(args.fifa_html or args.sofascore_html).expanduser()
+            if (args.fifa_html or args.sofascore_html)
+            else DEFAULT_FIFA_HTML
+        )
+        if not fifa_path.is_file():
+            logger.error("FIFA official HTML not found: %s", fifa_path)
             return 1
-        sofa_rows = load_sofascore_rows(sofa_path)
-        logger.info("Sofascore: %s rows from %s", len(sofa_rows), sofa_path)
-        rows.extend(sofa_rows)
+        fifa_rows = load_fifa_official_rows(fifa_path)
+        logger.info("FIFA official: %s rows from %s", len(fifa_rows), fifa_path)
+        rows.extend(fifa_rows)
 
     if not rows:
         logger.error("No ranking rows to import")
