@@ -179,6 +179,8 @@ function fbrefAggregateFromPlayerStats(
       .filter((s) => s.stat_type === type)
       .map((s) => ({
         ...s.stats,
+        player_id: s.player_id,
+        competition: s.competition,
         player_name: s.stats.player_name ?? s.stats.player,
       }));
 

@@ -26,19 +26,52 @@ export const TEAM_BETTING_INSIGHTS_GLOSSARY: Record<string, ReactNode> = {
   ),
   "Qualifying record": <>Wins-draws-losses in World Cup qualifying competitions only.</>,
   "Shot conversion %": <>Goals divided by total shots (FBref season totals, minutes-weighted).</>,
-  "Shots on target / 90": <>Team total shots on target per 90 minutes played.</>,
-  "Crosses / 90": <>Crosses attempted per 90 from FBref miscellaneous stats.</>,
+  "Shots on target / 90": (
+    <>
+      Team shots on target per 90 minutes of match time from FBref shooting
+      totals (squad counts scaled to eleven players on the pitch, not summed
+      player per-90 rates).
+    </>
+  ),
+  "Crosses / 90": (
+    <>
+      Team crosses attempted per 90 minutes of match time from FBref
+      miscellaneous stats (squad totals scaled to eleven players on the pitch).
+    </>
+  ),
   "Top scorer goal share": (
     <>Leading scorer&apos;s goals as a % of all team goals - higher means more talisman reliance.</>
   ),
-  "GK save %": <>Minutes-weighted average save percentage from FBref keeper tables.</>,
-  "Tackles / 90": <>Tackles won per 90 from FBref miscellaneous stats.</>,
-  "Interceptions / 90": <>Interceptions per 90 from FBref miscellaneous stats.</>,
+  "GK save %": (
+    <>
+      Team save percentage from FBref keeper totals (saves divided by shots on
+      target faced). If goals were conceded, the rate cannot read as 100%.
+    </>
+  ),
+  "Tackles / 90": (
+    <>
+      Team tackles won per 90 minutes of match time from FBref miscellaneous
+      stats (squad totals scaled to eleven players on the pitch).
+    </>
+  ),
+  "Interceptions / 90": (
+    <>
+      Team interceptions per 90 minutes of match time from FBref miscellaneous
+      stats (squad totals scaled to eleven players on the pitch).
+    </>
+  ),
   "Shots conceded / game": (
     <>Opponent total shots per match from synced SofaScore statistics (last 10 when available).</>
   ),
   "Average age": <>Minutes-weighted average age from FBref standard stats.</>,
   "Players used": <>Players with logged minutes in FBref standard stats.</>,
   "Penalty conversion": <>Penalties scored divided by penalties attempted (team totals).</>,
-  "Yellow cards / 90": <>Yellow cards per 90 minutes from FBref standard stats.</>,
+  "Yellow cards / 90": (
+    <>
+      Team yellow cards per 90 minutes of match time (total cards divided by squad
+      minutes and scaled to eleven players on the pitch). Qualifying and friendly
+      rows are combined; duplicate imports for the same player and competition are
+      ignored.
+    </>
+  ),
 };

@@ -191,21 +191,149 @@ function num(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function sumByMinutes(
-  rows: Array<Record<string, unknown>>,
-  valueKeys: string[],
-  minutesKeys: string[] = ["minutes", "min", "minutes_90s"]
-): { total: number; minutes: number } {
-  let total = 0;
-  let minutes = 0;
-  for (const row of rows) {
-    const mins = minutesKeys.reduce((m, k) => m || num(row[k]), 0);
-    if (mins <= 0) continue;
-    const value = valueKeys.reduce((v, k) => v || num(row[k]), 0);
-    total += value;
-    minutes += mins;
+/** Eleven players share each minute of team match time. */
+const PLAYERS_ON_PITCH = 11;
+
+const PER_90_STAT_KEY_RE = /(?:^|_)(?:per_?90|90s)(?:$|_)|\/90/i;
+
+/** FBref minutes: `minutes_90s` is in 90-minute units (8.0 = 720 minutes). */
+export function resolvePlayerMinutes(row: Record<string, unknown>): number {
+  const nineties = num(row.minutes_90s);
+  const direct = num(row.minutes ?? row.min ?? row.gk_minutes);
+  if (direct > 0) {
+    // Mislabeled exports sometimes put 90s in `minutes` (e.g. 6 instead of 540).
+    if (direct < 90 && nineties > 0 && nineties * 90 > direct) {
+      return nineties * 90;
+    }
+    return direct;
   }
-  return { total, minutes };
+  if (nineties > 0) return nineties * 90;
+  return 0;
+}
+
+function countingStatValue(
+  row: Record<string, unknown>,
+  valueKeys: string[]
+): number {
+  for (const key of valueKeys) {
+    if (PER_90_STAT_KEY_RE.test(key)) continue;
+    const value = num(row[key]);
+    if (value > 0) return value;
+  }
+  return 0;
+}
+
+/**
+ * FBref player season rows can repeat for the same player + competition when
+ * imports are re-run. Keep the row with the most minutes per key.
+ */
+export function dedupeStandardStatRows(
+  rows: Array<Record<string, unknown>>
+): Array<Record<string, unknown>> {
+  const best = new Map<string, Record<string, unknown>>();
+  for (const row of rows) {
+    const playerKey = String(
+      row.player_id ?? row.player_name ?? row.player ?? ""
+    )
+      .trim()
+      .toLowerCase();
+    const compKey = String(row.competition ?? "").trim().toLowerCase();
+    const key = `${playerKey}|${compKey}`;
+    const prev = best.get(key);
+    const mins = resolvePlayerMinutes(row);
+    const prevMins = prev ? resolvePlayerMinutes(prev) : -1;
+    if (!prev || mins > prevMins) best.set(key, row);
+  }
+  return [...best.values()];
+}
+
+function sumDedupedStat(
+  rows: Array<Record<string, unknown>>,
+  valueKeys: string[]
+): number {
+  let total = 0;
+  for (const row of dedupeStandardStatRows(rows)) {
+    if (resolvePlayerMinutes(row) <= 0) continue;
+    total += countingStatValue(row, valueKeys);
+  }
+  return total;
+}
+
+/** Team rate per 90 minutes of match time (not per player-minute). */
+export function teamStatPer90FromRows(
+  rows: Array<Record<string, unknown>>,
+  valueKeys: string[]
+): number | null {
+  const deduped = dedupeStandardStatRows(rows);
+  let total = 0;
+  let playerMinutes = 0;
+  for (const row of deduped) {
+    const mins = resolvePlayerMinutes(row);
+    if (mins <= 0) continue;
+    total += countingStatValue(row, valueKeys);
+    playerMinutes += mins;
+  }
+  const teamMatchMinutes = playerMinutes / PLAYERS_ON_PITCH;
+  if (teamMatchMinutes <= 0 || total <= 0) return null;
+  return round1((total / teamMatchMinutes) * 90);
+}
+
+/** Team yellow cards per 90 minutes of match time (not per player-minute). */
+export function teamYellowCardsPer90FromStandard(
+  rows: Array<Record<string, unknown>>
+): number | null {
+  return teamStatPer90FromRows(rows, ["cards_yellow", "crdy"]);
+}
+
+/**
+ * Save % from keeper counting stats (saves / shots on target faced).
+ * Cannot reach 100% when goals against are recorded.
+ */
+export function teamGoalkeeperSavePctFromKeeper(
+  rows: Array<Record<string, unknown>>
+): number | null {
+  const deduped = dedupeStandardStatRows(rows);
+  let saves = 0;
+  let sotAgainst = 0;
+  let goalsAgainst = 0;
+
+  for (const row of deduped) {
+    if (resolvePlayerMinutes(row) <= 0) continue;
+    saves += num(row.gk_saves);
+    sotAgainst += num(row.gk_shots_on_target_against);
+    goalsAgainst += num(row.gk_goals_against);
+  }
+
+  if (sotAgainst > 0) {
+    const pct = (saves / sotAgainst) * 100;
+    if (goalsAgainst > 0 && pct >= 100) {
+      const denom = saves + goalsAgainst;
+      return denom > 0 ? roundPct((saves / denom) * 100) : null;
+    }
+    return roundPct(pct);
+  }
+
+  if (saves + goalsAgainst > 0) {
+    return roundPct((saves / (saves + goalsAgainst)) * 100);
+  }
+
+  let saveWeighted = 0;
+  let saveWeight = 0;
+  for (const row of deduped) {
+    let pct = num(row.gk_save_pct ?? row.save_pct);
+    const mins = resolvePlayerMinutes(row);
+    if (pct <= 0 || mins <= 0) continue;
+    if (pct > 0 && pct <= 1) pct *= 100;
+    saveWeighted += pct * mins;
+    saveWeight += mins;
+  }
+  if (saveWeight <= 0) return null;
+  let result = roundPct(saveWeighted / saveWeight);
+  if (goalsAgainst > 0 && result >= 100) {
+    const denom = saves + goalsAgainst;
+    result = denom > 0 ? roundPct((saves / denom) * 100) : result;
+  }
+  return result;
 }
 
 export function aggregateFbrefTeamStats(
@@ -215,16 +343,11 @@ export function aggregateFbrefTeamStats(
   defensive: TeamDefensiveInsights;
   squad: TeamSquadProfileInsights;
 } {
-  const goalsShots = sumByMinutes(input.shooting, ["goals", "gls"]);
-  const shots = sumByMinutes(input.shooting, ["shots", "sh"]);
-  const sot = sumByMinutes(input.shooting, ["shots_on_target", "sot"]);
-  const crosses = sumByMinutes(input.misc, ["crosses", "crs"]);
+  const goalsShots = sumDedupedStat(input.shooting, ["goals", "gls"]);
+  const shots = sumDedupedStat(input.shooting, ["shots", "sh"]);
 
   const shotConversionPct =
-    shots.total > 0 ? roundPct((goalsShots.total / shots.total) * 100) : null;
-
-  const per90 = (total: number, minutes: number) =>
-    minutes > 0 ? round1((total / minutes) * 90) : null;
+    shots > 0 ? roundPct((goalsShots / shots) * 100) : null;
 
   let topScorerName: string | null = null;
   let topGoals = 0;
@@ -234,11 +357,9 @@ export function aggregateFbrefTeamStats(
   let squadPlayersUsed = 0;
   let pensMade = 0;
   let pensAtt = 0;
-  let yellowTotal = 0;
-  let yellowMinutes = 0;
 
-  for (const row of input.standard) {
-    const mins = num(row.minutes ?? row.min);
+  for (const row of dedupeStandardStatRows(input.standard)) {
+    const mins = resolvePlayerMinutes(row);
     const goals = num(row.goals ?? row.gls);
     const name = String(row.player_name ?? row.player ?? "").trim();
     const age = num(row.age);
@@ -258,8 +379,6 @@ export function aggregateFbrefTeamStats(
 
     pensMade += num(row.pens_made);
     pensAtt += num(row.pens_att);
-    yellowTotal += num(row.cards_yellow ?? row.crdy);
-    if (mins > 0) yellowMinutes += mins;
   }
 
   for (const row of input.shooting) {
@@ -270,33 +389,28 @@ export function aggregateFbrefTeamStats(
   const topScorerSharePct =
     teamGoals > 0 && topGoals > 0 ? roundPct((topGoals / teamGoals) * 100) : null;
 
-  let saveWeighted = 0;
-  let saveWeight = 0;
-  for (const row of input.keeper) {
-    const pct = num(row.gk_save_pct ?? row.save_pct);
-    const mins = num(row.gk_minutes ?? row.minutes ?? row.min);
-    if (pct > 0 && mins > 0) {
-      saveWeighted += pct * mins;
-      saveWeight += mins;
-    }
-  }
-
-  const tackles = sumByMinutes(input.misc, ["tackles_won", "tklw", "tackles"]);
-  const interceptions = sumByMinutes(input.misc, ["interceptions", "int"]);
-
   return {
     attacking: {
       shotConversionPct,
-      shotsPer90: per90(shots.total, shots.minutes),
-      shotsOnTargetPer90: per90(sot.total, sot.minutes),
-      crossesPer90: per90(crosses.total, crosses.minutes),
+      shotsPer90: teamStatPer90FromRows(input.shooting, ["shots", "sh"]),
+      shotsOnTargetPer90: teamStatPer90FromRows(input.shooting, [
+        "shots_on_target",
+      ]),
+      crossesPer90: teamStatPer90FromRows(input.misc, ["crosses", "crs"]),
       topScorerSharePct,
       topScorerName,
     },
     defensive: {
-      goalkeeperSavePct: saveWeight > 0 ? roundPct(saveWeighted / saveWeight) : null,
-      tacklesPer90: per90(tackles.total, tackles.minutes),
-      interceptionsPer90: per90(interceptions.total, interceptions.minutes),
+      goalkeeperSavePct: teamGoalkeeperSavePctFromKeeper(input.keeper),
+      tacklesPer90: teamStatPer90FromRows(input.misc, [
+        "tackles_won",
+        "tklw",
+        "tackles",
+      ]),
+      interceptionsPer90: teamStatPer90FromRows(input.misc, [
+        "interceptions",
+        "int",
+      ]),
       shotsConcededPerGame: null,
     },
     squad: {
@@ -304,7 +418,7 @@ export function aggregateFbrefTeamStats(
       squadPlayersUsed,
       penaltyConversionPct:
         pensAtt > 0 ? roundPct((pensMade / pensAtt) * 100) : null,
-      yellowCardsPer90: per90(yellowTotal, yellowMinutes),
+      yellowCardsPer90: teamYellowCardsPer90FromStandard(input.standard),
     },
   };
 }

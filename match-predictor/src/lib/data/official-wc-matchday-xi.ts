@@ -1,4 +1,5 @@
 import { stableSyntheticPlayerId } from "@/lib/data/build-squad-from-scoutlyst";
+import { enforceSingleGoalkeeperInXi } from "@/lib/data/formation-lineup";
 import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
 import type { LineupAppearanceAgg } from "@/lib/data/infer-usual-squad-from-lineups";
 import {
@@ -109,7 +110,9 @@ function fillStartersToEleven(
     );
   }
 
-  const { starters: fillSlots } = pickSquadFromRecords(records, formation);
+  const { starters: fillSlots } = pickSquadFromRecords(records, formation, {
+    entityType: "national",
+  });
   const filled: LineupAppearanceAgg[] = [...starters];
 
   for (const slot of fillSlots) {
@@ -141,6 +144,86 @@ function fillStartersToEleven(
   }
 
   return filled.slice(0, 11);
+}
+
+function buildRosterPositionById(
+  officialPlayers: OfficialWcPlayer[],
+  lineupByName: Map<string, LineupAppearanceAgg>,
+  scoutlystByName: Map<string, ScoutlystSnapshotRow>,
+  teamLabel: string
+): Map<number, string | null> {
+  const map = new Map<number, string | null>();
+  for (const official of officialPlayers) {
+    const displayName = formatPlayerDisplayNameIfNeeded(official.name);
+    const norm = normalizeText(displayName);
+    const lineup = lineupByName.get(norm);
+    const scout = resolveScoutlystSnapshot(displayName, scoutlystByName);
+    const id =
+      lineup?.sofascorePlayerId ??
+      scout?.sofascore_player_id ??
+      stableSyntheticPlayerId(`wc2026:${teamLabel}:${norm}`);
+    map.set(id, official.position);
+  }
+  return map;
+}
+
+function buildOfficialSquadPool(
+  officialPlayers: OfficialWcPlayer[],
+  lineupByName: Map<string, LineupAppearanceAgg>,
+  scoutlystByName: Map<string, ScoutlystSnapshotRow>,
+  teamLabel: string
+): LineupAppearanceAgg[] {
+  return officialPlayers.map((official) => {
+    const displayName = formatPlayerDisplayNameIfNeeded(official.name);
+    const norm = normalizeText(displayName);
+    const lineup = lineupByName.get(norm);
+    const scout = resolveScoutlystSnapshot(displayName, scoutlystByName);
+    if (lineup) return lineup;
+    return {
+      sofascorePlayerId:
+        scout?.sofascore_player_id ??
+        stableSyntheticPlayerId(`wc2026:${teamLabel}:${norm}`),
+      name: displayName,
+      position: official.position,
+      fieldPosition: official.position,
+      starts: 0,
+      subAppearances: 0,
+      startPositionCounts: {},
+      startSubRoleCounts: {},
+    };
+  });
+}
+
+function finalizeStarters(
+  starters: LineupAppearanceAgg[],
+  input: {
+    officialPlayers: OfficialWcPlayer[];
+    lineupByName: Map<string, LineupAppearanceAgg>;
+    scoutlystByName: Map<string, ScoutlystSnapshotRow>;
+    teamLabel: string;
+    qualityById: Map<number, number>;
+  }
+): LineupAppearanceAgg[] {
+  const trimmed = starters.slice(0, 11);
+  if (!trimmed.length) return trimmed;
+
+  const rosterById = buildRosterPositionById(
+    input.officialPlayers,
+    input.lineupByName,
+    input.scoutlystByName,
+    input.teamLabel
+  );
+  const pool = buildOfficialSquadPool(
+    input.officialPlayers,
+    input.lineupByName,
+    input.scoutlystByName,
+    input.teamLabel
+  );
+
+  return enforceSingleGoalkeeperInXi(trimmed, pool, {
+    rosterPositionById: rosterById,
+    qualityById: input.qualityById,
+  });
 }
 
 export type WcMatchdayXiResult = {
@@ -176,6 +259,12 @@ export async function pickOfficialWcMatchdayXi(input: {
     input.lineupPreferredFormation ?? input.storedFormation ?? input.formationDefault;
 
   const lineupByName = lineupAggByNormalizedName(capped);
+  const rosterById = buildRosterPositionById(
+    input.officialPlayers,
+    lineupByName,
+    input.scoutlystByName,
+    input.teamLabel
+  );
   const hasCaps = capped.some((p) => p.starts > 0);
 
   if (!hasCaps) {
@@ -214,7 +303,13 @@ export async function pickOfficialWcMatchdayXi(input: {
       };
     };
     return {
-      starters: starterRecords.map(recordToAgg),
+      starters: finalizeStarters(starterRecords.map(recordToAgg), {
+        officialPlayers: input.officialPlayers,
+        lineupByName,
+        scoutlystByName: input.scoutlystByName,
+        teamLabel: input.teamLabel,
+        qualityById: input.qualityById,
+      }),
       substitutes: subRecords.map(recordToAgg),
       squadSource: "fifa_official",
       preferredFormation: formationForXi,
@@ -230,6 +325,7 @@ export async function pickOfficialWcMatchdayXi(input: {
       entityType: "national",
       clubMinutesById: input.clubMinutesById,
       clubRatingById: input.clubRatingById,
+      rosterPositionById: rosterById,
       supabase: input.supabase ?? undefined,
       teamId: input.teamId,
       teamName: input.teamName,
@@ -243,6 +339,13 @@ export async function pickOfficialWcMatchdayXi(input: {
     input.teamLabel,
     input.scoutlystByName
   );
+  starters = finalizeStarters(starters, {
+    officialPlayers: input.officialPlayers,
+    lineupByName,
+    scoutlystByName: input.scoutlystByName,
+    teamLabel: input.teamLabel,
+    qualityById: input.qualityById,
+  });
 
   const starterIds = new Set(starters.map((p) => p.sofascorePlayerId));
   const substitutes = pickLineupSubstitutesFromAppearances(capped, starterIds, 15);

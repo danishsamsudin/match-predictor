@@ -94,7 +94,7 @@ function toSquadPlayer(input: {
 }): SquadPlayer {
   const displayName = formatPlayerDisplayNameIfNeeded(input.official.name);
   const playerKey = `wc2026:${input.teamName}:${normalizeText(displayName)}`;
-  const positionLabel = input.scoutlyst?.position ?? input.official.position;
+  const tacticalPosition = input.scoutlyst?.position ?? null;
   const stats = {
     ...input.scoutlyst?.stats,
     club: input.official.club,
@@ -105,7 +105,7 @@ function toSquadPlayer(input: {
     scoutlystRating: input.scoutlyst?.rating ?? null,
     matchAvgRating: input.matchAvgRating,
     stats,
-    position: positionLabel,
+    position: tacticalPosition ?? input.official.position,
   });
   const fromSofifa =
     input.sofifaOverall != null ? sofifaOverallToScore(input.sofifaOverall) : null;
@@ -122,8 +122,8 @@ function toSquadPlayer(input: {
     sofascorePlayerId: input.sofascorePlayerId,
     scoutlystPlayerKey: input.scoutlyst?.scoutlyst_player_key ?? playerKey,
     name: displayName,
-    position: positionDisplayLabel(positionLabel),
-    fieldPosition: positionLabel,
+    position: positionDisplayLabel(input.official.position),
+    fieldPosition: tacticalPosition ?? input.official.position,
     performanceScore,
     startSharePct: input.startSharePct,
     detailStats,

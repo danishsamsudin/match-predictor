@@ -1,5 +1,6 @@
 import {
   computeLineupRankScore,
+  enforceSingleGoalkeeperInXi,
   mapFieldPositionToSubRole,
   pickStartersByFormation,
 } from "@/lib/data/formation-lineup";
@@ -146,8 +147,35 @@ export function pickSquadFromRecords(
     }
   }
 
+  const enforcePool = records.map((r) => ({
+    sofascorePlayerId: stableNumericId(r.id),
+    starts: r.starts,
+    subAppearances: r.subAppearances,
+    position: r.position,
+    fieldPosition: r.position,
+  }));
+  const rosterById = new Map(
+    enforcePool.map((p) => [p.sofascorePlayerId, p.position] as const)
+  );
+  const enforced = enforceSingleGoalkeeperInXi(
+    starters.map((r) => ({
+      sofascorePlayerId: stableNumericId(r.id),
+      starts: r.starts,
+      subAppearances: r.subAppearances,
+      position: r.position,
+      fieldPosition: r.position,
+    })),
+    enforcePool,
+    { rosterPositionById: rosterById, qualityById }
+  );
+  const enforcedStarters = enforced
+    .map((p) => idToRecord.get(p.sofascorePlayerId))
+    .filter((r): r is SquadPickRecord => r != null);
+  const finalStarters = enforcedStarters.length ? enforcedStarters : starters;
+  const finalStarterIds = new Set(finalStarters.map((r) => r.id));
+
   const benchSorted = [...records]
-    .filter((r) => !starterIds.has(r.id))
+    .filter((r) => !finalStarterIds.has(r.id))
     .sort((a, b) => {
       const rankA = computeLineupRankScore({
         starts: a.starts,
@@ -177,5 +205,5 @@ export function pickSquadFromRecords(
       ? benchSorted
       : benchSorted.slice(0, benchLimit ?? 9);
 
-  return { starters, substitutes };
+  return { starters: finalStarters, substitutes };
 }

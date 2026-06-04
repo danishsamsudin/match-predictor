@@ -1,14 +1,22 @@
-/** Use the primary role when FBref lists multi-positions (e.g. "FW,MF"). */
-export function primaryPositionToken(pos?: string | null): string {
-  if (!pos) return "";
-  const first = pos.split(",")[0]?.trim() ?? "";
-  return first;
+/** Split Scoutlyst / SofaScore multi-position strings (e.g. "AM CF", "FW,MF"). */
+export function parseTacticalPositionTokens(pos?: string | null): string[] {
+  if (!pos) return [];
+  return pos
+    .split(/[,/\s·]+/)
+    .map((t) => t.trim().toUpperCase())
+    .filter(Boolean);
 }
 
-/** SofaScore-style single-letter position for sorting and display grouping. */
-export function normalizePlayerPosition(pos?: string | null): "G" | "D" | "M" | "F" {
-  if (!pos) return "M";
-  const p = primaryPositionToken(pos).toUpperCase();
+/** Use the first tactical token for legacy callers. */
+export function primaryPositionToken(pos?: string | null): string {
+  const tokens = parseTacticalPositionTokens(pos);
+  return tokens[0] ?? "";
+}
+
+const BROAD_PRIORITY: Array<"G" | "D" | "F" | "M"> = ["G", "D", "F", "M"];
+
+function normalizeSinglePositionToken(token: string): "G" | "D" | "M" | "F" {
+  const p = token.toUpperCase();
   if (p === "G" || p === "GK" || p.includes("GOAL")) return "G";
   if (
     p === "D" ||
@@ -53,6 +61,19 @@ export function normalizePlayerPosition(pos?: string | null): "G" | "D" | "M" | 
   }
   if (p === "WB" || p === "LWB" || p === "RWB") {
     return "D";
+  }
+  return "M";
+}
+
+/** SofaScore-style single-letter position for sorting and display grouping. */
+export function normalizePlayerPosition(pos?: string | null): "G" | "D" | "M" | "F" {
+  if (!pos) return "M";
+  const tokens = parseTacticalPositionTokens(pos);
+  if (!tokens.length) return "M";
+
+  const roles = new Set(tokens.map((t) => normalizeSinglePositionToken(t)));
+  for (const role of BROAD_PRIORITY) {
+    if (roles.has(role)) return role;
   }
   return "M";
 }

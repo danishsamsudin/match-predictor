@@ -166,6 +166,8 @@ export type PickLineupStartersOptions = {
   entityType?: EntityType;
   clubMinutesById?: Map<number, number>;
   clubRatingById?: Map<number, number>;
+  /** Official roster position (e.g. FIFA GK) overrides misclassified lineup roles. */
+  rosterPositionById?: Map<number, string | null>;
   /** Apply competition red-card suspension from prior synced match. */
   supabase?: ServiceClient | null;
   teamId?: number;
@@ -199,15 +201,25 @@ export async function pickLineupStartersFromAppearances(
     applyUnavailableQualityOverrides(quality, suspended);
   }
 
-  const mapped = players.map((p) => ({
-    ...p,
-    id: p.sofascorePlayerId,
-    fieldPosition: p.fieldPosition ?? p.position,
-    dominantPosition: () =>
-      dominantStartPosition(p.startPositionCounts, p.fieldPosition ?? p.position),
-    dominantSubRole: () =>
-      dominantStartSubRole(p.startSubRoleCounts, p.fieldPosition ?? p.position),
-  }));
+  const mapped = players.map((p) => {
+    const rosterPosition = options?.rosterPositionById?.get(p.sofascorePlayerId) ?? null;
+    const slotFallback = p.fieldPosition ?? p.position;
+    const isRosterGoalkeeper =
+      rosterPosition != null && normalizePlayerPosition(rosterPosition) === "G";
+    return {
+      ...p,
+      id: p.sofascorePlayerId,
+      fieldPosition: slotFallback,
+      dominantPosition: () =>
+        isRosterGoalkeeper
+          ? "G"
+          : dominantStartPosition(p.startPositionCounts, rosterPosition ?? slotFallback),
+      dominantSubRole: () =>
+        isRosterGoalkeeper
+          ? "G"
+          : dominantStartSubRole(p.startSubRoleCounts, rosterPosition ?? slotFallback),
+    };
+  });
 
   const picked = pickStartersByFormation(mapped, formation, {
     qualityById: quality,

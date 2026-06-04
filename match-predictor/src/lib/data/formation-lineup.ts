@@ -1,4 +1,7 @@
-import { normalizePlayerPosition } from "@/lib/data/normalize-player-position";
+import {
+  normalizePlayerPosition,
+  parseTacticalPositionTokens,
+} from "@/lib/data/normalize-player-position";
 
 export type FormationTargets = { G: number; D: number; M: number; F: number };
 
@@ -95,19 +98,29 @@ export function parseGranularFormation(formation: string | null | undefined): Gr
   return { G: 1, CB: cb, FB: fb, DM: dm, AM: am, W: w, ST: st };
 }
 
-export function mapFieldPositionToSubRole(pos: string | null): GranularSubRole {
-  if (!pos) return "AM";
-  const normalized = pos.toUpperCase().trim();
-
+function mapSingleTokenToSubRole(token: string): GranularSubRole | null {
+  const normalized = token.toUpperCase().trim();
   if (["G", "GK"].includes(normalized)) return "G";
   if (["CB", "RCB", "LCB", "DC"].includes(normalized)) return "CB";
   if (["LB", "RB", "LWB", "RWB", "DL", "DR"].includes(normalized)) return "FB";
-  if (["DM", "CDM", "CM", "LCM", "RCM"].includes(normalized)) {
-    return normalized.includes("DM") || normalized === "CDM" ? "DM" : "AM";
-  }
+  if (["DM", "CDM"].includes(normalized)) return "DM";
+  if (["CM", "LCM", "RCM"].includes(normalized)) return "AM";
   if (["AM", "CAM", "AMC"].includes(normalized)) return "AM";
   if (["LW", "RW", "LM", "RM", "AML", "AMR"].includes(normalized)) return "W";
   if (["ST", "CF", "FW", "FC"].includes(normalized)) return "ST";
+  return null;
+}
+
+export function mapFieldPositionToSubRole(pos: string | null): GranularSubRole {
+  if (!pos) return "AM";
+
+  const tokens = parseTacticalPositionTokens(pos);
+  for (const role of GRANULAR_FILL_ORDER) {
+    for (const token of tokens.length ? tokens : [pos]) {
+      const mapped = mapSingleTokenToSubRole(token);
+      if (mapped === role) return role;
+    }
+  }
 
   const broad = normalizePlayerPosition(pos);
   if (broad === "G") return "G";
@@ -331,4 +344,104 @@ export function pickStartersByFormation<T extends PickablePlayer>(
   }
 
   return picked;
+}
+
+type GoalkeeperEnforceable = {
+  sofascorePlayerId: number;
+  starts: number;
+  subAppearances: number;
+  position?: string | null;
+  fieldPosition?: string | null;
+};
+
+function broadRoleForPlayer<T extends GoalkeeperEnforceable>(
+  player: T,
+  rosterPosition?: string | null
+): "G" | "D" | "M" | "F" {
+  const label = rosterPosition ?? player.fieldPosition ?? player.position;
+  return normalizePlayerPosition(label);
+}
+
+function rankGoalkeeper<T extends GoalkeeperEnforceable>(
+  player: T,
+  qualityById?: Map<number, number>
+): number {
+  const quality = qualityById?.get(player.sofascorePlayerId) ?? 0;
+  return player.starts * 1000 + player.subAppearances * 10 + quality;
+}
+
+/** Ensure the XI has exactly one goalkeeper using roster labels and squad pool swaps. */
+export function enforceSingleGoalkeeperInXi<T extends GoalkeeperEnforceable>(
+  starters: T[],
+  squadPool: T[],
+  options?: {
+    rosterPositionById?: Map<number, string | null>;
+    qualityById?: Map<number, number>;
+  }
+): T[] {
+  if (!starters.length) return starters;
+
+  const rosterById = options?.rosterPositionById ?? new Map<number, string | null>();
+  const roleFor = (p: T) => broadRoleForPlayer(p, rosterById.get(p.sofascorePlayerId));
+
+  const xi = [...starters];
+  const used = new Set(xi.map((p) => p.sofascorePlayerId));
+  const gkIndices = xi
+    .map((p, index) => (roleFor(p) === "G" ? index : -1))
+    .filter((index) => index >= 0);
+
+  const pickBestGoalkeeper = (candidates: T[]): T | null => {
+    if (!candidates.length) return null;
+    return [...candidates].sort(
+      (a, b) => rankGoalkeeper(b, options?.qualityById) - rankGoalkeeper(a, options?.qualityById)
+    )[0];
+  };
+
+  const outfieldFromPool = (excludeIds: Set<number>): T | null => {
+    const candidates = squadPool.filter(
+      (p) => !excludeIds.has(p.sofascorePlayerId) && roleFor(p) !== "G"
+    );
+    if (!candidates.length) return null;
+    return [...candidates].sort(
+      (a, b) => rankGoalkeeper(b, options?.qualityById) - rankGoalkeeper(a, options?.qualityById)
+    )[0];
+  };
+
+  if (gkIndices.length === 0) {
+    const gkCandidates = squadPool.filter((p) => roleFor(p) === "G");
+    const keeper = pickBestGoalkeeper(gkCandidates);
+    if (!keeper) return xi;
+
+    const replaceIndex = xi.reduce((worstIdx, p, idx) => {
+      if (roleFor(p) === "G") return worstIdx;
+      const worst = xi[worstIdx];
+      const rank = rankGoalkeeper(p, options?.qualityById);
+      const worstRank = rankGoalkeeper(worst, options?.qualityById);
+      return rank < worstRank ? idx : worstIdx;
+    }, 0);
+
+    const replacedId = xi[replaceIndex].sofascorePlayerId;
+    xi[replaceIndex] = keeper;
+    used.delete(replacedId);
+    used.add(keeper.sofascorePlayerId);
+    return xi;
+  }
+
+  if (gkIndices.length === 1) return xi;
+
+  const sortedGkIndices = [...gkIndices].sort(
+    (a, b) =>
+      rankGoalkeeper(xi[b], options?.qualityById) - rankGoalkeeper(xi[a], options?.qualityById)
+  );
+  const dropIndices = sortedGkIndices.slice(1);
+
+  for (const dropIndex of dropIndices) {
+    const replacement = outfieldFromPool(used);
+    if (!replacement) continue;
+    used.delete(xi[dropIndex].sofascorePlayerId);
+    xi[dropIndex] = replacement;
+    used.add(replacement.sofascorePlayerId);
+  }
+
+  return xi;
 }

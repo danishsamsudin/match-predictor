@@ -17,4 +17,17 @@ describe("normalizePlayerPosition", () => {
     expect(normalizePlayerPosition("FW,MF")).toBe("F");
     expect(normalizePlayerPosition("DF,MF")).toBe("D");
   });
+
+  it("parses Scoutlyst space-separated tactical roles", () => {
+    expect(normalizePlayerPosition("AM CF")).toBe("F");
+    expect(normalizePlayerPosition("CB LB")).toBe("D");
+    expect(normalizePlayerPosition("DM CM")).toBe("M");
+  });
+
+  it("maps FIFA roster position labels", () => {
+    expect(normalizePlayerPosition("GK")).toBe("G");
+    expect(normalizePlayerPosition("DEF")).toBe("D");
+    expect(normalizePlayerPosition("MID")).toBe("M");
+    expect(normalizePlayerPosition("FWD")).toBe("F");
+  });
 });
