@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/cron/player-availabilities?run=true",
-      "schedule": "0 8,20 * * *"
+      "schedule": "0 8 * * *"
     }
   ]
 }
