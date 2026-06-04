@@ -7,9 +7,9 @@ import {
 const TAU_MIN = 0.01;
 
 /** xG gap below which full Dixon-Coles draw inflation applies. */
-export const RHO_GAP_ATTENUATION_START = 0.4;
+export const RHO_GAP_ATTENUATION_START = 0.35;
 /** xG gap span over which ρ linearly decays to zero. */
-export const RHO_GAP_ATTENUATION_SPAN = 1.2;
+export const RHO_GAP_ATTENUATION_SPAN = 1.0;
 
 /** Dixon-Coles ρ fades toward 0 when expected goal gap widens (mismatched internationals). */
 export function attenuateRhoForExpectedGoalGap(

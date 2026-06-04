@@ -18,8 +18,8 @@ const CORNER_XG_BASELINE = 2.7;
 export const INTERNATIONAL_DECAY_PHI = 0.00048;
 /** Typical goals per team per match in competitive internationals. */
 export const INTERNATIONAL_BASE_GOALS = 1.25;
-/** Blend weight for short-window form vs FIFA Elo anchor (0–1 form). */
-export const FORM_ELO_BLEND = 0.4;
+/** Blend weight for short-window form vs FIFA Elo anchor (0–1 form) on close matchups. */
+export const FORM_ELO_BLEND = 0.38;
 /** Max log-linear momentum applied to international baseline xG. */
 export const INTERNATIONAL_MOMENTUM_GAMMA = 0.042;
 export const INTERNATIONAL_MOMENTUM_CLAMP = 0.65;
@@ -33,9 +33,9 @@ export const INTERNATIONAL_XG_FLOOR = 0.1;
 export const INTERNATIONAL_XG_CAP = 5;
 /**
  * Exponential FIFA scaling: λ = μ·e^(c·ΔR), μ_away = μ·e^(-c·ΔR).
- * c ≈ 0.00155 ⇒ ~1.86× λ per 400 ranking-point gap.
+ * c ≈ 0.00255 ⇒ ~2.9× λ per 400 ranking-point gap (avoids Poisson compression at ~1.25).
  */
-export const ELO_XG_EXPONENT_SCALE = 0.00155;
+export const ELO_XG_EXPONENT_SCALE = 0.0028;
 
 export interface InternationalRateSample {
   goalsFor: number;
@@ -192,10 +192,11 @@ function fifaAnchoredXg(
   };
 }
 
-/** More FIFA weight when ranking gap is large (form stays at 40% for close matchups). */
+/** More FIFA weight when ranking gap is large; form dominates only for tight matchups. */
 export function resolveFormEloBlendWeight(fifaRatingDelta: number): number {
   const gap = Math.abs(fifaRatingDelta);
-  return Math.min(0.85, FORM_ELO_BLEND + gap / 1800);
+  if (gap <= 50) return FORM_ELO_BLEND;
+  return Math.min(0.92, FORM_ELO_BLEND + (gap - 50) / 480);
 }
 
 function blendFormAndElo(

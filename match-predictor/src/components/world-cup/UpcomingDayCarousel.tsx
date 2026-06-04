@@ -10,6 +10,10 @@ const MAX_CARD_WIDTH_PX = 300;
 const MIN_CARD_WIDTH_PX = 220;
 const SWIPE_THRESHOLD_PX = 48;
 
+/** Fixed width for SSR + first client paint so hydration matches before ResizeObserver runs. */
+const SSR_VIEWPORT_WIDTH = 1024;
+const SSR_LAYOUT = resolveCarouselLayout(SSR_VIEWPORT_WIDTH);
+
 type CarouselLayout = {
   visibleCards: number;
   peekFraction: number;
@@ -41,10 +45,8 @@ function measureSlotWidth(viewportWidth: number, layout: CarouselLayout): number
 export function UpcomingDayCarousel({ matches }: { matches: UpcomingMatchCardProps[] }) {
   const [index, setIndex] = useState(0);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState<CarouselLayout>(() =>
-    resolveCarouselLayout(typeof window !== "undefined" ? window.innerWidth : 1024)
-  );
-  const [slotPx, setSlotPx] = useState(280);
+  const [layout, setLayout] = useState<CarouselLayout>(SSR_LAYOUT);
+  const [slotPx, setSlotPx] = useState(() => measureSlotWidth(SSR_VIEWPORT_WIDTH, SSR_LAYOUT));
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {

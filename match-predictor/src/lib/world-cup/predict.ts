@@ -20,7 +20,7 @@ import type { InternationalFormMatch } from "@/lib/world-cup/load-international-
 import type { GroupStandingRow, WcMatchRow } from "@/lib/world-cup/standings";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
 
-const MODEL_VERSION = "wc-hub-v4.1";
+const MODEL_VERSION = "wc-hub-v4.2";
 
 export interface TeamStrength {
   attack: number;

@@ -79,6 +79,30 @@ describe("resolveInternationalExpectedGoals", () => {
     expect(awayXg).toBeLessThan(1.35);
   });
 
+  it("spreads xG for top-tier vs strong contender (France vs Senegal)", () => {
+    const { homeXg, awayXg } = resolveInternationalExpectedGoals({
+      homeTeamId: 4481,
+      awayTeamId: 4739,
+      homeName: "France",
+      awayName: "Senegal",
+      homeRates: neutralRates,
+      awayRates: neutralRates,
+    });
+
+    expect(homeXg).toBeGreaterThan(1.8);
+    expect(awayXg).toBeLessThan(0.95);
+    const rho = attenuateRhoForExpectedGoalGap(
+      resolveInternationalScoreCorrelation(homeXg, awayXg),
+      homeXg,
+      awayXg
+    );
+    const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, false);
+    expect(outcomes.homeWin).toBeGreaterThan(0.52);
+    const { cells } = buildGuardedScoreMatrix(homeXg, awayXg, rho, false);
+    const top = cells.reduce((best, c) => (c.probability > best.probability ? c : best));
+    expect(`${top.home}-${top.away}`).not.toBe("1-1");
+  });
+
   it("preserves large FIFA gaps for elite vs minnow xG", () => {
     const { homeXg, awayXg } = resolveInternationalExpectedGoals({
       homeTeamId: 4481,
@@ -89,8 +113,8 @@ describe("resolveInternationalExpectedGoals", () => {
       awayRates: neutralRates,
     });
 
-    expect(homeXg).toBeGreaterThan(2.4);
-    expect(awayXg).toBeLessThan(1);
+    expect(homeXg).toBeGreaterThan(2.55);
+    expect(awayXg).toBeLessThan(0.85);
     const rho = attenuateRhoForExpectedGoalGap(
       resolveInternationalScoreCorrelation(homeXg, awayXg),
       homeXg,
