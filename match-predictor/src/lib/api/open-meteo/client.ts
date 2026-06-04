@@ -30,25 +30,44 @@ function parseOpenMeteoError(data: unknown, fallback: string): never {
   throw new UpstreamApiError(fallback);
 }
 
+function rethrowOpenMeteoTransportError(err: unknown, context: string): never {
+  if (axios.isAxiosError(err)) {
+    const status = err.response?.status;
+    const detail =
+      status != null
+        ? `HTTP ${status}`
+        : err.code === "ECONNABORTED"
+          ? "request timed out"
+          : err.message;
+    throw new UpstreamApiError(`Open-Meteo ${context} failed (${detail}).`);
+  }
+  throw err;
+}
+
 export async function geocodeLocation(query: string): Promise<OpenMeteoGeocodingResult> {
   const name = query.trim();
   if (name.length < 2) {
     throw new UpstreamApiError("Location must be at least 2 characters.");
   }
 
-  const { data } = await axios.get<OpenMeteoGeocodingResponse>(
-    `${getOpenMeteoGeocodingBaseUrl()}/v1/search`,
-    {
-      params: {
-        name,
-        count: 1,
-        language: "en",
-        format: "json",
-        ...buildAuthParams(),
-      },
-      timeout: REQUEST_TIMEOUT_MS,
-    }
-  );
+  let data: OpenMeteoGeocodingResponse;
+  try {
+    ({ data } = await axios.get<OpenMeteoGeocodingResponse>(
+      `${getOpenMeteoGeocodingBaseUrl()}/v1/search`,
+      {
+        params: {
+          name,
+          count: 1,
+          language: "en",
+          format: "json",
+          ...buildAuthParams(),
+        },
+        timeout: REQUEST_TIMEOUT_MS,
+      }
+    ));
+  } catch (err) {
+    rethrowOpenMeteoTransportError(err, `geocoding for "${name}"`);
+  }
 
   if (data.error) {
     parseOpenMeteoError(data, `Geocoding failed for "${name}"`);
@@ -76,28 +95,33 @@ export async function fetchOpenMeteoForecast(
 ): Promise<OpenMeteoForecastResponse> {
   const days = forecastDaysForMatch(matchDate);
 
-  const { data } = await axios.get<OpenMeteoForecastResponse>(
-    `${getOpenMeteoForecastBaseUrl()}/v1/forecast`,
-    {
-      params: {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        hourly: [
-          "temperature_2m",
-          "relative_humidity_2m",
-          "precipitation",
-          "weather_code",
-          "wind_speed_10m",
-        ].join(","),
-        forecast_days: days,
-        timezone: "UTC",
-        wind_speed_unit: "kmh",
-        precipitation_unit: "mm",
-        ...buildAuthParams(),
-      },
-      timeout: REQUEST_TIMEOUT_MS,
-    }
-  );
+  let data: OpenMeteoForecastResponse;
+  try {
+    ({ data } = await axios.get<OpenMeteoForecastResponse>(
+      `${getOpenMeteoForecastBaseUrl()}/v1/forecast`,
+      {
+        params: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          hourly: [
+            "temperature_2m",
+            "relative_humidity_2m",
+            "precipitation",
+            "weather_code",
+            "wind_speed_10m",
+          ].join(","),
+          forecast_days: days,
+          timezone: "UTC",
+          wind_speed_unit: "kmh",
+          precipitation_unit: "mm",
+          ...buildAuthParams(),
+        },
+        timeout: REQUEST_TIMEOUT_MS,
+      }
+    ));
+  } catch (err) {
+    rethrowOpenMeteoTransportError(err, `forecast for ${location.name}`);
+  }
 
   if (data.error) {
     parseOpenMeteoError(data, `Forecast failed for ${location.name}`);

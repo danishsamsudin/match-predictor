@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { PredictionResultCard } from "./PredictionResult";
 import { FixturePickerSheet } from "./match-predictor/FixturePickerSheet";
 import { MatchPredictorShell } from "./match-predictor/MatchPredictorShell";
 import { TeamPickerSheet } from "./match-predictor/TeamPickerSheet";
 import { usePredictionForm } from "./match-predictor/usePredictionForm";
 
-export function PredictionForm() {
+function PredictionFormInner() {
   const form = usePredictionForm();
   const [homeSheetOpen, setHomeSheetOpen] = useState(false);
   const [awaySheetOpen, setAwaySheetOpen] = useState(false);
@@ -113,7 +113,7 @@ export function PredictionForm() {
       )}
 
       {form.result && (
-        <div className="mx-auto mt-8 max-w-6xl">
+        <div className="mx-auto mt-8 w-full min-w-0 max-w-6xl">
           <PredictionResultCard
             result={form.result}
             onRerunWithLineups={form.rerunWithCustomLineups}
@@ -122,5 +122,20 @@ export function PredictionForm() {
         </div>
       )}
     </div>
+  );
+}
+
+export function PredictionForm() {
+  return (
+    <Suspense
+      fallback={
+        <div className="liquid-glass-panel mx-auto w-full max-w-6xl animate-pulse rounded-[2rem] p-8">
+          <div className="mb-4 h-6 w-48 rounded bg-slate-200/80 dark:bg-slate-700/50" />
+          <div className="h-4 w-full rounded bg-slate-200/60 dark:bg-slate-700/40" />
+        </div>
+      }
+    >
+      <PredictionFormInner />
+    </Suspense>
   );
 }

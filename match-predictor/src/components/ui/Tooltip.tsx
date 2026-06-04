@@ -16,8 +16,22 @@ import { createPortal } from "react-dom";
 
 type Side = "top" | "bottom";
 
+let activePinnedTooltipId: string | null = null;
+const pinnedCloseHandlers = new Map<string, () => void>();
+
+function closeOtherPinnedTooltips(exceptId: string) {
+  for (const [id, close] of pinnedCloseHandlers) {
+    if (id !== exceptId) close();
+  }
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function prefersHoverInteraction() {
+  if (typeof window === "undefined") return true;
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
 export function Tooltip({
@@ -52,10 +66,25 @@ export function Tooltip({
   const [positioned, setPositioned] = useState(false);
 
   const visible = hovered || pinned;
+  const hoverEnabled = prefersHoverInteraction();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!pinned) {
+      if (activePinnedTooltipId === id) activePinnedTooltipId = null;
+      pinnedCloseHandlers.delete(id);
+      return;
+    }
+    activePinnedTooltipId = id;
+    pinnedCloseHandlers.set(id, () => setPinned(false));
+    return () => {
+      pinnedCloseHandlers.delete(id);
+      if (activePinnedTooltipId === id) activePinnedTooltipId = null;
+    };
+  }, [pinned, id]);
 
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -141,23 +170,28 @@ export function Tooltip({
     },
     onMouseEnter: (event: React.MouseEvent) => {
       children.props.onMouseEnter?.(event);
-      setHovered(true);
+      if (hoverEnabled) setHovered(true);
     },
     onMouseLeave: (event: React.MouseEvent) => {
       children.props.onMouseLeave?.(event);
-      setHovered(false);
+      if (hoverEnabled) setHovered(false);
     },
     onFocus: (event: React.FocusEvent) => {
       children.props.onFocus?.(event);
-      setHovered(true);
+      if (hoverEnabled) setHovered(true);
     },
     onBlur: (event: React.FocusEvent) => {
       children.props.onBlur?.(event);
-      setHovered(false);
+      if (hoverEnabled) setHovered(false);
     },
     onClick: (event: React.MouseEvent) => {
       children.props.onClick?.(event);
-      if (clickToPin) setPinned((v) => !v);
+      if (!clickToPin) return;
+      setPinned((wasPinned) => {
+        const next = !wasPinned;
+        if (next) closeOtherPinnedTooltips(id);
+        return next;
+      });
     },
     "aria-describedby": visible ? id : undefined,
   });

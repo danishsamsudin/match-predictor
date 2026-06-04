@@ -8,6 +8,14 @@
     {
       "path": "/api/cron/scoutlyst-import?run=true",
       "schedule": "0 7 * * 1"
+    },
+    {
+      "path": "/api/cron/world-cup?run=true",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/player-availabilities?run=true",
+      "schedule": "0 8,20 * * *"
     }
   ]
 }

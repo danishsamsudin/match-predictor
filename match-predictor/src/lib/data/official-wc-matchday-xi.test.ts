@@ -23,6 +23,7 @@ function agg(
     starts,
     subAppearances,
     startPositionCounts: starts > 0 ? { [role]: starts } : {},
+    startSubRoleCounts: {},
   };
 }
 
@@ -54,7 +55,7 @@ describe("official-wc-matchday-xi", () => {
     ).toHaveLength(1);
   });
 
-  it("picks frequent starters over high-quality bench forwards", () => {
+  it("picks frequent starters over high-quality bench forwards", async () => {
     const lineup = [
       agg(1, "Keeper One", 10, "GK"),
       agg(2, "Defender A", 10, "DEF"),
@@ -76,7 +77,7 @@ describe("official-wc-matchday-xi", () => {
       [12, 99],
     ]);
 
-    const { starters, squadSource } = pickOfficialWcMatchdayXi({
+    const { starters, squadSource } = await pickOfficialWcMatchdayXi({
       officialPlayers: officialSquad,
       lineupPlayers: lineup,
       lineupPreferredFormation: "4-3-3",
@@ -94,7 +95,7 @@ describe("official-wc-matchday-xi", () => {
     expect(names).not.toContain("Bench Star");
   });
 
-  it("does not promote sub-only players when requireStarts is used", () => {
+  it("does not promote sub-only players when requireStarts is used", async () => {
     const lineup = [
       agg(1, "Keeper One", 10, "GK"),
       agg(2, "Defender A", 10, "DEF"),
@@ -110,7 +111,7 @@ describe("official-wc-matchday-xi", () => {
       agg(12, "Bench Star", 0, "FWD", 12),
     ];
 
-    const { starters } = pickOfficialWcMatchdayXi({
+    const { starters } = await pickOfficialWcMatchdayXi({
       officialPlayers: officialSquad,
       lineupPlayers: lineup,
       lineupPreferredFormation: "4-3-3",

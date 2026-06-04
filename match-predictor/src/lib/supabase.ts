@@ -809,6 +809,22 @@ export type Database = {
         Update: Partial<{ name: string; current_team_id: string | null }>;
         Relationships: [];
       };
+      player_availabilities: {
+        Row: {
+          player_name: string;
+          status: string;
+          source: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          player_name: string;
+          status: string;
+          source?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["player_availabilities"]["Insert"]>;
+        Relationships: [];
+      };
       lineups: {
         Row: {
           id: string;

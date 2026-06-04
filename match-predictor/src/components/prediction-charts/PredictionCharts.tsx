@@ -33,9 +33,9 @@ function HorizontalBar({
         : "bg-foreground/20";
 
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between gap-2 text-xs">
-        <span className="min-w-0 truncate font-medium text-foreground">{label}</span>
+    <div className="min-w-0 space-y-1">
+      <div className="flex min-w-0 justify-between gap-2 text-xs">
+        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{label}</span>
         <span className="shrink-0 font-semibold tabular-nums text-muted">{value}%</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-foreground/8 ring-1 ring-white/30 dark:ring-slate-700/50">
@@ -92,14 +92,14 @@ function DualHorizontalBar({
     scaleAsPercent ? `${Math.round(v * 10) / 10}${valueSuffix || "%"}` : `${v}${valueSuffix}`;
 
   return (
-    <div className="space-y-2 border-b border-white/20 py-3 last:border-0 dark:border-slate-800/50">
+    <div className="min-w-0 space-y-2 border-b border-white/20 py-3 last:border-0 dark:border-slate-800/50">
       <p className="text-center text-[11px] font-medium uppercase tracking-wide text-muted">
         {label}
       </p>
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
           <span
-            className="w-16 shrink-0 truncate text-right text-[10px] font-semibold text-primary sm:w-20"
+            className="w-[4.25rem] shrink-0 truncate text-right text-[10px] font-semibold text-primary sm:w-20"
             title={homeLabelTitle ?? homeLabel}
           >
             {homeLabel}
@@ -110,13 +110,13 @@ function DualHorizontalBar({
               style={{ width: `${homeWidth}%` }}
             />
           </div>
-          <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-primary">
+          <span className="w-9 shrink-0 text-right text-[11px] font-semibold tabular-nums text-primary sm:w-10 sm:text-xs">
             {formatVal(homeValue)}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
           <span
-            className="w-16 shrink-0 truncate text-right text-[10px] font-semibold text-accent sm:w-20"
+            className="w-[4.25rem] shrink-0 truncate text-right text-[10px] font-semibold text-accent sm:w-20"
             title={awayLabelTitle ?? awayLabel}
           >
             {awayLabel}
@@ -127,7 +127,7 @@ function DualHorizontalBar({
               style={{ width: `${awayWidth}%` }}
             />
           </div>
-          <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-accent">
+          <span className="w-9 shrink-0 text-right text-[11px] font-semibold tabular-nums text-accent sm:w-10 sm:text-xs">
             {formatVal(awayValue)}
           </span>
         </div>
@@ -159,67 +159,95 @@ function ScoreHeatmap({
   }
   const peak = maxProb(cells);
 
+  const colCount = maxGoals + 1;
+  const dataColStart = 3;
+  const headerRow = 2;
+  const firstDataRow = 3;
+  const lastDataRow = firstDataRow + colCount;
+  const compactMinWidth = `${3.5 + colCount * 2.35}rem`;
+
   return (
-    <div className="overflow-x-auto">
-      <div className="inline-flex min-w-full gap-2">
+    <div className="score-heatmap-shell">
+      <div
+        className="score-heatmap-matrix mx-auto w-full max-lg:w-max max-lg:min-w-[var(--heatmap-compact)]"
+        style={
+          {
+            "--heatmap-cols": colCount,
+            "--heatmap-compact": compactMinWidth,
+          } as React.CSSProperties
+        }
+      >
         <div
-          className="flex shrink-0 items-center justify-center text-[9px] font-semibold leading-tight text-foreground"
-          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", minHeight: "12rem" }}
+          className="score-heatmap-axis-home flex items-center justify-center text-[9px] font-semibold leading-tight text-foreground sm:text-[10px]"
+          style={{
+            gridColumn: 1,
+            gridRow: `${firstDataRow} / ${lastDataRow}`,
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+          }}
           title={homeLabel}
         >
           {homeLabel}
         </div>
-        <div className="min-w-0 flex-1">
-          <p
-            className="mb-2 truncate text-center text-[10px] font-semibold text-foreground"
-            title={awayLabel}
-          >
-            {awayLabel}
-          </p>
+
+        <p
+          className="score-heatmap-away-label truncate text-center text-[10px] font-semibold text-foreground sm:text-[11px]"
+          style={{
+            gridColumn: `${dataColStart} / span ${colCount}`,
+            gridRow: 1,
+          }}
+          title={awayLabel}
+        >
+          {awayLabel}
+        </p>
+
+        <div style={{ gridColumn: 2, gridRow: headerRow }} aria-hidden />
+
+        {Array.from({ length: colCount }, (_, a) => (
           <div
-            className="grid gap-1"
-            style={{
-              gridTemplateColumns: `2rem repeat(${maxGoals + 1}, minmax(2.5rem, 1fr))`,
-            }}
+            key={`away-h-${a}`}
+            className="pb-1 text-center text-[10px] font-medium text-muted"
+            style={{ gridColumn: dataColStart + a, gridRow: headerRow }}
           >
-            <div />
-            {Array.from({ length: maxGoals + 1 }, (_, a) => (
-              <div
-                key={`away-h-${a}`}
-                className="pb-1 text-center text-[10px] font-medium text-muted"
-              >
-                {a}
-              </div>
-            ))}
-            {grid.map((row, h) => (
-              <div key={`row-${h}`} className="contents">
-                <div className="flex items-center justify-end pr-1 text-[10px] font-medium text-muted">
-                  {h}
-                </div>
-                {row.map((cell) => {
-                  const intensity = cell.probability / peak;
-                  return (
-                    <div
-                      key={`${cell.home}-${cell.away}`}
-                      className="flex aspect-square min-h-[2.5rem] flex-col items-center justify-center rounded-lg border border-white/25 text-center transition dark:border-slate-700/40"
-                      style={{
-                        background: `color-mix(in srgb, var(--primary) ${Math.round(intensity * 55)}%, transparent)`,
-                      }}
-                      title={`${cell.home}-${cell.away}: ${cell.probability}%`}
-                    >
-                      <span className="text-[10px] font-bold text-foreground">
-                        {cell.home}-{cell.away}
-                      </span>
-                      <span className="text-[9px] tabular-nums text-muted">
-                        {cell.probability > 0 ? `${cell.probability}%` : "-"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+            {a}
           </div>
-        </div>
+        ))}
+
+        {grid.map((row, h) => {
+          const gridRow = firstDataRow + h;
+          return (
+            <div key={`row-${h}`} className="contents">
+              <div
+                className="flex items-center justify-center pr-0.5 text-[10px] font-medium text-muted"
+                style={{ gridColumn: 2, gridRow }}
+              >
+                {h}
+              </div>
+              {row.map((cell, a) => {
+                const intensity = cell.probability / peak;
+                return (
+                  <div
+                    key={`${cell.home}-${cell.away}`}
+                    className="score-heatmap-cell flex aspect-square min-h-[2.15rem] flex-col items-center justify-center rounded-md border border-white/25 text-center transition sm:min-h-[2.5rem] sm:rounded-lg dark:border-slate-700/40"
+                    style={{
+                      gridColumn: dataColStart + a,
+                      gridRow,
+                      background: `color-mix(in srgb, var(--primary) ${Math.round(intensity * 55)}%, transparent)`,
+                    }}
+                    title={`${cell.home}-${cell.away}: ${cell.probability}%`}
+                  >
+                    <span className="text-[10px] font-bold text-foreground lg:text-[11px]">
+                      {cell.home}-{cell.away}
+                    </span>
+                    <span className="text-[9px] tabular-nums text-muted lg:text-[10px]">
+                      {cell.probability > 0 ? `${cell.probability}%` : "-"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -293,7 +321,7 @@ function ModelImpactChart({
         return (
           <div key={f.label} className="space-y-2">
             <p className="text-xs font-medium text-foreground">{f.label}</p>
-            <div className="grid grid-cols-2 gap-3 text-center">
+            <div className="grid grid-cols-1 gap-2 text-center sm:grid-cols-2 sm:gap-3">
               <ImpactPill label="Home xG shift" delta={homeDelta} accent="primary" />
               <ImpactPill label="Away xG shift" delta={awayDelta} accent="accent" />
             </div>
@@ -316,9 +344,9 @@ function ImpactPill({
   const positive = delta >= 0;
   const text = accent === "primary" ? "text-primary" : "text-accent";
   return (
-    <div className="rounded-xl border border-white/25 bg-white/20 px-2 py-2 dark:border-slate-800/50 dark:bg-slate-900/30">
+    <div className="rounded-xl border border-white/25 bg-white/20 px-2 py-2 dark:border-slate-800/50 dark:bg-slate-900/30 sm:px-3">
       <p className="text-[10px] text-muted">{label}</p>
-      <p className={`text-lg font-bold tabular-nums ${text}`}>
+      <p className={`text-base font-bold tabular-nums sm:text-lg ${text}`}>
         {positive ? "+" : ""}
         {delta.toFixed(1)}%
       </p>
@@ -349,7 +377,7 @@ export function PredictionCharts({
     1
   );
   return (
-    <section className="space-y-6" aria-label="Prediction charts">
+    <section className="min-w-0 max-w-full space-y-6" aria-label="Prediction charts">
       <div className="flex items-center gap-2">
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 text-primary-emphasis">
           <BarChart3 className="h-4 w-4" />
@@ -363,7 +391,7 @@ export function PredictionCharts({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <ChartCardWithTip
           title="Correct score heatmap"
           tipLabel="Correct score heatmap"
@@ -375,11 +403,13 @@ export function PredictionCharts({
           }
           className="lg:col-span-2"
         >
-          <ScoreHeatmap
-            cells={analytics.scoreHeatmap}
-            homeLabel={homeLabel}
-            awayLabel={awayLabel}
-          />
+          <div className="w-full min-w-0">
+            <ScoreHeatmap
+              cells={analytics.scoreHeatmap}
+              homeLabel={homeLabel}
+              awayLabel={awayLabel}
+            />
+          </div>
         </ChartCardWithTip>
 
         <ChartCardWithTip
@@ -485,7 +515,7 @@ export function PredictionCharts({
             </>
           }
         >
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
             <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-center">
               <p className="text-xs font-medium text-primary-emphasis">Yes</p>
               <p className="mt-1 text-3xl font-bold tabular-nums text-primary">
@@ -511,21 +541,31 @@ export function PredictionCharts({
             </>
           }
         >
-          <div className="flex items-end justify-between gap-2 pt-2" style={{ minHeight: "8rem" }}>
-            {analytics.totalGoalsDistribution.map((g) => (
-              <div key={g.goals} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                <span className="text-[10px] font-semibold tabular-nums text-muted">
-                  {g.probability}%
-                </span>
+          <div className="chart-h-scroll">
+            <div
+              className="flex items-end justify-between gap-1.5 px-0.5 pt-2 sm:gap-2"
+              style={{ minWidth: "22rem", minHeight: "8rem" }}
+            >
+              {analytics.totalGoalsDistribution.map((g) => (
                 <div
-                  className="w-full max-w-[2.5rem] rounded-t-md bg-gradient-to-t from-primary/80 to-primary-light/60"
-                  style={{
-                    height: `${Math.max(8, (g.probability / goalsMax) * 96)}px`,
-                  }}
-                />
-                <span className="text-[10px] font-medium text-foreground">{g.goals}</span>
-              </div>
-            ))}
+                  key={g.goals}
+                  className="flex w-7 shrink-0 flex-col items-center gap-1 sm:w-8"
+                >
+                  <span className="text-[9px] font-semibold tabular-nums text-muted sm:text-[10px]">
+                    {g.probability}%
+                  </span>
+                  <div
+                    className="w-full max-w-[2rem] rounded-t-md bg-gradient-to-t from-primary/80 to-primary-light/60 sm:max-w-[2.5rem]"
+                    style={{
+                      height: `${Math.max(8, (g.probability / goalsMax) * 96)}px`,
+                    }}
+                  />
+                  <span className="text-[9px] font-medium text-foreground sm:text-[10px]">
+                    {g.goals}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
           <p className="mt-2 text-center text-[10px] text-muted">Total goals in match</p>
         </ChartCardWithTip>
@@ -694,24 +734,26 @@ function XgComparisonBlock({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-lg border border-white/25 bg-white/15 px-2 py-2 dark:border-slate-800/50 dark:bg-slate-900/25">
-          <p className="text-[10px] uppercase tracking-wide text-muted">Total xG</p>
-          <p className="text-lg font-bold tabular-nums text-foreground">{totalXg.toFixed(2)}</p>
+      <div className="grid grid-cols-3 gap-1.5 text-center sm:gap-2">
+        <div className="rounded-lg border border-white/25 bg-white/15 px-1.5 py-2 dark:border-slate-800/50 dark:bg-slate-900/25 sm:px-2">
+          <p className="text-[9px] uppercase tracking-wide text-muted sm:text-[10px]">Total xG</p>
+          <p className="text-base font-bold tabular-nums text-foreground sm:text-lg">
+            {totalXg.toFixed(2)}
+          </p>
         </div>
-        <div className="rounded-lg border border-white/25 bg-white/15 px-2 py-2 dark:border-slate-800/50 dark:bg-slate-900/25">
-          <p className="text-[10px] uppercase tracking-wide text-muted">xG diff</p>
-          <p className="text-lg font-bold tabular-nums text-foreground">
+        <div className="rounded-lg border border-white/25 bg-white/15 px-1.5 py-2 dark:border-slate-800/50 dark:bg-slate-900/25 sm:px-2">
+          <p className="text-[9px] uppercase tracking-wide text-muted sm:text-[10px]">xG diff</p>
+          <p className="text-base font-bold tabular-nums text-foreground sm:text-lg">
             {diff >= 0 ? "+" : ""}
             {diff.toFixed(2)}
           </p>
-          <p className="text-[10px] text-muted">
+          <p className="truncate text-[9px] text-muted sm:text-[10px]">
             {diff > 0.05 ? homeShort : diff < -0.05 ? awayShort : "Even"}
           </p>
         </div>
-        <div className="rounded-lg border border-white/25 bg-white/15 px-2 py-2 dark:border-slate-800/50 dark:bg-slate-900/25">
-          <p className="text-[10px] uppercase tracking-wide text-muted">0-0 chance</p>
-          <p className="text-lg font-bold tabular-nums text-foreground">{zeroZero}%</p>
+        <div className="rounded-lg border border-white/25 bg-white/15 px-1.5 py-2 dark:border-slate-800/50 dark:bg-slate-900/25 sm:px-2">
+          <p className="text-[9px] uppercase tracking-wide text-muted sm:text-[10px]">0-0 chance</p>
+          <p className="text-base font-bold tabular-nums text-foreground sm:text-lg">{zeroZero}%</p>
         </div>
       </div>
       <DualHorizontalBar
@@ -725,7 +767,7 @@ function XgComparisonBlock({
         maxValue={Math.max(homeXg, awayXg, 0.5)}
       />
       {goalsFor ? (
-        <p className="text-center text-[10px] text-muted">
+        <p className="break-words px-1 text-center text-[10px] leading-snug text-muted">
           Season goals per game (model inputs): {homeShort} {goalsFor.home.toFixed(2)} · {awayShort}{" "}
           {goalsFor.away.toFixed(2)}
         </p>

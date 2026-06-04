@@ -4,7 +4,7 @@ import { PredictionResultDisplay } from "@/components/PredictionResult";
 import { resolvePredictionTeamNames } from "@/lib/prediction/resolve-team-names";
 import { createServerClient } from "@/lib/supabase";
 import { formatKickoffLocal } from "@/lib/utils/kickoff-display";
-import { ArrowLeft, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, MapPin } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -44,10 +44,10 @@ export default async function PredictionDetailPage({
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <Link
         href="/predictions"
-        className="liquid-glass-pill mb-8 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        className="liquid-glass-pill mb-6 inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900 sm:mb-8 dark:text-slate-400 dark:hover:text-white"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to history
@@ -69,14 +69,16 @@ export default async function PredictionDetailPage({
           </span>
           <span className="flex items-center gap-1.5">
             <Calendar className="h-4 w-4" />
-            {formatKickoffLocal(data.match_date)}
+            Kickoff {formatKickoffLocal(data.match_date)}
           </span>
-          <span className="text-xs uppercase tracking-wide">Fixture #{data.match_id}</span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-4 w-4" />
+            Predicted {formatKickoffLocal(data.created_at)}
+          </span>
+          {data.match_id > 0 ? (
+            <span className="text-xs uppercase tracking-wide">Fixture #{data.match_id}</span>
+          ) : null}
         </div>
-        <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          Predicted{" "}
-          {formatKickoffLocal(data.created_at)}
-        </p>
       </div>
 
       <PredictionResultDisplay

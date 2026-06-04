@@ -16,7 +16,7 @@ export function ChartCard({
 }) {
   return (
     <div
-      className={`liquid-glass-pill rounded-2xl p-4 sm:p-5 ${className}`}
+      className={`liquid-glass-pill min-w-0 max-w-full overflow-hidden rounded-2xl p-4 sm:p-5 ${className}`}
     >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
@@ -45,7 +45,7 @@ export function ChartCardWithTip({
   className?: string;
 }) {
   return (
-    <div className={`liquid-glass-pill rounded-2xl p-4 sm:p-5 ${className}`}>
+    <div className={`liquid-glass-pill min-w-0 max-w-full overflow-hidden rounded-2xl p-4 sm:p-5 ${className}`}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <h4 className="text-sm font-semibold text-foreground">{title}</h4>
         <InfoTip label={tipLabel}>{tipBody}</InfoTip>

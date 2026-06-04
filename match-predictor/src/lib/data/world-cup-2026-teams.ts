@@ -91,6 +91,8 @@ const NATIONAL_TEAM_NAME_ALIASES: Record<string, string> = {
   "turkey": "türkiye",
   "united states": "usa",
   "united states of america": "usa",
+  "ivory coast": "côte d'ivoire",
+  "czech republic": "czechia",
 };
 
 export function normalizeNationalTeamName(name: string): string {

@@ -135,6 +135,7 @@ function fillStartersToEleven(
       starts: slot.starts,
       subAppearances: slot.subAppearances,
       startPositionCounts: {},
+      startSubRoleCounts: {},
     });
     starterIds.add(syntheticId);
   }
@@ -152,7 +153,7 @@ export type WcMatchdayXiResult = {
 /**
  * Predicted matchday XI from recent international lineups, constrained to the official 26.
  */
-export function pickOfficialWcMatchdayXi(input: {
+export async function pickOfficialWcMatchdayXi(input: {
   officialPlayers: OfficialWcPlayer[];
   lineupPlayers: LineupAppearanceAgg[];
   lineupPreferredFormation: string | null;
@@ -161,7 +162,14 @@ export function pickOfficialWcMatchdayXi(input: {
   qualityById: Map<number, number>;
   teamLabel: string;
   scoutlystByName: Map<string, ScoutlystSnapshotRow>;
-}): WcMatchdayXiResult {
+  supabase?: import("@supabase/supabase-js").SupabaseClient<
+    import("@/lib/supabase").Database
+  > | null;
+  teamId?: number;
+  teamName?: string;
+  clubMinutesById?: Map<number, number>;
+  clubRatingById?: Map<number, number>;
+}): Promise<WcMatchdayXiResult> {
   const officialKeys = buildOfficialSquadNameKeys(input.officialPlayers);
   const capped = filterLineupToOfficialSquad(input.lineupPlayers, officialKeys);
   const formationForXi =
@@ -185,7 +193,7 @@ export function pickOfficialWcMatchdayXi(input: {
     const { starters: starterRecords, substitutes: subRecords } = pickSquadFromRecords(
       records,
       formationForXi,
-      { benchLimit: null }
+      { benchLimit: null, entityType: "national" }
     );
     const recordToAgg = (r: SquadPickRecord): LineupAppearanceAgg => {
       const norm = normalizeText(formatPlayerDisplayNameIfNeeded(r.name));
@@ -202,6 +210,7 @@ export function pickOfficialWcMatchdayXi(input: {
         starts: r.starts,
         subAppearances: r.subAppearances,
         startPositionCounts: {},
+        startSubRoleCounts: {},
       };
     };
     return {
@@ -212,9 +221,20 @@ export function pickOfficialWcMatchdayXi(input: {
     };
   }
 
-  let starters = pickLineupStartersFromAppearances(capped, formationForXi, input.qualityById, {
-    requireStarts: true,
-  });
+  let starters = await pickLineupStartersFromAppearances(
+    capped,
+    formationForXi,
+    input.qualityById,
+    {
+      requireStarts: true,
+      entityType: "national",
+      clubMinutesById: input.clubMinutesById,
+      clubRatingById: input.clubRatingById,
+      supabase: input.supabase ?? undefined,
+      teamId: input.teamId,
+      teamName: input.teamName,
+    }
+  );
   starters = fillStartersToEleven(
     starters,
     input.officialPlayers,
@@ -247,6 +267,7 @@ export function pickOfficialWcMatchdayXi(input: {
         starts: 0,
         subAppearances: 0,
         startPositionCounts: {},
+        startSubRoleCounts: {},
       }
     );
     if (id != null) subIds.add(id);

@@ -1,8 +1,10 @@
 import {
   computeLineupRankScore,
+  mapFieldPositionToSubRole,
   pickStartersByFormation,
 } from "@/lib/data/formation-lineup";
 import { normalizePlayerPosition } from "@/lib/data/normalize-player-position";
+import type { EntityType } from "@/lib/types/football-lookup";
 import { computePlayerPerformanceScore } from "@/lib/data/compute-player-performance-score";
 
 export type SquadPickRecord = {
@@ -73,7 +75,10 @@ export function squadPickRecordFromStats(input: {
 export function pickSquadFromRecords(
   records: SquadPickRecord[],
   formation: string | null | undefined,
-  options?: { benchLimit?: number | null }
+  options?: {
+    benchLimit?: number | null;
+    entityType?: EntityType;
+  }
 ): { starters: SquadPickRecord[]; substitutes: SquadPickRecord[] } {
   if (!records.length) return { starters: [], substitutes: [] };
 
@@ -96,10 +101,29 @@ export function pickSquadFromRecords(
     id: stableNumericId(r.id),
     starts: r.starts,
     subAppearances: r.subAppearances,
+    fieldPosition: r.position,
     dominantPosition: () => normalizePlayerPosition(r.position),
+    dominantSubRole: () => mapFieldPositionToSubRole(r.position),
   }));
 
-  let pickedSlots = pickStartersByFormation(pickable, formation, { qualityById });
+  const clubMinutesById = new Map<number, number>();
+  const clubRatingById = new Map<number, number>();
+  for (const row of records) {
+    const id = stableNumericId(row.id);
+    if (row.minutes > 0) clubMinutesById.set(id, row.minutes);
+    if (row.rating != null && row.rating > 0) {
+      clubRatingById.set(id, row.rating <= 10 ? row.rating * 10 : row.rating);
+    }
+  }
+
+  let pickedSlots = pickStartersByFormation(pickable, formation, {
+    qualityById,
+    entityType: options?.entityType ?? "club",
+    clubMinutesById:
+      options?.entityType === "national" ? clubMinutesById : undefined,
+    clubRatingById:
+      options?.entityType === "national" ? clubRatingById : undefined,
+  });
   if (!pickedSlots.length) {
     pickedSlots = [...pickable]
       .sort((a, b) => {
@@ -125,16 +149,22 @@ export function pickSquadFromRecords(
   const benchSorted = [...records]
     .filter((r) => !starterIds.has(r.id))
     .sort((a, b) => {
-      const rankA = computeLineupRankScore(
-        a.starts,
+      const rankA = computeLineupRankScore({
+        starts: a.starts,
         maxStarts,
-        qualityById.get(stableNumericId(a.id)) ?? 0
-      );
-      const rankB = computeLineupRankScore(
-        b.starts,
+        qualityScore: qualityById.get(stableNumericId(a.id)) ?? 0,
+        entityType: options?.entityType ?? "club",
+        clubMinutes: a.minutes,
+        clubRating: a.rating ?? undefined,
+      });
+      const rankB = computeLineupRankScore({
+        starts: b.starts,
         maxStarts,
-        qualityById.get(stableNumericId(b.id)) ?? 0
-      );
+        qualityScore: qualityById.get(stableNumericId(b.id)) ?? 0,
+        entityType: options?.entityType ?? "club",
+        clubMinutes: b.minutes,
+        clubRating: b.rating ?? undefined,
+      });
       if (rankB !== rankA) return rankB - rankA;
       if (b.minutes !== a.minutes) return b.minutes - a.minutes;
       if (b.subAppearances !== a.subAppearances) return b.subAppearances - a.subAppearances;

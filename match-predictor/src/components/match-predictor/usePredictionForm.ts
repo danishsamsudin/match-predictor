@@ -1,7 +1,12 @@
 "use client";
 
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  parsePredictorPrefillFromSearchParams,
+  PREDICTOR_PREFILL_DEFAULTS,
+} from "@/lib/world-cup/predictor-prefill";
 import type { FixtureLineup } from "@/lib/types/football";
 import type { PredictRequest, PredictionResult } from "@/lib/types/prediction";
 import type {
@@ -36,6 +41,13 @@ const DEFAULT_NATIONAL_HOME_TEAM_ID = "4748";
 const DEFAULT_NATIONAL_AWAY_TEAM_ID = "4705";
 
 export function usePredictionForm() {
+  const searchParams = useSearchParams();
+  const urlPrefill = useMemo(
+    () => parsePredictorPrefillFromSearchParams(searchParams),
+    [searchParams]
+  );
+  const prefillAppliedRef = useRef(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(null);
@@ -71,6 +83,8 @@ export function usePredictionForm() {
   const [{ date: defaultDate, time: defaultTime }] = useState(getDefaultMatchDateTime);
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState(defaultTime);
+  const [prefillHomeName, setPrefillHomeName] = useState<string | undefined>();
+  const [prefillAwayName, setPrefillAwayName] = useState<string | undefined>();
   const fetchLeagues = useCallback(async (country: string, type: EntityType) => {
     const res = await fetch(
       `/api/football/leagues?country=${encodeURIComponent(country)}&entityType=${type}`
@@ -141,6 +155,31 @@ export function usePredictionForm() {
   }, [entityType]);
 
   useEffect(() => {
+    if (!urlPrefill || prefillAppliedRef.current) return;
+    prefillAppliedRef.current = true;
+    setEntityType(urlPrefill.entityType);
+    setInputMode(urlPrefill.inputMode);
+    if (urlPrefill.entityType === "national") {
+      setMatchCountry(PREDICTOR_PREFILL_DEFAULTS.nationalCountry);
+      setHomeCountry(PREDICTOR_PREFILL_DEFAULTS.nationalCountry);
+      setAwayCountry(PREDICTOR_PREFILL_DEFAULTS.nationalCountry);
+      setMatchLeagueId(String(PREDICTOR_PREFILL_DEFAULTS.nationalLeagueId));
+      setHomeLeagueId(String(PREDICTOR_PREFILL_DEFAULTS.nationalLeagueId));
+      setAwayLeagueId(String(PREDICTOR_PREFILL_DEFAULTS.nationalLeagueId));
+    }
+    setHomeTeamId(String(urlPrefill.homeTeamId));
+    setAwayTeamId(String(urlPrefill.awayTeamId));
+    if (urlPrefill.city) setCity(urlPrefill.city);
+    if (urlPrefill.date) setDate(urlPrefill.date);
+    if (urlPrefill.time) setTime(urlPrefill.time);
+    if (urlPrefill.homeName) setPrefillHomeName(urlPrefill.homeName);
+    if (urlPrefill.awayName) setPrefillAwayName(urlPrefill.awayName);
+    setMatchId("");
+    setSelectedFixtureId("");
+  }, [urlPrefill]);
+
+  useEffect(() => {
+    if (urlPrefill) return;
     setHomeTeams([]);
     setAwayTeams([]);
     if (entityType === "national") {
@@ -165,7 +204,7 @@ export function usePredictionForm() {
     }
     setMatchId("");
     setSelectedFixtureId("");
-  }, [entityType]);
+  }, [entityType, urlPrefill]);
 
   useEffect(() => {
     if (entityType !== "national") return;
@@ -249,7 +288,11 @@ export function usePredictionForm() {
       .then((teams) => {
         if (cancelled) return;
         setHomeTeams(teams);
-        if (!teams.some((t) => String(t.id) === homeTeamId) && teams.length) {
+        if (
+          !prefillAppliedRef.current &&
+          !teams.some((t) => String(t.id) === homeTeamId) &&
+          teams.length
+        ) {
           setHomeTeamId(String(teams[0].id));
         }
       })
@@ -269,7 +312,11 @@ export function usePredictionForm() {
       .then((teams) => {
         if (cancelled) return;
         setAwayTeams(teams);
-        if (!teams.some((t) => String(t.id) === awayTeamId) && teams.length) {
+        if (
+          !prefillAppliedRef.current &&
+          !teams.some((t) => String(t.id) === awayTeamId) &&
+          teams.length
+        ) {
           setAwayTeamId(String(teams[0].id));
         }
       })
@@ -366,8 +413,8 @@ export function usePredictionForm() {
 
   const homeTeam = homeTeams.find((t) => String(t.id) === homeTeamId);
   const awayTeam = awayTeams.find((t) => String(t.id) === awayTeamId);
-  const homeTeamName = homeTeam?.name;
-  const awayTeamName = awayTeam?.name;
+  const homeTeamName = homeTeam?.name ?? prefillHomeName;
+  const awayTeamName = awayTeam?.name ?? prefillAwayName;
 
   const bridgeCompetition =
     homeLeagueName === awayLeagueName

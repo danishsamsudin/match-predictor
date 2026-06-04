@@ -3,14 +3,20 @@ import { readSyncedSeasons, readSyncedStandings } from "@/lib/data/synced-resour
 import { findStandingsRow } from "@/lib/sync/build-football-bundle";
 import { mapStandingsRowToTeamStatistics } from "@/lib/api/sportapi/mappers";
 import { teamStatisticsFromMetrics } from "@/lib/sync/team-prediction-metrics";
+import {
+  computeInternationalRatesFromMatches,
+  internationalDecayWeight,
+  internationalMatchTierWeight,
+  INTERNATIONAL_BASE_GOALS,
+} from "@/lib/world-cup/international-strength";
 import type { TeamStatistics } from "@/lib/types/football";
 import type { SportApiEvent } from "@/lib/types/sportapi";
 import type { TeamStatAverages } from "@/lib/types/prediction";
 
 /** Typical per-match international averages when no synced/API data exists. */
 const INTERNATIONAL_BASELINE: TeamStatAverages = {
-  goalsFor: 1.35,
-  goalsAgainst: 1.15,
+  goalsFor: INTERNATIONAL_BASE_GOALS,
+  goalsAgainst: INTERNATIONAL_BASE_GOALS,
   corners: 5.2,
   fouls: 11,
   yellowCards: 1.8,
@@ -50,7 +56,23 @@ function goalsAgainstTeamInEvent(event: SportApiEvent, teamId: number): number |
   return null;
 }
 
-/** Build averages from recent finished matches (any competition). */
+function competitionLabel(event: SportApiEvent): string {
+  return (
+    event.tournament?.uniqueTournament?.name ??
+    event.tournament?.name ??
+    ""
+  );
+}
+
+function eventDateIso(event: SportApiEvent): string | null {
+  if (event.startTime) return event.startTime.slice(0, 10);
+  if (event.startTimestamp) {
+    return new Date(event.startTimestamp * 1000).toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+/** Build averages from weighted recent internationals (tier + long decay). */
 export function deriveTeamStatisticsFromFormEvents(
   events: SportApiEvent[],
   teamId: number,
@@ -65,25 +87,31 @@ export function deriveTeamStatisticsFromFormEvents(
       (e.status?.type === "finished" || e.status?.type === "ended")
   );
 
-  let goalsFor = 0;
-  let goalsAgainst = 0;
-  let matches = 0;
+  const history = finished
+    .map((event) => {
+      const gf = goalsForTeamInEvent(event, teamId);
+      const ga = goalsAgainstTeamInEvent(event, teamId);
+      if (gf == null || ga == null) return null;
+      return {
+        date: eventDateIso(event),
+        home_team_id: String(event.homeTeam.id),
+        away_team_id: String(event.awayTeam.id),
+        home_goals: event.homeTeam.id === teamId ? gf : ga,
+        away_goals: event.homeTeam.id === teamId ? ga : gf,
+        competition: competitionLabel(event),
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row != null);
 
-  for (const event of finished) {
-    const gf = goalsForTeamInEvent(event, teamId);
-    const ga = goalsAgainstTeamInEvent(event, teamId);
-    if (gf == null || ga == null) continue;
-    goalsFor += gf;
-    goalsAgainst += ga;
-    matches += 1;
-  }
+  const rates = computeInternationalRatesFromMatches(String(teamId), history, Date.now(), teamName);
+  const sample = rates.sample;
 
   const metrics: TeamStatAverages =
-    matches >= 2
+    sample.effectiveWeight >= 0.35
       ? {
           ...INTERNATIONAL_BASELINE,
-          goalsFor: goalsFor / matches,
-          goalsAgainst: goalsAgainst / matches,
+          goalsFor: sample.goalsFor,
+          goalsAgainst: sample.goalsAgainst,
         }
       : { ...INTERNATIONAL_BASELINE };
 
@@ -117,4 +145,12 @@ export async function loadTeamStatisticsFromStandingsCache(
   if (!row) return null;
 
   return mapStandingsRowToTeamStatistics(row, leagueId, season, isHomeSide);
+}
+
+/** Export for diagnostics — tier × decay weight for one event. */
+export function nationalFormEventWeight(event: SportApiEvent, referenceMs = Date.now()): number {
+  return (
+    internationalMatchTierWeight(competitionLabel(event)) *
+    internationalDecayWeight(eventDateIso(event), referenceMs)
+  );
 }

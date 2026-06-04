@@ -169,6 +169,22 @@ export async function readWeatherApiCache<T>(cacheKey: string): Promise<T | null
   return data.response as T;
 }
 
+/** Expired weather cache — used when Open-Meteo is down but a prior fetch succeeded. */
+export async function readStaleWeatherApiCache<T>(cacheKey: string): Promise<T | null> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return null;
+
+  const { data } = await supabase
+    .from("api_cache")
+    .select("response")
+    .eq("cache_key", cacheKey)
+    .eq("provider", "weather")
+    .maybeSingle();
+
+  if (!data?.response) return null;
+  return data.response as T;
+}
+
 /** Map sportApiGet cache keys to synced Supabase rows (48h fresh). */
 export async function readSportApiCacheFromStore<T>(cacheKey: string): Promise<T | null> {
   const colon = cacheKey.indexOf(":");

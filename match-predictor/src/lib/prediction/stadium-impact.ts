@@ -9,6 +9,8 @@ export interface TeamTravelContext {
 
 /** xG boost when a team plays in its home city (compare mode / neutral-ground exceptions). */
 export const HOME_CITY_XG_MULTIPLIER = 1.12;
+/** Capped host lift for FIFA World Cup venues (avoids stacking with altitude). */
+export const INTERNATIONAL_HOST_CITY_CAP = 1.06;
 
 function applyTravelFatigue(
   distanceKm: number,
@@ -35,15 +37,17 @@ function applyHomeCityAdvantage(
   matchCity: string,
   teamCity: string,
   side: "home" | "away",
-  notes: string[]
+  notes: string[],
+  cap?: number
 ): number {
   if (!matchCity || !teamCity || !citiesMatch(matchCity, teamCity)) {
     return 1;
   }
+  const multiplier = cap != null ? Math.min(HOME_CITY_XG_MULTIPLIER, cap) : HOME_CITY_XG_MULTIPLIER;
   notes.push(
-    `${side === "home" ? "Home" : "Away"} side plays in ${teamCity} — home-city xG boost ${((HOME_CITY_XG_MULTIPLIER - 1) * 100).toFixed(0)}% (δ_home_city = ${HOME_CITY_XG_MULTIPLIER}).`
+    `${side === "home" ? "Home" : "Away"} side plays in ${teamCity} — home-city xG boost ${((multiplier - 1) * 100).toFixed(0)}% (δ_home_city = ${multiplier}).`
   );
-  return HOME_CITY_XG_MULTIPLIER;
+  return multiplier;
 }
 
 export function computeStadiumImpact(
@@ -51,7 +55,14 @@ export function computeStadiumImpact(
   matchLocation: GeoPoint,
   homeTeam: TeamTravelContext,
   awayTeam: TeamTravelContext,
-  options?: { isNeutralVenue?: boolean; matchCity?: string }
+  options?: {
+    isNeutralVenue?: boolean;
+    matchCity?: string;
+    /** Cap home-city boost (FIFA World Cup host venues). */
+    hostCityMultiplierCap?: number;
+    /** Softer altitude shock for international tournaments. */
+    internationalTournament?: boolean;
+  }
 ): StadiumImpactResult {
   let homeXgMultiplier = 1;
   let awayXgMultiplier = 1;
@@ -80,8 +91,9 @@ export function computeStadiumImpact(
       );
       awayXgMultiplier *= applyTravelFatigue(distance, awayTeam.city, "away", notes);
     }
-    homeXgMultiplier *= applyHomeCityAdvantage(matchCity, homeTeam.city, "home", notes);
-    awayXgMultiplier *= applyHomeCityAdvantage(matchCity, awayTeam.city, "away", notes);
+    const hostCap = options?.hostCityMultiplierCap;
+    homeXgMultiplier *= applyHomeCityAdvantage(matchCity, homeTeam.city, "home", notes, hostCap);
+    awayXgMultiplier *= applyHomeCityAdvantage(matchCity, awayTeam.city, "away", notes, hostCap);
   } else if (awayTeam.homeLocation) {
     const distance = haversineKm(
       awayTeam.homeLocation.lat,
@@ -94,12 +106,13 @@ export function computeStadiumImpact(
 
   const altitude = getStadiumAltitude(venueName);
   if (altitude > 1000) {
-    homeXgMultiplier *= 1.03;
-    awayXgMultiplier *= 1.03;
+    const altBoost = options?.internationalTournament ? 1.015 : 1.03;
+    homeXgMultiplier *= altBoost;
+    awayXgMultiplier *= altBoost;
     foulsMultiplier *= 1.05;
     cardsMultiplier *= 1.05;
     notes.push(
-      `High altitude venue (${altitude}m at ${venueName}) boosts xG by 3% (δ_altitude = 1.03) and increases fouls/cards by 5%.`
+      `High altitude venue (${altitude}m at ${venueName}) boosts xG by ${((altBoost - 1) * 100).toFixed(1)}% (δ_altitude = ${altBoost}) and increases fouls/cards by 5%.`
     );
   }
 

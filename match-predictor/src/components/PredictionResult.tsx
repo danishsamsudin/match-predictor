@@ -76,10 +76,10 @@ export function PredictionResultCard({
   const awayLabel = result.awayTeamName ?? "Away";
 
   return (
-    <div className="liquid-glass-panel overflow-x-hidden rounded-[2rem]">
+    <div className="liquid-glass-panel min-w-0 max-w-full rounded-2xl sm:rounded-[2rem]">
       <div className="h-0.5 bg-gradient-to-r from-indigo-500 via-cyan-500 to-violet-500 dark:from-cyan-400 dark:via-fuchsia-500 dark:to-violet-400" />
 
-      <div className="border-b border-white/30 px-6 py-4 dark:border-slate-800/60">
+      <div className="border-b border-white/30 px-4 py-4 dark:border-slate-800/60 sm:px-6">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-on-gradient shadow-lg shadow-primary/25">
             <TrendingUp className="h-4 w-4" />
@@ -103,7 +103,7 @@ export function PredictionResultCard({
         </div>
       </div>
 
-      <div className="space-y-6 p-6">
+      <div className="min-w-0 space-y-6 p-4 sm:p-6">
         <WinProbabilityBar
           home={result.homeWinPct}
           draw={result.drawPct}
@@ -246,16 +246,16 @@ function FirstTeamToScoreSection({
           model expects a 0–0.
         </InfoTip>
       </div>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-3 dark:border-cyan-400/25">
+      <div className="grid min-w-0 grid-cols-3 gap-1.5 text-center sm:gap-2">
+        <div className="min-w-0 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-2.5 dark:border-cyan-400/25 sm:p-3">
           <p className="truncate text-xs font-medium text-primary-emphasis">{homeLabel}</p>
           <p className="text-xl font-semibold text-primary">{fts.home}%</p>
         </div>
-        <div className="rounded-2xl border border-slate-200/50 bg-white/30 p-3 dark:border-slate-700/50 dark:bg-slate-900/30">
+        <div className="min-w-0 rounded-2xl border border-slate-200/50 bg-white/30 p-2.5 dark:border-slate-700/50 dark:bg-slate-900/30 sm:p-3">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">No goal</p>
           <p className="text-xl font-semibold text-slate-900 dark:text-white">{fts.none}%</p>
         </div>
-        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-3 dark:border-fuchsia-400/25">
+        <div className="min-w-0 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-2.5 dark:border-fuchsia-400/25 sm:p-3">
           <p className="truncate text-xs font-medium text-accent-emphasis">{awayLabel}</p>
           <p className="text-xl font-semibold text-accent">{fts.away}%</p>
         </div>

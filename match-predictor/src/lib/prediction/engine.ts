@@ -33,8 +33,17 @@ import {
   resolveScoreMatrixMaxGoals,
 } from "@/lib/prediction/market-probabilities";
 import { computeLineupImpact } from "@/lib/prediction/lineup-impact";
-import { isHighStakesCupFinal, isNeutralVenue } from "@/lib/prediction/neutral-venue";
-import { computeStadiumImpact } from "@/lib/prediction/stadium-impact";
+import {
+  isFifaWorldCupLeagueId,
+  isHighStakesCupFinal,
+  isNeutralVenue,
+} from "@/lib/prediction/neutral-venue";
+import {
+  computeStadiumImpact,
+  INTERNATIONAL_HOST_CITY_CAP,
+} from "@/lib/prediction/stadium-impact";
+import { buildInternationalBaselineXg } from "@/lib/world-cup/international-strength";
+import { clampMomentumIndex } from "@/lib/prediction/form-momentum";
 import { computeWeatherImpact } from "@/lib/prediction/weather-impact";
 import { buildTeamComparisonSnapshot } from "@/lib/data/build-team-comparison";
 import { ensureFifaRankingsLoaded } from "@/lib/data/fifa-rankings-store";
@@ -49,7 +58,7 @@ import type {
 
 /** Minimum xG floor before Poisson grid evaluation. */
 const XG_FLOOR = 0.3;
-const MODEL_VERSION = "v2";
+const MODEL_VERSION = "v2.1";
 function normalizeTo100(
   home: number,
   draw: number,
@@ -77,9 +86,11 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     getWeatherForecast(city, matchDate),
   ]);
 
-  const neutralVenue = isNeutralVenue(input.mode, bundle);
-  const highStakesCup = isHighStakesCupFinal(bundle, neutralVenue);
   const fixtureLeagueId = bundle.fixture.league.id;
+  const neutralVenue = isNeutralVenue(input.mode, bundle, city);
+  const highStakesCup = isHighStakesCupFinal(bundle, neutralVenue);
+  const internationalFixture =
+    input.entityType === "national" || isFifaWorldCupLeagueId(fixtureLeagueId);
   const season = bundle.fixture.league.season;
 
   const homeDomesticLeagueId =
@@ -179,8 +190,6 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     leagueAvgGoals: muResult.mu,
   };
 
-  const base = computeBaseProbability(baseInput);
-
   const momentumIndex = computeMomentumIndex({
     ...baseInput,
     h2hHasData: h2h.hasData,
@@ -198,6 +207,21 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     homeStats: homeStatsBenchmark,
     awayStats: awayStatsBenchmark,
   });
+
+  const internationalMomentum = clampMomentumIndex(momentumIndex * 0.55);
+
+  let base = internationalFixture
+    ? buildInternationalBaselineXg({
+        mu: muResult.mu,
+        homeTeamId,
+        awayTeamId,
+        homeName: input.homeTeamName,
+        awayName: input.awayTeamName,
+        homeStats,
+        awayStats,
+        momentumIndex: internationalMomentum,
+      })
+    : computeBaseProbability(baseInput);
 
   let lineupsForImpact =
     input.customLineups?.length ? input.customLineups : bundle.lineups;
@@ -262,7 +286,12 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
         resolveCityCoordinates(awayTeamCity) ??
         resolveCityCoordinates(bundle.awayTeamInfo.venue.city),
     },
-    { isNeutralVenue: neutralVenue, matchCity: city }
+    {
+      isNeutralVenue: neutralVenue,
+      matchCity: city,
+      hostCityMultiplierCap: internationalFixture ? INTERNATIONAL_HOST_CITY_CAP : undefined,
+      internationalTournament: internationalFixture,
+    }
   );
 
   let homeXg = base.homeXg;
@@ -301,7 +330,9 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   awayXg = Math.round(awayXg * 100) / 100;
 
   const scoreMatrixMaxGoals = resolveScoreMatrixMaxGoals(homeXg, awayXg);
-  const scoreCorrelation = resolveScoreMatrixCorrelation(homeXg, awayXg, highStakesCup);
+  const scoreCorrelation = resolveScoreMatrixCorrelation(homeXg, awayXg, highStakesCup, {
+    international: internationalFixture,
+  });
   const probs = computeOutcomeProbabilities(homeXg, awayXg, scoreMatrixMaxGoals, {
     correlation: scoreCorrelation,
   });

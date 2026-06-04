@@ -1,0 +1,372 @@
+import {
+  getFifaEloExpectancy,
+  getFifaRankingPoints,
+  resolveNationalTeamForStrength,
+} from "@/lib/prediction/fifa-team-strength";
+import type { TeamStatAverages } from "@/lib/types/prediction";
+import {
+  confederationStrengthModifier,
+  opponentConfederationModifier,
+  resolveNationalConfederation,
+} from "@/lib/world-cup/confederation-strength";
+import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
+import type { WcMatchRow } from "@/lib/world-cup/standings";
+
+const CORNER_XG_BASELINE = 2.7;
+
+/** ~4-year half-life for international result decay (days since match). */
+export const INTERNATIONAL_DECAY_PHI = 0.00048;
+/** Typical goals per team per match in competitive internationals. */
+export const INTERNATIONAL_BASE_GOALS = 1.25;
+/** Blend weight for short-window form vs FIFA Elo anchor (0–1 form). */
+export const FORM_ELO_BLEND = 0.4;
+/** Max log-linear momentum applied to international baseline xG. */
+export const INTERNATIONAL_MOMENTUM_GAMMA = 0.042;
+export const INTERNATIONAL_MOMENTUM_CLAMP = 0.65;
+/** Pseudo-match count pulling extreme attack/defense rates toward league mean (lower ⇒ less shrinkage). */
+export const SHRINKAGE_K = 5;
+/** Clamp raw attack/defense multipliers before shrinkage. */
+export const RATE_CLAMP_MIN = 0.4;
+export const RATE_CLAMP_MAX = 2.5;
+/** Post-blend xG bounds for internationals (wide — Poisson grid needs contrast). */
+export const INTERNATIONAL_XG_FLOOR = 0.1;
+export const INTERNATIONAL_XG_CAP = 5;
+/**
+ * Exponential FIFA scaling: λ = μ·e^(c·ΔR), μ_away = μ·e^(-c·ΔR).
+ * c ≈ 0.00155 ⇒ ~1.86× λ per 400 ranking-point gap.
+ */
+export const ELO_XG_EXPONENT_SCALE = 0.00155;
+
+export interface InternationalRateSample {
+  goalsFor: number;
+  goalsAgainst: number;
+  effectiveWeight: number;
+  matchCount: number;
+}
+
+export interface InternationalTeamRates {
+  attack: number;
+  defense: number;
+  sample: InternationalRateSample;
+}
+
+export interface InternationalXgPair {
+  homeXg: number;
+  awayXg: number;
+  snapshot: Record<string, unknown>;
+}
+
+function daysSince(dateStr: string | null, referenceMs = Date.now()): number {
+  if (!dateStr) return 365 * 5;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return 365 * 5;
+  return Math.max(0, (referenceMs - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function internationalDecayWeight(
+  dateStr: string | null,
+  referenceMs = Date.now()
+): number {
+  return Math.exp(-INTERNATIONAL_DECAY_PHI * daysSince(dateStr, referenceMs));
+}
+
+/** Down-weight friendlies; up-weight competitive tournaments. */
+export function internationalMatchTierWeight(competition: string | null | undefined): number {
+  const c = (competition ?? "").toLowerCase();
+  if (!c) return 0.85;
+  if (/friendl|preparatory|preparation|test match/.test(c)) return 0.32;
+  if (/qualif|play-?off|playoff|inter-confederation|wcq|afc|caf|concacaf|conmebol|uefa/.test(c)) {
+    return 1;
+  }
+  if (/world cup|euro|copa|nations league|continental|afcon|gold cup|asian cup|finals/.test(c)) {
+    return 1.12;
+  }
+  return 0.88;
+}
+
+function shrinkTowardMean(rate: number, effectiveN: number): number {
+  const conf = effectiveN / (effectiveN + SHRINKAGE_K);
+  return 1 + (rate - 1) * conf;
+}
+
+function clampAttackDefenseRate(rate: number): number {
+  return Math.max(RATE_CLAMP_MIN, Math.min(RATE_CLAMP_MAX, rate));
+}
+
+export function clampInternationalBaselineXg(xg: number): number {
+  return Math.max(INTERNATIONAL_XG_FLOOR, Math.min(INTERNATIONAL_XG_CAP, xg));
+}
+
+/**
+ * Weighted GF/GA rates from international match history (any competition label).
+ */
+export function computeInternationalRatesFromMatches(
+  teamId: string,
+  finishedMatches: InternationalFormMatch[],
+  referenceMs = Date.now(),
+  teamName?: string
+): InternationalTeamRates {
+  let gf = 0;
+  let ga = 0;
+  let w = 0;
+  let matchCount = 0;
+
+  for (const m of finishedMatches) {
+    if (m.home_goals == null || m.away_goals == null) continue;
+    const isHome = m.home_team_id === teamId;
+    const isAway = m.away_team_id === teamId;
+    if (!isHome && !isAway) continue;
+
+    const tier = internationalMatchTierWeight(m.competition);
+    const weight = internationalDecayWeight(m.date, referenceMs) * tier;
+    if (weight <= 0) continue;
+
+    const oppId = isHome ? m.away_team_id : m.home_team_id;
+    const oppName = isHome ? m.away_team_name : m.home_team_name;
+    const cOpp = opponentConfederationModifier({
+      opponentTeamId: oppId,
+      opponentTeamName: oppName,
+      competition: m.competition,
+    });
+
+    if (isHome) {
+      gf += m.home_goals * weight * cOpp;
+      ga += m.away_goals * weight * cOpp;
+    } else {
+      gf += m.away_goals * weight * cOpp;
+      ga += m.home_goals * weight * cOpp;
+    }
+    w += weight;
+    matchCount += 1;
+  }
+
+  const mu = INTERNATIONAL_BASE_GOALS;
+  if (w < 0.35) {
+    return {
+      attack: 1,
+      defense: 1,
+      sample: { goalsFor: mu, goalsAgainst: mu, effectiveWeight: 0, matchCount },
+    };
+  }
+
+  const avgGf = gf / w;
+  const avgGa = ga / w;
+  const rawAttack = avgGf / mu;
+  const rawDefense = avgGa / mu;
+
+  return {
+    attack: shrinkTowardMean(clampAttackDefenseRate(rawAttack), w),
+    defense: shrinkTowardMean(clampAttackDefenseRate(rawDefense), w),
+    sample: { goalsFor: avgGf, goalsAgainst: avgGa, effectiveWeight: w, matchCount },
+  };
+}
+
+function fifaAnchoredXg(
+  homeTeamId: number,
+  awayTeamId: number,
+  homeName: string | undefined,
+  awayName: string | undefined,
+  mu: number
+): {
+  homeXg: number;
+  awayXg: number;
+  homePts: number;
+  awayPts: number;
+  eloHomeWin: number;
+  ratingDelta: number;
+} {
+  const homeResolved = resolveNationalTeamForStrength(homeTeamId, homeName);
+  const awayResolved = resolveNationalTeamForStrength(awayTeamId, awayName);
+  const homePts = getFifaRankingPoints(homeResolved.teamId, homeResolved.teamName) ?? 1400;
+  const awayPts = getFifaRankingPoints(awayResolved.teamId, awayResolved.teamName) ?? 1400;
+  const eloHomeWin = getFifaEloExpectancy(homePts, awayPts);
+  const ratingDelta = homePts - awayPts;
+  const expShift = ELO_XG_EXPONENT_SCALE * ratingDelta;
+  return {
+    homeXg: clampInternationalBaselineXg(mu * Math.exp(expShift)),
+    awayXg: clampInternationalBaselineXg(mu * Math.exp(-expShift)),
+    homePts,
+    awayPts,
+    eloHomeWin,
+    ratingDelta,
+  };
+}
+
+/** More FIFA weight when ranking gap is large (form stays at 40% for close matchups). */
+export function resolveFormEloBlendWeight(fifaRatingDelta: number): number {
+  const gap = Math.abs(fifaRatingDelta);
+  return Math.min(0.85, FORM_ELO_BLEND + gap / 1800);
+}
+
+function blendFormAndElo(
+  formHome: number,
+  formAway: number,
+  eloHome: number,
+  eloAway: number,
+  eloWeight: number
+): { homeXg: number; awayXg: number } {
+  const w = 1 - eloWeight;
+  return {
+    homeXg: clampInternationalBaselineXg(w * formHome + eloWeight * eloHome),
+    awayXg: clampInternationalBaselineXg(w * formAway + eloWeight * eloAway),
+  };
+}
+
+/**
+ * Poisson λ/μ from blended form + FIFA anchor before venue/motivation shocks.
+ */
+export function resolveInternationalExpectedGoals(input: {
+  homeTeamId: number;
+  awayTeamId: number;
+  homeName?: string;
+  awayName?: string;
+  homeRates: InternationalTeamRates;
+  awayRates: InternationalTeamRates;
+  mu?: number;
+}): InternationalXgPair {
+  const mu = input.mu ?? INTERNATIONAL_BASE_GOALS;
+  const formHome = mu * input.homeRates.attack * input.awayRates.defense;
+  const formAway = mu * input.awayRates.attack * input.homeRates.defense;
+  const elo = fifaAnchoredXg(
+    input.homeTeamId,
+    input.awayTeamId,
+    input.homeName,
+    input.awayName,
+    mu
+  );
+  const eloWeight = resolveFormEloBlendWeight(elo.ratingDelta);
+  const blended = blendFormAndElo(formHome, formAway, elo.homeXg, elo.awayXg, eloWeight);
+
+  return {
+    homeXg: blended.homeXg,
+    awayXg: blended.awayXg,
+    snapshot: {
+      mu,
+      form_home_xg: Math.round(formHome * 1000) / 1000,
+      form_away_xg: Math.round(formAway * 1000) / 1000,
+      elo_home_xg: Math.round(elo.homeXg * 1000) / 1000,
+      elo_away_xg: Math.round(elo.awayXg * 1000) / 1000,
+      fifa_home_pts: elo.homePts,
+      fifa_away_pts: elo.awayPts,
+      elo_home_win: elo.eloHomeWin,
+      fifa_rating_delta: elo.ratingDelta,
+      elo_xg_exponent_scale: ELO_XG_EXPONENT_SCALE,
+      form_elo_blend: FORM_ELO_BLEND,
+      form_elo_blend_effective: Math.round(eloWeight * 1000) / 1000,
+      home_attack: input.homeRates.attack,
+      home_defense: input.homeRates.defense,
+      away_attack: input.awayRates.attack,
+      away_defense: input.awayRates.defense,
+      home_sample_weight: input.homeRates.sample.effectiveWeight,
+      away_sample_weight: input.awayRates.sample.effectiveWeight,
+    },
+  };
+}
+
+/** Dixon-Coles ρ for internationals — always negative to lift realistic draw mass. */
+export function resolveInternationalScoreCorrelation(
+  homeXg: number,
+  awayXg: number
+): number {
+  const total = homeXg + awayXg;
+  if (total >= 3.1) return -0.08;
+  if (total >= 2.4) return -0.11;
+  return -0.14;
+}
+
+export function wcHubRatesFromHistory(
+  teamId: string,
+  formMatches: InternationalFormMatch[] | WcMatchRow[],
+  teamName?: string
+): InternationalTeamRates {
+  return computeInternationalRatesFromMatches(teamId, formMatches, Date.now(), teamName);
+}
+
+/** Pull extreme short-window GF/GA toward international mean (friendlies noise). */
+export function regressInternationalSeasonRate(observed: number, mu: number): number {
+  const shrink = 0.38;
+  return observed * (1 - shrink) + mu * shrink;
+}
+
+function statsToRates(
+  stats: TeamStatAverages,
+  mu: number,
+  teamId?: number,
+  teamName?: string
+): InternationalTeamRates {
+  const confedMod = confederationStrengthModifier(
+    resolveNationalConfederation(teamId, teamName)
+  );
+  const gf = regressInternationalSeasonRate(stats.goalsFor * confedMod, mu);
+  const ga = regressInternationalSeasonRate(stats.goalsAgainst / confedMod, mu);
+  return {
+    attack: clampAttackDefenseRate(gf / mu),
+    defense: clampAttackDefenseRate(ga / mu),
+    sample: {
+      goalsFor: gf,
+      goalsAgainst: ga,
+      effectiveWeight: 8,
+      matchCount: 8,
+    },
+  };
+}
+
+/**
+ * National-team baseline xG: FIFA/form anchor (primary) + small capped momentum nudge.
+ * Uses raw per-game stats (not Ω-benchmarked) so weaker sides are not crushed to ~0.3 xG.
+ */
+export function buildInternationalBaselineXg(input: {
+  mu: number;
+  homeTeamId: number;
+  awayTeamId: number;
+  homeName?: string;
+  awayName?: string;
+  homeStats: TeamStatAverages;
+  awayStats: TeamStatAverages;
+  momentumIndex?: number;
+}): {
+  homeXg: number;
+  awayXg: number;
+  corners: number;
+  fouls: number;
+  yellowCards: number;
+  redCards: number;
+} {
+  const { mu, homeStats, awayStats } = input;
+  const anchored = resolveInternationalExpectedGoals({
+    homeTeamId: input.homeTeamId,
+    awayTeamId: input.awayTeamId,
+    homeName: input.homeName,
+    awayName: input.awayName,
+    homeRates: statsToRates(homeStats, mu, input.homeTeamId, input.homeName),
+    awayRates: statsToRates(awayStats, mu, input.awayTeamId, input.awayName),
+    mu,
+  });
+
+  const structuralHome = (homeStats.goalsFor / mu) * (awayStats.goalsAgainst / mu) * mu;
+  const structuralAway = (awayStats.goalsFor / mu) * (homeStats.goalsAgainst / mu) * mu;
+
+  let homeXg = 0.88 * anchored.homeXg + 0.12 * structuralHome;
+  let awayXg = 0.88 * anchored.awayXg + 0.12 * structuralAway;
+
+  const mom = Math.max(
+    -INTERNATIONAL_MOMENTUM_CLAMP,
+    Math.min(INTERNATIONAL_MOMENTUM_CLAMP, input.momentumIndex ?? 0)
+  );
+  homeXg *= Math.exp(INTERNATIONAL_MOMENTUM_GAMMA * mom);
+  awayXg *= Math.exp(-INTERNATIONAL_MOMENTUM_GAMMA * 0.92 * mom);
+
+  const totalMatchXg = homeXg + awayXg;
+  const corners =
+    (homeStats.corners + awayStats.corners) *
+    Math.exp(0.02 * (totalMatchXg - CORNER_XG_BASELINE));
+
+  return {
+    homeXg,
+    awayXg,
+    corners,
+    fouls: homeStats.fouls + awayStats.fouls,
+    yellowCards: homeStats.yellowCards + awayStats.yellowCards,
+    redCards: homeStats.redCards + awayStats.redCards,
+  };
+}

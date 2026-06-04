@@ -26,7 +26,11 @@
     "squad:diagnose": "npx tsx scripts/diagnose-squad-data.ts",
     "fifa:import": "python3 scripts/import_fifa_rankings.py",
     "fifa:json": "npx tsx scripts/generate-fifa-rankings-json.ts",
-    "parse:fifa-squads": "python3 scripts/parse_fifa_world_cup_squad_pdf.py"
+    "parse:fifa-squads": "python3 scripts/parse_fifa_world_cup_squad_pdf.py",
+    "wc:matrix": "npx tsx scripts/import-fifa-third-place-matrix.ts",
+    "wc:groups": "npx tsx scripts/seed-world-cup-groups-json.ts",
+    "wc:venues": "npx tsx scripts/seed-world-cup-fixture-venues.ts",
+    "wc:sync": "curl -s -X POST \"http://localhost:3000/api/cron/world-cup?run=true\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

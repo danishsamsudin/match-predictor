@@ -1,5 +1,6 @@
 /** Poisson-based score grid and common betting market probabilities. */
 
+import { resolveInternationalScoreCorrelation } from "@/lib/world-cup/international-strength";
 import type { FirstTeamToScorePct } from "@/lib/types/prediction";
 import type { OverUnderLine, PredictionAnalytics, ScoreCell } from "@/lib/types/prediction";
 
@@ -162,8 +163,12 @@ export function resolveScoreMatrixMaxGoals(homeXg: number, awayXg: number): numb
 export function resolveScoreMatrixCorrelation(
   homeXg: number,
   awayXg: number,
-  isHighStakesCup: boolean
+  isHighStakesCup: boolean,
+  options?: { international?: boolean }
 ): number {
+  if (options?.international) {
+    return resolveInternationalScoreCorrelation(homeXg, awayXg);
+  }
   if (isHighStakesCup) {
     return resolveCupFinalCorrelation(homeXg, awayXg, true);
   }

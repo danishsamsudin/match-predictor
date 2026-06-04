@@ -7,6 +7,7 @@ import {
 import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
 import { aggregateLineupAppearances } from "@/lib/data/infer-usual-squad-from-lineups";
 import type { LineupAppearanceAgg } from "@/lib/data/infer-usual-squad-from-lineups";
+import { buildClubMetricsBySofascoreId } from "@/lib/data/build-club-metrics-for-lineup";
 import { pickOfficialWcMatchdayXi } from "@/lib/data/official-wc-matchday-xi";
 import {
   buildPlayerDetailStats,
@@ -210,7 +211,9 @@ export async function loadOfficialWcSquadForComparison(
         loadScoutlystSnapshotsByNames(supabase, displayNames, { teamId }),
         loadSofifaOverallByNames(supabase, displayNames),
         loadSofifaOverallByTeam(supabase, teamId),
-        aggregateLineupAppearances(supabase, teamId, teamName),
+        aggregateLineupAppearances(supabase, teamId, teamName, 12, {
+          entityType: options?.entityType ?? "national",
+        }),
       ])
     : [
         new Map<string, ScoutlystSnapshotRow>(),
@@ -250,7 +253,10 @@ export async function loadOfficialWcSquadForComparison(
     sofifaGlobalByName: sofifaGlobal,
   });
 
-  const matchday = pickOfficialWcMatchdayXi({
+  const scoutById = scoutlystBySofascoreId(scoutlystByName);
+  const { clubMinutesById, clubRatingById } = buildClubMetricsBySofascoreId(scoutById);
+
+  const matchday = await pickOfficialWcMatchdayXi({
     officialPlayers: official.players,
     lineupPlayers: lineupAgg.players,
     lineupPreferredFormation: lineupAgg.preferredFormation,
@@ -259,6 +265,11 @@ export async function loadOfficialWcSquadForComparison(
     qualityById,
     teamLabel,
     scoutlystByName,
+    supabase,
+    teamId,
+    teamName,
+    clubMinutesById,
+    clubRatingById,
   });
 
   const officialByNorm = new Map(

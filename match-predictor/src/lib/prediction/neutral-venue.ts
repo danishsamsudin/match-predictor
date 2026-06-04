@@ -1,4 +1,5 @@
 import type { FootballBundle } from "@/lib/types/football";
+import { WORLD_CUP_REFERENCE_LEAGUE_ID } from "@/lib/data/world-cup-2026-teams";
 
 const CUP_LEAGUE_KEYWORDS = [
   "champions league",
@@ -12,6 +13,15 @@ const CUP_LEAGUE_KEYWORDS = [
 
 export function isContinentalCupLeagueId(leagueId: number): boolean {
   return leagueId === 2 || leagueId === 3 || leagueId === 848;
+}
+
+/** FIFA World Cup finals — no classic home/away league μ split. */
+export function isFifaWorldCupLeagueId(leagueId: number): boolean {
+  return leagueId === WORLD_CUP_REFERENCE_LEAGUE_ID;
+}
+
+export function isNeutralSiteLabel(city: string | undefined): boolean {
+  return /neutral/i.test(city ?? "");
 }
 
 export function normalizeMatchCity(city: string | undefined): string {
@@ -37,9 +47,12 @@ function isCupCompetition(bundle: FootballBundle): boolean {
 /** True when the match is on neutral ground (compare mode or cup tie away from both homes). */
 export function isNeutralVenue(
   mode: "fixture" | "compare" | undefined,
-  bundle: FootballBundle
+  bundle: FootballBundle,
+  matchCity?: string
 ): boolean {
   if (mode === "compare") return true;
+  if (isNeutralSiteLabel(matchCity ?? bundle.fixture.fixture.venue.city)) return true;
+  if (isFifaWorldCupLeagueId(bundle.fixture.league.id)) return true;
 
   if (!isCupCompetition(bundle)) return false;
 

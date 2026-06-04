@@ -28,15 +28,23 @@ function ComparisonRow({
   info?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-white/20 py-2.5 last:border-0 dark:border-slate-800/50">
-      <p className="truncate text-right text-sm font-semibold text-primary">{homeValue}</p>
-      <div className="flex min-w-0 max-w-[9rem] flex-col items-center gap-0.5 px-1 text-center sm:max-w-none">
-        <span className="flex items-center justify-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted">
-          <span className="truncate">{label}</span>
-          {info ? <InfoTip label={label}>{info}</InfoTip> : null}
+    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-3 border-b border-white/20 py-2.5 last:border-0 dark:border-slate-800/50 sm:gap-x-4">
+      <p className="min-w-0 truncate pr-2 text-right text-sm font-semibold tabular-nums text-primary">
+        {homeValue}
+      </p>
+      <div className="flex w-[6.75rem] max-w-[38vw] shrink-0 flex-col items-center justify-center gap-1 px-1 text-center sm:w-[8.5rem] sm:max-w-[9.5rem]">
+        <span className="w-full text-[10px] font-medium uppercase leading-snug tracking-wide text-muted sm:text-[11px]">
+          {label}
         </span>
+        {info ? (
+          <InfoTip label={label} side="bottom">
+            {info}
+          </InfoTip>
+        ) : null}
       </div>
-      <p className="truncate text-left text-sm font-semibold text-accent">{awayValue}</p>
+      <p className="min-w-0 truncate pl-2 text-left text-sm font-semibold tabular-nums text-accent">
+        {awayValue}
+      </p>
     </div>
   );
 }

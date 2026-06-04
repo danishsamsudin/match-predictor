@@ -57,7 +57,7 @@ export default function RootLayout({
             <div className="app-bg-gradient absolute inset-0" />
           </div>
           <Nav />
-          <main className="relative z-10 flex-1">{children}</main>
+          <main className="relative z-10 min-w-0 flex-1 overflow-x-hidden">{children}</main>
           <SiteFooter />
         </ThemeProvider>
       </body>

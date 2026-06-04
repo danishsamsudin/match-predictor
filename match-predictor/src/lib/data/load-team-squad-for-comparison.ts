@@ -24,6 +24,7 @@ import {
   resolveSofifaOverall,
   type ScoutlystSnapshotRow,
 } from "@/lib/data/resolve-squad-player-metrics";
+import { buildClubMetricsBySofascoreId } from "@/lib/data/build-club-metrics-for-lineup";
 import {
   aggregateLineupAppearances,
   pickLineupStartersFromAppearances,
@@ -225,10 +226,16 @@ export async function loadTeamSquadForComparison(
 
   if (!supabase) return empty;
 
+  const effectiveEntity = entityType ?? "club";
   const [lineupAgg, scoutlyst] = await Promise.all([
-    aggregateLineupAppearances(supabase, teamId, teamName),
+    aggregateLineupAppearances(supabase, teamId, teamName, 12, {
+      entityType: effectiveEntity,
+    }),
     loadLatestScoutlystByTeam(supabase, teamId),
   ]);
+  const { clubMinutesById, clubRatingById } = buildClubMetricsBySofascoreId(
+    scoutlyst.bySofascoreId
+  );
 
   const hasLineupData = lineupAgg.players.length > 0;
   const lineupFormation = lineupAgg.preferredFormation;
@@ -275,10 +282,20 @@ export async function loadTeamSquadForComparison(
         sofifaByTeam
       );
 
-    const inferredStarters = pickLineupStartersFromAppearances(
+    const inferredStarters = await pickLineupStartersFromAppearances(
       lineupAgg.players,
       lineupFormation,
-      qualityById
+      qualityById,
+      {
+        entityType: effectiveEntity,
+        clubMinutesById:
+          effectiveEntity === "national" ? clubMinutesById : undefined,
+        clubRatingById:
+          effectiveEntity === "national" ? clubRatingById : undefined,
+        supabase,
+        teamId,
+        teamName,
+      }
     );
     const starterIds = new Set(inferredStarters.map((p) => p.sofascorePlayerId));
     const inferredSubs = pickLineupSubstitutesFromAppearances(

@@ -1,5 +1,9 @@
 import type { EntityType, TeamOption } from "@/lib/types/football-lookup";
 import { TEAM_LOGO_ID_TO_NAME, TEAM_LOGO_NAME_TO_ID } from "@/lib/data/team-logo-manifest";
+import {
+  normalizeNationalTeamName,
+  WORLD_CUP_2026_TEAMS,
+} from "@/lib/data/world-cup-2026-teams";
 import { normalizeTeamName as normalizeTeamNameKey } from "@/lib/soccerdata/normalize";
 
 /** Public path for a locally stored team badge (see scripts/download-team-logos.mjs). */
@@ -71,6 +75,19 @@ export function nationalFlagUrl(teamName: string): string | undefined {
   const iso = NATIONAL_NAME_TO_ISO[teamName.trim()];
   if (!iso) return undefined;
   return `https://flagcdn.com/w160/${iso}.png`;
+}
+
+/** Flag for FBref / FIFA display names (resolves Korea Republic → South Korea, etc.). */
+export function resolveNationalFlagUrl(displayName: string): string | undefined {
+  const key = normalizeNationalTeamName(displayName);
+  const team = WORLD_CUP_2026_TEAMS.find(
+    (t) => normalizeNationalTeamName(t.name) === key
+  );
+  if (team) {
+    const flag = nationalFlagUrl(team.name);
+    if (flag) return flag;
+  }
+  return nationalFlagUrl(displayName);
 }
 
 function logoLookupKeys(team: TeamOption): string[] {

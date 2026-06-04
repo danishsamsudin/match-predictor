@@ -65,8 +65,13 @@ export function normalizeTeamStatsToBenchmark(
   const omega = getTeamStrengthMultiplier(ctx);
   if (omega >= 0.995) return stats;
 
-  const attackScale = getAttackScale(omega);
-  const defenseScale = getDefenseScale(omega);
+  const national = isNationalStrengthContext(ctx);
+  const attackScale = national
+    ? Math.pow(omega, 0.82)
+    : getAttackScale(omega);
+  const defenseScale = national
+    ? Math.pow(1 / omega, 0.42)
+    : getDefenseScale(omega);
   const scale = (v: number, mult: number) => Math.round(v * mult * 1000) / 1000;
 
   return {

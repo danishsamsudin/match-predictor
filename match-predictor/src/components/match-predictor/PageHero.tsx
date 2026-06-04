@@ -8,11 +8,11 @@ export function PageHero({
   description?: string;
 }) {
   return (
-    <div className="mb-10">
+    <div className="mb-6 sm:mb-10">
       <p className="page-hero-eyebrow mb-2 text-xs font-bold uppercase text-indigo-600 dark:text-cyan-400">
         {eyebrow}
       </p>
-      <h1 className="hero-title-glow text-4xl font-extrabold tracking-tighter sm:text-5xl">
+      <h1 className="hero-title-glow text-3xl font-extrabold tracking-tighter sm:text-4xl md:text-5xl">
         {title}
       </h1>
       {description && (

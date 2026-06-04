@@ -4,6 +4,7 @@ import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 
 const productLinks = [
   { href: "/", label: "Predict" },
+  { href: "/world-cup", label: "World Cup" },
   { href: "/predictions", label: "History" },
 ];
 

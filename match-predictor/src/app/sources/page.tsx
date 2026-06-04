@@ -43,6 +43,11 @@ const sources = [
     name: "FBref",
     detail: "Fallback squad and fixture data where primary feeds are incomplete.",
   },
+  {
+    name: "World Cup 2026 hub",
+    detail:
+      "Group tables, third-place matrix, and daily model lines are served from FBref imports in Supabase. Knockout routing uses FIFA Annex C combination tables. Not betting advice.",
+  },
 ];
 
 export default function SourcesPage() {

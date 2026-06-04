@@ -142,12 +142,14 @@ export async function POST(request: NextRequest) {
     const supabase = tryCreateServiceClient();
     if (supabase) {
       try {
+        const predictedAt = new Date().toISOString();
         const row: PredictionInsert = {
           match_id: input.matchId ?? 0,
           home_team_id: input.homeTeamId,
           away_team_id: input.awayTeamId,
           city: input.city,
           match_date: input.matchDate,
+          created_at: predictedAt,
           home_win_pct: result.homeWinPct,
           away_win_pct: result.awayWinPct,
           draw_pct: result.drawPct,

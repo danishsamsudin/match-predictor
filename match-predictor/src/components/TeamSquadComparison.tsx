@@ -31,28 +31,30 @@ function SquadPlayerRow({
 
   return (
     <li className="rounded-lg border border-white/20 bg-white/20 dark:border-slate-800/50 dark:bg-slate-900/30">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left"
-        aria-expanded={open}
-      >
-        <ChevronDown
-          className={`h-4 w-4 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
-          aria-hidden
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">{player.name}</p>
-          <p className="text-[11px] text-muted">
-            <span className={accentText}>{player.position}</span>
-            {player.fieldPosition && player.fieldPosition !== player.position ? (
-              <span className="text-muted"> · {player.fieldPosition}</span>
-            ) : null}
-            {player.startSharePct != null ? (
-              <span className="text-muted"> · {player.startSharePct}% starts</span>
-            ) : null}
-          </p>
-        </div>
+      <div className="flex w-full items-center gap-2 px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          aria-expanded={open}
+        >
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">{player.name}</p>
+            <p className="text-[11px] text-muted">
+              <span className={accentText}>{player.position}</span>
+              {player.fieldPosition && player.fieldPosition !== player.position ? (
+                <span className="text-muted"> · {player.fieldPosition}</span>
+              ) : null}
+              {player.startSharePct != null ? (
+                <span className="text-muted"> · {player.startSharePct}% starts</span>
+              ) : null}
+            </p>
+          </div>
+        </button>
         <span
           className={`inline-flex shrink-0 items-center gap-0.5 rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ${performanceBadgeClass(player.performanceScore)}`}
         >
@@ -61,7 +63,7 @@ function SquadPlayerRow({
             {TEAM_COMPARISON_GLOSSARY["Performance score"]}
           </InfoTip>
         </span>
-      </button>
+      </div>
       {open ? (
         <div className="border-t border-white/20 px-3 py-2 dark:border-slate-800/50">
           {player.age != null ? (

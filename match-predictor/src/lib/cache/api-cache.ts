@@ -66,7 +66,16 @@ export async function cachedFetch<T>(
     );
   }
 
-  const data = await opts.fetcher();
+  let data: T;
+  try {
+    data = await opts.fetcher();
+  } catch (fetchErr) {
+    if (cached?.response != null) {
+      return { data: cached.response as T, fromCache: true, stale: true };
+    }
+    throw fetchErr;
+  }
+
   const expiresAt = new Date(now.getTime() + opts.ttlMs);
 
   await supabase.from("api_cache").upsert({

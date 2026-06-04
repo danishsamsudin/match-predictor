@@ -1,0 +1,22 @@
+{
+  "version": "2026-host-cities-v1",
+  "venues": [
+    { "city": "Mexico City", "timezone": "America/Mexico_City", "altitude_meters": 2240, "country": "Mexico" },
+    { "city": "Guadalajara", "timezone": "America/Mexico_City", "altitude_meters": 1566, "country": "Mexico" },
+    { "city": "Monterrey", "timezone": "America/Monterrey", "altitude_meters": 538, "country": "Mexico" },
+    { "city": "Los Angeles", "timezone": "America/Los_Angeles", "altitude_meters": 94, "country": "USA" },
+    { "city": "San Francisco", "timezone": "America/Los_Angeles", "altitude_meters": 16, "country": "USA" },
+    { "city": "Seattle", "timezone": "America/Los_Angeles", "altitude_meters": 56, "country": "USA" },
+    { "city": "Vancouver", "timezone": "America/Vancouver", "altitude_meters": 2, "country": "Canada" },
+    { "city": "Dallas", "timezone": "America/Chicago", "altitude_meters": 131, "country": "USA" },
+    { "city": "Houston", "timezone": "America/Chicago", "altitude_meters": 13, "country": "USA" },
+    { "city": "Kansas City", "timezone": "America/Chicago", "altitude_meters": 277, "country": "USA" },
+    { "city": "Miami", "timezone": "America/New_York", "altitude_meters": 2, "country": "USA" },
+    { "city": "Atlanta", "timezone": "America/New_York", "altitude_meters": 320, "country": "USA" },
+    { "city": "Boston", "timezone": "America/New_York", "altitude_meters": 14, "country": "USA" },
+    { "city": "New York", "timezone": "America/New_York", "altitude_meters": 10, "country": "USA" },
+    { "city": "Philadelphia", "timezone": "America/New_York", "altitude_meters": 12, "country": "USA" },
+    { "city": "Denver", "timezone": "America/Denver", "altitude_meters": 1609, "country": "USA" },
+    { "city": "Toronto", "timezone": "America/Toronto", "altitude_meters": 76, "country": "Canada" }
+  ]
+}

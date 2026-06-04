@@ -68,7 +68,7 @@ async function resolveNationalTeamStatistics(
 
   const supabase = tryCreateServiceClient();
   if (supabase) {
-    const formEvents = await loadRecentFormEventsForTeam(supabase, teamId, teamName, 12);
+    const formEvents = await loadRecentFormEventsForTeam(supabase, teamId, teamName, 40);
     const derived = deriveTeamStatisticsFromFormEvents(
       formEvents,
       teamId,
@@ -163,7 +163,7 @@ export async function resolveRecentFormEvents(
   const supabase = tryCreateServiceClient();
   if (!supabase) return [];
 
-  const crossCompetition = await loadRecentFormEventsForTeam(supabase, teamId, teamName, 12);
+  const crossCompetition = await loadRecentFormEventsForTeam(supabase, teamId, teamName, 40);
   if (crossCompetition.length >= 5) return crossCompetition;
 
   if (effectiveEntity === "national" && crossCompetition.length) {
