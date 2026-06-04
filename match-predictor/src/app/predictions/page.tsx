@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { resolvePredictionTeamNamesBatch } from "@/lib/prediction/resolve-team-names";
 import { createServerClient } from "@/lib/supabase";
+import { formatKickoffLocal } from "@/lib/utils/kickoff-display";
 import { PageHero } from "@/components/match-predictor/PageHero";
 import { Calendar, MapPin } from "lucide-react";
 
@@ -102,11 +103,7 @@ export default async function PredictionsPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />
-                      {new Date(p.match_date).toLocaleString(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                        timeZoneName: "short",
-                      })}
+                      {formatKickoffLocal(p.match_date)}
                     </span>
                     <span className="text-xs uppercase tracking-wide">
                       Fixture #{p.match_id}

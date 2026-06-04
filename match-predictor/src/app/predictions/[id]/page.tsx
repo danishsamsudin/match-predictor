@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PredictionResultDisplay } from "@/components/PredictionResult";
 import { resolvePredictionTeamNames } from "@/lib/prediction/resolve-team-names";
 import { createServerClient } from "@/lib/supabase";
+import { formatKickoffLocal } from "@/lib/utils/kickoff-display";
 import { ArrowLeft, Calendar, MapPin } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -68,21 +69,13 @@ export default async function PredictionDetailPage({
           </span>
           <span className="flex items-center gap-1.5">
             <Calendar className="h-4 w-4" />
-            {new Date(data.match_date).toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-              timeZoneName: "short",
-            })}
+            {formatKickoffLocal(data.match_date)}
           </span>
           <span className="text-xs uppercase tracking-wide">Fixture #{data.match_id}</span>
         </div>
         <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
           Predicted{" "}
-          {new Date(data.created_at).toLocaleString(undefined, {
-            dateStyle: "medium",
-            timeStyle: "short",
-            timeZoneName: "short",
-          })}
+          {formatKickoffLocal(data.created_at)}
         </p>
       </div>
 
