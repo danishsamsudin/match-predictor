@@ -35,7 +35,7 @@ export const INTERNATIONAL_XG_CAP = 5;
  * Exponential FIFA scaling: λ = μ·e^(c·ΔR), μ_away = μ·e^(-c·ΔR).
  * c ≈ 0.00255 ⇒ ~2.9× λ per 400 ranking-point gap (avoids Poisson compression at ~1.25).
  */
-export const ELO_XG_EXPONENT_SCALE = 0.0028;
+export const ELO_XG_EXPONENT_SCALE = 0.00305;
 
 export interface InternationalRateSample {
   goalsFor: number;
@@ -196,7 +196,31 @@ function fifaAnchoredXg(
 export function resolveFormEloBlendWeight(fifaRatingDelta: number): number {
   const gap = Math.abs(fifaRatingDelta);
   if (gap <= 50) return FORM_ELO_BLEND;
-  return Math.min(0.92, FORM_ELO_BLEND + (gap - 50) / 480);
+  return Math.min(0.96, FORM_ELO_BLEND + (gap - 50) / 300);
+}
+
+/**
+ * When FIFA gap is large, cap how far short-window form can pull xG off the Elo anchor.
+ */
+export function constrainFormDeviationFromElo(
+  homeXg: number,
+  awayXg: number,
+  eloHome: number,
+  eloAway: number,
+  fifaRatingDelta: number
+): { homeXg: number; awayXg: number } {
+  const gap = Math.abs(fifaRatingDelta);
+  if (gap <= 80) {
+    return {
+      homeXg: clampInternationalBaselineXg(homeXg),
+      awayXg: clampInternationalBaselineXg(awayXg),
+    };
+  }
+  const keep = Math.max(0.22, 0.68 - gap / 520);
+  return {
+    homeXg: clampInternationalBaselineXg(eloHome + (homeXg - eloHome) * keep),
+    awayXg: clampInternationalBaselineXg(eloAway + (awayXg - eloAway) * keep),
+  };
 }
 
 function blendFormAndElo(
@@ -237,10 +261,17 @@ export function resolveInternationalExpectedGoals(input: {
   );
   const eloWeight = resolveFormEloBlendWeight(elo.ratingDelta);
   const blended = blendFormAndElo(formHome, formAway, elo.homeXg, elo.awayXg, eloWeight);
+  const constrained = constrainFormDeviationFromElo(
+    blended.homeXg,
+    blended.awayXg,
+    elo.homeXg,
+    elo.awayXg,
+    elo.ratingDelta
+  );
 
   return {
-    homeXg: blended.homeXg,
-    awayXg: blended.awayXg,
+    homeXg: constrained.homeXg,
+    awayXg: constrained.awayXg,
     snapshot: {
       mu,
       form_home_xg: Math.round(formHome * 1000) / 1000,
@@ -264,11 +295,18 @@ export function resolveInternationalExpectedGoals(input: {
   };
 }
 
-/** Dixon-Coles ρ for internationals — always negative to lift realistic draw mass. */
+/**
+ * Dixon-Coles ρ for internationals. Balanced ties keep mild negative ρ (draw mass);
+ * lopsided xG gaps use positive ρ so 0-0 / 1-1 cells do not dominate the heatmap.
+ */
 export function resolveInternationalScoreCorrelation(
   homeXg: number,
   awayXg: number
 ): number {
+  const diff = Math.abs(homeXg - awayXg);
+  if (diff >= 1.25) return 0.1;
+  if (diff >= 0.75) return 0.06;
+  if (diff >= 0.45) return 0.03;
   const total = homeXg + awayXg;
   if (total >= 3.1) return -0.08;
   if (total >= 2.4) return -0.11;
@@ -347,8 +385,13 @@ export function buildInternationalBaselineXg(input: {
   const structuralHome = (homeStats.goalsFor / mu) * (awayStats.goalsAgainst / mu) * mu;
   const structuralAway = (awayStats.goalsFor / mu) * (homeStats.goalsAgainst / mu) * mu;
 
-  let homeXg = 0.88 * anchored.homeXg + 0.12 * structuralHome;
-  let awayXg = 0.88 * anchored.awayXg + 0.12 * structuralAway;
+  const eloBlend =
+    (anchored.snapshot.form_elo_blend_effective as number | undefined) ?? FORM_ELO_BLEND;
+  const structuralWeight = 0.12 * (1 - Math.min(0.88, eloBlend));
+  const anchoredWeight = 1 - structuralWeight;
+
+  let homeXg = anchoredWeight * anchored.homeXg + structuralWeight * structuralHome;
+  let awayXg = anchoredWeight * anchored.awayXg + structuralWeight * structuralAway;
 
   const mom = Math.max(
     -INTERNATIONAL_MOMENTUM_CLAMP,

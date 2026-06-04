@@ -1,6 +1,7 @@
 /** Poisson-based score grid and common betting market probabilities. */
 
 import { resolveInternationalScoreCorrelation } from "@/lib/world-cup/international-strength";
+import { attenuateRhoForExpectedGoalGap } from "@/lib/world-cup/score-grid";
 import type { FirstTeamToScorePct } from "@/lib/types/prediction";
 import type { OverUnderLine, PredictionAnalytics, ScoreCell } from "@/lib/types/prediction";
 
@@ -167,7 +168,8 @@ export function resolveScoreMatrixCorrelation(
   options?: { international?: boolean }
 ): number {
   if (options?.international) {
-    return resolveInternationalScoreCorrelation(homeXg, awayXg);
+    const rho = resolveInternationalScoreCorrelation(homeXg, awayXg);
+    return attenuateRhoForExpectedGoalGap(rho, homeXg, awayXg);
   }
   if (isHighStakesCup) {
     return resolveCupFinalCorrelation(homeXg, awayXg, true);

@@ -41,6 +41,19 @@ describe("score matrix consistency", () => {
     expect(awayWin).toBeCloseTo(outcomes.awayWin, 3);
   });
 
+  it("favours away-win scorelines over 1-1 for lopsided internationals", () => {
+    const homeXg = 0.67;
+    const awayXg = 2.0;
+    const rho = resolveScoreMatrixCorrelation(homeXg, awayXg, true, {
+      international: true,
+    });
+    const top = buildScoreMatrix(homeXg, awayXg, 6, { correlation: rho })
+      .sort((a, b) => b.probability - a.probability)
+      .slice(0, 3);
+    expect(top[0].away).toBeGreaterThan(top[0].home);
+    expect(`${top[0].home}-${top[0].away}`).not.toBe("1-1");
+  });
+
   it("ranks away-win scorelines above draws when away xG dominates", () => {
     const homeXg = 0.85;
     const awayXg = 2.3;

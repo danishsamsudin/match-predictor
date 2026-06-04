@@ -207,10 +207,11 @@ describe("mismatched international score grid", () => {
     expect(Math.abs(wide)).toBeLessThan(Math.abs(base));
   });
 
-  it("suppresses 1-1 tau boost for Germany-class xG gaps (~0.7)", () => {
+  it("uses draw-deflating ρ for Germany-class xG gaps (~0.7)", () => {
     const base = resolveInternationalScoreCorrelation(1.12, 1.83);
     const rho = attenuateRhoForExpectedGoalGap(base, 1.12, 1.83);
-    expect(1 - rho).toBeLessThan(1.09);
-    expect(1 - rho).toBeGreaterThan(1.0);
+    expect(base).toBeGreaterThan(0);
+    expect(rho).toBeGreaterThan(0);
+    expect(rho).toBeLessThanOrEqual(base);
   });
 });
