@@ -63,8 +63,8 @@ export function normalizeTeamStatsToPremierLeague(
   const omega = getLeagueStrengthMultiplier(leagueId);
   if (omega >= 0.995) return stats;
 
-  const attackScale = omega;
-  const defenseScale = 1 / omega;
+  const attackScale = Math.pow(omega, 1);
+  const defenseScale = Math.pow(1 / omega, 0.65);
 
   const scale = (v: number, mult: number) =>
     Math.round(v * mult * 1000) / 1000;

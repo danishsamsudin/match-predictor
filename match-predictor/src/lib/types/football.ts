@@ -67,6 +67,8 @@ export interface LineupPlayer {
     pos: string;
     grid: string | null;
     averageRating?: number;
+    /** Benchmarked 0–100 performance score for LAV (neutral default 65). */
+    performanceScore?: number;
   };
 }
 

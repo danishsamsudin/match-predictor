@@ -90,17 +90,14 @@ export async function GET() {
         error instanceof UpstreamApiError
           ? error.message
           : "SofaScore health check failed.";
-      return NextResponse.json(
-        {
-          ok: false,
-          provider: "sofascore",
-          primary,
-          mode: "live",
-          footballApi: { usedToday: footballCallsToday, dailyLimit },
-          message,
-        },
-        { status: 502 }
-      );
+      return NextResponse.json({
+        ok: false,
+        provider: "sofascore",
+        primary,
+        mode: "live",
+        footballApi: { usedToday: footballCallsToday, dailyLimit },
+        message,
+      });
     }
   }
 
@@ -132,19 +129,16 @@ export async function GET() {
       error instanceof UpstreamApiError
         ? error.message
         : "SportAPI7 health check failed.";
-    return NextResponse.json(
-      {
-        ok: false,
-        provider: "sportapi7",
-        primary,
-        mode: "live",
-        baseUrl: getSportApiBaseUrl(),
-        host: getSportApiHost(),
-        footballApi: { usedToday: footballCallsToday, dailyLimit },
-        message,
-        subscribeUrl: "https://rapidapi.com/rapidsportapi/api/sportapi7",
-      },
-      { status: 502 }
-    );
+    return NextResponse.json({
+      ok: false,
+      provider: "sportapi7",
+      primary,
+      mode: "live",
+      baseUrl: getSportApiBaseUrl(),
+      host: getSportApiHost(),
+      footballApi: { usedToday: footballCallsToday, dailyLimit },
+      message,
+      subscribeUrl: "https://rapidapi.com/rapidsportapi/api/sportapi7",
+    });
   }
 }

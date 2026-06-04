@@ -1,8 +1,32 @@
-import type { FixtureLineup, TopScorer } from "@/lib/types/football";
+import type { FixtureLineup, LineupPlayer, TopScorer } from "@/lib/types/football";
 import type { LineupImpactResult } from "@/lib/types/prediction";
 
 const STARTER_FORM_THRESHOLD = 6.5;
 const BENCH_FORM_THRESHOLD = 6.3;
+export const LAV_BASELINE_SCORE = 65;
+const LAV_ATTACK_MIN = 0.75;
+const LAV_ATTACK_MAX = 1.15;
+const LAV_DEFENSE_MIN = 0.85;
+const LAV_DEFENSE_MAX = 1.2;
+
+const ATTACK_POSITIONS = new Set(["F", "M"]);
+const DEFENSE_POSITIONS = new Set(["D", "G"]);
+
+/** Neutral default — unrated players must not drag LAV toward zero. */
+export function resolvePlayerPerformanceScore(raw: number | null | undefined): number {
+  if (raw == null || !Number.isFinite(raw)) return LAV_BASELINE_SCORE;
+  return raw;
+}
+
+/** Map SofaScore-style average rating (~5–8) to 0–100 performance scale. */
+export function ratingToPerformanceScore(avgRating: number): number {
+  const scaled = (avgRating - 5) * 25 + 50;
+  return Math.round(Math.max(0, Math.min(100, scaled)));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
 
 function getStarterIds(lineup: FixtureLineup | undefined): Set<number> {
   if (!lineup) return new Set();
@@ -27,6 +51,49 @@ function getTopScorersForTeam(
       return goalsB - goalsA;
     })
     .slice(0, limit);
+}
+
+function playerScore(slot: LineupPlayer): number {
+  const raw =
+    slot.player.performanceScore ??
+    (slot.player.averageRating != null
+      ? ratingToPerformanceScore(slot.player.averageRating)
+      : null);
+  return resolvePlayerPerformanceScore(raw);
+}
+
+function averagePositionLav(
+  starters: LineupPlayer[],
+  positions: Set<string>
+): number | null {
+  const filtered = starters.filter((p) => positions.has(p.player.pos));
+  if (!filtered.length) return null;
+  const sum = filtered.reduce((acc, p) => acc + playerScore(p), 0);
+  return sum / filtered.length;
+}
+
+function computeLavMultipliers(lineup: FixtureLineup | undefined): {
+  attackMult: number;
+  defenseMult: number;
+} {
+  if (!lineup?.startXI.length) {
+    return { attackMult: 1, defenseMult: 1 };
+  }
+
+  const attackLav = averagePositionLav(lineup.startXI, ATTACK_POSITIONS);
+  const defenseLav = averagePositionLav(lineup.startXI, DEFENSE_POSITIONS);
+
+  const attackMult =
+    attackLav != null
+      ? clamp(attackLav / LAV_BASELINE_SCORE, LAV_ATTACK_MIN, LAV_ATTACK_MAX)
+      : 1;
+
+  const defenseMult =
+    defenseLav != null
+      ? clamp(LAV_BASELINE_SCORE / defenseLav, LAV_DEFENSE_MIN, LAV_DEFENSE_MAX)
+      : 1;
+
+  return { attackMult, defenseMult };
 }
 
 export function applySquadFormDecay(
@@ -75,9 +142,25 @@ export function computeLineupImpact(
   const homeStarters = getStarterIds(homeLineup);
   const awayStarters = getStarterIds(awayLineup);
 
-  let homeXgMultiplier = 1;
-  let awayXgMultiplier = 1;
+  const homeLav = computeLavMultipliers(homeLineup);
+  const awayLav = computeLavMultipliers(awayLineup);
+
+  let homeXgMultiplier = homeLav.attackMult;
+  let awayXgMultiplier = awayLav.attackMult;
+  let homeDefenseMultiplier = homeLav.defenseMult;
+  let awayDefenseMultiplier = awayLav.defenseMult;
   const notes: string[] = [];
+
+  if (homeLav.attackMult !== 1 || homeLav.defenseMult !== 1) {
+    notes.push(
+      `Home LAV — attack ×${homeLav.attackMult.toFixed(2)}, defense exposure ×${homeLav.defenseMult.toFixed(2)}.`
+    );
+  }
+  if (awayLav.attackMult !== 1 || awayLav.defenseMult !== 1) {
+    notes.push(
+      `Away LAV — attack ×${awayLav.attackMult.toFixed(2)}, defense exposure ×${awayLav.defenseMult.toFixed(2)}.`
+    );
+  }
 
   const homeTopScorers = getTopScorersForTeam(topScorers, homeTeamId);
   const awayTopScorers = getTopScorersForTeam(topScorers, awayTeamId);
@@ -85,25 +168,25 @@ export function computeLineupImpact(
   if (homeTopScorers.length > 0 && !homeStarters.has(homeTopScorers[0].player.id)) {
     homeXgMultiplier *= 0.8;
     notes.push(
-      `Home team missing top scorer ${homeTopScorers[0].player.name} (-20% xG).`
+      `Home team missing top scorer ${homeTopScorers[0].player.name} (-20% xG cap).`
     );
   }
 
   if (awayTopScorers.length > 0 && !awayStarters.has(awayTopScorers[0].player.id)) {
     awayXgMultiplier *= 0.8;
     notes.push(
-      `Away team missing top scorer ${awayTopScorers[0].player.name} (-20% xG).`
+      `Away team missing top scorer ${awayTopScorers[0].player.name} (-20% xG cap).`
     );
   }
 
   if (!hasGoalkeeper(homeLineup)) {
-    awayXgMultiplier *= 1.15;
-    notes.push("Home team missing starting goalkeeper (+15% away xG).");
+    awayDefenseMultiplier = Math.max(awayDefenseMultiplier, 1.15);
+    notes.push("Home team missing starting goalkeeper (+15% away xG cap).");
   }
 
   if (!hasGoalkeeper(awayLineup)) {
-    homeXgMultiplier *= 1.15;
-    notes.push("Away team missing starting goalkeeper (+15% home xG).");
+    homeDefenseMultiplier = Math.max(homeDefenseMultiplier, 1.15);
+    notes.push("Away team missing starting goalkeeper (+15% home xG cap).");
   }
 
   const homeDecay = applySquadFormDecay(homeLineup, homeXgMultiplier);
@@ -118,5 +201,11 @@ export function computeLineupImpact(
     notes.push("Full strength lineups expected - no major absences detected.");
   }
 
-  return { homeXgMultiplier, awayXgMultiplier, notes };
+  return {
+    homeXgMultiplier,
+    awayXgMultiplier,
+    homeDefenseMultiplier,
+    awayDefenseMultiplier,
+    notes,
+  };
 }

@@ -1,7 +1,12 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { applyTheme, getPreferredTheme, type Theme } from "@/lib/theme";
+import {
+  applyTheme,
+  DEFAULT_THEME,
+  resolveThemeFromStorage,
+  type Theme,
+} from "@/lib/theme";
 
 const ThemeContext = createContext<{
   theme: Theme;
@@ -10,11 +15,13 @@ const ThemeContext = createContext<{
 } | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => getPreferredTheme());
+  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
 
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    const next = resolveThemeFromStorage();
+    setThemeState(next);
+    applyTheme(next);
+  }, []);
 
   function setTheme(next: Theme) {
     setThemeState(next);

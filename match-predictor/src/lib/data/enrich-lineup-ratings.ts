@@ -1,3 +1,8 @@
+import {
+  LAV_BASELINE_SCORE,
+  ratingToPerformanceScore,
+  resolvePlayerPerformanceScore,
+} from "@/lib/prediction/lineup-impact";
 import type { FixtureLineup } from "@/lib/types/football";
 import type { SyncedPlayerRatingRow } from "@/lib/types/player-ratings";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -83,21 +88,26 @@ export async function enrichLineupsWithRatings(
     return sofifaToRating(overall);
   }
 
-  return lineups.map((lineup) => ({
-    ...lineup,
-    startXI: lineup.startXI.map((slot) => ({
-      ...slot,
-      player: {
-        ...slot.player,
-        averageRating: byId.get(slot.player.id) ?? resolveFallback(lineup.team.id, slot.player.name),
-      },
-    })),
-    substitutes: (lineup.substitutes ?? []).map((slot) => ({
-      ...slot,
-      player: {
-        ...slot.player,
-        averageRating: byId.get(slot.player.id) ?? resolveFallback(lineup.team.id, slot.player.name),
-      },
-    })),
-  }));
+  return lineups.map((lineup) => {
+    const enrichPlayer = (slot: (typeof lineups)[0]["startXI"][0]) => {
+      const averageRating =
+        byId.get(slot.player.id) ?? resolveFallback(lineup.team.id, slot.player.name);
+      const performanceScore = resolvePlayerPerformanceScore(
+        averageRating != null ? ratingToPerformanceScore(averageRating) : LAV_BASELINE_SCORE
+      );
+      return {
+        ...slot,
+        player: {
+          ...slot.player,
+          averageRating,
+          performanceScore,
+        },
+      };
+    };
+    return {
+      ...lineup,
+      startXI: lineup.startXI.map(enrichPlayer),
+      substitutes: (lineup.substitutes ?? []).map(enrichPlayer),
+    };
+  });
 }

@@ -10,8 +10,11 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { MarketComparisonPanel } from "./MarketComparisonPanel";
 import { PredictionCharts } from "./prediction-charts/PredictionCharts";
+import { LineupWhatIfEditor } from "./LineupWhatIfEditor";
 import { TeamComparisonPanel } from "./TeamComparisonPanel";
+import type { FixtureLineup } from "@/lib/types/football";
 import { InfoTip } from "./ui/InfoTip";
 import {
   getExplanationTip,
@@ -59,7 +62,15 @@ const SECTION_THEMES: Record<
   "Base Analysis": { accent: "primary", icon: TrendingUp },
 };
 
-export function PredictionResultCard({ result }: { result: PredictionResult }) {
+export function PredictionResultCard({
+  result,
+  onRerunWithLineups,
+  loading,
+}: {
+  result: PredictionResult;
+  onRerunWithLineups?: (lineups: FixtureLineup[]) => void;
+  loading?: boolean;
+}) {
   const [showExplanation, setShowExplanation] = useState(false);
   const homeLabel = result.homeTeamName ?? "Home";
   const awayLabel = result.awayTeamName ?? "Away";
@@ -105,6 +116,14 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
           <TeamComparisonPanel comparison={result.teamComparison} />
         ) : null}
 
+        {onRerunWithLineups ? (
+          <LineupWhatIfEditor
+            result={result}
+            onRerun={onRerunWithLineups}
+            loading={loading}
+          />
+        ) : null}
+
         {result.firstTeamToScorePct ? (
           <FirstTeamToScoreSection
             fts={result.firstTeamToScorePct}
@@ -114,6 +133,7 @@ export function PredictionResultCard({ result }: { result: PredictionResult }) {
         ) : null}
 
         <PredictionCharts result={result} />
+        <MarketComparisonPanel result={result} />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <StatBox

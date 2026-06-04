@@ -1,5 +1,8 @@
 export type Theme = "light" | "dark";
 
+/** SSR and first client paint — avoids hydration mismatch with stored preference. */
+export const DEFAULT_THEME: Theme = "dark";
+
 export const THEME_STORAGE_KEY = "dynamixg-theme";
 const LEGACY_THEME_STORAGE_KEY = "match-predictor-theme";
 
@@ -21,8 +24,7 @@ export function applyTheme(theme: Theme) {
   localStorage.setItem(THEME_STORAGE_KEY, theme);
 }
 
-export function getPreferredTheme(): Theme {
-  const stored = getStoredTheme();
-  if (stored) return stored;
-  return "light";
+/** User-saved theme after first visit; otherwise default dark. Client-only. */
+export function resolveThemeFromStorage(): Theme {
+  return getStoredTheme() ?? DEFAULT_THEME;
 }

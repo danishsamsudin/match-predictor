@@ -2,7 +2,7 @@
 
 import { getLocalTimezoneLabel } from "@/lib/utils/kickoff-display";
 import { Calendar, Clock, Loader2, MapPin } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export function FooterPill({
   city,
@@ -26,7 +26,12 @@ export function FooterPill({
   citySuggestions?: string[];
 }) {
   const [cityFocused, setCityFocused] = useState(false);
-  const timezoneLabel = useMemo(() => getLocalTimezoneLabel(), []);
+  /** Stable on server + first client paint; real label after mount (Intl differs Node vs browser). */
+  const [timezoneLabel, setTimezoneLabel] = useState("local");
+
+  useEffect(() => {
+    setTimezoneLabel(getLocalTimezoneLabel());
+  }, []);
 
   const filteredCities = useMemo(() => {
     const query = city.trim().toLowerCase();

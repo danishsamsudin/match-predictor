@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeStrengthMomentumEdge,
   formatStrengthExplanationLine,
+  getDefenseScale,
   getTeamStrengthMultiplier,
   isNationalStrengthContext,
 } from "./team-strength";
@@ -39,6 +40,13 @@ describe("formatStrengthExplanationLine", () => {
       leagueId: 39,
     });
     expect(line).toMatch(/Premier League/i);
+  });
+});
+
+describe("getDefenseScale", () => {
+  it("dampens reciprocal defense scale for weak omega", () => {
+    expect(getDefenseScale(0.4)).toBeCloseTo(Math.pow(1 / 0.4, 0.65), 3);
+    expect(getDefenseScale(0.4)).toBeLessThan(1 / 0.4);
   });
 });
 

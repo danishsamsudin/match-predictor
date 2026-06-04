@@ -23,8 +23,6 @@ export default async function PredictionsPage() {
     away_xg: number;
     created_at: string;
   }> = [];
-  let error: string | null = null;
-
   try {
     const supabase = createServerClient();
     const { data, error: fetchError } = await supabase
@@ -35,9 +33,7 @@ export default async function PredictionsPage() {
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (fetchError) {
-      error = fetchError.message;
-    } else {
+    if (!fetchError) {
       const rows = data ?? [];
       const teamNames = await resolvePredictionTeamNamesBatch(supabase, rows);
       predictions = rows.map((p) => {
@@ -63,8 +59,8 @@ export default async function PredictionsPage() {
         };
       });
     }
-  } catch (e) {
-    error = e instanceof Error ? e.message : "Failed to connect to Supabase";
+  } catch {
+    predictions = [];
   }
 
   return (
@@ -75,13 +71,7 @@ export default async function PredictionsPage() {
         description="Recent predictions you have saved."
       />
 
-      {error && (
-        <div className="system-banner mb-6 flex items-start gap-3 border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-          Could not load predictions: {error}. Run the Supabase migration and check your env vars.
-        </div>
-      )}
-
-      {predictions.length === 0 && !error ? (
+      {predictions.length === 0 ? (
         <div className="liquid-glass-panel rounded-[2rem] border border-dashed border-slate-300/50 p-12 text-center dark:border-slate-700/50">
           <p className="text-slate-500 dark:text-slate-400">No predictions yet.</p>
           <Link

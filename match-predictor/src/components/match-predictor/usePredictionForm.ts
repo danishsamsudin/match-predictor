@@ -1,8 +1,9 @@
 "use client";
 
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useState } from "react";
-import type { PredictionResult } from "@/lib/types/prediction";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FixtureLineup } from "@/lib/types/football";
+import type { PredictRequest, PredictionResult } from "@/lib/types/prediction";
 import type {
   CountryOption,
   EntityType,
@@ -38,6 +39,7 @@ export function usePredictionForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const lastPayloadRef = useRef<PredictRequest | null>(null);
 
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
@@ -69,50 +71,6 @@ export function usePredictionForm() {
   const [{ date: defaultDate, time: defaultTime }] = useState(getDefaultMatchDateTime);
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState(defaultTime);
-  const [fixtureNotice, setFixtureNotice] = useState<string | null>(null);
-  const [systemNotice, setSystemNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSystemStatus() {
-      try {
-        const res = await fetch("/api/football/status");
-        const data = (await res.json()) as {
-          mode?: string;
-          mockReason?: string | null;
-          dataSource?: string;
-          syncStatus?: { lastSuccessAt?: string | null };
-          message?: string;
-        };
-        if (cancelled) return;
-
-        if (data.mode === "mock") {
-          setSystemNotice(
-            "This deployment is using placeholder football data. Confirm RAPIDAPI_KEY and DATA_SOURCE=supabase are set for Production on Vercel, then redeploy. If they are already set, the latest app build may still be required to pick them up."
-          );
-          return;
-        }
-
-        if (data.dataSource === "supabase" && !data.syncStatus?.lastSuccessAt) {
-          setSystemNotice(
-            "Football data sync has not completed yet. Predictions may be incomplete until the daily sync runs or you trigger POST /api/cron/sync."
-          );
-          return;
-        }
-
-        setSystemNotice(null);
-      } catch {
-        if (!cancelled) setSystemNotice(null);
-      }
-    }
-
-    void loadSystemStatus();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const fetchLeagues = useCallback(async (country: string, type: EntityType) => {
     const res = await fetch(
       `/api/football/leagues?country=${encodeURIComponent(country)}&entityType=${type}`
@@ -136,12 +94,10 @@ export function usePredictionForm() {
     const data = await res.json();
     if (!res.ok) {
       if (shouldHideUserFacingWarning(data.error)) {
-        setFixtureNotice(null);
         return [];
       }
       throw new Error(sanitizeUserFacingMessage(data.error) ?? "Failed to load fixtures");
     }
-    setFixtureNotice(sanitizeUserFacingMessage(data.message));
     return (data.fixtures ?? []) as FixtureOption[];
   }, []);
 
@@ -344,7 +300,6 @@ export function usePredictionForm() {
       .catch(async (err) => {
         if (cancelled) return;
         setFixtures([]);
-        setFixtureNotice(null);
         const message =
           err instanceof Error ? err.message : "Could not load upcoming matches.";
         setError(sanitizeUserFacingMessage(message));
@@ -477,6 +432,7 @@ export function usePredictionForm() {
         );
         return;
       }
+      lastPayloadRef.current = payload as PredictRequest;
       setResult(data);
     } catch {
       setError("Network error - please try again.");
@@ -485,9 +441,34 @@ export function usePredictionForm() {
     }
   }
 
+  const rerunWithCustomLineups = useCallback(async (customLineups: FixtureLineup[]) => {
+    const base = lastPayloadRef.current;
+    if (!base) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...base, customLineups }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(
+          sanitizeUserFacingMessage(data.error) ?? "Unable to complete prediction. Please try again."
+        );
+        return;
+      }
+      setResult(data);
+    } catch {
+      setError("Network error - please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     loading,
-    error,
     result,
     countries,
     loadingCountries,
@@ -528,8 +509,6 @@ export function usePredictionForm() {
     setDate,
     time,
     setTime,
-    fixtureNotice,
-    systemNotice,
     homeLeagueName,
     awayLeagueName,
     matchLeagueName,
@@ -540,6 +519,7 @@ export function usePredictionForm() {
     applyFixture,
     submitDisabled,
     handleSubmit,
+    rerunWithCustomLineups,
   };
 }
 

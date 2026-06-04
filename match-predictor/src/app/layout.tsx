@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { Nav } from "@/components/Nav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
-import { THEME_STORAGE_KEY } from "@/lib/theme";
+import { DEFAULT_THEME } from "@/lib/theme";
+import { buildThemeInitScript } from "@/lib/theme-init-script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,7 +34,7 @@ export const metadata: Metadata = {
   },
 };
 
-const themeInitScript = `(function(){try{var k=${JSON.stringify(THEME_STORAGE_KEY)};var leg="match-predictor-theme";var t=localStorage.getItem(k);if(t!=='dark'&&t!=='light'){var o=localStorage.getItem(leg);if(o==='dark'||o==='light'){localStorage.setItem(k,o);t=o;}}var theme=t==='dark'||t==='light'?t:'light';document.documentElement.dataset.theme=theme;}catch(e){document.documentElement.dataset.theme='light';}})();`;
+const themeInitScript = buildThemeInitScript();
 
 export default function RootLayout({
   children,
@@ -42,13 +44,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-theme={DEFAULT_THEME}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
       <body className="relative flex min-h-full flex-col text-foreground">
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
         <ThemeProvider>
           <div className="app-bg pointer-events-none fixed inset-0 z-0 bg-background" aria-hidden="true">
             <div className="app-bg-gradient absolute inset-0" />

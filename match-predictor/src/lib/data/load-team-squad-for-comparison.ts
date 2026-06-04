@@ -7,6 +7,7 @@ import { loadOfficialWcSquadForComparison } from "@/lib/data/load-official-wc-sq
 import { loadFbrefTeamSquadSnapshot } from "@/lib/fbref/comparison-fallback";
 import { resolveWc2026TeamLabel } from "@/lib/data/world-cup-2026-official-squads";
 import { loadPreferredFormationForTeam } from "@/lib/data/team-formations";
+import { buildLineupQualityMap } from "@/lib/data/build-lineup-quality-map";
 import {
   computePlayerPerformanceScore,
   sofifaOverallToScore,
@@ -112,45 +113,6 @@ async function loadLatestScoutlystByTeam(
   };
 }
 
-
-function buildLineupQualityMap(
-  players: LineupAppearanceAgg[],
-  ctx: {
-    bySofascoreId: Map<number, ScoutlystRow>;
-    byName: Map<string, ScoutlystRow>;
-    globalByName: Map<string, ScoutlystRow>;
-    matchRatings: Map<number, number>;
-    sofifaByName: Map<string, number>;
-    sofifaGlobalByName: Map<string, number>;
-  }
-): Map<number, number> {
-  const qualityById = new Map<number, number>();
-  for (const p of players) {
-    const displayName = formatPlayerDisplayNameIfNeeded(p.name);
-    const scout =
-      ctx.bySofascoreId.get(p.sofascorePlayerId) ??
-      resolveScoutlystSnapshot(displayName, ctx.byName) ??
-      resolveScoutlystSnapshot(displayName, ctx.globalByName) ??
-      null;
-    const position = p.fieldPosition ?? scout?.position ?? p.position;
-    const fromStats = computePlayerPerformanceScore({
-      scoutlystRating: scout?.rating ?? null,
-      matchAvgRating: ctx.matchRatings.get(p.sofascorePlayerId) ?? null,
-      stats: scout?.stats ?? {},
-      position,
-    });
-    const sofifaOverall = resolveSofifaOverall(
-      displayName,
-      ctx.sofifaGlobalByName,
-      ctx.sofifaByName
-    );
-    const fromSofifa =
-      sofifaOverall != null ? sofifaOverallToScore(sofifaOverall) : null;
-    const score = maxPerformanceInputs(fromStats, fromSofifa);
-    if (score != null && score > 0) qualityById.set(p.sofascorePlayerId, score);
-  }
-  return qualityById;
-}
 
 function resolveScoutlyst(
   sofascorePlayerId: number,

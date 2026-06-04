@@ -6,6 +6,10 @@ import {
 } from "@/lib/api/football";
 import { getWeatherForecast } from "@/lib/api/weather";
 import { enrichLineupsWithRatings } from "@/lib/data/enrich-lineup-ratings";
+import {
+  formatMuSourceLabel,
+  resolveCompetitionAvgGoals,
+} from "@/lib/data/resolve-competition-avg-goals";
 import { getTeamCity, resolveDomesticLeagueId } from "@/lib/data/football-reference";
 import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
 import {
@@ -15,6 +19,7 @@ import {
   normalizeTeamStatsToBenchmark,
 } from "@/lib/prediction/team-strength";
 import { computeBaseProbability, computeMomentumIndex } from "@/lib/prediction/base-probability";
+import { getMomentumWeights } from "@/lib/prediction/form-momentum";
 import {
   resolveLeagueStrengthForTeam,
   resolveTeamStatsForFixture,
@@ -44,6 +49,7 @@ import type {
 
 /** Minimum xG floor before Poisson grid evaluation. */
 const XG_FLOOR = 0.3;
+const MODEL_VERSION = "v2";
 function normalizeTo100(
   home: number,
   draw: number,
@@ -144,12 +150,22 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     computeFormScore(bundle.awayForm, awayTeamId),
     awayStrengthCtx
   );
-  const h2h = computeH2HRates(bundle.h2h, homeTeamId);
+  const h2h = computeH2HRates(bundle.h2h, homeTeamId, {
+    entityType: input.entityType,
+    referenceDate: matchDate,
+    leagueId: fixtureLeagueId,
+  });
+
+  const muResult = await resolveCompetitionAvgGoals({
+    leagueId: fixtureLeagueId,
+    entityType: input.entityType,
+    seasonId: season,
+  });
 
   const homeStatsBenchmark = normalizeTeamStatsToBenchmark(homeStats, homeStrengthCtx);
   const awayStatsBenchmark = normalizeTeamStatsToBenchmark(awayStats, awayStrengthCtx);
 
-  const base = computeBaseProbability({
+  const baseInput = {
     homeFormScore,
     awayFormScore,
     h2hHomeWinRate: h2h.homeWinRate,
@@ -160,16 +176,16 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     homeStats: homeStatsBenchmark,
     awayStats: awayStatsBenchmark,
     isNeutralVenue: neutralVenue,
-  });
+    leagueAvgGoals: muResult.mu,
+  };
+
+  const base = computeBaseProbability(baseInput);
 
   const momentumIndex = computeMomentumIndex({
-    homeFormScore,
-    awayFormScore,
-    h2hHomeWinRate: h2h.homeWinRate,
-    h2hDrawRate: h2h.drawRate,
-    h2hAwayWinRate: h2h.awayWinRate,
+    ...baseInput,
     h2hHasData: h2h.hasData,
     h2hMeetingCount: bundle.h2h.length,
+    h2hMaxMeetingAgeMonths: h2h.maxMeetingAgeMonths,
     homeLeagueStrength,
     awayLeagueStrength,
     homeLeagueId: homeLeagueIdForStrength,
@@ -183,10 +199,11 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     awayStats: awayStatsBenchmark,
   });
 
-  let lineupsForImpact = bundle.lineups;
+  let lineupsForImpact =
+    input.customLineups?.length ? input.customLineups : bundle.lineups;
   const supabase = tryCreateServiceClient();
   if (supabase) {
-    lineupsForImpact = await enrichLineupsWithRatings(bundle.lineups, {
+    lineupsForImpact = await enrichLineupsWithRatings(lineupsForImpact, {
       entityType: input.entityType,
       supabase,
     });
@@ -255,8 +272,16 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   let yellowCards = base.yellowCards;
   let redCards = base.redCards;
 
-  homeXg *= lineup.homeXgMultiplier * weatherImpact.homeXgMultiplier * stadium.homeXgMultiplier;
-  awayXg *= lineup.awayXgMultiplier * weatherImpact.awayXgMultiplier * stadium.awayXgMultiplier;
+  homeXg *=
+    lineup.homeXgMultiplier *
+    weatherImpact.homeXgMultiplier *
+    stadium.homeXgMultiplier;
+  awayXg *=
+    lineup.awayXgMultiplier *
+    weatherImpact.awayXgMultiplier *
+    stadium.awayXgMultiplier;
+  awayXg *= lineup.homeDefenseMultiplier ?? 1;
+  homeXg *= lineup.awayDefenseMultiplier ?? 1;
 
   if (highStakesCup) {
     homeXg *= HIGH_STAKES_XG_CAUTION;
@@ -336,7 +361,13 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
       awayLeagueStrength,
       strengthCtx
     ),
-    `Momentum index: ${momentumIndex.toFixed(3)} (form 35% + H2H 65%).`,
+    (() => {
+      const { w1, w2 } = getMomentumWeights(input.entityType, homeLeagueIdForStrength);
+      const pctForm = Math.round(w1 * 100);
+      const pctH2h = Math.round(w2 * 100);
+      return `Momentum index: ${momentumIndex.toFixed(3)} (form ${pctForm}% + H2H ${pctH2h}%, log-linear model ${MODEL_VERSION}).`;
+    })(),
+    `Competition μ=${muResult.mu.toFixed(2)} (${formatMuSourceLabel(muResult.source, muResult.competitionClass)}).`,
     `${homeTeamName} form score: ${(homeFormScore * 100).toFixed(0)}% | ${awayTeamName} form score: ${(awayFormScore * 100).toFixed(0)}%.`,
     h2h.hasData
       ? `H2H rates - ${homeTeamName} win: ${(h2h.homeWinRate * 100).toFixed(0)}%, Draw: ${(h2h.drawRate * 100).toFixed(0)}%, ${awayTeamName} win: ${(h2h.awayWinRate * 100).toFixed(0)}%.`
@@ -421,6 +452,11 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     awayFormScore,
     momentumIndex,
     modelImpact: [
+      {
+        label: `Competition μ (${muResult.source})`,
+        homeMultiplier: muResult.mu,
+        awayMultiplier: muResult.mu,
+      },
       { label: "Lineup", homeMultiplier: lineup.homeXgMultiplier, awayMultiplier: lineup.awayXgMultiplier },
       {
         label: "Weather",
@@ -443,6 +479,7 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   }
 
   return {
+    modelVersion: MODEL_VERSION,
     homeTeamName,
     awayTeamName,
     homeTeamShortName,

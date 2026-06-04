@@ -78,6 +78,8 @@ export function pickStartersByFormation<T extends PickablePlayer>(
   options?: {
     qualityById?: Map<number, number>;
     limit?: number;
+    /** When true, only count actual starts (not sub appearances) toward XI slots. */
+    requireStarts?: boolean;
   }
 ): T[] {
   const limit = options?.limit ?? 11;
@@ -96,7 +98,8 @@ export function pickStartersByFormation<T extends PickablePlayer>(
   const used = new Set<number>();
   let gkCount = 0;
 
-  const hasAppearances = (p: T) => p.starts > 0 || p.subAppearances > 0;
+  const hasAppearances = (p: T) =>
+    options?.requireStarts ? p.starts > 0 : p.starts > 0 || p.subAppearances > 0;
 
   const take = (pos: "G" | "D" | "M" | "F", count: number) => {
     for (const player of sorted) {

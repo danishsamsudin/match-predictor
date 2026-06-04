@@ -1,11 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runPrediction } from "@/lib/prediction/engine";
 import { tryCreateServiceClient, type Database } from "@/lib/supabase";
+import type { FixtureLineup } from "@/lib/types/football";
 import type { PredictRequest } from "@/lib/types/prediction";
 import { sanitizeUserFacingMessage } from "@/lib/api/user-facing-messages";
 import { RateLimitError, UpstreamApiError } from "@/lib/types/prediction";
 
 type PredictionInsert = Database["public"]["Tables"]["predictions"]["Insert"];
+
+function parseCustomLineups(raw: unknown): FixtureLineup[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const lineups: FixtureLineup[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return undefined;
+    const row = item as Record<string, unknown>;
+    const team = row.team as { id?: number; name?: string } | undefined;
+    if (!team || !Number.isFinite(Number(team.id))) return undefined;
+    const startXI = row.startXI;
+    if (!Array.isArray(startXI)) return undefined;
+    lineups.push({
+      team: { id: Number(team.id), name: String(team.name ?? "Team") },
+      formation: String(row.formation ?? "4-3-3"),
+      startXI: startXI as FixtureLineup["startXI"],
+      substitutes: Array.isArray(row.substitutes)
+        ? (row.substitutes as FixtureLineup["substitutes"])
+        : [],
+    });
+  }
+  return lineups.length ? lineups : undefined;
+}
 
 function validateBody(body: unknown): PredictRequest | null {
   if (!body || typeof body !== "object") return null;
@@ -42,6 +65,7 @@ function validateBody(body: unknown): PredictRequest | null {
       : undefined;
   const city = typeof b.city === "string" ? b.city.trim() : "";
   const matchDate = typeof b.matchDate === "string" ? b.matchDate.trim() : "";
+  const customLineups = parseCustomLineups(b.customLineups);
 
   if (
     !Number.isFinite(homeTeamId) ||
@@ -72,6 +96,7 @@ function validateBody(body: unknown): PredictRequest | null {
       awayTeamShortName,
       city,
       matchDate,
+      customLineups,
     };
   }
 
@@ -93,6 +118,7 @@ function validateBody(body: unknown): PredictRequest | null {
     awayTeamShortName,
     city,
     matchDate,
+    customLineups,
   };
 }
 

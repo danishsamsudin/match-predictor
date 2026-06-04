@@ -187,8 +187,9 @@ export function TeamSquadComparison({
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
         Squad comparison
         <InfoTip label="Squad comparison">
-          Usual starting XI and bench from recent match lineups. Performance score (0-100) blends
-          player ratings and recent form. Tap a player for detail stats.
+          Predicted matchday XI from recent international or club lineups when available; World Cup
+          squads use the official 26-man roster. Performance score (0-100) blends ratings and form.
+          Tap a player for detail stats.
         </InfoTip>
       </h3>
 

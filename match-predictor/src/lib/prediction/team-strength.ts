@@ -45,6 +45,19 @@ export function getTeamStrengthMultiplier(ctx: TeamStrengthContext): number {
   return getLeagueStrengthMultiplier(ctx.leagueId);
 }
 
+/** Defense normalization dampening (1/ω^k). */
+export const DEFENSE_DAMPEN_EXP = 0.65;
+/** Attack dampening exponent; 1 = linear ω. Set to 0.85 in calibration if lower leagues under-score. */
+export const ATTACK_DAMPEN_EXP = 1;
+
+export function getAttackScale(omega: number): number {
+  return Math.pow(omega, ATTACK_DAMPEN_EXP);
+}
+
+export function getDefenseScale(omega: number): number {
+  return Math.pow(1 / omega, DEFENSE_DAMPEN_EXP);
+}
+
 export function normalizeTeamStatsToBenchmark(
   stats: TeamStatAverages,
   ctx: TeamStrengthContext
@@ -52,8 +65,8 @@ export function normalizeTeamStatsToBenchmark(
   const omega = getTeamStrengthMultiplier(ctx);
   if (omega >= 0.995) return stats;
 
-  const attackScale = omega;
-  const defenseScale = 1 / omega;
+  const attackScale = getAttackScale(omega);
+  const defenseScale = getDefenseScale(omega);
   const scale = (v: number, mult: number) => Math.round(v * mult * 1000) / 1000;
 
   return {

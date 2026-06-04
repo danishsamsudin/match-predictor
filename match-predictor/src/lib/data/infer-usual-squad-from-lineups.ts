@@ -132,7 +132,8 @@ export async function aggregateLineupAppearances(
 export function pickLineupStartersFromAppearances(
   players: LineupAppearanceAgg[],
   formation: string | null,
-  qualityById?: Map<number, number>
+  qualityById?: Map<number, number>,
+  options?: { requireStarts?: boolean }
 ): LineupAppearanceAgg[] {
   const mapped = players.map((p) => ({
     ...p,
@@ -140,7 +141,10 @@ export function pickLineupStartersFromAppearances(
     dominantPosition: () =>
       dominantStartPosition(p.startPositionCounts, p.fieldPosition ?? p.position),
   }));
-  const picked = pickStartersByFormation(mapped, formation, { qualityById });
+  const picked = pickStartersByFormation(mapped, formation, {
+    qualityById,
+    requireStarts: options?.requireStarts,
+  });
   if (picked.length > 0) {
     return picked.map(({ id, ...rest }) => {
       const source = players.find((p) => p.sofascorePlayerId === id);

@@ -73,6 +73,7 @@ const POINTS_BY_NORMALIZED_NAME: Record<string, number> = Object.fromEntries(
 
 const STATIC_MAX_FIFA_POINTS = Math.max(...Object.values(FIFA_RANKING_POINTS_BY_TEAM_ID));
 const DEFAULT_FIFA_POINTS = 1400;
+const ELO_SCALE = 400;
 
 function resolvePoints(teamId: number, teamName?: string): number {
   const fromDb = teamName?.trim()
@@ -92,10 +93,22 @@ function maxFifaPoints(): number {
   return getMaxFifaPointsInLatestSnapshot() ?? STATIC_MAX_FIFA_POINTS;
 }
 
-/** Ω — national team quality vs the top FIFA-ranked side in our dataset (1.0 = best). */
+/** Elo-style expectancy vs benchmark rating (Ω ∈ (0, 1], 1 = equals benchmark). */
+export function getFifaEloExpectancy(
+  teamPoints: number,
+  benchmarkPoints: number,
+  scale = ELO_SCALE
+): number {
+  const exponent = (benchmarkPoints - teamPoints) / scale;
+  const omega = 1 / (1 + Math.pow(10, exponent));
+  return Math.round(omega * 1000) / 1000;
+}
+
+/** Ω — national team quality vs the top FIFA-ranked side (Elo expectancy, 1.0 = best). */
 export function getFifaStrengthMultiplier(teamId: number, teamName?: string): number {
   const effective = resolvePoints(teamId, teamName);
-  return Math.round((effective / maxFifaPoints()) * 1000) / 1000;
+  const benchmark = maxFifaPoints();
+  return getFifaEloExpectancy(effective, benchmark);
 }
 
 export function getFifaRankingPoints(teamId: number, teamName?: string): number | null {

@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { PredictionResultCard } from "./PredictionResult";
 import { FixturePickerSheet } from "./match-predictor/FixturePickerSheet";
 import { MatchPredictorShell } from "./match-predictor/MatchPredictorShell";
-import { SystemBanner } from "./match-predictor/SystemBanner";
 import { TeamPickerSheet } from "./match-predictor/TeamPickerSheet";
-import { sanitizeUserFacingMessage } from "@/lib/api/user-facing-messages";
 import { usePredictionForm } from "./match-predictor/usePredictionForm";
 
 export function PredictionForm() {
@@ -14,43 +12,6 @@ export function PredictionForm() {
   const [homeSheetOpen, setHomeSheetOpen] = useState(false);
   const [awaySheetOpen, setAwaySheetOpen] = useState(false);
   const [fixtureSheetOpen, setFixtureSheetOpen] = useState(false);
-
-  const bannerItems = useMemo(() => {
-    const items: Array<{
-      id: string;
-      variant: "warning" | "info";
-      message: React.ReactNode;
-    }> = [];
-
-    const systemNotice = sanitizeUserFacingMessage(form.systemNotice);
-    if (systemNotice) {
-      items.push({
-        id: "system-notice",
-        variant: "warning",
-        message: systemNotice,
-      });
-    }
-
-    const fixtureNotice = sanitizeUserFacingMessage(form.fixtureNotice);
-    if (fixtureNotice) {
-      items.push({
-        id: "fixture-notice",
-        variant: "info",
-        message: fixtureNotice,
-      });
-    }
-
-    const error = sanitizeUserFacingMessage(form.error);
-    if (error) {
-      items.push({
-        id: "error",
-        variant: "warning",
-        message: error,
-      });
-    }
-
-    return items;
-  }, [form.systemNotice, form.fixtureNotice, form.error]);
 
   const showFixturePicker =
     form.inputMode === "fixture" && form.entityType === "club";
@@ -90,8 +51,6 @@ export function PredictionForm() {
         <input type="hidden" name="homeTeamId" value={form.homeTeamId} />
         <input type="hidden" name="awayTeamId" value={form.awayTeamId} />
       </MatchPredictorShell>
-
-      <SystemBanner items={bannerItems} />
 
       <TeamPickerSheet
         open={homeSheetOpen}
@@ -155,7 +114,11 @@ export function PredictionForm() {
 
       {form.result && (
         <div className="mx-auto mt-8 max-w-6xl">
-          <PredictionResultCard result={form.result} />
+          <PredictionResultCard
+            result={form.result}
+            onRerunWithLineups={form.rerunWithCustomLineups}
+            loading={form.loading}
+          />
         </div>
       )}
     </div>

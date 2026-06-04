@@ -1,7 +1,10 @@
+import type { FixtureLineup } from "@/lib/types/football";
 import type { TeamComparisonSnapshot } from "@/lib/types/team-comparison";
 
 export interface PredictRequest {
   mode?: "fixture" | "compare";
+  /** Override predicted lineups for what-if analysis. */
+  customLineups?: FixtureLineup[];
   matchId?: number;
   homeTeamId: number;
   awayTeamId: number;
@@ -57,6 +60,7 @@ export interface PredictionAnalytics {
 }
 
 export interface PredictionResult {
+  modelVersion?: string;
   id?: string;
   homeTeamName?: string;
   awayTeamName?: string;
@@ -106,6 +110,8 @@ export interface BaseProbabilityInput {
   awayStats: TeamStatAverages;
   /** When true, suppress asymmetric home/away momentum tilts (neutral venue). */
   isNeutralVenue?: boolean;
+  /** Competition-average goals per team per match (μ). */
+  leagueAvgGoals?: number;
 }
 
 export interface BaseProbabilityOutput {
@@ -120,6 +126,10 @@ export interface BaseProbabilityOutput {
 export interface LineupImpactResult {
   homeXgMultiplier: number;
   awayXgMultiplier: number;
+  /** Opponent xG multiplier when home defense is weak (LAV). */
+  homeDefenseMultiplier?: number;
+  /** Opponent xG multiplier when away defense is weak (LAV). */
+  awayDefenseMultiplier?: number;
   notes: string[];
 }
 

@@ -56,6 +56,23 @@ describe("score matrix consistency", () => {
   });
 });
 
+describe("Dixon-Coles low-score cells", () => {
+  it("adjusts 0-0 and 1-0 only via ρ on final λ (not momentum layer)", () => {
+    const homeXg = 1.1;
+    const awayXg = 0.95;
+    const maxGoals = 5;
+    const noRho = buildScoreMatrix(homeXg, awayXg, maxGoals, { correlation: 0 });
+    const withRho = buildScoreMatrix(homeXg, awayXg, maxGoals, { correlation: -0.12 });
+
+    const cell = (matrix: ReturnType<typeof buildScoreMatrix>, h: number, a: number) =>
+      matrix.find((c) => c.home === h && c.away === a)?.probability ?? 0;
+
+    expect(cell(withRho, 0, 0)).not.toBeCloseTo(cell(noRho, 0, 0), 6);
+    expect(cell(withRho, 1, 0)).not.toBeCloseTo(cell(noRho, 1, 0), 6);
+    expect(cell(withRho, 2, 1)).toBeCloseTo(cell(noRho, 2, 1), 6);
+  });
+});
+
 describe("computeFirstTeamToScoreFromMatrix", () => {
   it("varies no-goal share with xG instead of a flat 10%", () => {
     const low = computeFirstTeamToScoreFromMatrix(0.35, 0.4, 8);

@@ -7,26 +7,32 @@ import type {
 
 export { computeMomentumIndex };
 
-/** Home momentum damping γ_home. */
-const GAMMA_HOME = 0.18;
+/**
+ * Dixon-Coles τ (ρ) is applied only in market-probabilities.ts to **final** λ after
+ * lineup, weather, stadium, and cup adjustments — never inside momentum exponentials here.
+ */
+
+/** Home momentum damping γ_home (log-linear). */
+const GAMMA_HOME = 0.15;
 /** Away momentum damping γ_away. */
-const GAMMA_AWAY = 0.15;
-/** League-average goals per team per match (μ). */
-const LEAGUE_AVG_GOALS = 1.35;
+const GAMMA_AWAY = 0.13;
+/** Fallback μ when caller omits leagueAvgGoals. */
+export const GLOBAL_LEAGUE_AVG_GOALS = 1.35;
 /** Baseline total match xG for corner velocity scaling. */
 const CORNER_XG_BASELINE = 2.7;
 
 /**
- * Structural baseline λ₀, μ₀ with league-normalized attack (α) and raw defense (β),
- * then momentum-adjusted tilde-xG (λ̃, μ̃).
+ * Structural baseline λ with league-normalized attack (α) and defense (β),
+ * then log-linear momentum-adjusted xG.
  */
 export function computeBaseProbability(input: BaseProbabilityInput): BaseProbabilityOutput {
   const { homeStats, awayStats, isNeutralVenue = false } = input;
+  const mu = input.leagueAvgGoals ?? GLOBAL_LEAGUE_AVG_GOALS;
 
-  const homeAttack = homeStats.goalsFor / LEAGUE_AVG_GOALS;
-  const homeDefense = homeStats.goalsAgainst / LEAGUE_AVG_GOALS;
-  const awayAttack = awayStats.goalsFor / LEAGUE_AVG_GOALS;
-  const awayDefense = awayStats.goalsAgainst / LEAGUE_AVG_GOALS;
+  const homeAttack = homeStats.goalsFor / mu;
+  const homeDefense = homeStats.goalsAgainst / mu;
+  const awayAttack = awayStats.goalsFor / mu;
+  const awayDefense = awayStats.goalsAgainst / mu;
 
   const combinedStrength = computeMomentumIndex(input);
 
@@ -34,9 +40,9 @@ export function computeBaseProbability(input: BaseProbabilityInput): BaseProbabi
   const gammaAway = isNeutralVenue ? 0 : GAMMA_AWAY;
 
   const homeXg =
-    homeAttack * awayDefense * LEAGUE_AVG_GOALS * (1 + gammaHome * combinedStrength);
+    homeAttack * awayDefense * mu * Math.exp(gammaHome * combinedStrength);
   const awayXg =
-    awayAttack * homeDefense * LEAGUE_AVG_GOALS * (1 - gammaAway * combinedStrength);
+    awayAttack * homeDefense * mu * Math.exp(-gammaAway * combinedStrength);
 
   const totalMatchXg = homeXg + awayXg;
 
@@ -61,12 +67,12 @@ export function statsFromAverages(
   home: TeamStatAverages,
   away: TeamStatAverages
 ): BaseProbabilityOutput {
-  const lambda0 = home.goalsFor * away.goalsAgainst;
-  const mu0 = away.goalsFor * home.goalsAgainst;
-
+  const mu = GLOBAL_LEAGUE_AVG_GOALS;
+  const homeXg = (home.goalsFor / mu) * (away.goalsAgainst / mu) * mu;
+  const awayXg = (away.goalsFor / mu) * (home.goalsAgainst / mu) * mu;
   return {
-    homeXg: lambda0,
-    awayXg: mu0,
+    homeXg,
+    awayXg,
     corners: home.corners + away.corners,
     fouls: home.fouls + away.fouls,
     yellowCards: home.yellowCards + away.yellowCards,

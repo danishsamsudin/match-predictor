@@ -1,10 +1,13 @@
 import { stableSyntheticPlayerId } from "@/lib/data/build-squad-from-scoutlyst";
+import { buildLineupQualityMap } from "@/lib/data/build-lineup-quality-map";
 import {
   computePlayerPerformanceScore,
   sofifaOverallToScore,
 } from "@/lib/data/compute-player-performance-score";
 import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
 import { aggregateLineupAppearances } from "@/lib/data/infer-usual-squad-from-lineups";
+import type { LineupAppearanceAgg } from "@/lib/data/infer-usual-squad-from-lineups";
+import { pickOfficialWcMatchdayXi } from "@/lib/data/official-wc-matchday-xi";
 import {
   buildPlayerDetailStats,
   type PlayerDisplayStat,
@@ -13,11 +16,6 @@ import {
   comparePlayersByPosition,
   positionDisplayLabel,
 } from "@/lib/data/normalize-player-position";
-import {
-  pickSquadFromRecords,
-  squadPickRecordFromStats,
-  type SquadPickRecord,
-} from "@/lib/data/pick-squad-from-records";
 import { loadPreferredFormationForTeam } from "@/lib/data/team-formations";
 import {
   loadMatchRatingsByPlayerIds,
@@ -69,13 +67,25 @@ function sortSquadPlayers(players: SquadPlayer[]): SquadPlayer[] {
   });
 }
 
+function scoutlystBySofascoreId(
+  snapshots: Map<string, ScoutlystSnapshotRow>
+): Map<number, ScoutlystSnapshotRow> {
+  const byId = new Map<number, ScoutlystSnapshotRow>();
+  for (const row of snapshots.values()) {
+    if (row.sofascore_player_id != null && !byId.has(row.sofascore_player_id)) {
+      byId.set(row.sofascore_player_id, row);
+    }
+  }
+  return byId;
+}
+
 function toSquadPlayer(input: {
   official: OfficialWcPlayer;
   scoutlyst: ScoutlystSnapshotRow | null;
   sofifaOverall: number | null;
   matchAvgRating: number | null;
   sofascorePlayerId: number;
-  isStarter: boolean;
+  startSharePct: number | null;
   teamId: number;
   teamName: string;
   entityType?: EntityType;
@@ -114,33 +124,64 @@ function toSquadPlayer(input: {
     position: positionDisplayLabel(positionLabel),
     fieldPosition: positionLabel,
     performanceScore,
-    startSharePct: input.isStarter ? null : null,
+    startSharePct: input.startSharePct,
     detailStats,
     age: input.scoutlyst?.age ?? ageFromDob(input.official.dob),
   };
 }
 
-function officialPlayerToRecord(
-  player: OfficialWcPlayer,
-  teamName: string,
-  rating: number | null
-): SquadPickRecord {
-  const displayName = formatPlayerDisplayNameIfNeeded(player.name);
-  const id = `wc2026:${teamName}:${normalizeText(displayName)}`;
-  const row = squadPickRecordFromStats({
-    id,
-    name: displayName,
-    position: player.position,
-    stats: {
-      club: player.club,
-      height_cm: player.heightCm,
-    },
-    rating,
+function mapAppearanceToSquadPlayer(
+  appearance: LineupAppearanceAgg,
+  ctx: {
+    officialByNorm: Map<string, OfficialWcPlayer>;
+    scoutlystByName: Map<string, ScoutlystSnapshotRow>;
+    lineupIdByName: Map<string, number>;
+    sofifaGlobal: Map<string, number>;
+    sofifaTeam: Map<string, number>;
+    matchRatings: Map<number, number>;
+    teamLabel: string;
+    teamId: number;
+    teamName: string;
+    entityType?: EntityType;
+    benchmarkLeagueId: number;
+    startSharePct: number | null;
+  }
+): SquadPlayer {
+  const displayName = formatPlayerDisplayNameIfNeeded(appearance.name);
+  const norm = normalizeText(displayName);
+  const src =
+    ctx.officialByNorm.get(norm) ??
+    ({
+      name: displayName,
+      position: appearance.position ?? "MID",
+      dob: "",
+      club: "",
+      heightCm: 0,
+    } satisfies OfficialWcPlayer);
+  const scout = resolveScoutlystSnapshot(displayName, ctx.scoutlystByName);
+  const lineupId = ctx.lineupIdByName.get(norm);
+  const sofascorePlayerId =
+    appearance.sofascorePlayerId > 0
+      ? appearance.sofascorePlayerId
+      : (scout?.sofascore_player_id ??
+        lineupId ??
+        stableSyntheticPlayerId(`wc2026:${ctx.teamLabel}:${norm}`));
+
+  return toSquadPlayer({
+    official: { ...src, name: displayName },
+    scoutlyst: scout,
+    sofifaOverall: resolveSofifaOverall(displayName, ctx.sofifaGlobal, ctx.sofifaTeam),
+    matchAvgRating: ctx.matchRatings.get(sofascorePlayerId) ?? null,
+    sofascorePlayerId,
+    startSharePct: ctx.startSharePct,
+    teamId: ctx.teamId,
+    teamName: ctx.teamName,
+    entityType: ctx.entityType,
+    benchmarkLeagueId: ctx.benchmarkLeagueId,
   });
-  return { ...row, starts: 1 };
 }
 
-/** Build squad comparison snapshot from FIFA official 26-man list. */
+/** Official 26-man roster with predicted matchday XI from recent international lineups. */
 export async function loadOfficialWcSquadForComparison(
   supabase: ServiceClient | null,
   teamId: number,
@@ -160,10 +201,9 @@ export async function loadOfficialWcSquadForComparison(
     formatPlayerDisplayNameIfNeeded(p.name)
   );
 
-  const formation = supabase
+  const storedFormation = supabase
     ? await loadPreferredFormationForTeam(supabase, teamId, teamLabel)
     : null;
-  const formationForXi = formation ?? "4-3-3";
 
   const [scoutlystByName, sofifaGlobal, sofifaTeam, lineupAgg] = supabase
     ? await Promise.all([
@@ -176,11 +216,11 @@ export async function loadOfficialWcSquadForComparison(
         new Map<string, ScoutlystSnapshotRow>(),
         new Map<string, number>(),
         new Map<string, number>(),
-        null,
+        { players: [], preferredFormation: null, formations: [] },
       ];
 
   const lineupIdByName = new Map<string, number>();
-  for (const p of lineupAgg?.players ?? []) {
+  for (const p of lineupAgg.players) {
     const key = normalizeText(formatPlayerDisplayNameIfNeeded(p.name));
     if (!lineupIdByName.has(key)) lineupIdByName.set(key, p.sofascorePlayerId);
   }
@@ -195,22 +235,31 @@ export async function loadOfficialWcSquadForComparison(
       stableSyntheticPlayerId(`wc2026:${teamLabel}:${normalizeText(name)}`);
     if (id > 0) sofascoreIds.add(id);
   }
+  for (const p of lineupAgg.players) {
+    if (p.sofascorePlayerId > 0) sofascoreIds.add(p.sofascorePlayerId);
+  }
 
-  const matchRatings = await loadMatchRatingsByPlayerIds(
-    supabase,
-    [...sofascoreIds]
-  );
+  const matchRatings = await loadMatchRatingsByPlayerIds(supabase, [...sofascoreIds]);
 
-  const records = official.players.map((player) => {
-    const displayName = formatPlayerDisplayNameIfNeeded(player.name);
-    const scout = resolveScoutlystSnapshot(displayName, scoutlystByName);
-    return officialPlayerToRecord(player, teamLabel, scout?.rating ?? null);
+  const qualityById = buildLineupQualityMap(lineupAgg.players, {
+    bySofascoreId: scoutlystBySofascoreId(scoutlystByName),
+    byName: scoutlystByName,
+    globalByName: scoutlystByName,
+    matchRatings,
+    sofifaByName: sofifaTeam,
+    sofifaGlobalByName: sofifaGlobal,
   });
-  const { starters: starterRecords, substitutes: subRecords } = pickSquadFromRecords(
-    records,
-    formationForXi,
-    { benchLimit: null }
-  );
+
+  const matchday = pickOfficialWcMatchdayXi({
+    officialPlayers: official.players,
+    lineupPlayers: lineupAgg.players,
+    lineupPreferredFormation: lineupAgg.preferredFormation,
+    storedFormation,
+    formationDefault: "4-3-3",
+    qualityById,
+    teamLabel,
+    scoutlystByName,
+  });
 
   const officialByNorm = new Map(
     official.players.map(
@@ -218,49 +267,47 @@ export async function loadOfficialWcSquadForComparison(
     )
   );
 
-  const mapRecord = (record: SquadPickRecord, isStarter: boolean): SquadPlayer => {
-    const displayName = formatPlayerDisplayNameIfNeeded(record.name);
-    const src =
-      officialByNorm.get(normalizeText(displayName)) ??
-      ({
-        name: displayName,
-        position: record.position ?? "MID",
-        dob: "",
-        club: String(record.stats.club ?? ""),
-        heightCm: Number(record.stats.height_cm ?? 0),
-      } satisfies OfficialWcPlayer);
-    const scout = resolveScoutlystSnapshot(displayName, scoutlystByName);
-    const lineupId = lineupIdByName.get(normalizeText(displayName));
-    const sofascorePlayerId =
-      scout?.sofascore_player_id ??
-      lineupId ??
-      stableSyntheticPlayerId(`wc2026:${teamLabel}:${normalizeText(displayName)}`);
-
-    return toSquadPlayer({
-      official: { ...src, name: displayName },
-      scoutlyst: scout,
-      sofifaOverall: resolveSofifaOverall(displayName, sofifaGlobal, sofifaTeam),
-      matchAvgRating: matchRatings.get(sofascorePlayerId) ?? null,
-      sofascorePlayerId,
-      isStarter,
-      teamId,
-      teamName,
-      entityType: options?.entityType,
-      benchmarkLeagueId,
-    });
+  const totalStarts = matchday.starters.reduce((sum, p) => sum + p.starts, 0) || 1;
+  const mapCtx = {
+    officialByNorm,
+    scoutlystByName,
+    lineupIdByName,
+    sofifaGlobal,
+    sofifaTeam,
+    matchRatings,
+    teamLabel,
+    teamId,
+    teamName,
+    entityType: options?.entityType,
+    benchmarkLeagueId,
   };
+
+  const starters = sortSquadPlayers(
+    matchday.starters.map((p) =>
+      mapAppearanceToSquadPlayer(p, {
+        ...mapCtx,
+        startSharePct: Math.round((p.starts / totalStarts) * 100),
+      })
+    )
+  );
+
+  const substitutes = sortSquadPlayers(
+    matchday.substitutes.map((p) =>
+      mapAppearanceToSquadPlayer(p, { ...mapCtx, startSharePct: null })
+    )
+  );
 
   const hasScoutlystData = displayNames.some((name) =>
     Boolean(resolveScoutlystSnapshot(name, scoutlystByName))
   );
 
   return {
-    starters: sortSquadPlayers(starterRecords.map((r) => mapRecord(r, true))),
-    substitutes: sortSquadPlayers(subRecords.map((r) => mapRecord(r, false))),
-    hasLineupData: Boolean(lineupAgg?.players.length),
+    starters,
+    substitutes,
+    hasLineupData: Boolean(lineupAgg.players.length),
     hasScoutlystData,
-    squadSource: "fifa_official",
-    preferredFormation: formationForXi,
+    squadSource: matchday.squadSource,
+    preferredFormation: matchday.preferredFormation,
     snapshotDate: officialWcSquadPublishedDate(),
     coach: official.coach,
   };
