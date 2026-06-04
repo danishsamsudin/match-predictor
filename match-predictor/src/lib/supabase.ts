@@ -784,6 +784,12 @@ export type Database = {
           date: string | null;
           time: string | null;
           venue: string | null;
+          venue_city: string | null;
+          venue_altitude_meters: number | null;
+          group_code: string | null;
+          status: string | null;
+          rest_hours_home: number | null;
+          rest_hours_away: number | null;
           home_team_id: string | null;
           away_team_id: string | null;
           attendance: number | null;

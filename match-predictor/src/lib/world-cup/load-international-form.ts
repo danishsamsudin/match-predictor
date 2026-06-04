@@ -5,11 +5,10 @@ import {
   listFbrefTeamsByIds,
 } from "@/lib/fbref/supabase-store";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase";
+import type { tryCreateServiceClient } from "@/lib/supabase";
 import type { SportApiEvent } from "@/lib/types/sportapi";
 
-type ServiceClient = SupabaseClient<Database>;
+type ServiceClient = NonNullable<ReturnType<typeof tryCreateServiceClient>>;
 
 export type InternationalFormMatch = {
   date: string | null;

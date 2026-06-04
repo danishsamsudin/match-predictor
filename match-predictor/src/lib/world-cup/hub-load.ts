@@ -23,12 +23,14 @@ import {
   type WcMatchRow,
 } from "@/lib/world-cup/standings";
 
+type HubMatchRow = WcMatchRow & { home_team_name: string; away_team_name: string };
+
 export type WorldCupHubPayload = {
   updatedAt: string;
   groupMatrix: Record<string, ReturnType<typeof computeAllGroupStandings>[string]>;
   thirdPlaceRanking: ReturnType<typeof computeThirdPlaceWildcards>;
   knockoutProjection: ReturnType<typeof buildKnockoutProjection>;
-  recent: Array<WcMatchRow & { home_team_name: string; away_team_name: string }>;
+  recent: HubMatchRow[];
   upcoming: Array<
     WcMatchRow & {
       home_team_name: string;
@@ -51,7 +53,7 @@ function mapMatch(
   row: Record<string, unknown>,
   teamNames: Map<string, string>,
   teamToGroup: Map<string, string>
-): WcMatchRow & { home_team_name: string; away_team_name: string } {
+): HubMatchRow {
   const homeId = row.home_team_id as string | null;
   const awayId = row.away_team_id as string | null;
   return {
@@ -87,10 +89,10 @@ function mapMatch(
 }
 
 function enrichMatchesForHub(
-  matches: WcMatchRow[],
+  matches: HubMatchRow[],
   teamNames: Map<string, string>,
   teamToGroup: Map<string, string>
-): WcMatchRow[] {
+): HubMatchRow[] {
   return matches.map((m) => {
     const patch = enrichMatchEnvironment(m, matches, teamNames, {
       teamToGroup,
@@ -133,8 +135,8 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
 
   const teamNames = new Map((teamsRes.data ?? []).map((t) => [t.id, t.name]));
   const teamToGroup = buildTeamIdToGroupMap(teamNames);
-  const rawMatches = (matchesRes.data ?? []).map((r) =>
-    mapMatch(r as Record<string, unknown>, teamNames, teamToGroup)
+  const rawMatches: HubMatchRow[] = (matchesRes.data ?? []).map((r) =>
+    mapMatch(r, teamNames, teamToGroup)
   );
   const scoped = filterWorldCup2026GroupStageMatches(rawMatches, teamToGroup);
   const matches = enrichMatchesForHub(scoped, teamNames, teamToGroup);
@@ -164,7 +166,7 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
 
   const knockoutProjection = buildKnockoutProjection(thirdPlaceRanking, allMd3Done);
 
-  const recent = matches
+  const recent: HubMatchRow[] = matches
     .filter((m) => m.status === "finished")
     .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
     .slice(0, 12);

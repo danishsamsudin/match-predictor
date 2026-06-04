@@ -97,12 +97,13 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
   if (!supabase) {
     return { ok: false, matchesEnriched: 0, predictionsUpserted: 0, errors: ["No Supabase client"] };
   }
+  const client = supabase;
 
-  const { data: teams } = await supabase.from("teams").select("id, name");
+  const { data: teams } = await client.from("teams").select("id, name");
   const teamNames = new Map((teams ?? []).map((t) => [t.id, t.name]));
   const teamToGroup = buildTeamIdToGroupMap(teamNames);
 
-  const { data: rawMatches, error: matchErr } = await supabase
+  const { data: rawMatches, error: matchErr } = await client
     .from("matches")
     .select(
       "id, date, time, venue, round, competition, group_code, home_team_id, away_team_id, home_goals, away_goals"
@@ -140,7 +141,7 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
     } catch {
       /* columns may not exist until migration 018 applied */
     }
-    const { error } = await wcDb(supabase).from("matches").update(updatePayload).eq("id", m.id);
+    const { error } = await wcDb(client).from("matches").update(updatePayload).eq("id", m.id);
     if (!error) {
       matchesEnriched += 1;
       Object.assign(m, patch);
@@ -161,7 +162,7 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
   async function formForTeam(teamId: string, teamName: string): Promise<InternationalFormMatch[]> {
     const cached = internationalFormCache.get(teamId);
     if (cached) return cached;
-    const loaded = await loadInternationalFormMatchesForTeam(supabase, teamId, teamName);
+    const loaded = await loadInternationalFormMatchesForTeam(client, teamId, teamName);
     internationalFormCache.set(teamId, loaded);
     return loaded;
   }
@@ -239,7 +240,7 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
           priorHomeVenueTz: env.prior_home_tz,
           priorAwayVenueTz: env.prior_away_tz,
         });
-        const { error } = await wcDb(supabase).from("world_cup_predictions").upsert({
+        const { error } = await wcDb(client).from("world_cup_predictions").upsert({
           match_id: fx.id,
           ...pred,
           computed_at: new Date().toISOString(),
@@ -285,7 +286,7 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
       priorAwayVenueTz: env.prior_away_tz,
     });
 
-    const { error } = await wcDb(supabase).from("world_cup_predictions").upsert({
+    const { error } = await wcDb(client).from("world_cup_predictions").upsert({
       match_id: match.id,
       ...pred,
       computed_at: new Date().toISOString(),

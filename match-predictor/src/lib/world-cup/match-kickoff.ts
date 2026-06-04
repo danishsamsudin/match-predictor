@@ -14,8 +14,8 @@ function parseClock(time: string | null | undefined): { hour: number; minute: nu
 
 /** UTC epoch ms for kickoff in the host city's timezone (null if date missing). */
 export function resolveWcKickoffUtcMs(input: {
-  date: string | null | undefined;
-  time: string | null | undefined;
+  date?: string | null | undefined;
+  time?: string | null | undefined;
   venueCity?: string | null;
 }): number | null {
   const date = input.date?.trim().slice(0, 10);

@@ -89,8 +89,8 @@ export function isWorldCup2026GroupStageMatch(
 }
 
 /** Collapse squad-log duplicates and schedule rows for the same pairing on the same date. */
-export function dedupeWorldCupMatches(matches: WcMatchRow[]): WcMatchRow[] {
-  const byKey = new Map<string, WcMatchRow>();
+export function dedupeWorldCupMatches<T extends WcMatchRow>(matches: T[]): T[] {
+  const byKey = new Map<string, T>();
 
   for (const m of matches) {
     const key = pairDateKey(m.home_team_id, m.away_team_id, m.date);
@@ -104,10 +104,10 @@ export function dedupeWorldCupMatches(matches: WcMatchRow[]): WcMatchRow[] {
   return [...byKey.values()];
 }
 
-export function filterWorldCup2026GroupStageMatches(
-  matches: WcMatchRow[],
+export function filterWorldCup2026GroupStageMatches<T extends WcMatchRow>(
+  matches: T[],
   teamToGroup: Map<string, string>
-): WcMatchRow[] {
+): T[] {
   return dedupeWorldCupMatches(matches).filter((m) =>
     isWorldCup2026GroupStageMatch(m, teamToGroup)
   );
