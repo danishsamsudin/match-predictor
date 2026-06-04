@@ -3,6 +3,7 @@ import { confederationStrengthModifier } from "@/lib/world-cup/confederation-str
 import {
   computeInternationalRatesFromMatches,
   internationalMatchTierWeight,
+  pullInternationalXgTowardFifaAnchor,
   resolveInternationalExpectedGoals,
   resolveInternationalScoreCorrelation,
 } from "@/lib/world-cup/international-strength";
@@ -79,6 +80,17 @@ describe("resolveInternationalExpectedGoals", () => {
     expect(awayXg).toBeLessThan(1.35);
   });
 
+  it("pulls compressed post-shock xG back toward FIFA for mismatches", () => {
+    const pulled = pullInternationalXgTowardFifaAnchor(1.05, 1.22, {
+      homeTeamId: 4739,
+      awayTeamId: 4481,
+      homeName: "Senegal",
+      awayName: "France",
+    });
+    expect(pulled.awayXg - pulled.homeXg).toBeGreaterThan(0.75);
+    expect(pulled.awayXg).toBeGreaterThan(1.55);
+  });
+
   it("spreads xG for top-tier vs strong contender (France vs Senegal)", () => {
     const { homeXg, awayXg } = resolveInternationalExpectedGoals({
       homeTeamId: 4481,
@@ -92,7 +104,7 @@ describe("resolveInternationalExpectedGoals", () => {
     expect(homeXg).toBeGreaterThan(1.8);
     expect(awayXg).toBeLessThan(0.95);
     const rho = attenuateRhoForExpectedGoalGap(
-      resolveInternationalScoreCorrelation(homeXg, awayXg),
+      resolveInternationalScoreCorrelation(homeXg, awayXg, -188),
       homeXg,
       awayXg
     );
@@ -185,6 +197,20 @@ describe("confederationStrengthModifier", () => {
 });
 
 describe("mismatched international score grid", () => {
+  it("does not peak on 1-1 when FIFA gap is large but post-shock xG is compressed", () => {
+    const homeXg = 1.05;
+    const awayXg = 1.22;
+    const rho = attenuateRhoForExpectedGoalGap(
+      resolveInternationalScoreCorrelation(homeXg, awayXg, -188),
+      homeXg,
+      awayXg
+    );
+    const { cells } = buildGuardedScoreMatrix(homeXg, awayXg, rho, false);
+    const top = cells.reduce((best, c) => (c.probability > best.probability ? c : best));
+    expect(top.away).toBeGreaterThan(top.home);
+    expect(`${top.home}-${top.away}`).not.toBe("1-1");
+  });
+
   it("does not peak on 1-1 when the stronger side has a clear xG edge", () => {
     const homeXg = 0.85;
     const awayXg = 1.73;

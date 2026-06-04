@@ -174,7 +174,8 @@ export async function runWorldCupPrediction(
   let mu = baseline.awayXg * gammaAway * deltaAway * motivation.sigmaAway;
 
   const rhoBase =
-    resolveInternationalScoreCorrelation(lambda, mu) + motivation.rhoOffset;
+    resolveInternationalScoreCorrelation(lambda, mu, baseline.snapshot.fifa_rating_delta as number) +
+    motivation.rhoOffset;
   const rho = attenuateRhoForExpectedGoalGap(rhoBase, lambda, mu);
   const mutualDraw = motivation.scenario.includes("mutual_draw");
 

@@ -161,6 +161,16 @@ export function computeInternationalRatesFromMatches(
   };
 }
 
+export function resolveFifaRatingDelta(
+  homeTeamId: number,
+  awayTeamId: number,
+  homeName?: string,
+  awayName?: string
+): number {
+  return fifaAnchoredXg(homeTeamId, awayTeamId, homeName, awayName, INTERNATIONAL_BASE_GOALS)
+    .ratingDelta;
+}
+
 function fifaAnchoredXg(
   homeTeamId: number,
   awayTeamId: number,
@@ -297,20 +307,60 @@ export function resolveInternationalExpectedGoals(input: {
 
 /**
  * Dixon-Coles ρ for internationals. Balanced ties keep mild negative ρ (draw mass);
- * lopsided xG gaps use positive ρ so 0-0 / 1-1 cells do not dominate the heatmap.
+ * lopsided gaps (xG or FIFA) use positive ρ so 0-0 / 1-1 cells do not dominate the heatmap.
  */
 export function resolveInternationalScoreCorrelation(
   homeXg: number,
-  awayXg: number
+  awayXg: number,
+  fifaRatingDelta?: number
 ): number {
-  const diff = Math.abs(homeXg - awayXg);
-  if (diff >= 1.25) return 0.1;
-  if (diff >= 0.75) return 0.06;
-  if (diff >= 0.45) return 0.03;
+  const xgDiff = Math.abs(homeXg - awayXg);
+  const impliedFromFifa =
+    fifaRatingDelta != null ? Math.abs(fifaRatingDelta) / 280 : 0;
+  const effectiveDiff = Math.max(xgDiff, impliedFromFifa);
+
+  if (effectiveDiff >= 1.25) return 0.1;
+  if (effectiveDiff >= 0.75) return 0.06;
+  if (effectiveDiff >= 0.28) return 0.04;
   const total = homeXg + awayXg;
   if (total >= 3.1) return -0.08;
   if (total >= 2.4) return -0.11;
   return -0.14;
+}
+
+/**
+ * After lineup / venue shocks, pull λ/μ back toward the FIFA anchor when ranking gap is large.
+ */
+export function pullInternationalXgTowardFifaAnchor(
+  homeXg: number,
+  awayXg: number,
+  input: {
+    homeTeamId: number;
+    awayTeamId: number;
+    homeName?: string;
+    awayName?: string;
+    mu?: number;
+  }
+): { homeXg: number; awayXg: number; fifaRatingDelta: number } {
+  const mu = input.mu ?? INTERNATIONAL_BASE_GOALS;
+  const elo = fifaAnchoredXg(
+    input.homeTeamId,
+    input.awayTeamId,
+    input.homeName,
+    input.awayName,
+    mu
+  );
+  const gap = Math.abs(elo.ratingDelta);
+  if (gap <= 90) {
+    return { homeXg, awayXg, fifaRatingDelta: elo.ratingDelta };
+  }
+
+  const pull = Math.min(0.72, (gap - 90) / 180);
+  return {
+    homeXg: clampInternationalBaselineXg(homeXg * (1 - pull) + elo.homeXg * pull),
+    awayXg: clampInternationalBaselineXg(awayXg * (1 - pull) + elo.awayXg * pull),
+    fifaRatingDelta: elo.ratingDelta,
+  };
 }
 
 export function wcHubRatesFromHistory(

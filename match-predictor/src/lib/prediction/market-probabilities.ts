@@ -165,10 +165,14 @@ export function resolveScoreMatrixCorrelation(
   homeXg: number,
   awayXg: number,
   isHighStakesCup: boolean,
-  options?: { international?: boolean }
+  options?: { international?: boolean; fifaRatingDelta?: number }
 ): number {
   if (options?.international) {
-    const rho = resolveInternationalScoreCorrelation(homeXg, awayXg);
+    const rho = resolveInternationalScoreCorrelation(
+      homeXg,
+      awayXg,
+      options.fifaRatingDelta
+    );
     return attenuateRhoForExpectedGoalGap(rho, homeXg, awayXg);
   }
   if (isHighStakesCup) {

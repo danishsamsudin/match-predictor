@@ -42,7 +42,11 @@ import {
   computeStadiumImpact,
   INTERNATIONAL_HOST_CITY_CAP,
 } from "@/lib/prediction/stadium-impact";
-import { buildInternationalBaselineXg } from "@/lib/world-cup/international-strength";
+import {
+  buildInternationalBaselineXg,
+  pullInternationalXgTowardFifaAnchor,
+  resolveFifaRatingDelta,
+} from "@/lib/world-cup/international-strength";
 import { clampMomentumIndex } from "@/lib/prediction/form-momentum";
 import { computeWeatherImpact } from "@/lib/prediction/weather-impact";
 import { buildTeamComparisonSnapshot } from "@/lib/data/build-team-comparison";
@@ -210,6 +214,15 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
 
   const internationalMomentum = clampMomentumIndex(momentumIndex * 0.55);
 
+  const fifaRatingDelta = internationalFixture
+    ? resolveFifaRatingDelta(
+        homeTeamId,
+        awayTeamId,
+        input.homeTeamName,
+        input.awayTeamName
+      )
+    : undefined;
+
   let base = internationalFixture
     ? buildInternationalBaselineXg({
         mu: muResult.mu,
@@ -312,9 +325,26 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   awayXg *= lineup.homeDefenseMultiplier ?? 1;
   homeXg *= lineup.awayDefenseMultiplier ?? 1;
 
-  if (highStakesCup) {
+  const skipHighStakesCaution =
+    internationalFixture &&
+    fifaRatingDelta != null &&
+    Math.abs(fifaRatingDelta) > 120;
+
+  if (highStakesCup && !skipHighStakesCaution) {
     homeXg *= HIGH_STAKES_XG_CAUTION;
     awayXg *= HIGH_STAKES_XG_CAUTION;
+  }
+
+  if (internationalFixture) {
+    const pulled = pullInternationalXgTowardFifaAnchor(homeXg, awayXg, {
+      homeTeamId,
+      awayTeamId,
+      homeName: input.homeTeamName,
+      awayName: input.awayTeamName,
+      mu: muResult.mu,
+    });
+    homeXg = pulled.homeXg;
+    awayXg = pulled.awayXg;
   }
 
   homeXg = Math.max(XG_FLOOR, homeXg);
@@ -332,6 +362,7 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   const scoreMatrixMaxGoals = resolveScoreMatrixMaxGoals(homeXg, awayXg);
   const scoreCorrelation = resolveScoreMatrixCorrelation(homeXg, awayXg, highStakesCup, {
     international: internationalFixture,
+    fifaRatingDelta,
   });
   const probs = computeOutcomeProbabilities(homeXg, awayXg, scoreMatrixMaxGoals, {
     correlation: scoreCorrelation,
