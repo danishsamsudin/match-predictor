@@ -7,6 +7,10 @@ function wcDb(client: SupabaseClient) {
     from: (table: string) => {
       upsert: (row: unknown) => Promise<{ error: { message: string } | null }>;
       update: (row: unknown) => { eq: (col: string, val: string) => Promise<{ error: { message: string } | null }> };
+      select: (cols: string) => Promise<{
+        data: Array<Record<string, unknown>> | null;
+        error: { message: string } | null;
+      }>;
     };
   };
 }
@@ -23,6 +27,10 @@ import {
   shouldRefreshHubPrediction,
 } from "@/lib/world-cup/match-kickoff";
 import {
+  buildCompletePredictionsMap,
+  runAndPersistTournamentForecast,
+} from "@/lib/world-cup/run-tournament-forecast";
+import {
   computeAllGroupStandings,
   type WcMatchRow,
 } from "@/lib/world-cup/standings";
@@ -31,6 +39,7 @@ export type WorldCupSyncResult = {
   ok: boolean;
   matchesEnriched: number;
   predictionsUpserted: number;
+  tournamentForecastUpdated: boolean;
   errors: string[];
 };
 
@@ -97,7 +106,13 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
   const supabase = tryCreateServiceClient();
   const errors: string[] = [];
   if (!supabase) {
-    return { ok: false, matchesEnriched: 0, predictionsUpserted: 0, errors: ["No Supabase client"] };
+    return {
+      ok: false,
+      matchesEnriched: 0,
+      predictionsUpserted: 0,
+      tournamentForecastUpdated: false,
+      errors: ["No Supabase client"],
+    };
   }
   const client = supabase;
 
@@ -113,7 +128,13 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
     .or(WORLD_CUP_FINALS_COMPETITION_OR);
 
   if (matchErr) {
-    return { ok: false, matchesEnriched: 0, predictionsUpserted: 0, errors: [matchErr.message] };
+    return {
+      ok: false,
+      matchesEnriched: 0,
+      predictionsUpserted: 0,
+      tournamentForecastUpdated: false,
+      errors: [matchErr.message],
+    };
   }
 
   const mapped: WcMatchWithMeta[] = (rawMatches ?? []).map((r) =>
@@ -192,10 +213,35 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
     }
   }
 
+  const { data: predRows } = await wcDb(client).from("world_cup_predictions").select("*");
+  const predictionsByMatchId = buildCompletePredictionsMap(matches, predRows ?? []);
+
+  const { data: discRows } = await wcDb(client)
+    .from("world_cup_team_discipline")
+    .select("team_id, total_fair_play_points");
+
+  const fairPlayByTeam = new Map(
+    ((discRows ?? []) as Array<{ team_id: string; total_fair_play_points: number }>).map(
+      (d) => [d.team_id, d.total_fair_play_points]
+    )
+  );
+
+  let tournamentForecastUpdated = false;
+  const { payload, errors: forecastErrors } = await runAndPersistTournamentForecast({
+    client,
+    matches,
+    teamNames,
+    predictionsByMatchId,
+    fairPlayByTeam,
+  });
+  if (payload) tournamentForecastUpdated = true;
+  errors.push(...forecastErrors);
+
   return {
     ok: errors.length === 0,
     matchesEnriched,
     predictionsUpserted,
+    tournamentForecastUpdated,
     errors,
   };
 }

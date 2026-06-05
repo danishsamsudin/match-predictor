@@ -3,6 +3,7 @@ import {
   WORLD_CUP_2026_TEAMS,
 } from "@/lib/data/world-cup-2026-teams";
 import { normalizePredictorVenueCity } from "@/lib/world-cup/stadium-metadata";
+import type { ForecastMatchResult } from "@/lib/world-cup/tournament-simulation";
 
 const DEFAULT_NATIONAL_LEAGUE_ID = 1;
 const DEFAULT_NATIONAL_COUNTRY = "International";
@@ -55,7 +56,28 @@ export function buildNationalPredictorUrl(input: {
   const time = input.time ? normalizeKickoffTime(input.time) : "";
   if (time) params.set("time", time);
 
-  return `/?${params.toString()}`;
+  return `/predict?${params.toString()}`;
+}
+
+const PLACEHOLDER_TEAM = /^tbd$/i;
+
+/** Open the main predictor (compare mode) for a bracket match with venue and kickoff pre-filled. */
+export function buildBracketMatchPredictorUrl(match: ForecastMatchResult): string | null {
+  if (
+    PLACEHOLDER_TEAM.test(match.homeTeam.teamName.trim()) ||
+    PLACEHOLDER_TEAM.test(match.awayTeam.teamName.trim())
+  ) {
+    return null;
+  }
+
+  return buildNationalPredictorUrl({
+    homeName: match.homeTeam.teamName,
+    awayName: match.awayTeam.teamName,
+    city: match.city,
+    date: match.date,
+    time: match.kickoffTime,
+    worldCupFixture: true,
+  });
 }
 
 function normalizeKickoffTime(time: string): string {

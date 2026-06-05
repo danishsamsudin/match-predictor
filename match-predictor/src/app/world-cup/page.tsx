@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHero } from "@/components/match-predictor/PageHero";
 import { GroupMatrixGrid } from "@/components/world-cup/GroupMatrixGrid";
 import { KnockoutProjectionPanel } from "@/components/world-cup/KnockoutProjectionPanel";
+import { TournamentForecastPanel } from "@/components/world-cup/TournamentForecastPanel";
 import { UpcomingFixturesSection } from "@/components/world-cup/UpcomingFixturesSection";
 import type { UpcomingMatchCardProps } from "@/components/world-cup/MatchValueFlipCard";
 import { WorldCupSectionHelp } from "@/components/world-cup/WorldCupSectionHelp";
@@ -118,6 +119,25 @@ export default async function WorldCupHubPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
+          Tournament forecast
+        </h2>
+        <WorldCupSectionHelp title="Model bracket vs live projection">
+          <p>
+            This is a <strong>full-tournament model forecast</strong>: predicted scores are applied
+            to every remaining group match, then knockout rounds are simulated through the final
+            using the same national predictor. It answers who the model expects to win, reach the
+            final, and finish third.
+          </p>
+          <p>
+            The Round of 32 projection below is different — it only reflects{" "}
+            <strong>current group tables</strong> (no simulated future group results).
+          </p>
+        </WorldCupSectionHelp>
+        <TournamentForecastPanel forecast={payload.tournamentForecast} />
       </section>
 
       <section className="mb-10">

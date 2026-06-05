@@ -48,6 +48,7 @@ import {
   resolveFifaRatingDelta,
 } from "@/lib/world-cup/international-strength";
 import { clampMomentumIndex } from "@/lib/prediction/form-momentum";
+import { computeEstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
 import { computeWeatherImpact } from "@/lib/prediction/weather-impact";
 import { buildTeamComparisonSnapshot } from "@/lib/data/build-team-comparison";
 import { ensureFifaRankingsLoaded } from "@/lib/data/fifa-rankings-store";
@@ -309,10 +310,6 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
 
   let homeXg = base.homeXg;
   let awayXg = base.awayXg;
-  const baseCorners = base.corners;
-  let fouls = base.fouls;
-  let yellowCards = base.yellowCards;
-  let redCards = base.redCards;
 
   homeXg *=
     lineup.homeXgMultiplier *
@@ -350,14 +347,18 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
   homeXg = Math.max(XG_FLOOR, homeXg);
   awayXg = Math.max(XG_FLOOR, awayXg);
 
-  fouls *= weatherImpact.foulsMultiplier * stadium.foulsMultiplier;
-  yellowCards *= weatherImpact.cardsMultiplier * stadium.cardsMultiplier;
-  redCards *= weatherImpact.cardsMultiplier * stadium.cardsMultiplier;
-
-  const corners = baseCorners * Math.exp(0.02 * (homeXg + awayXg));
-
   homeXg = Math.round(homeXg * 100) / 100;
   awayXg = Math.round(awayXg * 100) / 100;
+
+  const estimatedMatchStats = computeEstimatedMatchStats({
+    homeStats,
+    awayStats,
+    homeXg,
+    awayXg,
+    foulsMultiplier: weatherImpact.foulsMultiplier * stadium.foulsMultiplier,
+    cardsMultiplier: weatherImpact.cardsMultiplier * stadium.cardsMultiplier,
+    fifaRatingDelta,
+  });
 
   const scoreMatrixMaxGoals = resolveScoreMatrixMaxGoals(homeXg, awayXg);
   const scoreCorrelation = resolveScoreMatrixCorrelation(homeXg, awayXg, highStakesCup, {
@@ -551,12 +552,7 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     drawPct,
     firstTeamToScorePct,
     expectedGoals: { home: homeXg, away: awayXg },
-    estimated: {
-      corners: Math.round(corners * 10) / 10,
-      fouls: Math.round(fouls * 10) / 10,
-      yellowCards: Math.round(yellowCards * 10) / 10,
-      redCards: Math.round(redCards * 10) / 10,
-    },
+    estimated: estimatedMatchStats,
     explanation: explanationParts.join("\n"),
     teamComparison,
     analytics,

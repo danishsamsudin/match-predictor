@@ -8,6 +8,7 @@ import {
 } from "@/lib/data/assemble-football-bundle";
 import { getLeagueEntityType } from "@/lib/data/football-reference";
 import { loadTeamStatisticsFromStore } from "@/lib/data/football-store";
+import { aggregateTeamMetricsFromSyncedEvents } from "@/lib/data/aggregate-team-event-metrics";
 import {
   deriveTeamStatisticsFromFormEvents,
   loadTeamStatisticsFromStandingsCache,
@@ -68,14 +69,18 @@ async function resolveNationalTeamStatistics(
 
   const supabase = tryCreateServiceClient();
   if (supabase) {
-    const formEvents = await loadRecentFormEventsForTeam(supabase, teamId, teamName, 40);
+    const [formEvents, eventAggregates] = await Promise.all([
+      loadRecentFormEventsForTeam(supabase, teamId, teamName, 40),
+      aggregateTeamMetricsFromSyncedEvents(supabase, leagueId, teamId, teamName, 12),
+    ]);
     const derived = deriveTeamStatisticsFromFormEvents(
       formEvents,
       teamId,
       teamName ?? label,
       leagueId,
       season,
-      isHomeSide
+      isHomeSide,
+      eventAggregates
     );
     if (derived) return derived;
   }
@@ -98,7 +103,8 @@ async function resolveNationalTeamStatistics(
       teamName ?? label,
       leagueId,
       season,
-      isHomeSide
+      isHomeSide,
+      null
     ) ??
     (() => {
       throw new UpstreamApiError(`No statistics for ${label} (id ${teamId}).`);

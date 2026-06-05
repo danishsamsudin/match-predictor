@@ -113,3 +113,25 @@ export function resolveMatchProbsFromXg(
 ): { homeWin: number; draw: number; awayWin: number } {
   return computeOutcomeProbabilities(homeXg, awayXg, 8, { correlation });
 }
+
+/** Sample an exact scoreline from a Poisson/Dixon-Coles grid. */
+export function sampleScoreFromXg(
+  homeXg: number,
+  awayXg: number,
+  options?: { correlation?: number; maxGoals?: number }
+): { home: number; away: number } {
+  const maxGoals = options?.maxGoals ?? 8;
+  const matrix = buildScoreMatrix(homeXg, awayXg, maxGoals, {
+    correlation: options?.correlation ?? 0,
+  });
+  const r = Math.random();
+  let cumulative = 0;
+  for (const cell of matrix) {
+    cumulative += cell.probability;
+    if (r <= cumulative) {
+      return { home: cell.home, away: cell.away };
+    }
+  }
+  const last = matrix[matrix.length - 1];
+  return { home: last?.home ?? 0, away: last?.away ?? 0 };
+}

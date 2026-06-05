@@ -10,7 +10,8 @@ export function KnockoutProjectionPanel({
 }) {
   const matchups = buildRoundOf32Matchups(
     knockoutProjection.slotAssignments,
-    groupMatrix
+    groupMatrix,
+    knockoutProjection.advancingThirdGroups
   );
 
   return (

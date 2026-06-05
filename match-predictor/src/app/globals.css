@@ -1243,6 +1243,78 @@ body {
     }
   }
 
+  /* Knockout bracket — touch-friendly horizontal pan on phones */
+  .wc-bracket-root {
+    position: relative;
+  }
+
+  .wc-bracket-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  @media (max-width: 767px) {
+    .wc-bracket-scroll {
+      touch-action: pan-x;
+      scroll-behavior: smooth;
+    }
+
+    .wc-bracket-fade-left,
+    .wc-bracket-fade-right {
+      pointer-events: none;
+      position: absolute;
+      top: 2.25rem;
+      bottom: 0.25rem;
+      z-index: 2;
+      width: 1.75rem;
+    }
+
+    .wc-bracket-fade-left {
+      left: 0;
+      background: linear-gradient(
+        to right,
+        rgba(241, 245, 249, 0.95) 0%,
+        rgba(241, 245, 249, 0.55) 55%,
+        transparent 100%
+      );
+    }
+
+    .wc-bracket-fade-right {
+      right: 0;
+      background: linear-gradient(
+        to left,
+        rgba(241, 245, 249, 0.95) 0%,
+        rgba(241, 245, 249, 0.55) 55%,
+        transparent 100%
+      );
+    }
+
+    [data-theme="dark"] .wc-bracket-fade-left {
+      background: linear-gradient(
+        to right,
+        rgba(2, 6, 23, 0.92) 0%,
+        rgba(2, 6, 23, 0.5) 55%,
+        transparent 100%
+      );
+    }
+
+    [data-theme="dark"] .wc-bracket-fade-right {
+      background: linear-gradient(
+        to left,
+        rgba(2, 6, 23, 0.92) 0%,
+        rgba(2, 6, 23, 0.5) 55%,
+        transparent 100%
+      );
+    }
+
+    .wc-bracket-segment {
+      min-height: 2.75rem;
+      min-width: 0;
+      flex: 1 1 0;
+    }
+  }
+
   @media (max-width: 639px) {
     .wc-match-card-slot {
       min-height: 0;

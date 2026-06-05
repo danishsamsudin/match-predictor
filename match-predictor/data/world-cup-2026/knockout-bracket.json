@@ -1,0 +1,326 @@
+{
+  "version": "fifa-schedule-2026-v1",
+  "source": "FIFA World Cup 2026 Regulations §12.7–12.11 + official match schedule",
+  "matches": [
+    {
+      "match_number": 73,
+      "round": "R32",
+      "date": "2026-06-28",
+      "kickoff_time": "12:00",
+      "stadium": "SoFi Stadium",
+      "city": "Los Angeles",
+      "home": { "type": "standing", "rank": 2, "group": "A" },
+      "away": { "type": "standing", "rank": 2, "group": "B" }
+    },
+    {
+      "match_number": 74,
+      "round": "R32",
+      "date": "2026-06-29",
+      "kickoff_time": "16:30",
+      "stadium": "Gillette Stadium",
+      "city": "Boston",
+      "home": { "type": "standing", "rank": 1, "group": "E" },
+      "away": { "type": "third_for", "winnerSlot": "1E" }
+    },
+    {
+      "match_number": 75,
+      "round": "R32",
+      "date": "2026-06-29",
+      "kickoff_time": "19:00",
+      "stadium": "Estadio BBVA",
+      "city": "Guadalajara",
+      "home": { "type": "standing", "rank": 1, "group": "F" },
+      "away": { "type": "standing", "rank": 2, "group": "C" }
+    },
+    {
+      "match_number": 76,
+      "round": "R32",
+      "date": "2026-06-29",
+      "kickoff_time": "12:00",
+      "stadium": "NRG Stadium",
+      "city": "Houston",
+      "home": { "type": "standing", "rank": 1, "group": "C" },
+      "away": { "type": "standing", "rank": 2, "group": "F" }
+    },
+    {
+      "match_number": 77,
+      "round": "R32",
+      "date": "2026-06-30",
+      "kickoff_time": "17:00",
+      "stadium": "MetLife Stadium",
+      "city": "New York",
+      "home": { "type": "standing", "rank": 1, "group": "I" },
+      "away": { "type": "third_for", "winnerSlot": "1I" }
+    },
+    {
+      "match_number": 78,
+      "round": "R32",
+      "date": "2026-06-30",
+      "kickoff_time": "12:00",
+      "stadium": "AT&T Stadium",
+      "city": "Dallas",
+      "home": { "type": "standing", "rank": 2, "group": "E" },
+      "away": { "type": "standing", "rank": 2, "group": "I" }
+    },
+    {
+      "match_number": 79,
+      "round": "R32",
+      "date": "2026-06-30",
+      "kickoff_time": "19:00",
+      "stadium": "Estadio Azteca",
+      "city": "Mexico City",
+      "home": { "type": "standing", "rank": 1, "group": "A" },
+      "away": { "type": "third_for", "winnerSlot": "1A" }
+    },
+    {
+      "match_number": 80,
+      "round": "R32",
+      "date": "2026-07-01",
+      "kickoff_time": "12:00",
+      "stadium": "Mercedes-Benz Stadium",
+      "city": "Atlanta",
+      "home": { "type": "standing", "rank": 1, "group": "L" },
+      "away": { "type": "third_for", "winnerSlot": "1L" }
+    },
+    {
+      "match_number": 81,
+      "round": "R32",
+      "date": "2026-07-01",
+      "kickoff_time": "17:00",
+      "stadium": "Levi's Stadium",
+      "city": "San Francisco",
+      "home": { "type": "standing", "rank": 1, "group": "D" },
+      "away": { "type": "third_for", "winnerSlot": "1D" }
+    },
+    {
+      "match_number": 82,
+      "round": "R32",
+      "date": "2026-07-01",
+      "kickoff_time": "13:00",
+      "stadium": "Lumen Field",
+      "city": "Seattle",
+      "home": { "type": "standing", "rank": 1, "group": "G" },
+      "away": { "type": "third_for", "winnerSlot": "1G" }
+    },
+    {
+      "match_number": 83,
+      "round": "R32",
+      "date": "2026-07-02",
+      "kickoff_time": "19:00",
+      "stadium": "BMO Field",
+      "city": "Toronto",
+      "home": { "type": "standing", "rank": 2, "group": "K" },
+      "away": { "type": "standing", "rank": 2, "group": "L" }
+    },
+    {
+      "match_number": 84,
+      "round": "R32",
+      "date": "2026-07-02",
+      "kickoff_time": "12:00",
+      "stadium": "SoFi Stadium",
+      "city": "Los Angeles",
+      "home": { "type": "standing", "rank": 1, "group": "H" },
+      "away": { "type": "standing", "rank": 2, "group": "J" }
+    },
+    {
+      "match_number": 85,
+      "round": "R32",
+      "date": "2026-07-02",
+      "kickoff_time": "20:00",
+      "stadium": "BC Place",
+      "city": "Vancouver",
+      "home": { "type": "standing", "rank": 1, "group": "B" },
+      "away": { "type": "third_for", "winnerSlot": "1B" }
+    },
+    {
+      "match_number": 86,
+      "round": "R32",
+      "date": "2026-07-03",
+      "kickoff_time": "18:00",
+      "stadium": "Hard Rock Stadium",
+      "city": "Miami",
+      "home": { "type": "standing", "rank": 1, "group": "J" },
+      "away": { "type": "standing", "rank": 2, "group": "H" }
+    },
+    {
+      "match_number": 87,
+      "round": "R32",
+      "date": "2026-07-03",
+      "kickoff_time": "20:30",
+      "stadium": "Arrowhead Stadium",
+      "city": "Kansas City",
+      "home": { "type": "standing", "rank": 1, "group": "K" },
+      "away": { "type": "third_for", "winnerSlot": "1K" }
+    },
+    {
+      "match_number": 88,
+      "round": "R32",
+      "date": "2026-07-03",
+      "kickoff_time": "12:00",
+      "stadium": "AT&T Stadium",
+      "city": "Dallas",
+      "home": { "type": "standing", "rank": 2, "group": "D" },
+      "away": { "type": "standing", "rank": 2, "group": "G" }
+    },
+    {
+      "match_number": 89,
+      "round": "R16",
+      "date": "2026-07-04",
+      "kickoff_time": "12:00",
+      "stadium": "Lincoln Financial Field",
+      "city": "Philadelphia",
+      "home": { "type": "winner", "match": 74 },
+      "away": { "type": "winner", "match": 77 }
+    },
+    {
+      "match_number": 90,
+      "round": "R16",
+      "date": "2026-07-04",
+      "kickoff_time": "15:00",
+      "stadium": "NRG Stadium",
+      "city": "Houston",
+      "home": { "type": "winner", "match": 73 },
+      "away": { "type": "winner", "match": 75 }
+    },
+    {
+      "match_number": 91,
+      "round": "R16",
+      "date": "2026-07-05",
+      "kickoff_time": "16:00",
+      "stadium": "MetLife Stadium",
+      "city": "New York",
+      "home": { "type": "winner", "match": 76 },
+      "away": { "type": "winner", "match": 78 }
+    },
+    {
+      "match_number": 92,
+      "round": "R16",
+      "date": "2026-07-05",
+      "kickoff_time": "19:00",
+      "stadium": "Estadio Azteca",
+      "city": "Mexico City",
+      "home": { "type": "winner", "match": 79 },
+      "away": { "type": "winner", "match": 80 }
+    },
+    {
+      "match_number": 93,
+      "round": "R16",
+      "date": "2026-07-06",
+      "kickoff_time": "15:00",
+      "stadium": "AT&T Stadium",
+      "city": "Dallas",
+      "home": { "type": "winner", "match": 83 },
+      "away": { "type": "winner", "match": 84 }
+    },
+    {
+      "match_number": 94,
+      "round": "R16",
+      "date": "2026-07-06",
+      "kickoff_time": "18:00",
+      "stadium": "Lumen Field",
+      "city": "Seattle",
+      "home": { "type": "winner", "match": 81 },
+      "away": { "type": "winner", "match": 82 }
+    },
+    {
+      "match_number": 95,
+      "round": "R16",
+      "date": "2026-07-07",
+      "kickoff_time": "17:00",
+      "stadium": "Mercedes-Benz Stadium",
+      "city": "Atlanta",
+      "home": { "type": "winner", "match": 86 },
+      "away": { "type": "winner", "match": 88 }
+    },
+    {
+      "match_number": 96,
+      "round": "R16",
+      "date": "2026-07-07",
+      "kickoff_time": "21:00",
+      "stadium": "BC Place",
+      "city": "Vancouver",
+      "home": { "type": "winner", "match": 85 },
+      "away": { "type": "winner", "match": 87 }
+    },
+    {
+      "match_number": 97,
+      "round": "QF",
+      "date": "2026-07-09",
+      "kickoff_time": "16:00",
+      "stadium": "Gillette Stadium",
+      "city": "Boston",
+      "home": { "type": "winner", "match": 89 },
+      "away": { "type": "winner", "match": 90 }
+    },
+    {
+      "match_number": 98,
+      "round": "QF",
+      "date": "2026-07-10",
+      "kickoff_time": "12:00",
+      "stadium": "SoFi Stadium",
+      "city": "Los Angeles",
+      "home": { "type": "winner", "match": 93 },
+      "away": { "type": "winner", "match": 94 }
+    },
+    {
+      "match_number": 99,
+      "round": "QF",
+      "date": "2026-07-11",
+      "kickoff_time": "17:00",
+      "stadium": "Hard Rock Stadium",
+      "city": "Miami",
+      "home": { "type": "winner", "match": 91 },
+      "away": { "type": "winner", "match": 92 }
+    },
+    {
+      "match_number": 100,
+      "round": "QF",
+      "date": "2026-07-11",
+      "kickoff_time": "20:00",
+      "stadium": "Arrowhead Stadium",
+      "city": "Kansas City",
+      "home": { "type": "winner", "match": 95 },
+      "away": { "type": "winner", "match": 96 }
+    },
+    {
+      "match_number": 101,
+      "round": "SF",
+      "date": "2026-07-14",
+      "kickoff_time": "14:00",
+      "stadium": "AT&T Stadium",
+      "city": "Dallas",
+      "home": { "type": "winner", "match": 97 },
+      "away": { "type": "winner", "match": 98 }
+    },
+    {
+      "match_number": 102,
+      "round": "SF",
+      "date": "2026-07-15",
+      "kickoff_time": "15:00",
+      "stadium": "Mercedes-Benz Stadium",
+      "city": "Atlanta",
+      "home": { "type": "winner", "match": 99 },
+      "away": { "type": "winner", "match": 100 }
+    },
+    {
+      "match_number": 103,
+      "round": "3P",
+      "date": "2026-07-18",
+      "kickoff_time": "17:00",
+      "stadium": "Hard Rock Stadium",
+      "city": "Miami",
+      "home": { "type": "loser", "match": 101 },
+      "away": { "type": "loser", "match": 102 }
+    },
+    {
+      "match_number": 104,
+      "round": "F",
+      "date": "2026-07-19",
+      "kickoff_time": "15:00",
+      "stadium": "MetLife Stadium",
+      "city": "New York",
+      "home": { "type": "winner", "match": 101 },
+      "away": { "type": "winner", "match": 102 }
+    }
+  ]
+}

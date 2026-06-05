@@ -10,7 +10,12 @@ import { computeThirdPlaceWildcards } from "@/lib/world-cup/standings";
 import { isActionableEdge, computeRawBetEdge } from "@/lib/world-cup/value-matrix";
 import { buildGuardedScoreMatrix } from "@/lib/world-cup/score-grid";
 import { buildRoundOf32Matchups } from "@/lib/world-cup/knockout-display";
-import { buildNationalPredictorUrl, resolveNationalTeamApiId } from "@/lib/world-cup/predictor-prefill";
+import {
+  buildBracketMatchPredictorUrl,
+  buildNationalPredictorUrl,
+  resolveNationalTeamApiId,
+} from "@/lib/world-cup/predictor-prefill";
+import type { ForecastMatchResult } from "@/lib/world-cup/tournament-simulation";
 import fixtureVenueSchedule from "../../../data/world-cup-2026/fixture-venues.json";
 import {
   listWorldCup2026Stadiums,
@@ -207,10 +212,10 @@ describe("buildRoundOf32Matchups", () => {
       ],
     } as Record<string, import("@/lib/world-cup/standings").GroupStandingRow[]>;
     const slots = assignKnockoutOpponents(["A", "B", "C", "D", "E", "F", "G", "H"]);
-    const matchups = buildRoundOf32Matchups(slots, groupMatrix);
-    const m1a = matchups.find((m) => m.slot === "1A");
-    expect(m1a?.homeTeam).toBe("Mexico");
-    expect(m1a?.awayTeam).toContain("Ecuador");
+    const matchups = buildRoundOf32Matchups(slots, groupMatrix, ["A", "B", "C", "D", "E", "F", "G", "H"]);
+    expect(matchups.length).toBeGreaterThan(0);
+    const m1a = matchups.find((m) => m.homeTeam === "Mexico");
+    expect(m1a?.homeLabel).toMatch(/1st Group A/i);
   });
 });
 
@@ -284,6 +289,45 @@ describe("predictor prefill", () => {
     });
     expect(fallback).toContain("city=Mexico+City");
     expect(url).toContain("homeName=Czechia");
+  });
+
+  it("builds bracket match predictor URL with venue and kickoff", () => {
+    const match: ForecastMatchResult = {
+      matchNumber: 104,
+      round: "F",
+      date: "2026-07-19",
+      kickoffTime: "15:00",
+      city: "New York",
+      homeTeam: { teamId: "fr", teamName: "France" },
+      awayTeam: { teamId: "ar", teamName: "Argentina" },
+      homeGoals: 2,
+      awayGoals: 1,
+      winner: { teamId: "fr", teamName: "France" },
+    };
+    const url = buildBracketMatchPredictorUrl(match);
+    expect(url).toContain("entity=national");
+    expect(url).toContain("mode=compare");
+    expect(url).toContain("homeName=France");
+    expect(url).toContain("awayName=Argentina");
+    expect(url).toContain("date=2026-07-19");
+    expect(url).toContain("time=15%3A00");
+    expect(url).toContain("city=New+York");
+  });
+
+  it("skips placeholder bracket matches", () => {
+    const match: ForecastMatchResult = {
+      matchNumber: 89,
+      round: "R16",
+      date: null,
+      kickoffTime: null,
+      city: null,
+      homeTeam: { teamId: "h", teamName: "TBD" },
+      awayTeam: { teamId: "a", teamName: "TBD" },
+      homeGoals: 0,
+      awayGoals: 0,
+      winner: { teamId: "h", teamName: "TBD" },
+    };
+    expect(buildBracketMatchPredictorUrl(match)).toBeNull();
   });
 });
 

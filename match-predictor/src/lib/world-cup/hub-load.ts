@@ -15,6 +15,12 @@ import { parseHubPrediction } from "@/lib/world-cup/hub-prediction";
 import { resolveMatchPhase } from "@/lib/world-cup/match-kickoff";
 import { compareByKickoffAsc } from "@/lib/world-cup/sort-matches";
 import { filterWorldCup2026GroupStageMatches } from "@/lib/world-cup/tournament-fixtures";
+import { buildCompletePredictionsMap } from "@/lib/world-cup/run-tournament-forecast";
+import { runDeterministicTournamentForecast } from "@/lib/world-cup/tournament-simulation";
+import {
+  toTournamentForecastPayload,
+  type TournamentForecastPayload,
+} from "@/lib/world-cup/tournament-forecast-payload";
 import {
   buildKnockoutProjection,
   buildThirdPlaceCandidates,
@@ -30,6 +36,7 @@ export type WorldCupHubPayload = {
   groupMatrix: Record<string, ReturnType<typeof computeAllGroupStandings>[string]>;
   thirdPlaceRanking: ReturnType<typeof computeThirdPlaceWildcards>;
   knockoutProjection: ReturnType<typeof buildKnockoutProjection>;
+  tournamentForecast: TournamentForecastPayload | null;
   recent: HubMatchRow[];
   upcoming: Array<
     WcMatchRow & {
@@ -118,7 +125,16 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   const supabase = tryCreateServiceClient();
   if (!supabase) return null;
 
-  const [teamsRes, matchesRes, discRes, predRes] = await Promise.all([
+  const wcClient = supabase as unknown as {
+    from: (table: string) => {
+      select: (cols: string) => Promise<{
+        data: Array<Record<string, unknown>> | null;
+        error: { message: string } | null;
+      }>;
+    };
+  };
+
+  const [teamsRes, matchesRes, discRes, predRes, forecastRes] = await Promise.all([
     supabase.from("teams").select("id, name"),
     supabase
       .from("matches")
@@ -127,10 +143,9 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
       )
       .or(WORLD_CUP_FINALS_COMPETITION_OR)
       .order("date", { ascending: true }),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("world_cup_team_discipline").select("team_id, total_fair_play_points"),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("world_cup_predictions").select("*"),
+    wcClient.from("world_cup_team_discipline").select("team_id, total_fair_play_points"),
+    wcClient.from("world_cup_predictions").select("*"),
+    wcClient.from("world_cup_tournament_projection").select("payload, computed_at"),
   ]);
 
   const teamNames = new Map((teamsRes.data ?? []).map((t) => [t.id, t.name]));
@@ -230,11 +245,41 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
     };
   });
 
+  const forecastRow =
+    forecastRes.error == null ? (forecastRes.data ?? [])[0] : undefined;
+  let tournamentForecast =
+    (forecastRow?.payload as TournamentForecastPayload | undefined) ?? null;
+
+  if (!tournamentForecast || tournamentForecast.knockoutMatches.length === 0) {
+    const predictionsByMatchId = buildCompletePredictionsMap(
+      matches,
+      (predRes.data ?? []) as Array<Record<string, unknown>>
+    );
+    const liveForecast = await runDeterministicTournamentForecast({
+      matches,
+      teamNames,
+      predictionsByMatchId,
+      fairPlayByTeam: fairPlay,
+      knockoutMode: "quick",
+    });
+    if (liveForecast && liveForecast.knockoutMatches.length > 0) {
+      tournamentForecast = toTournamentForecastPayload(liveForecast);
+    }
+  }
+
+  const forecastAt = forecastRow?.computed_at as string | undefined;
+  const updatedAt =
+    [latestPred, forecastAt, tournamentForecast?.computedAt]
+      .filter(Boolean)
+      .sort()
+      .reverse()[0] ?? new Date().toISOString();
+
   return {
-    updatedAt: latestPred ?? new Date().toISOString(),
+    updatedAt,
     groupMatrix,
     thirdPlaceRanking,
     knockoutProjection,
+    tournamentForecast,
     recent,
     upcoming: upcomingEnriched,
   };
