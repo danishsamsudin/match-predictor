@@ -156,13 +156,26 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
 
   const modelExtras = useMemo(() => {
     if (!snapshot) return null;
-    const lambda = Number(snapshot.lambda);
-    const mu = Number(snapshot.mu);
+    const lambda = Number(snapshot.lambda ?? snapshot.home_xg);
+    const mu = Number(snapshot.mu ?? snapshot.away_xg);
+    if (!Number.isFinite(lambda) || !Number.isFinite(mu)) return null;
+
+    const storedBtts = Number(snapshot.btts_pct);
+    if (Number.isFinite(storedBtts)) {
+      const rho = Number(snapshot.rho);
+      return {
+        lambda,
+        mu,
+        rho: Number.isFinite(rho) ? rho : null,
+        totalXg: lambda + mu,
+        btts: storedBtts,
+      };
+    }
+
     const rho = Number(snapshot.rho);
     const scenario = String(snapshot.scenario ?? "");
     const mutualDraw = scenario.includes("mutual_draw");
-
-    if (![lambda, mu, rho].every((n) => Number.isFinite(n))) return null;
+    if (!Number.isFinite(rho)) return null;
 
     const { cells } = buildGuardedScoreMatrix(lambda, mu, rho, mutualDraw);
     const btts =
@@ -387,12 +400,17 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
                 {snapshot && (
                   <div className="wc-back-model-detail">
                     <p>
-                      xG λ {formatNum(snapshot.lambda)} · μ {formatNum(snapshot.mu)} · ρ{" "}
-                      {formatNum(snapshot.rho)}
+                      xG λ {formatNum(snapshot.lambda ?? snapshot.home_xg)} · μ{" "}
+                      {formatNum(snapshot.mu ?? snapshot.away_xg)}
+                      {Number.isFinite(Number(snapshot.rho)) && (
+                        <> · ρ {formatNum(snapshot.rho)}</>
+                      )}
                     </p>
                     <p>
-                      Scenario: {String(snapshot.scenario ?? "standard")}
-                      {highAltitude && (
+                      {snapshot.source === "main-predict"
+                        ? `Model: ${String(snapshot.scenario ?? "main predict")}`
+                        : `Scenario: ${String(snapshot.scenario ?? "standard")}`}
+                      {highAltitude && snapshot.source !== "main-predict" && (
                         <>
                           {" "}
                           · λ atten. {String(snapshot.lambda_attenuation_pct ?? "-")}%

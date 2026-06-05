@@ -41,7 +41,7 @@ export default async function WorldCupHubPage() {
       <PageHero
         eyebrow="FIFA World Cup 2026 · 48 teams"
         title="World Cup bettor hub"
-        description="Group standings, best-third matrix, knockout routing, and Dixon-Coles model lines. Data refreshes daily from FBref. Decimal odds by default."
+        description="Group standings, best-third matrix, knockout routing, and model lines from the main national predictor (FIFA World Cup compare mode). Refreshes daily. Decimal odds by default."
       />
       <p className="mb-6 text-xs text-slate-500">
         Last model update: {new Date(payload.updatedAt).toLocaleString()} · Not betting advice.
@@ -164,9 +164,9 @@ export default async function WorldCupHubPage() {
             layout.
           </p>
           <p>
-            Pred. score and over/under tiles refresh on each daily sync until kickoff; after the
-            match starts the model line locks. Fair decimal odds are model predictions, not
-            bookmaker prices.
+            Pred. score and over/under tiles use the same engine as the main predict page (national
+            compare, FIFA World Cup) and refresh on each daily sync until kickoff; after kickoff the
+            line locks. Fair decimal odds are model predictions, not bookmaker prices.
           </p>
         </WorldCupSectionHelp>
         <UpcomingFixturesSection

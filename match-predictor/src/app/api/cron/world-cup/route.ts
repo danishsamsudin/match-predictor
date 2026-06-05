@@ -3,7 +3,7 @@ import { getSyncCronSecret } from "@/lib/config/data-source";
 import { runWorldCupHubSync } from "@/lib/world-cup/run-world-cup-sync";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 function resolveCronSecret(): string | undefined {
   return getSyncCronSecret() ?? (process.env.CRON_SECRET?.trim() || undefined);

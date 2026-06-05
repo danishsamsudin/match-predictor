@@ -13,26 +13,11 @@ function wcDb(client: SupabaseClient) {
 import { enrichMatchEnvironment } from "@/lib/world-cup/enrich-matches";
 import {
   buildTeamIdToGroupMap,
-  inferGroupCodeFromDraw,
   resolveGroupCode,
 } from "@/lib/world-cup/group-draw";
+import { runHubMainPredict } from "@/lib/world-cup/hub-main-predict";
 import { WORLD_CUP_FINALS_COMPETITION_OR } from "@/lib/world-cup/match-query";
 import { filterWorldCup2026GroupStageMatches } from "@/lib/world-cup/tournament-fixtures";
-import {
-  isMatchday3Fixture,
-  isMatchday3Pair,
-  resolveGroupMatchday3Strategy,
-  resolveSingleFixtureMotivation,
-} from "@/lib/world-cup/motivation";
-import {
-  loadInternationalFormMatchesForTeam,
-  type InternationalFormMatch,
-} from "@/lib/world-cup/load-international-form";
-import {
-  baselineMd3Probs,
-  runWorldCupPrediction,
-  standingsForGroup,
-} from "@/lib/world-cup/predict";
 import {
   resolveMatchPhase,
   shouldRefreshHubPrediction,
@@ -48,6 +33,9 @@ export type WorldCupSyncResult = {
   predictionsUpserted: number;
   errors: string[];
 };
+
+/** Parallel main-predict runs per batch (weather is cached per city+date). */
+const PREDICT_BATCH_SIZE = 6;
 
 type WcMatchWithMeta = WcMatchRow & {
   competition?: string | null;
@@ -89,6 +77,20 @@ function mapMatchRow(
     competition,
     round,
   };
+}
+
+async function upsertHubPrediction(
+  client: SupabaseClient,
+  matchId: string,
+  pred: Awaited<ReturnType<typeof runHubMainPredict>>
+): Promise<string | null> {
+  if (!pred) return "No prediction result";
+  const { error } = await wcDb(client).from("world_cup_predictions").upsert({
+    match_id: matchId,
+    ...pred,
+    computed_at: new Date().toISOString(),
+  });
+  return error?.message ?? null;
 }
 
 export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
@@ -150,149 +152,44 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
     }
   }
 
-  const allStandings = computeAllGroupStandings(matches, teamNames);
-  const md3GroupsProcessed = new Set<string>();
+  computeAllGroupStandings(matches, teamNames);
 
   let predictionsUpserted = 0;
-  const upcoming = matches.filter(
-    (m) => m.status === "scheduled" && m.home_team_id && m.away_team_id
-  );
-
-  const internationalFormCache = new Map<string, InternationalFormMatch[]>();
-  async function formForTeam(teamId: string, teamName: string): Promise<InternationalFormMatch[]> {
-    const cached = internationalFormCache.get(teamId);
-    if (cached) return cached;
-    const loaded = await loadInternationalFormMatchesForTeam(client, teamId, teamName);
-    internationalFormCache.set(teamId, loaded);
-    return loaded;
-  }
-
-  for (const match of upcoming) {
+  const toPredict = matches.filter((m) => {
+    if (m.status !== "scheduled" || !m.home_team_id || !m.away_team_id) return false;
     const phase = resolveMatchPhase({
-      status: match.status,
-      homeGoals: match.home_goals,
-      awayGoals: match.away_goals,
-      date: match.date,
-      time: match.time,
-      venueCity: match.venue_city,
+      status: m.status,
+      homeGoals: m.home_goals,
+      awayGoals: m.away_goals,
+      date: m.date,
+      time: m.time,
+      venueCity: m.venue_city,
     });
-    if (!shouldRefreshHubPrediction(phase)) {
-      continue;
-    }
+    return shouldRefreshHubPrediction(phase);
+  });
 
-    let groupCode =
-      match.group_code ??
-      resolveGroupCode({
-        existing: null,
-        competition: match.competition,
-        round: match.round,
-        date: match.date,
-        homeTeamId: match.home_team_id,
-        awayTeamId: match.away_team_id,
-        teamToGroup,
-      }) ??
-      (match.home_team_id && match.away_team_id
-        ? inferGroupCodeFromDraw(match.home_team_id, match.away_team_id, teamToGroup)
-        : null);
-    if (groupCode) match.group_code = groupCode;
-    if (!groupCode) {
-      errors.push(`Skipped ${match.id}: could not resolve group for tournament fixture`);
-      continue;
-    }
-
-    const standings = standingsForGroup(groupCode, allStandings);
-    const finished = matches.filter((x) => x.status === "finished");
-
-    let motivation;
-    const groupFixtures = upcoming.filter((f) => f.group_code === groupCode);
-    if (
-      isMatchday3Fixture(match.home_team_id!, matches) &&
-      isMatchday3Pair(groupFixtures) &&
-      !md3GroupsProcessed.has(groupCode)
-    ) {
-      md3GroupsProcessed.add(groupCode);
-      const pair = groupFixtures.slice(0, 2) as [WcMatchRow, WcMatchRow];
-      const base = baselineMd3Probs(1.35, 1.25);
-      const { matchA, matchB } = resolveGroupMatchday3Strategy(pair, standings, base);
-      for (const [fx, mot] of [
-        [pair[0], matchA],
-        [pair[1], matchB],
-      ] as const) {
-        const env = enrichMatchEnvironment(fx, matches, teamNames, {
-          teamToGroup,
-          competition: fx.competition,
-          round: fx.round,
-        });
-        const pred = await runWorldCupPrediction({
-          match: fx,
-          homeName: fx.home_team_name ?? "Home",
-          awayName: fx.away_team_name ?? "Away",
-          finishedMatches: finished,
-          homeFormMatches: await formForTeam(
-            fx.home_team_id!,
-            fx.home_team_name ?? "Home"
-          ),
-          awayFormMatches: await formForTeam(
-            fx.away_team_id!,
-            fx.away_team_name ?? "Away"
-          ),
-          motivation: mot,
-          priorHomeVenueTz: env.prior_home_tz,
-          priorAwayVenueTz: env.prior_away_tz,
-        });
-        const { error } = await wcDb(client).from("world_cup_predictions").upsert({
-          match_id: fx.id,
-          ...pred,
-          computed_at: new Date().toISOString(),
-        });
-        if (!error) predictionsUpserted += 1;
-        else errors.push(error.message);
-      }
-      continue;
-    }
-
-    if (md3GroupsProcessed.has(groupCode) && isMatchday3Fixture(match.home_team_id!, matches)) {
-      continue;
-    }
-
-    motivation = resolveSingleFixtureMotivation(
-      match.home_team_id!,
-      match.away_team_id!,
-      standings,
-      match.home_team_name ?? "Home",
-      match.away_team_name ?? "Away"
+  for (let i = 0; i < toPredict.length; i += PREDICT_BATCH_SIZE) {
+    const batch = toPredict.slice(i, i + PREDICT_BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (match) => {
+        try {
+          const pred = await runHubMainPredict(match);
+          const err = await upsertHubPrediction(client, match.id, pred);
+          return { match, pred, err };
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          return { match, pred: null, err: message };
+        }
+      })
     );
 
-    const env = enrichMatchEnvironment(match, matches, teamNames, {
-      teamToGroup,
-      competition: match.competition,
-      round: match.round,
-    });
-    const pred = await runWorldCupPrediction({
-      match,
-      homeName: match.home_team_name ?? "Home",
-      awayName: match.away_team_name ?? "Away",
-      finishedMatches: finished,
-      homeFormMatches: await formForTeam(
-        match.home_team_id!,
-        match.home_team_name ?? "Home"
-      ),
-      awayFormMatches: await formForTeam(
-        match.away_team_id!,
-        match.away_team_name ?? "Away"
-      ),
-      motivation,
-      priorHomeVenueTz: env.prior_home_tz,
-      priorAwayVenueTz: env.prior_away_tz,
-    });
-
-    const { error } = await wcDb(client).from("world_cup_predictions").upsert({
-      match_id: match.id,
-      ...pred,
-      computed_at: new Date().toISOString(),
-    });
-    if (!error) predictionsUpserted += 1;
-    else errors.push(error.message);
+    for (const { match, pred, err } of results) {
+      if (err) {
+        errors.push(`${match.id} (${match.home_team_name} vs ${match.away_team_name}): ${err}`);
+        continue;
+      }
+      if (pred) predictionsUpserted += 1;
+    }
   }
 
   return {
