@@ -677,6 +677,60 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["fifa_ranking_snapshots"]["Insert"]>;
         Relationships: [];
       };
+      national_match_process_metrics: {
+        Row: {
+          event_id: number;
+          source: string;
+          match_date: string | null;
+          home_team_id: number | null;
+          away_team_id: number | null;
+          home_xg: number | null;
+          away_xg: number | null;
+          home_shots: number | null;
+          away_shots: number | null;
+          home_sot: number | null;
+          away_sot: number | null;
+          competition_tier: number | null;
+          payload: Record<string, unknown> | null;
+          synced_at: string;
+        };
+        Insert: {
+          event_id: number;
+          source: string;
+          match_date?: string | null;
+          home_team_id?: number | null;
+          away_team_id?: number | null;
+          home_xg?: number | null;
+          away_xg?: number | null;
+          home_shots?: number | null;
+          away_shots?: number | null;
+          home_sot?: number | null;
+          away_sot?: number | null;
+          competition_tier?: number | null;
+          payload?: Record<string, unknown> | null;
+          synced_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["national_match_process_metrics"]["Insert"]>;
+        Relationships: [];
+      };
+      national_team_ratings: {
+        Row: {
+          team_id: number;
+          rating_type: string;
+          rating: number;
+          sample_weight: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          team_id: number;
+          rating_type: string;
+          rating: number;
+          sample_weight?: number | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["national_team_ratings"]["Insert"]>;
+        Relationships: [];
+      };
       scoutlyst_import_batches: {
         Row: {
           id: number;
@@ -736,6 +790,8 @@ export type Database = {
           position: string | null;
           age: number | null;
           rating: number | null;
+          market_value_eur: number | null;
+          salary_eur: number | null;
           stats: Record<string, unknown>;
           import_batch_id: number | null;
           imported_at: string;
@@ -752,6 +808,8 @@ export type Database = {
           position?: string | null;
           age?: number | null;
           rating?: number | null;
+          market_value_eur?: number | null;
+          salary_eur?: number | null;
           stats?: Record<string, unknown>;
           import_batch_id?: number | null;
           imported_at?: string;
@@ -765,6 +823,64 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      transfermarkt_squad_snapshots: {
+        Row: {
+          team_id: number;
+          player_name: string;
+          snapshot_date: string;
+          market_value_eur: number | null;
+          position: string | null;
+          club: string | null;
+          payload: Record<string, unknown> | null;
+          imported_at: string;
+        };
+        Insert: {
+          team_id: number;
+          player_name: string;
+          snapshot_date?: string;
+          market_value_eur?: number | null;
+          position?: string | null;
+          club?: string | null;
+          payload?: Record<string, unknown> | null;
+          imported_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["transfermarkt_squad_snapshots"]["Insert"]>;
+        Relationships: [];
+      };
+      transfermarkt_team_squad_snapshots: {
+        Row: {
+          team_id: number;
+          snapshot_date: string;
+          team_name: string | null;
+          transfermarkt_team_id: number | null;
+          total_market_value_eur: number | null;
+          squad_size: number | null;
+          average_age: number | null;
+          foreigners_count: number | null;
+          foreigners_pct: number | null;
+          confederation: string | null;
+          fifa_ranking: number | null;
+          payload: Record<string, unknown> | null;
+          imported_at: string;
+        };
+        Insert: {
+          team_id: number;
+          snapshot_date?: string;
+          team_name?: string | null;
+          transfermarkt_team_id?: number | null;
+          total_market_value_eur?: number | null;
+          squad_size?: number | null;
+          average_age?: number | null;
+          foreigners_count?: number | null;
+          foreigners_pct?: number | null;
+          confederation?: string | null;
+          fifa_ranking?: number | null;
+          payload?: Record<string, unknown> | null;
+          imported_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["transfermarkt_team_squad_snapshots"]["Insert"]>;
+        Relationships: [];
       };
       teams: {
         Row: { id: string; name: string };

@@ -37,16 +37,41 @@ export function compareByKickoffAsc(a: WcMatchRow, b: WcMatchRow): number {
   return ka.matchNumber - kb.matchNumber;
 }
 
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+/** Fixed en-GB-style label — avoids Node vs browser `toLocaleDateString` differences during hydration. */
 export function formatWorldCupDayLabel(isoDate: string): string {
   if (isoDate === "unknown") return "Date TBC";
-  const d = new Date(`${isoDate}T12:00:00`);
+  const d = new Date(`${isoDate}T12:00:00Z`);
   if (Number.isNaN(d.getTime())) return isoDate;
-  return d.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const weekday = WEEKDAY_NAMES[d.getUTCDay()];
+  const day = d.getUTCDate();
+  const month = MONTH_NAMES[d.getUTCMonth()];
+  const year = d.getUTCFullYear();
+  return `${weekday}, ${day} ${month} ${year}`;
 }
 
 export function formatKickoffTime(time: string | null | undefined): string | null {

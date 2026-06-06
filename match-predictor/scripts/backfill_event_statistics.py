@@ -190,9 +190,163 @@ def store_statistics(
     ).execute()
 
 
+XG_STAT_NAMES = [
+    "Expected goals",
+    "Expected Goals",
+    "xG",
+    "Expected goals (xG)",
+    "Expected goals on target (xGOT)",
+]
+SHOTS_STAT_NAMES = ["Total shots", "Shots", "Shots total", "Total Shots"]
+SOT_STAT_NAMES = ["Shots on target", "Shots on goal", "Shots On Target", "On target"]
+
+
+def _find_stat_value(payload: Any, name: str, side: str) -> Optional[float]:
+    if not isinstance(payload, dict):
+        return None
+    target = name.lower()
+    for period in payload.get("statistics") or []:
+        if not isinstance(period, dict):
+            continue
+        for group in period.get("groups") or []:
+            if not isinstance(group, dict):
+                continue
+            for item in group.get("statisticsItems") or []:
+                if not isinstance(item, dict):
+                    continue
+                if str(item.get("name", "")).lower() != target:
+                    continue
+                raw = item.get(side)
+                if raw is None:
+                    return None
+                if isinstance(raw, (int, float)):
+                    return float(raw)
+                try:
+                    return float(str(raw).replace("%", ""))
+                except ValueError:
+                    return None
+    return None
+
+
+def _read_stat(payload: Any, names: list[str], side: str) -> Optional[float]:
+    for name in names:
+        value = _find_stat_value(payload, name, side)
+        if value is not None:
+            return value
+    return None
+
+
+def extract_match_process_metrics(payload: Any) -> dict[str, Optional[float]]:
+    return {
+        "home_xg": _read_stat(payload, XG_STAT_NAMES, "home"),
+        "away_xg": _read_stat(payload, XG_STAT_NAMES, "away"),
+        "home_shots": _read_stat(payload, SHOTS_STAT_NAMES, "home"),
+        "away_shots": _read_stat(payload, SHOTS_STAT_NAMES, "away"),
+        "home_sot": _read_stat(payload, SOT_STAT_NAMES, "home"),
+        "away_sot": _read_stat(payload, SOT_STAT_NAMES, "away"),
+    }
+
+
+def international_match_tier_weight(competition: Optional[str]) -> float:
+    c = (competition or "").lower()
+    if not c:
+        return 0.85
+    if any(k in c for k in ("friendl", "preparatory", "preparation", "test match")):
+        return 0.32
+    if any(
+        k in c
+        for k in (
+            "qualif",
+            "play-off",
+            "playoff",
+            "inter-confederation",
+            "wcq",
+            "afc",
+            "caf",
+            "concacaf",
+            "conmebol",
+            "uefa",
+        )
+    ):
+        return 1.0
+    if any(
+        k in c
+        for k in (
+            "world cup",
+            "euro",
+            "copa",
+            "nations league",
+            "continental",
+            "afcon",
+            "gold cup",
+            "asian cup",
+            "finals",
+        )
+    ):
+        return 1.12
+    return 0.88
+
+
+def _event_date_iso(event: dict[str, Any]) -> Optional[str]:
+    start_time = event.get("startTime")
+    if isinstance(start_time, str) and start_time:
+        return start_time[:10]
+    ts = event.get("startTimestamp")
+    if isinstance(ts, (int, float)) and ts > 0:
+        return datetime.fromtimestamp(int(ts), tz=timezone.utc).date().isoformat()
+    return None
+
+
+def _competition_label(event: dict[str, Any]) -> str:
+    tournament = event.get("tournament") or {}
+    if not isinstance(tournament, dict):
+        return ""
+    unique = tournament.get("uniqueTournament") or {}
+    if isinstance(unique, dict) and unique.get("name"):
+        return str(unique["name"])
+    return str(tournament.get("name") or "")
+
+
+def upsert_process_metrics_from_stats(
+    supabase: Client,
+    event_id: int,
+    event: dict[str, Any],
+    stats_payload: Any,
+    synced_at: str,
+) -> bool:
+    metrics = extract_match_process_metrics(stats_payload)
+    if all(v is None for v in metrics.values()):
+        return False
+
+    home = event.get("homeTeam") or {}
+    away = event.get("awayTeam") or {}
+    home_id = home.get("id") if isinstance(home, dict) else None
+    away_id = away.get("id") if isinstance(away, dict) else None
+    if not home_id or not away_id:
+        return False
+
+    competition = _competition_label(event)
+    row = {
+        "event_id": event_id,
+        "source": "sofascore",
+        "match_date": _event_date_iso(event),
+        "home_team_id": int(home_id),
+        "away_team_id": int(away_id),
+        **metrics,
+        "competition_tier": international_match_tier_weight(competition),
+        "payload": {"competition": competition},
+        "synced_at": synced_at,
+    }
+    supabase.table("national_match_process_metrics").upsert(
+        row, on_conflict="event_id"
+    ).execute()
+    return True
+
+
 def fetch_and_store(
     supabase: Client,
     event_id: int,
+    event_row: dict[str, Any],
     synced_at: str,
     pause: float,
 ) -> bool:
@@ -202,6 +356,9 @@ def fetch_and_store(
     if not has_statistics_payload(data):
         return False
     store_statistics(supabase, event_id, data, synced_at)
+    payload = event_row.get("payload") or {}
+    if isinstance(payload, dict):
+        upsert_process_metrics_from_stats(supabase, event_id, payload, data, synced_at)
     return True
 
 
@@ -285,7 +442,7 @@ def backfill_scope(
                 return
 
             league_id = row.get("reference_league_id")
-            if fetch_and_store(supabase, event_id, synced_at, pause):
+            if fetch_and_store(supabase, event_id, row, synced_at, pause):
                 stored += 1
                 print(f"  ok {event_id} (league {league_id})")
             else:

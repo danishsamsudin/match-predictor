@@ -45,6 +45,8 @@ export type MappedScoutlystRow = {
   position: string | null;
   age: number | null;
   rating: number | null;
+  market_value_eur: number | null;
+  salary_eur: number | null;
   stats: Record<string, string | number | null>;
 };
 
@@ -100,6 +102,8 @@ export function mapScoutlystRow(
     position: pickField(row, headerIndex, "position") ?? null,
     age,
     rating,
+    market_value_eur: null,
+    salary_eur: null,
     stats,
   };
 }

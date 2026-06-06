@@ -194,7 +194,7 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
     const results = await Promise.all(
       batch.map(async (match) => {
         try {
-          const pred = await runHubMainPredict(match);
+          const pred = await runHubMainPredict(match, { finishedMatches: matches });
           const err = await upsertHubPrediction(client, match.id, pred);
           return { match, pred, err };
         } catch (e) {

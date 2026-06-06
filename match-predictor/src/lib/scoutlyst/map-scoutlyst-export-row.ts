@@ -9,6 +9,8 @@ export type MappedScoutlystRow = {
   position: string | null;
   age: number | null;
   rating: number | null;
+  market_value_eur: number | null;
+  salary_eur: number | null;
   stats: Record<string, string | number | null>;
 };
 
@@ -25,9 +27,19 @@ const CORE_SUFFIXES = new Set([
 
 function parseNum(raw: string | undefined): number | null {
   if (!raw || raw === "-") return null;
-  const cleaned = raw.replace(/[€%mkb\s]/gi, "").replace(",", ".");
+  const cleaned = raw.replace(/[€%kb\s]/gi, "").replace(",", ".");
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
+}
+
+/** Parse Scoutlyst/Transfermarkt-style market values (€m, €k, plain EUR). */
+export function parseMarketValueEur(raw: string | undefined): number | null {
+  if (!raw || raw === "-") return null;
+  const lower = raw.toLowerCase().trim();
+  const multiplier = lower.includes("m") ? 1_000_000 : lower.includes("k") ? 1_000 : 1;
+  const n = parseNum(raw);
+  if (n == null) return null;
+  return Math.round(n * multiplier * 100) / 100;
 }
 
 export function mapScoutlystExportRow(
@@ -45,6 +57,8 @@ export function mapScoutlystExportRow(
 
   const ppm = pickColumn(row, columnKeys, "PPM");
   const rating = parseNum(ppm);
+  const market_value_eur = parseMarketValueEur(pickColumn(row, columnKeys, "Value"));
+  const salary_eur = parseMarketValueEur(pickColumn(row, columnKeys, "Salary"));
 
   const leaguePart = referenceLeagueId != null ? String(referenceLeagueId) : "na";
   const scoutlyst_player_key = `${leaguePart}:${normalizeText(player_name)}:${team_name ? normalizeText(team_name) : "unknown"}`;
@@ -67,6 +81,8 @@ export function mapScoutlystExportRow(
     position,
     age,
     rating,
+    market_value_eur,
+    salary_eur,
     stats,
   };
 }

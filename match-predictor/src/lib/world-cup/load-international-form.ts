@@ -19,6 +19,13 @@ export type InternationalFormMatch = {
   competition?: string | null;
   home_team_name?: string;
   away_team_name?: string;
+  event_id?: number | null;
+  home_xg?: number | null;
+  away_xg?: number | null;
+  home_shots?: number | null;
+  away_shots?: number | null;
+  home_sot?: number | null;
+  away_sot?: number | null;
 };
 
 function matchDedupeKey(m: InternationalFormMatch): string {
@@ -78,6 +85,7 @@ function mapSyncedEventToForm(
     competition: competitionLabel(event),
     home_team_name: event.homeTeam.name,
     away_team_name: event.awayTeam.name,
+    event_id: event.id,
   };
 }
 

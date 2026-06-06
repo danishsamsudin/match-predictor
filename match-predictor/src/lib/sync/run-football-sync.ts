@@ -33,6 +33,7 @@ import {
 } from "@/lib/sync/build-football-bundle";
 import { markLeagueSynced, selectLeaguesForSync } from "@/lib/sync/sync-league-scheduler";
 import { upsertPlayerRatingsFromMatch } from "@/lib/sync/player-ratings";
+import { upsertProcessMetricsFromStats } from "@/lib/data/match-process-metrics";
 
 export interface SyncRunResult {
   ok: boolean;
@@ -400,6 +401,7 @@ export async function runFootballDataSync(options?: {
         payload: statsRes,
         synced_at: now.toISOString(),
       });
+      await upsertProcessMetricsFromStats(supabase, f.id, event, statsRes);
       await supabase.from("synced_event_lineups").upsert({
         event_id: f.id,
         payload: lineupsRes,

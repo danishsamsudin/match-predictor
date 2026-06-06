@@ -406,11 +406,32 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
                         <> · ρ {formatNum(snapshot.rho)}</>
                       )}
                     </p>
+                    {snapshot.source === "graham-wc-hub" && (
+                      <p>
+                        ΔS {formatNum(snapshot.delta_s)} · R_xG{" "}
+                        {formatNum(snapshot.home_xg_elo)}/{formatNum(snapshot.away_xg_elo)} · WCTR{" "}
+                        {formatNum(snapshot.home_wctr)}/{formatNum(snapshot.away_wctr)}
+                      </p>
+                    )}
+                    {snapshot.source === "graham-wc-hub" && (
+                      <p>
+                        A/D {formatNum(snapshot.home_attack)}/{formatNum(snapshot.home_defense)} vs{" "}
+                        {formatNum(snapshot.away_attack)}/{formatNum(snapshot.away_defense)} · SCI{" "}
+                        {formatNum(snapshot.home_sci)}/{formatNum(snapshot.away_sci)} · SSI{" "}
+                        {formatNum(snapshot.home_ssi)}/{formatNum(snapshot.away_ssi)}
+                      </p>
+                    )}
                     <p>
-                      {snapshot.source === "main-predict"
-                        ? `Model: ${String(snapshot.scenario ?? "main predict")}`
-                        : `Scenario: ${String(snapshot.scenario ?? "standard")}`}
-                      {highAltitude && snapshot.source !== "main-predict" && (
+                      {snapshot.source === "graham-wc-hub"
+                        ? `Model: ${String(snapshot.scenario ?? "wc-graham-v1.0")}`
+                        : snapshot.source === "main-predict"
+                          ? `Model: ${String(snapshot.scenario ?? "main predict")}`
+                          : `Scenario: ${String(snapshot.scenario ?? "standard")}`}
+                      {snapshot.source === "graham-wc-hub" &&
+                        Boolean(snapshot.home_form_fallback || snapshot.away_form_fallback) && (
+                          <> · fallback: {String(snapshot.home_form_fallback ?? snapshot.away_form_fallback)}</>
+                        )}
+                      {highAltitude && snapshot.source !== "main-predict" && snapshot.source !== "graham-wc-hub" && (
                         <>
                           {" "}
                           · λ atten. {String(snapshot.lambda_attenuation_pct ?? "-")}%

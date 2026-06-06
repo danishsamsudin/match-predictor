@@ -21,7 +21,7 @@ import sys
 import unicodedata
 import uuid
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -76,6 +76,62 @@ FILE_TO_WC_TEAM: dict[str, str] = {
     "cote d'ivoire": "Côte d'Ivoire",
     "curacao": "Curaçao",
 }
+
+SOFASCORE_NATIONAL_TEAM_IDS: dict[str, int] = {
+    "algeria": 4691,
+    "argentina": 4819,
+    "australia": 4741,
+    "austria": 4718,
+    "belgium": 4717,
+    "bosnia and herzegovina": 4479,
+    "brazil": 4748,
+    "cabo verde": 4753,
+    "canada": 4752,
+    "colombia": 4820,
+    "cote divoire": 4768,
+    "côte d'ivoire": 4768,
+    "croatia": 4715,
+    "curacao": 55827,
+    "czechia": 4714,
+    "dr congo": 4823,
+    "ecuador": 4757,
+    "egypt": 4758,
+    "england": 4713,
+    "france": 4481,
+    "germany": 4711,
+    "ghana": 4764,
+    "haiti": 7229,
+    "iran": 4766,
+    "iraq": 4767,
+    "japan": 4770,
+    "jordan": 4771,
+    "mexico": 4781,
+    "morocco": 4778,
+    "netherlands": 4705,
+    "new zealand": 4784,
+    "norway": 4475,
+    "panama": 5164,
+    "paraguay": 4789,
+    "portugal": 4704,
+    "qatar": 4792,
+    "saudi arabia": 4834,
+    "scotland": 4695,
+    "senegal": 4739,
+    "south africa": 4736,
+    "south korea": 4735,
+    "spain": 4698,
+    "sweden": 4688,
+    "switzerland": 4699,
+    "tunisia": 4729,
+    "turkiye": 4700,
+    "türkiye": 4700,
+    "uruguay": 4725,
+    "usa": 4724,
+    "united states": 4724,
+    "uzbekistan": 4723,
+}
+
+GOALS_XG_PROXY = 0.85
 
 STAT_TABLE_PREFIXES = (
     "stats_standard",
@@ -329,10 +385,32 @@ def parse_squad_html(html: str, *, country_label: str, source: str) -> SquadImpo
 
             gf = _parse_int(_text(tr.find("td", attrs={"data-stat": "goals_for"})))
             ga = _parse_int(_text(tr.find("td", attrs={"data-stat": "goals_against"})))
+            xg_for = _parse_optional_float(
+                _text(tr.find("td", attrs={"data-stat": "xg_for"}))
+            )
+            xg_against = _parse_optional_float(
+                _text(tr.find("td", attrs={"data-stat": "xg_against"}))
+            )
             formation = _text(tr.find("td", attrs={"data-stat": "formation"})) or None
             opp_formation = _text(tr.find("td", attrs={"data-stat": "opp_formation"})) or None
             home_formation = formation if is_home else opp_formation
             away_formation = opp_formation if is_home else formation
+
+            if is_home:
+                home_xg = xg_for
+                away_xg = xg_against
+                home_goals = gf
+                away_goals = ga
+            elif is_away:
+                home_xg = xg_against
+                away_xg = xg_for
+                home_goals = ga
+                away_goals = gf
+            else:
+                home_xg = xg_for
+                away_xg = xg_against
+                home_goals = gf
+                away_goals = ga
 
             result.matches.append(
                 {
@@ -352,8 +430,10 @@ def parse_squad_html(html: str, *, country_label: str, source: str) -> SquadImpo
                     "round": _text(tr.find("td", attrs={"data-stat": "round"})) or None,
                     "day_of_week": _text(tr.find("td", attrs={"data-stat": "dayofweek"})) or None,
                     "result": _text(tr.find("td", attrs={"data-stat": "result"})) or None,
-                    "home_goals": gf if is_home else (ga if is_away else gf),
-                    "away_goals": ga if is_home else (gf if is_away else ga),
+                    "home_goals": home_goals,
+                    "away_goals": away_goals,
+                    "home_xg": home_xg,
+                    "away_xg": away_xg,
                     "_opp_team": {"id": opp_id, "name": opp_name} if opp_id else None,
                 }
             )
@@ -445,6 +525,146 @@ def _strip_match_rows(
     return stripped
 
 
+def _parse_optional_float(value: str) -> Optional[float]:
+    text = (value or "").strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def fbref_synthetic_event_id(fbref_match_id: str) -> int:
+    h = 0
+    for ch in fbref_match_id:
+        h = (h * 31 + ord(ch)) & 0xFFFFFFFF
+    if h >= 0x80000000:
+        h -= 0x100000000
+    return -abs(h or 1)
+
+
+def resolve_sofascore_team_id(fbref_team_id: Any, teams: dict[str, str]) -> Optional[int]:
+    if fbref_team_id is None:
+        return None
+    name = teams.get(str(fbref_team_id))
+    if not name:
+        return None
+    return SOFASCORE_NATIONAL_TEAM_IDS.get(_norm_key(name))
+
+
+def international_match_tier_weight(competition: Optional[str]) -> float:
+    c = (competition or "").lower()
+    if not c:
+        return 0.85
+    if any(k in c for k in ("friendl", "preparatory", "preparation", "test match")):
+        return 0.32
+    if any(
+        k in c
+        for k in (
+            "qualif",
+            "play-off",
+            "playoff",
+            "inter-confederation",
+            "wcq",
+            "afc",
+            "caf",
+            "concacaf",
+            "conmebol",
+            "uefa",
+        )
+    ):
+        return 1.0
+    if any(
+        k in c
+        for k in (
+            "world cup",
+            "euro",
+            "copa",
+            "nations league",
+            "continental",
+            "afcon",
+            "gold cup",
+            "asian cup",
+            "finals",
+        )
+    ):
+        return 1.12
+    return 0.88
+
+
+def upsert_national_process_metrics_from_bundle(
+    supabase: Client, bundle: LocalBundle
+) -> int:
+    rows: list[dict[str, Any]] = []
+    synced_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    for match in bundle.matches.values():
+        home_fbref = match.get("home_team_id")
+        away_fbref = match.get("away_team_id")
+        home_id = resolve_sofascore_team_id(home_fbref, bundle.teams)
+        away_id = resolve_sofascore_team_id(away_fbref, bundle.teams)
+        if not home_id or not away_id:
+            continue
+
+        home_xg = match.get("home_xg")
+        away_xg = match.get("away_xg")
+        home_goals = match.get("home_goals")
+        away_goals = match.get("away_goals")
+        source = "fbref"
+
+        if home_xg is None and home_goals is not None:
+            home_xg = float(home_goals) * GOALS_XG_PROXY
+            source = "fbref_goals_proxy"
+        if away_xg is None and away_goals is not None:
+            away_xg = float(away_goals) * GOALS_XG_PROXY
+            source = "fbref_goals_proxy"
+
+        if home_xg is None and away_xg is None:
+            continue
+
+        match_id = str(match.get("id") or "")
+        if not match_id:
+            continue
+
+        competition = match.get("competition")
+        rows.append(
+            {
+                "event_id": fbref_synthetic_event_id(match_id),
+                "source": source,
+                "match_date": match.get("date"),
+                "home_team_id": home_id,
+                "away_team_id": away_id,
+                "home_xg": home_xg,
+                "away_xg": away_xg,
+                "home_shots": None,
+                "away_shots": None,
+                "home_sot": None,
+                "away_sot": None,
+                "competition_tier": international_match_tier_weight(competition),
+                "payload": {
+                    "competition": competition,
+                    "fbref_match_id": match_id,
+                    "proxy_from_goals": source == "fbref_goals_proxy",
+                },
+                "synced_at": synced_at,
+            }
+        )
+
+    if not rows:
+        return 0
+
+    chunk_size = 200
+    upserted = 0
+    for i in range(0, len(rows), chunk_size):
+        supabase.table("national_match_process_metrics").upsert(
+            rows[i : i + chunk_size], on_conflict="event_id"
+        ).execute()
+        upserted += len(rows[i : i + chunk_size])
+    logger.info("Upserted %s national_match_process_metrics rows", upserted)
+    return upserted
+
+
 def upsert_local_bundle(supabase: Client, bundle: LocalBundle) -> None:
     team_rows = [{"id": k, "name": v} for k, v in bundle.teams.items()]
     if team_rows:
@@ -511,6 +731,17 @@ def upsert_local_bundle(supabase: Client, bundle: LocalBundle) -> None:
                 )
             else:
                 raise
+
+    try:
+        upsert_national_process_metrics_from_bundle(supabase, bundle)
+    except APIError as exc:
+        if "national_match_process_metrics" in str(exc).lower() or exc.code == "PGRST204":
+            logger.warning(
+                "Table national_match_process_metrics not found. Apply migration "
+                "021_graham_national_process_metrics.sql and re-import."
+            )
+        else:
+            raise
 
 
 def missing_wc_teams(uploaded_country_names: set[str]) -> list[str]:

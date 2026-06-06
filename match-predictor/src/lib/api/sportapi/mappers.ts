@@ -232,6 +232,50 @@ export function readMatchStatValue(
   return null;
 }
 
+export interface MatchProcessMetrics {
+  homeXg: number | null;
+  awayXg: number | null;
+  homeShots: number | null;
+  awayShots: number | null;
+  homeSot: number | null;
+  awaySot: number | null;
+}
+
+const XG_STAT_NAMES = [
+  "Expected goals",
+  "Expected Goals",
+  "xG",
+  "Expected goals (xG)",
+  "Expected goals on target (xGOT)",
+];
+
+const SHOTS_STAT_NAMES = ["Total shots", "Shots", "Shots total", "Total Shots"];
+const SOT_STAT_NAMES = ["Shots on target", "Shots on goal", "Shots On Target", "On target"];
+
+/** Extract process metrics from SofaScore / SportAPI match statistics payload. */
+export function extractMatchProcessMetrics(
+  stats: SportApiStatisticsResponse | null | undefined
+): MatchProcessMetrics {
+  if (!stats) {
+    return {
+      homeXg: null,
+      awayXg: null,
+      homeShots: null,
+      awayShots: null,
+      homeSot: null,
+      awaySot: null,
+    };
+  }
+  return {
+    homeXg: readMatchStatValue(stats, XG_STAT_NAMES, "home"),
+    awayXg: readMatchStatValue(stats, XG_STAT_NAMES, "away"),
+    homeShots: readMatchStatValue(stats, SHOTS_STAT_NAMES, "home"),
+    awayShots: readMatchStatValue(stats, SHOTS_STAT_NAMES, "away"),
+    homeSot: readMatchStatValue(stats, SOT_STAT_NAMES, "home"),
+    awaySot: readMatchStatValue(stats, SOT_STAT_NAMES, "away"),
+  };
+}
+
 export function enrichTeamStatsFromMatchStatistics(
   stats: TeamStatistics,
   matchStats: SportApiStatisticsResponse,

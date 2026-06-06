@@ -89,6 +89,8 @@ export async function importScoutlystCsv(input: {
     position: string | null;
     age: number | null;
     rating: number | null;
+    market_value_eur: number | null;
+    salary_eur: number | null;
     stats: Record<string, string | number | null>;
     import_batch_id: number;
     imported_at: string;
@@ -140,6 +142,8 @@ export async function importScoutlystCsv(input: {
       position: mapped.position,
       age: mapped.age,
       rating: mapped.rating,
+      market_value_eur: mapped.market_value_eur,
+      salary_eur: mapped.salary_eur,
       stats: mapped.stats,
       import_batch_id: batchId,
       imported_at: now,
