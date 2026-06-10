@@ -1,85 +1,10 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { buildLineupsFromComparison } from "@/lib/prediction/build-custom-lineup";
 import type { FixtureLineup } from "@/lib/types/football";
 import type { PredictionResult } from "@/lib/types/prediction";
-import type { SquadPlayer, TeamComparisonSnapshot } from "@/lib/types/team-comparison";
-
-const POS_MAP: Record<string, string> = {
-  GK: "G",
-  DEF: "D",
-  MID: "M",
-  FWD: "F",
-};
-
-function squadToLineup(
-  teamId: number,
-  teamName: string,
-  formation: string | null,
-  starters: SquadPlayer[],
-  benchedIds: Set<number>
-): FixtureLineup {
-  const active = starters.filter((p) => !benchedIds.has(p.sofascorePlayerId));
-  return {
-    team: { id: teamId, name: teamName },
-    formation: formation ?? "4-3-3",
-    startXI: active.map((p, i) => ({
-      player: {
-        id: p.sofascorePlayerId,
-        name: p.name,
-        number: i + 1,
-        pos: POS_MAP[p.position] ?? "M",
-        grid: null,
-        performanceScore: p.performanceScore ?? undefined,
-      },
-    })),
-    substitutes: starters
-      .filter((p) => benchedIds.has(p.sofascorePlayerId))
-      .map((p, i) => ({
-        player: {
-          id: p.sofascorePlayerId,
-          name: p.name,
-          number: 20 + i,
-          pos: POS_MAP[p.position] ?? "M",
-          grid: null,
-          performanceScore: p.performanceScore ?? undefined,
-        },
-      })),
-  };
-}
-
-function buildLineupsFromComparison(
-  snapshot: TeamComparisonSnapshot,
-  homeBenched: Set<number>,
-  awayBenched: Set<number>
-): FixtureLineup[] {
-  const lineups: FixtureLineup[] = [];
-  const home = snapshot.home.squad;
-  const away = snapshot.away.squad;
-  if (home.hasLineupData && home.starters.length) {
-    lineups.push(
-      squadToLineup(
-        snapshot.home.teamId,
-        snapshot.home.teamName,
-        home.preferredFormation,
-        home.starters,
-        homeBenched
-      )
-    );
-  }
-  if (away.hasLineupData && away.starters.length) {
-    lineups.push(
-      squadToLineup(
-        snapshot.away.teamId,
-        snapshot.away.teamName,
-        away.preferredFormation,
-        away.starters,
-        awayBenched
-      )
-    );
-  }
-  return lineups;
-}
+import type { SquadPlayer } from "@/lib/types/team-comparison";
 
 export function LineupWhatIfEditor({
   result,

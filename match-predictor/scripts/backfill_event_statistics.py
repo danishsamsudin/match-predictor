@@ -236,14 +236,20 @@ def _read_stat(payload: Any, names: list[str], side: str) -> Optional[float]:
     return None
 
 
-def extract_match_process_metrics(payload: Any) -> dict[str, Optional[float]]:
+def _to_int_stat(value: Optional[float]) -> Optional[int]:
+    if value is None:
+        return None
+    return int(round(value))
+
+
+def extract_match_process_metrics(payload: Any) -> dict[str, Any]:
     return {
         "home_xg": _read_stat(payload, XG_STAT_NAMES, "home"),
         "away_xg": _read_stat(payload, XG_STAT_NAMES, "away"),
-        "home_shots": _read_stat(payload, SHOTS_STAT_NAMES, "home"),
-        "away_shots": _read_stat(payload, SHOTS_STAT_NAMES, "away"),
-        "home_sot": _read_stat(payload, SOT_STAT_NAMES, "home"),
-        "away_sot": _read_stat(payload, SOT_STAT_NAMES, "away"),
+        "home_shots": _to_int_stat(_read_stat(payload, SHOTS_STAT_NAMES, "home")),
+        "away_shots": _to_int_stat(_read_stat(payload, SHOTS_STAT_NAMES, "away")),
+        "home_sot": _to_int_stat(_read_stat(payload, SOT_STAT_NAMES, "home")),
+        "away_sot": _to_int_stat(_read_stat(payload, SOT_STAT_NAMES, "away")),
     }
 
 

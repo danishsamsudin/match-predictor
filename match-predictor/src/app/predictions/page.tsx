@@ -30,7 +30,7 @@ export default async function PredictionsPage() {
           </p>
           <div className="mt-4 flex flex-col items-center justify-center gap-2 text-sm font-semibold sm:flex-row sm:gap-4">
             <Link
-              href="/"
+              href="/predict"
               className="text-indigo-600 hover:text-indigo-800 dark:text-cyan-400 dark:hover:text-cyan-300"
             >
               Predict a match →

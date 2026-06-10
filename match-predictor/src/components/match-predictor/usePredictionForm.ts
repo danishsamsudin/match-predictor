@@ -7,8 +7,16 @@ import {
   parsePredictorPrefillFromSearchParams,
   PREDICTOR_PREFILL_DEFAULTS,
 } from "@/lib/world-cup/predictor-prefill";
+import {
+  buildCustomLineupsFromSelections,
+  isXiComplete,
+} from "@/lib/prediction/build-custom-lineup";
 import type { FixtureLineup } from "@/lib/types/football";
-import type { PredictRequest, PredictionResult } from "@/lib/types/prediction";
+import type { PredictRequest, PredictionLineupSource, PredictionResult } from "@/lib/types/prediction";
+import {
+  slotsFromSuggestedStarters,
+  type SquadRosterData,
+} from "./SquadXiPicker";
 import type {
   CountryOption,
   EntityType,
@@ -39,6 +47,33 @@ function resolveLeagueIdForCountry(
 }
 const DEFAULT_NATIONAL_HOME_TEAM_ID = "4748";
 const DEFAULT_NATIONAL_AWAY_TEAM_ID = "4705";
+const EMPTY_XI_SLOTS: (number | null)[] = Array(11).fill(null);
+
+async function fetchTeamSquad(input: {
+  teamId: number;
+  teamName?: string;
+  leagueId: number;
+  entityType: EntityType;
+}): Promise<SquadRosterData> {
+  const params = new URLSearchParams({
+    teamId: String(input.teamId),
+    leagueId: String(input.leagueId),
+    entityType: input.entityType,
+  });
+  if (input.teamName) params.set("teamName", input.teamName);
+  const res = await fetch(`/api/teams/squad?${params}`);
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error ?? "Failed to load squad");
+  }
+  return {
+    teamId: data.teamId,
+    teamName: input.teamName ?? data.teamName ?? "Team",
+    preferredFormation: data.preferredFormation ?? null,
+    roster: data.roster ?? [],
+    suggestedStarters: data.suggestedStarters ?? [],
+  };
+}
 
 export function usePredictionForm() {
   const searchParams = useSearchParams();
@@ -51,6 +86,10 @@ export function usePredictionForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const [resultsBySource, setResultsBySource] = useState<
+    Partial<Record<PredictionLineupSource, PredictionResult>>
+  >({});
+  const [lineupSource, setLineupSource] = useState<PredictionLineupSource>("manual_xi");
   const lastPayloadRef = useRef<PredictRequest | null>(null);
 
   const [countries, setCountries] = useState<CountryOption[]>([]);
@@ -85,6 +124,13 @@ export function usePredictionForm() {
   const [time, setTime] = useState(defaultTime);
   const [prefillHomeName, setPrefillHomeName] = useState<string | undefined>();
   const [prefillAwayName, setPrefillAwayName] = useState<string | undefined>();
+
+  const [homeRosterData, setHomeRosterData] = useState<SquadRosterData | null>(null);
+  const [awayRosterData, setAwayRosterData] = useState<SquadRosterData | null>(null);
+  const [homeXiSlots, setHomeXiSlots] = useState<(number | null)[]>(EMPTY_XI_SLOTS);
+  const [awayXiSlots, setAwayXiSlots] = useState<(number | null)[]>(EMPTY_XI_SLOTS);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [rosterError, setRosterError] = useState<string | null>(null);
   const fetchLeagues = useCallback(async (country: string, type: EntityType) => {
     const res = await fetch(
       `/api/football/leagues?country=${encodeURIComponent(country)}&entityType=${type}`
@@ -421,23 +467,106 @@ export function usePredictionForm() {
       ? homeLeagueName ?? matchLeagueName
       : [homeLeagueName, awayLeagueName].filter(Boolean).join(" · ") || matchLeagueName;
 
+  const showXiPicker = Boolean(homeTeamId && awayTeamId);
+
+  useEffect(() => {
+    setResultsBySource({});
+    setResult(null);
+  }, [homeTeamId, awayTeamId, inputMode, entityType]);
+
+  useEffect(() => {
+    if (!showXiPicker) {
+      setHomeRosterData(null);
+      setAwayRosterData(null);
+      setHomeXiSlots(EMPTY_XI_SLOTS);
+      setAwayXiSlots(EMPTY_XI_SLOTS);
+      setRosterError(null);
+      setRosterLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setRosterLoading(true);
+    setRosterError(null);
+    setHomeRosterData(null);
+    setAwayRosterData(null);
+    setHomeXiSlots(EMPTY_XI_SLOTS);
+    setAwayXiSlots(EMPTY_XI_SLOTS);
+
+    const homeName = homeTeams.find((t) => String(t.id) === homeTeamId)?.name ?? prefillHomeName;
+    const awayName = awayTeams.find((t) => String(t.id) === awayTeamId)?.name ?? prefillAwayName;
+
+    Promise.all([
+      fetchTeamSquad({
+        teamId: Number(homeTeamId),
+        teamName: homeName,
+        leagueId: Number(homeLeagueId),
+        entityType,
+      }),
+      fetchTeamSquad({
+        teamId: Number(awayTeamId),
+        teamName: awayName,
+        leagueId: Number(awayLeagueId),
+        entityType,
+      }),
+    ])
+      .then(([homeSquad, awaySquad]) => {
+        if (cancelled) return;
+        setHomeRosterData(homeSquad);
+        setAwayRosterData(awaySquad);
+        setHomeXiSlots(slotsFromSuggestedStarters(homeSquad.suggestedStarters));
+        setAwayXiSlots(slotsFromSuggestedStarters(awaySquad.suggestedStarters));
+        if (!homeSquad.roster.length || !awaySquad.roster.length) {
+          setRosterError("Squad data is unavailable for one or both teams.");
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setRosterError(
+          err instanceof Error ? err.message : "Could not load squad rosters."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setRosterLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showXiPicker,
+    homeTeamId,
+    awayTeamId,
+    homeLeagueId,
+    awayLeagueId,
+    entityType,
+    homeTeams,
+    awayTeams,
+    prefillHomeName,
+    prefillAwayName,
+  ]);
+
+  const xiSelectionComplete =
+    isXiComplete(homeXiSlots) && isXiComplete(awayXiSlots);
+
   const submitDisabled =
     loading ||
     !homeTeamId ||
     !awayTeamId ||
-    (inputMode === "fixture" && !matchId);
+    (inputMode === "fixture" && !matchId) ||
+    (lineupSource === "manual_xi" && (rosterLoading || !xiSelectionComplete));
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setResult(null);
 
     const matchDate = localDateTimeToUtcIso(date, time);
-    const payload =
+    const basePayload =
       inputMode === "compare"
         ? {
             mode: "compare" as const,
+            lineupSource,
             homeTeamId: Number(homeTeamId),
             awayTeamId: Number(awayTeamId),
             homeLeagueId: Number(homeLeagueId),
@@ -452,6 +581,7 @@ export function usePredictionForm() {
           }
         : {
             mode: "fixture" as const,
+            lineupSource,
             matchId: Number(matchId),
             homeTeamId: Number(homeTeamId),
             awayTeamId: Number(awayTeamId),
@@ -466,6 +596,34 @@ export function usePredictionForm() {
             matchDate,
           };
 
+    const customLineups =
+      lineupSource === "manual_xi" &&
+      homeRosterData &&
+      awayRosterData &&
+      xiSelectionComplete
+        ? buildCustomLineupsFromSelections(
+            {
+              teamId: homeRosterData.teamId,
+              teamName: homeRosterData.teamName,
+              preferredFormation: homeRosterData.preferredFormation,
+              roster: homeRosterData.roster,
+            },
+            {
+              teamId: awayRosterData.teamId,
+              teamName: awayRosterData.teamName,
+              preferredFormation: awayRosterData.preferredFormation,
+              roster: awayRosterData.roster,
+            },
+            homeXiSlots.filter((id): id is number => id != null),
+            awayXiSlots.filter((id): id is number => id != null)
+          )
+        : undefined;
+
+    const payload: PredictRequest =
+      customLineups?.length
+        ? { ...basePayload, customLineups }
+        : basePayload;
+
     try {
       const res = await fetch("/api/predict", {
         method: "POST",
@@ -479,8 +637,13 @@ export function usePredictionForm() {
         );
         return;
       }
-      lastPayloadRef.current = payload as PredictRequest;
-      setResult(data);
+      const typed = data as PredictionResult;
+      lastPayloadRef.current = payload;
+      setResult(typed);
+      setResultsBySource((prev) => ({
+        ...prev,
+        [lineupSource]: typed,
+      }));
     } catch {
       setError("Network error - please try again.");
     } finally {
@@ -497,7 +660,11 @@ export function usePredictionForm() {
       const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...base, customLineups }),
+        body: JSON.stringify({
+          ...base,
+          customLineups,
+          lineupSource: "manual_xi" as const,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -506,7 +673,12 @@ export function usePredictionForm() {
         );
         return;
       }
-      setResult(data);
+      const typed = data as PredictionResult;
+      setResult(typed);
+      setResultsBySource((prev) => ({
+        ...prev,
+        manual_xi: typed,
+      }));
     } catch {
       setError("Network error - please try again.");
     } finally {
@@ -567,6 +739,18 @@ export function usePredictionForm() {
     submitDisabled,
     handleSubmit,
     rerunWithCustomLineups,
+    showXiPicker,
+    lineupSource,
+    setLineupSource,
+    resultsBySource,
+    homeRosterData,
+    awayRosterData,
+    homeXiSlots,
+    awayXiSlots,
+    setHomeXiSlots,
+    setAwayXiSlots,
+    rosterLoading,
+    rosterError,
   };
 }
 

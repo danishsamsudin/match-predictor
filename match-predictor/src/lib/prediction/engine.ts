@@ -5,13 +5,15 @@ import {
   parseTeamStats,
 } from "@/lib/api/football";
 import { getWeatherForecast } from "@/lib/api/weather";
-import { enrichLineupsWithRatings } from "@/lib/data/enrich-lineup-ratings";
+import { applyCustomLineupsToTeamComparison } from "@/lib/data/apply-custom-lineups-to-comparison";
+import { buildTeamComparisonSnapshot } from "@/lib/data/build-team-comparison";
 import {
   formatMuSourceLabel,
   resolveCompetitionAvgGoals,
 } from "@/lib/data/resolve-competition-avg-goals";
 import { getTeamCity, resolveDomesticLeagueId } from "@/lib/data/football-reference";
 import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
+import { ensureFifaRankingsLoaded } from "@/lib/data/fifa-rankings-store";
 import {
   formatStrengthExplanationLine,
   getTeamStrengthMultiplier,
@@ -19,7 +21,7 @@ import {
   normalizeTeamStatsToBenchmark,
 } from "@/lib/prediction/team-strength";
 import { computeBaseProbability, computeMomentumIndex } from "@/lib/prediction/base-probability";
-import { getMomentumWeights } from "@/lib/prediction/form-momentum";
+import { getMomentumWeights, clampMomentumIndex } from "@/lib/prediction/form-momentum";
 import {
   resolveLeagueStrengthForTeam,
   resolveTeamStatsForFixture,
@@ -32,7 +34,9 @@ import {
   resolveScoreMatrixCorrelation,
   resolveScoreMatrixMaxGoals,
 } from "@/lib/prediction/market-probabilities";
-import { computeLineupImpact } from "@/lib/prediction/lineup-impact";
+import { computeLineupPlayerXgImpact } from "@/lib/prediction/lineup-player-xg-impact";
+import { resolveLineupPlayerStats } from "@/lib/prediction/resolve-lineup-player-stats";
+import { neutralLineupImpact } from "@/lib/prediction/validate-custom-lineups";
 import {
   isFifaWorldCupLeagueId,
   isHighStakesCupFinal,
@@ -47,15 +51,13 @@ import {
   pullInternationalXgTowardFifaAnchor,
   resolveFifaRatingDelta,
 } from "@/lib/world-cup/international-strength";
-import { clampMomentumIndex } from "@/lib/prediction/form-momentum";
 import { computeEstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
 import { computeWeatherImpact } from "@/lib/prediction/weather-impact";
-import { buildTeamComparisonSnapshot } from "@/lib/data/build-team-comparison";
-import { ensureFifaRankingsLoaded } from "@/lib/data/fifa-rankings-store";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { resolveCityCoordinates } from "@/lib/utils/geo";
 import { resolveTeamShortLabelsForMatch } from "@/lib/utils/team-display-name";
 import type {
+  LineupImpactResult,
   PredictRequest,
   PredictionResult,
   TeamStatAverages,
@@ -237,22 +239,36 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
       })
     : computeBaseProbability(baseInput);
 
-  let lineupsForImpact =
-    input.customLineups?.length ? input.customLineups : bundle.lineups;
+  const lineupSource = input.lineupSource ?? "manual_xi";
   const supabase = tryCreateServiceClient();
-  if (supabase) {
-    lineupsForImpact = await enrichLineupsWithRatings(lineupsForImpact, {
+
+  let lineup: LineupImpactResult;
+
+  if (lineupSource === "manual_xi" && input.customLineups?.length) {
+    const playerStats = await resolveLineupPlayerStats({
+      lineups: input.customLineups,
+      homeTeamId,
+      awayTeamId,
+      homeTeamName: input.homeTeamName,
+      awayTeamName: input.awayTeamName,
+      homeLeagueId: input.homeLeagueId,
+      awayLeagueId: input.awayLeagueId,
       entityType: input.entityType,
       supabase,
     });
-  }
 
-  const lineup = computeLineupImpact(
-    lineupsForImpact,
-    bundle.topScorers,
-    homeTeamId,
-    awayTeamId
-  );
+    lineup = computeLineupPlayerXgImpact({
+      homePlayers: playerStats.home,
+      awayPlayers: playerStats.away,
+      baseHomeXg: base.homeXg,
+      baseAwayXg: base.awayXg,
+      mu: muResult.mu,
+    });
+  } else {
+    lineup = neutralLineupImpact(
+      "Model squad mode — team structural xG only (no manual XI adjustment)."
+    );
+  }
 
   const weatherImpact = computeWeatherImpact(
     weather,
@@ -439,7 +455,17 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     `Final xG after all adjustments: ${homeTeamName} ${homeXg} - ${awayTeamName} ${awayXg}.`,
   ].filter((line): line is string => line != null);
 
-  const teamComparison = await buildTeamComparisonSnapshot(input, bundle);
+  let teamComparison = await buildTeamComparisonSnapshot(input, bundle);
+  if (
+    lineupSource === "manual_xi" &&
+    input.customLineups?.length &&
+    teamComparison
+  ) {
+    teamComparison = applyCustomLineupsToTeamComparison(
+      teamComparison,
+      input.customLineups
+    );
+  }
 
   const statComparison: { metric: string; home: number; away: number }[] = [];
   if (teamComparison) {
@@ -543,6 +569,7 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
 
   return {
     modelVersion: MODEL_VERSION,
+    lineupSource,
     homeTeamName,
     awayTeamName,
     homeTeamShortName,

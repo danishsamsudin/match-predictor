@@ -13,6 +13,11 @@ function maxProb(cells: { probability: number }[]): number {
   return Math.max(...cells.map((c) => c.probability), 0.1);
 }
 
+function formatAsianLine(line: number): string {
+  if (line > 0) return `+${line}`;
+  return String(line);
+}
+
 function HorizontalBar({
   label,
   value,
@@ -371,6 +376,14 @@ export function PredictionCharts({
   if (!analytics) return null;
 
   const topScoreMax = maxProb(analytics.topScores);
+  const marginMax = Math.max(
+    ...analytics.handicapMarkets.winningMargins.map((m) => m.probabilityPct),
+    1
+  );
+  const ahMax = Math.max(
+    ...analytics.handicapMarkets.asianHandicap.map((l) => l.homeCoverPct),
+    1
+  );
   const ouMax = Math.max(...analytics.overUnder.flatMap((l) => [l.overPct, l.underPct]), 1);
   const goalsMax = Math.max(
     ...analytics.totalGoalsDistribution.map((g) => g.probability),
@@ -430,6 +443,77 @@ export function PredictionCharts({
                 value={cell.probability}
                 maxValue={topScoreMax}
                 accent="primary"
+              />
+            ))}
+          </div>
+        </ChartCardWithTip>
+
+        <ChartCardWithTip
+          title="Winning margin markets"
+          tipLabel="Winning margin"
+          tipBody={
+            <>
+              Probability the home or away team wins by exactly 1, 2, or 3 goals. Derived by
+              summing scorelines from the Poisson/Dixon-Coles grid where the goal difference matches
+              each margin.
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                {homeLabel}
+              </p>
+              {analytics.handicapMarkets.winningMargins
+                .filter((m) => m.side === "home")
+                .map((m) => (
+                  <HorizontalBar
+                    key={`home-${m.margin}`}
+                    label={`Win by +${m.margin}`}
+                    value={m.probabilityPct}
+                    maxValue={marginMax}
+                    accent="primary"
+                  />
+                ))}
+            </div>
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">
+                {awayLabel}
+              </p>
+              {analytics.handicapMarkets.winningMargins
+                .filter((m) => m.side === "away")
+                .map((m) => (
+                  <HorizontalBar
+                    key={`away-${m.margin}`}
+                    label={`Win by +${m.margin}`}
+                    value={m.probabilityPct}
+                    maxValue={marginMax}
+                    accent="accent"
+                  />
+                ))}
+            </div>
+          </div>
+        </ChartCardWithTip>
+
+        <ChartCardWithTip
+          title="Asian Handicap (home line)"
+          tipLabel="Asian Handicap"
+          tipBody={
+            <>
+              Home-side cover probability for each Asian Handicap line (negative = home gives goals).
+              Quarter lines split stake between adjacent half/whole lines. Compare with bookmaker AH
+              prices in the handicap market comparison panel below.
+            </>
+          }
+        >
+          <div className="space-y-2">
+            {analytics.handicapMarkets.asianHandicap.map((line) => (
+              <HorizontalBar
+                key={line.line}
+                label={`Home ${formatAsianLine(line.line)}`}
+                value={line.homeCoverPct}
+                maxValue={ahMax}
+                accent={line.line <= 0 ? "primary" : "accent"}
               />
             ))}
           </div>

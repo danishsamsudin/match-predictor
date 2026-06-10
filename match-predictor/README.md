@@ -19,12 +19,17 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). The home page is the sign-in screen; after login you are redirected to `/predict`. All other routes require a valid session.
+
+Set `AUTH_USERNAME`, `AUTH_PASSWORD`, and `AUTH_SECRET` in `.env.local` before signing in locally.
 
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
+| `AUTH_USERNAME` | Login username (you set this manually; no self-service signup) |
+| `AUTH_PASSWORD` | Login password (server-only; never expose to the client) |
+| `AUTH_SECRET` | Random secret for signing session cookies (e.g. `openssl rand -base64 32`) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (no `/rest/v1/` suffix) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (client reads) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server cache writes + prediction inserts) |

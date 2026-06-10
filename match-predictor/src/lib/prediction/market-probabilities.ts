@@ -1,5 +1,6 @@
 /** Poisson-based score grid and common betting market probabilities. */
 
+import { computeHandicapMarkets } from "@/lib/prediction/handicap-probabilities";
 import { resolveInternationalScoreCorrelation } from "@/lib/world-cup/international-strength";
 import { attenuateRhoForExpectedGoalGap } from "@/lib/world-cup/score-grid";
 import type { FirstTeamToScorePct } from "@/lib/types/prediction";
@@ -277,6 +278,7 @@ export function computeMarketAnalytics(
     momentumIndex: Math.round(opts.momentumIndex * 1000) / 1000,
     modelImpact: opts.modelImpact,
     statComparison: opts.statComparison,
+    handicapMarkets: computeHandicapMarkets(matrix),
   };
 }
 

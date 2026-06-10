@@ -33,10 +33,13 @@ type ShellProps = Pick<
   | "loading"
   | "submitDisabled"
   | "handleSubmit"
+  | "lineupSource"
+  | "setLineupSource"
 > & {
   onHomePodClick: () => void;
   onAwayPodClick: () => void;
   onOpenFixture?: () => void;
+  squadXiSection?: React.ReactNode;
   children?: React.ReactNode;
 };
 
@@ -65,9 +68,12 @@ export function MatchPredictorShell({
   loading,
   submitDisabled,
   handleSubmit,
+  lineupSource,
+  setLineupSource,
   onHomePodClick,
   onAwayPodClick,
   onOpenFixture,
+  squadXiSection,
   children,
 }: ShellProps) {
   const selectedFixture = fixtures.find((f) => String(f.id) === selectedFixtureId);
@@ -106,6 +112,8 @@ export function MatchPredictorShell({
               onHomePodClick={onHomePodClick}
               onAwayPodClick={onAwayPodClick}
             />
+
+            {squadXiSection}
           </div>
 
           <FooterPill
@@ -118,6 +126,8 @@ export function MatchPredictorShell({
             loading={loading}
             submitDisabled={submitDisabled}
             citySuggestions={citySuggestions}
+            lineupSource={lineupSource}
+            onLineupSourceChange={setLineupSource}
           />
         </div>
       </div>

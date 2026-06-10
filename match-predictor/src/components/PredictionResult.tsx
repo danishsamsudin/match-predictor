@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { MarketComparisonPanel } from "./MarketComparisonPanel";
+import { HandicapMarketPanel } from "./HandicapMarketPanel";
 import { PredictionCharts } from "./prediction-charts/PredictionCharts";
 import { LineupWhatIfEditor } from "./LineupWhatIfEditor";
 import { TeamComparisonPanel } from "./TeamComparisonPanel";
@@ -66,10 +67,12 @@ export function PredictionResultCard({
   result,
   onRerunWithLineups,
   loading,
+  compact = false,
 }: {
   result: PredictionResult;
   onRerunWithLineups?: (lineups: FixtureLineup[]) => void;
   loading?: boolean;
+  compact?: boolean;
 }) {
   const [showExplanation, setShowExplanation] = useState(false);
   const homeLabel = result.homeTeamName ?? "Home";
@@ -100,6 +103,16 @@ export function PredictionResultCard({
               National teams
             </span>
           )}
+          {result.lineupSource === "manual_xi" && (
+            <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              Player xG · Your XI
+            </span>
+          )}
+          {result.lineupSource === "model_xi" && (
+            <span className="rounded-full bg-slate-500/15 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
+              Team xG · Model squad
+            </span>
+          )}
         </div>
       </div>
 
@@ -112,11 +125,14 @@ export function PredictionResultCard({
           awayLabel={awayLabel}
         />
 
-        {result.teamComparison ? (
+        {!compact && result.teamComparison ? (
           <TeamComparisonPanel comparison={result.teamComparison} />
         ) : null}
 
-        {onRerunWithLineups ? (
+        {!compact &&
+        onRerunWithLineups &&
+        result.lineupSource !== "model_xi" &&
+        !(result.entityType === "national" && result.mode === "compare") ? (
           <LineupWhatIfEditor
             result={result}
             onRerun={onRerunWithLineups}
@@ -124,7 +140,7 @@ export function PredictionResultCard({
           />
         ) : null}
 
-        {result.firstTeamToScorePct ? (
+        {!compact && result.firstTeamToScorePct ? (
           <FirstTeamToScoreSection
             fts={result.firstTeamToScorePct}
             homeLabel={homeLabel}
@@ -132,8 +148,9 @@ export function PredictionResultCard({
           />
         ) : null}
 
-        <PredictionCharts result={result} />
-        <MarketComparisonPanel result={result} />
+        {!compact ? <PredictionCharts result={result} /> : null}
+        {!compact ? <MarketComparisonPanel result={result} /> : null}
+        {!compact ? <HandicapMarketPanel result={result} /> : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <StatBox
@@ -162,6 +179,7 @@ export function PredictionResultCard({
           />
         </div>
 
+        {!compact ? (
         <div>
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary-emphasis">
@@ -204,7 +222,9 @@ export function PredictionResultCard({
             />
           </div>
         </div>
+        ) : null}
 
+        {!compact ? (
         <div>
           <button
             type="button"
@@ -221,6 +241,7 @@ export function PredictionResultCard({
           </button>
           {showExplanation && <AnalysisBreakdown explanation={result.explanation} />}
         </div>
+        ) : null}
       </div>
     </div>
   );

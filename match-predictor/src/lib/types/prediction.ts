@@ -1,8 +1,13 @@
 import type { FixtureLineup } from "@/lib/types/football";
 import type { TeamComparisonSnapshot } from "@/lib/types/team-comparison";
 
+/** How lineup data drives xG: manual XI uses player-xG blend; model uses team structural xG only. */
+export type PredictionLineupSource = "manual_xi" | "model_xi";
+
 export interface PredictRequest {
   mode?: "fixture" | "compare";
+  /** manual_xi = player-xG from selected XI; model_xi = team structural xG only. */
+  lineupSource?: PredictionLineupSource;
   /** Override predicted lineups for what-if analysis. */
   customLineups?: FixtureLineup[];
   matchId?: number;
@@ -37,6 +42,24 @@ export interface OverUnderLine {
   underPct: number;
 }
 
+export interface WinningMarginLine {
+  side: "home" | "away";
+  margin: 1 | 2 | 3;
+  probabilityPct: number;
+}
+
+export interface AsianHandicapLine {
+  line: number;
+  homeCoverPct: number;
+  awayCoverPct: number;
+  pushPct?: number;
+}
+
+export interface HandicapMarkets {
+  winningMargins: WinningMarginLine[];
+  asianHandicap: AsianHandicapLine[];
+}
+
 export interface PredictionAnalytics {
   topScores: ScoreCell[];
   scoreHeatmap: ScoreCell[];
@@ -57,6 +80,7 @@ export interface PredictionAnalytics {
     home: { bttsYesPct: number; over25Pct: number; sampleSize: number };
     away: { bttsYesPct: number; over25Pct: number; sampleSize: number };
   };
+  handicapMarkets: HandicapMarkets;
 }
 
 export interface PredictionResult {
@@ -83,6 +107,7 @@ export interface PredictionResult {
   fromCache?: boolean;
   mode?: "fixture" | "compare";
   entityType?: "club" | "national";
+  lineupSource?: PredictionLineupSource;
   debug?: { factors: Record<string, number> };
 }
 

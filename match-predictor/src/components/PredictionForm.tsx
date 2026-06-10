@@ -1,9 +1,10 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { PredictionResultCard } from "./PredictionResult";
+import { DualPredictionResults } from "./match-predictor/DualPredictionResults";
 import { FixturePickerSheet } from "./match-predictor/FixturePickerSheet";
 import { MatchPredictorShell } from "./match-predictor/MatchPredictorShell";
+import { SquadXiPicker } from "./match-predictor/SquadXiPicker";
 import { TeamPickerSheet } from "./match-predictor/TeamPickerSheet";
 import { usePredictionForm } from "./match-predictor/usePredictionForm";
 
@@ -43,9 +44,28 @@ function PredictionFormInner() {
         loading={form.loading}
         submitDisabled={form.submitDisabled}
         handleSubmit={form.handleSubmit}
+        lineupSource={form.lineupSource}
+        setLineupSource={form.setLineupSource}
         onHomePodClick={() => setHomeSheetOpen(true)}
         onAwayPodClick={() => setAwaySheetOpen(true)}
         onOpenFixture={showFixturePicker ? () => setFixtureSheetOpen(true) : undefined}
+        squadXiSection={
+          form.showXiPicker ? (
+            <SquadXiPicker
+              homeLabel={form.homeTeamName ?? "Home"}
+              awayLabel={form.awayTeamName ?? "Away"}
+              homeRoster={form.homeRosterData}
+              awayRoster={form.awayRosterData}
+              homeXiSlots={form.homeXiSlots}
+              awayXiSlots={form.awayXiSlots}
+              onHomeXiChange={form.setHomeXiSlots}
+              onAwayXiChange={form.setAwayXiSlots}
+              loading={form.rosterLoading}
+              error={form.rosterError}
+              lineupSource={form.lineupSource}
+            />
+          ) : null
+        }
       >
         <input type="hidden" name="matchId" value={form.matchId} />
         <input type="hidden" name="homeTeamId" value={form.homeTeamId} />
@@ -104,7 +124,7 @@ function PredictionFormInner() {
         />
       )}
 
-      {form.loading && !form.result && (
+      {form.loading && !form.result && Object.keys(form.resultsBySource).length === 0 && (
         <div className="liquid-glass-panel mx-auto mt-8 max-w-6xl animate-pulse rounded-[2rem] p-8">
           <div className="mb-4 h-6 w-48 rounded bg-slate-200/80 dark:bg-slate-700/50" />
           <div className="mb-2 h-4 w-full rounded bg-slate-200/60 dark:bg-slate-700/40" />
@@ -112,10 +132,10 @@ function PredictionFormInner() {
         </div>
       )}
 
-      {form.result && (
+      {(form.result || Object.keys(form.resultsBySource).length > 0) && (
         <div className="mx-auto mt-8 w-full min-w-0 max-w-6xl">
-          <PredictionResultCard
-            result={form.result}
+          <DualPredictionResults
+            resultsBySource={form.resultsBySource}
             onRerunWithLineups={form.rerunWithCustomLineups}
             loading={form.loading}
           />

@@ -29,7 +29,7 @@ export default function PrivacyPage() {
         </p>
       </div>
       <Link
-        href="/"
+        href="/predict"
         className="mt-6 inline-block text-sm font-semibold text-indigo-600 dark:text-cyan-400"
       >
         ← Back to predict

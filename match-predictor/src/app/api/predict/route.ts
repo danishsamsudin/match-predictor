@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runPrediction } from "@/lib/prediction/engine";
+import { validateManualCustomLineups } from "@/lib/prediction/validate-custom-lineups";
 import { tryCreateServiceClient, type Database } from "@/lib/supabase";
 import type { FixtureLineup } from "@/lib/types/football";
-import type { PredictRequest } from "@/lib/types/prediction";
+import type { PredictRequest, PredictionLineupSource } from "@/lib/types/prediction";
 import { sanitizeUserFacingMessage } from "@/lib/api/user-facing-messages";
 import { RateLimitError, UpstreamApiError } from "@/lib/types/prediction";
 
@@ -28,6 +29,10 @@ function parseCustomLineups(raw: unknown): FixtureLineup[] | undefined {
     });
   }
   return lineups.length ? lineups : undefined;
+}
+
+function parseLineupSource(raw: unknown): PredictionLineupSource {
+  return raw === "model_xi" ? "model_xi" : "manual_xi";
 }
 
 function validateBody(body: unknown): PredictRequest | null {
@@ -65,7 +70,10 @@ function validateBody(body: unknown): PredictRequest | null {
       : undefined;
   const city = typeof b.city === "string" ? b.city.trim() : "";
   const matchDate = typeof b.matchDate === "string" ? b.matchDate.trim() : "";
-  const customLineups = parseCustomLineups(b.customLineups);
+  const lineupSource = parseLineupSource(b.lineupSource);
+  const parsedLineups = parseCustomLineups(b.customLineups);
+  const customLineups =
+    lineupSource === "model_xi" ? undefined : parsedLineups;
 
   if (
     !Number.isFinite(homeTeamId) ||
@@ -85,6 +93,7 @@ function validateBody(body: unknown): PredictRequest | null {
     }
     return {
       mode,
+      lineupSource,
       homeTeamId,
       awayTeamId,
       homeLeagueId,
@@ -107,6 +116,7 @@ function validateBody(body: unknown): PredictRequest | null {
   return {
     mode: "fixture",
     matchId,
+    lineupSource,
     homeTeamId,
     awayTeamId,
     homeLeagueId: Number.isFinite(homeLeagueId) ? homeLeagueId : undefined,
@@ -135,6 +145,17 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    if (input.lineupSource === "manual_xi") {
+      const lineupError = validateManualCustomLineups(
+        input.customLineups,
+        input.homeTeamId,
+        input.awayTeamId
+      );
+      if (lineupError) {
+        return NextResponse.json({ error: lineupError }, { status: 400 });
+      }
     }
 
     const result = await runPrediction(input);
@@ -189,6 +210,7 @@ export async function POST(request: NextRequest) {
       ...publicResult,
       mode: input.mode ?? "fixture",
       entityType: input.entityType ?? "club",
+      lineupSource: input.lineupSource ?? "manual_xi",
     });
   } catch (error) {
     if (error instanceof RateLimitError || error instanceof UpstreamApiError) {

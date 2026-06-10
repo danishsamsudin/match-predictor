@@ -72,7 +72,7 @@ export default function SourcesPage() {
         ))}
       </ul>
       <Link
-        href="/"
+        href="/predict"
         className="mt-8 inline-block text-sm font-semibold text-indigo-600 dark:text-cyan-400"
       >
         ← Back to predict

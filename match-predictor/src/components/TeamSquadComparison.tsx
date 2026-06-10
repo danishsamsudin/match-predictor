@@ -136,7 +136,11 @@ function SquadColumn({
 
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
-          {squad.squadSource === "lineups" ? "Usual starting XI" : "Expected starting XI"}
+          {squad.squadSource === "manual"
+            ? "Selected starting XI"
+            : squad.squadSource === "lineups"
+              ? "Usual starting XI"
+              : "Expected starting XI"}
         </p>
         {squad.starters.length ? (
           <ul className="space-y-2">
