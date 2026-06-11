@@ -44,6 +44,8 @@ function normalizeSinglePositionToken(token: string): "G" | "D" | "M" | "F" {
     p === "RW" ||
     p === "LF" ||
     p === "RF" ||
+    p === "LS" ||
+    p === "RS" ||
     p.endsWith("W")
   ) {
     return "F";
@@ -92,6 +94,25 @@ export function positionDisplayLabel(pos?: string | null): string {
     default:
       return "MID";
   }
+}
+
+/** Broad GK/DEF/MID/FWD label from SoFIFA natural + tactical tokens (F beats M for wingers). */
+export function positionDisplayLabelFromTokens(
+  ...values: Array<string | null | undefined>
+): string {
+  const roles = new Set<"G" | "D" | "M" | "F">();
+  for (const value of values) {
+    for (const token of parseTacticalPositionTokens(value)) {
+      roles.add(normalizeSinglePositionToken(token));
+    }
+  }
+  for (const role of BROAD_PRIORITY) {
+    if (!roles.has(role)) continue;
+    return positionDisplayLabel(
+      role === "G" ? "GK" : role === "D" ? "CB" : role === "F" ? "ST" : "CM"
+    );
+  }
+  return "MID";
 }
 
 const POSITION_SORT: Record<"G" | "D" | "M" | "F", number> = {

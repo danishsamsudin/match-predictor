@@ -78,16 +78,18 @@ async function replaceTeamPlayers(
   }
 
   let upserted = 0;
-  for (const player of squad.players) {
+  for (let squadOrder = 0; squadOrder < squad.players.length; squadOrder += 1) {
+    const player = squad.players[squadOrder];
     const naturalPosition = primaryPosition(player.positions);
     const fieldPosition = player.isStarter
       ? player.squadRole ?? naturalPosition
       : "SUB";
+    const displayName = player.shortName?.trim() || player.fullName;
 
     const { data: inserted, error } = await supabase
       .from("soccerdata_players")
       .insert({
-        name: player.fullName,
+        name: displayName,
         league_id: WORLD_CUP_REFERENCE_LEAGUE_ID,
         team_id: teamId,
         position: naturalPosition,
@@ -97,6 +99,7 @@ async function replaceTeamPlayers(
         is_starter: player.isStarter,
         field_position: fieldPosition,
         jersey_number: player.jerseyNumber,
+        squad_order: squadOrder,
         updated_at: syncedAt,
         created_at: syncedAt,
       })

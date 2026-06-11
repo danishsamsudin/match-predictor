@@ -629,6 +629,7 @@ export type Database = {
           is_starter: boolean | null;
           field_position: string | null;
           jersey_number: number | null;
+          squad_order: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -645,6 +646,7 @@ export type Database = {
           is_starter?: boolean | null;
           field_position?: string | null;
           jersey_number?: number | null;
+          squad_order?: number | null;
           created_at?: string;
           updated_at?: string;
         };

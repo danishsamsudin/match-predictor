@@ -5,10 +5,14 @@ import {
 } from "@/lib/data/compute-player-performance-score";
 import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
 import {
-  comparePlayersByPosition,
-  positionDisplayLabel,
+  positionDisplayLabelFromTokens,
   resolveSquadPlayerLineupRole,
 } from "@/lib/data/normalize-player-position";
+import {
+  buildScoutlystLookupIndex,
+  findOfficialPlayerByNameKeys,
+  resolveScoutlystForSofifaNames,
+} from "@/lib/data/resolve-sofifa-scoutlyst-match";
 import {
   buildPlayerDetailStats,
   type PlayerDisplayStat,
@@ -16,8 +20,6 @@ import {
 import {
   loadMatchRatingsByPlayerIds,
   loadScoutlystSnapshotsByNames,
-  maxPerformanceInputs,
-  resolveScoutlystSnapshot,
   type ScoutlystSnapshotRow,
 } from "@/lib/data/resolve-squad-player-metrics";
 import {
@@ -43,38 +45,26 @@ export type SofifaDbPlayerRow = {
   is_starter: boolean | null;
   field_position: string | null;
   jersey_number: number | null;
+  squad_order: number | null;
 };
-
-function sortSquadPlayers(players: SquadPlayer[]): SquadPlayer[] {
-  return [...players].sort((a, b) => {
-    const pos = comparePlayersByPosition(
-      { position: a.position },
-      { position: b.position }
-    );
-    if (pos !== 0) return pos;
-    return (b.performanceScore ?? 0) - (a.performanceScore ?? 0);
-  });
-}
 
 /** Infer a display formation (e.g. 4-3-3) from SoFIFA starter tactical slots. */
 export function inferFormationFromSofifaStarters(
-  starters: Array<{ fieldPosition: string | null }>
+  starters: Array<{ fieldPosition: string | null; position: string }>
 ): string {
-  let g = 0;
   let d = 0;
   let m = 0;
   let f = 0;
   for (const player of starters) {
     const role = resolveSquadPlayerLineupRole({
       fieldPosition: player.fieldPosition,
-      position: player.fieldPosition,
+      position: player.position,
     });
-    if (role === "G") g += 1;
-    else if (role === "D") d += 1;
+    if (role === "G") continue;
+    if (role === "D") d += 1;
     else if (role === "F") f += 1;
     else m += 1;
   }
-  if (g < 1) g = 1;
   return `${Math.max(d, 3)}-${Math.max(m, 2)}-${Math.max(f, 1)}`;
 }
 
@@ -115,29 +105,35 @@ function toSquadPlayer(input: {
     height_cm: input.official?.heightCm ?? null,
     date_of_birth: input.official?.dob ?? null,
   };
-  const tacticalForScore =
-    input.fieldPosition && input.fieldPosition !== "SUB"
-      ? input.fieldPosition
-      : input.naturalPosition;
-  const fromStats = computePlayerPerformanceScore({
-    scoutlystRating: input.scoutlyst?.rating ?? null,
-    matchAvgRating: input.matchAvgRating,
-    stats,
-    position: tacticalForScore,
-  });
+  const tacticalSlot =
+    input.fieldPosition && input.fieldPosition !== "SUB" ? input.fieldPosition : null;
+
   const fromSofifa =
     input.sofifaOverall != null ? sofifaOverallToScore(input.sofifaOverall) : null;
-  const rawPerformanceScore = maxPerformanceInputs(fromStats, fromSofifa);
-  const performanceScore = applyBenchmarkToPerformanceScore(rawPerformanceScore, {
-    entityType: input.entityType,
-    teamId: input.teamId,
-    teamName: input.teamName,
-    leagueId: input.benchmarkLeagueId,
-  });
+  const fromStats =
+    fromSofifa == null
+      ? computePlayerPerformanceScore({
+          scoutlystRating: input.scoutlyst?.rating ?? null,
+          matchAvgRating: input.matchAvgRating,
+          stats,
+          position: input.naturalPosition ?? tacticalSlot,
+        })
+      : null;
+  const rawPerformanceScore = fromSofifa ?? fromStats;
+  // SoFIFA overall is already on the FIFA 0–100 scale; do not re-scale by national Ω.
+  const performanceScore =
+    fromSofifa != null
+      ? fromSofifa
+      : applyBenchmarkToPerformanceScore(rawPerformanceScore, {
+          entityType: input.entityType,
+          teamId: input.teamId,
+          teamName: input.teamName,
+          leagueId: input.benchmarkLeagueId,
+        });
   const detailStats: PlayerDisplayStat[] = buildPlayerDetailStats(stats);
 
   const displayPosition = input.isStarter
-    ? positionDisplayLabel(tacticalForScore)
+    ? positionDisplayLabelFromTokens(input.naturalPosition, tacticalSlot)
     : "SUB";
 
   return {
@@ -148,7 +144,7 @@ function toSquadPlayer(input: {
     name: input.displayName,
     position: displayPosition,
     fieldPosition: input.isStarter
-      ? input.fieldPosition ?? input.naturalPosition
+      ? tacticalSlot ?? input.naturalPosition
       : input.naturalPosition,
     performanceScore,
     startSharePct: input.isStarter ? 100 : null,
@@ -166,11 +162,12 @@ export async function loadSofifaPlayersForTeam(
   const { data, error } = await supabase
     .from("soccerdata_players")
     .select(
-      "name, position, country, sofifa_overall, sofifa_potential, is_starter, field_position, jersey_number"
+      "name, position, country, sofifa_overall, sofifa_potential, is_starter, field_position, jersey_number, squad_order"
     )
     .eq("team_id", teamId)
     .not("sofifa_overall", "is", null)
     .order("is_starter", { ascending: false })
+    .order("squad_order", { ascending: true, nullsFirst: false })
     .order("jersey_number", { ascending: true, nullsFirst: false });
 
   if (error) throw new Error(error.message);
@@ -200,27 +197,38 @@ export async function loadSofifaWcSquadForComparison(
   if (startersRaw.length < 11) return null;
 
   const official = getOfficialWcTeamSquad(teamLabel);
-  const officialByNorm = new Map(
-    (official?.players ?? []).map(
-      (p) => [normalizeText(formatPlayerDisplayNameIfNeeded(p.name)), p] as const
-    )
-  );
+  const officialPlayers = official?.players ?? [];
 
-  const displayNames = rows.map((row) => formatPlayerDisplayNameIfNeeded(row.name));
+  const lookupNames = rows.flatMap((row) => {
+    const display = formatPlayerDisplayNameIfNeeded(row.name);
+    return [display, row.name];
+  });
   const benchmarkLeagueId = options?.domesticLeagueId ?? 1;
   const teamName = options?.teamName ?? teamLabel;
 
-  const scoutlystByName = await loadScoutlystSnapshotsByNames(supabase, displayNames, {
+  const scoutlystSnapshots = await loadScoutlystSnapshotsByNames(supabase, lookupNames, {
     teamId,
   });
+  const scoutlystByKey = buildScoutlystLookupIndex(scoutlystSnapshots);
 
   const sofascoreIds = new Set<number>();
-  for (const name of displayNames) {
-    const scout = resolveScoutlystSnapshot(name, scoutlystByName);
-    const norm = normalizeText(name);
+  for (const row of rows) {
+    const displayName = formatPlayerDisplayNameIfNeeded(row.name);
+    const officialPlayer = findOfficialPlayerByNameKeys(
+      [displayName, row.name],
+      officialPlayers
+    );
+    const scout = resolveScoutlystForSofifaNames(
+      [displayName, row.name, officialPlayer?.name].filter(
+        (name): name is string => Boolean(name?.trim())
+      ),
+      scoutlystByKey
+    );
     const id =
       scout?.sofascore_player_id ??
-      stableSyntheticPlayerId(`wc2026:${teamLabel}:${norm}`);
+      stableSyntheticPlayerId(
+        `wc2026:${teamLabel}:${normalizeText(officialPlayer?.name ?? displayName)}`
+      );
     if (id > 0) sofascoreIds.add(id);
   }
 
@@ -228,12 +236,21 @@ export async function loadSofifaWcSquadForComparison(
 
   const mapRow = (row: SofifaDbPlayerRow, isStarter: boolean): SquadPlayer => {
     const displayName = formatPlayerDisplayNameIfNeeded(row.name);
-    const norm = normalizeText(displayName);
-    const officialPlayer = officialByNorm.get(norm) ?? null;
-    const scout = resolveScoutlystSnapshot(displayName, scoutlystByName);
+    const officialPlayer = findOfficialPlayerByNameKeys(
+      [displayName, row.name],
+      officialPlayers
+    );
+    const scout = resolveScoutlystForSofifaNames(
+      [displayName, row.name, officialPlayer?.name].filter(
+        (name): name is string => Boolean(name?.trim())
+      ),
+      scoutlystByKey
+    );
     const sofascorePlayerId =
       scout?.sofascore_player_id ??
-      stableSyntheticPlayerId(`wc2026:${teamLabel}:${norm}`);
+      stableSyntheticPlayerId(
+        `wc2026:${teamLabel}:${normalizeText(officialPlayer?.name ?? displayName)}`
+      );
 
     return toSquadPlayer({
       displayName,
@@ -253,22 +270,10 @@ export async function loadSofifaWcSquadForComparison(
     });
   };
 
-  const starters = startersRaw
-    .map((row) => mapRow(row, true))
-    .sort((a, b) => {
-      const aNum = startersRaw.find((r) => r.name === a.name)?.jersey_number;
-      const bNum = startersRaw.find((r) => r.name === b.name)?.jersey_number;
-      if (aNum != null && bNum != null && aNum !== bNum) return aNum - bNum;
-      return comparePlayersByPosition(
-        { position: a.position },
-        { position: b.position }
-      );
-    });
-  const substitutes = sortSquadPlayers(subsRaw.map((row) => mapRow(row, false)));
+  const starters = startersRaw.slice(0, 11).map((row) => mapRow(row, true));
+  const substitutes = subsRaw.map((row) => mapRow(row, false));
 
-  const hasScoutlystData = displayNames.some((name) =>
-    Boolean(resolveScoutlystSnapshot(name, scoutlystByName))
-  );
+  const hasScoutlystData = [...scoutlystSnapshots.values()].length > 0;
 
   return {
     starters,

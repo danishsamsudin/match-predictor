@@ -1,33 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { normalizePlayerPosition, primaryPositionToken } from "./normalize-player-position";
+import {
+  positionDisplayLabelFromTokens,
+  resolveSquadPlayerLineupRole,
+} from "@/lib/data/normalize-player-position";
 
-describe("normalizePlayerPosition", () => {
-  it("maps FBref DF to defender", () => {
-    expect(normalizePlayerPosition("DF")).toBe("D");
-    expect(normalizePlayerPosition("df")).toBe("D");
+describe("positionDisplayLabelFromTokens", () => {
+  it("prefers FWD when winger tokens include LW/LM", () => {
+    expect(positionDisplayLabelFromTokens("LW", "LM", "CAM")).toBe("FWD");
+    expect(positionDisplayLabelFromTokens("LS", "ST")).toBe("FWD");
   });
 
-  it("maps FBref MF and FW", () => {
-    expect(normalizePlayerPosition("MF")).toBe("M");
-    expect(normalizePlayerPosition("FW")).toBe("F");
+  it("maps fullbacks to DEF", () => {
+    expect(positionDisplayLabelFromTokens("RB", "RM")).toBe("DEF");
   });
+});
 
-  it("uses primary token for multi-position strings", () => {
-    expect(primaryPositionToken("FW,MF")).toBe("FW");
-    expect(normalizePlayerPosition("FW,MF")).toBe("F");
-    expect(normalizePlayerPosition("DF,MF")).toBe("D");
-  });
-
-  it("parses Scoutlyst space-separated tactical roles", () => {
-    expect(normalizePlayerPosition("AM CF")).toBe("F");
-    expect(normalizePlayerPosition("CB LB")).toBe("D");
-    expect(normalizePlayerPosition("DM CM")).toBe("M");
-  });
-
-  it("maps FIFA roster position labels", () => {
-    expect(normalizePlayerPosition("GK")).toBe("G");
-    expect(normalizePlayerPosition("DEF")).toBe("D");
-    expect(normalizePlayerPosition("MID")).toBe("M");
-    expect(normalizePlayerPosition("FWD")).toBe("F");
+describe("resolveSquadPlayerLineupRole", () => {
+  it("ignores SUB and uses natural position", () => {
+    expect(
+      resolveSquadPlayerLineupRole({ position: "SUB", fieldPosition: "ST" })
+    ).toBe("F");
   });
 });

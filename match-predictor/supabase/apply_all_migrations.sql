@@ -529,6 +529,13 @@ ALTER TABLE soccerdata_players
 CREATE INDEX IF NOT EXISTS idx_soccerdata_players_starter
   ON soccerdata_players (team_id, is_starter DESC, sofifa_overall DESC);
 
+-- ========== 023_sofifa_squad_order.sql ==========
+ALTER TABLE soccerdata_players
+  ADD COLUMN IF NOT EXISTS squad_order int;
+
+CREATE INDEX IF NOT EXISTS idx_soccerdata_players_squad_order
+  ON soccerdata_players (team_id, is_starter DESC, squad_order ASC);
+
 -- ========== 008_security_rls_policies.sql ==========
 REVOKE ALL ON FUNCTION public.rls_auto_enable() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.rls_auto_enable() FROM anon;
