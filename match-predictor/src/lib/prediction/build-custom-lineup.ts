@@ -1,15 +1,12 @@
+import { resolveSquadPlayerLineupRole } from "@/lib/data/normalize-player-position";
 import type { FixtureLineup } from "@/lib/types/football";
 import type { SquadPlayer, TeamComparisonSnapshot } from "@/lib/types/team-comparison";
 
-const POS_MAP: Record<string, string> = {
-  GK: "G",
-  DEF: "D",
-  MID: "M",
-  FWD: "F",
-};
-
-export function squadPositionToLineupPos(position: string): string {
-  return POS_MAP[position] ?? "M";
+export function squadPositionToLineupPos(
+  position: string,
+  fieldPosition?: string | null
+): string {
+  return resolveSquadPlayerLineupRole({ fieldPosition, position });
 }
 
 export function squadPlayersToFixtureLineup(
@@ -30,7 +27,7 @@ export function squadPlayersToFixtureLineup(
         id: p.sofascorePlayerId,
         name: p.name,
         number: i + 1,
-        pos: squadPositionToLineupPos(p.position),
+        pos: squadPositionToLineupPos(p.position, p.fieldPosition),
         grid: null,
         performanceScore: p.performanceScore ?? undefined,
       },
@@ -42,7 +39,7 @@ export function squadPlayersToFixtureLineup(
           id: p.sofascorePlayerId,
           name: p.name,
           number: 20 + i,
-          pos: squadPositionToLineupPos(p.position),
+          pos: squadPositionToLineupPos(p.position, p.fieldPosition),
           grid: null,
           performanceScore: p.performanceScore ?? undefined,
         },

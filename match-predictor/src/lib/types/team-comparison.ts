@@ -54,6 +54,7 @@ export type TeamSquadSource =
   | "scoutlyst"
   | "fbref"
   | "fifa_official"
+  | "sofifa"
   | "manual"
   | "none";
 

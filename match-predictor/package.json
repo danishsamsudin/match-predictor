@@ -36,6 +36,7 @@
     "xg-elo:recompute": "npx tsx scripts/recompute-national-xg-elo.ts",
     "graham:backtest": "npx tsx scripts/backtest-graham-vs-v21.ts",
     "transfermarkt:import": "python3 scripts/import_transfermarkt_squads_local.py",
+    "sofifa:import": "npx tsx scripts/import-sofifa-squads-local.ts",
     "statsbomb:import": "python3 scripts/import_statsbomb_international.py"
   },
   "dependencies": {

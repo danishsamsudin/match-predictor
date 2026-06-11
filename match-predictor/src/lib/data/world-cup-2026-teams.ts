@@ -95,9 +95,14 @@ const NATIONAL_TEAM_NAME_ALIASES: Record<string, string> = {
   "czech republic": "czechia",
 };
 
+function stripCombiningMarks(value: string): string {
+  return value.normalize("NFKD").replace(/\p{M}/gu, "");
+}
+
 export function normalizeNationalTeamName(name: string): string {
-  const lower = name.trim().toLowerCase();
-  return NATIONAL_TEAM_NAME_ALIASES[lower] ?? lower;
+  const lower = name.trim().normalize("NFKC").toLowerCase();
+  const ascii = stripCombiningMarks(lower);
+  return NATIONAL_TEAM_NAME_ALIASES[lower] ?? NATIONAL_TEAM_NAME_ALIASES[ascii] ?? lower;
 }
 
 export function isWorldCup2026TeamName(name: string): boolean {

@@ -24,8 +24,10 @@ function normalizeSinglePositionToken(token: string): "G" | "D" | "M" | "F" {
     p === "DEF" ||
     p.includes("DEF") ||
     p === "CB" ||
+    p.endsWith("CB") ||
     p === "LB" ||
-    p === "RB"
+    p === "RB" ||
+    p.endsWith("B") && (p.startsWith("L") || p.startsWith("R")) && p.length <= 3
   ) {
     return "D";
   }
@@ -98,6 +100,18 @@ const POSITION_SORT: Record<"G" | "D" | "M" | "F", number> = {
   M: 2,
   F: 3,
 };
+
+/** Lineup role for xG/LAV — ignores bench "SUB" labels. */
+export function resolveSquadPlayerLineupRole(input: {
+  fieldPosition?: string | null;
+  position?: string | null;
+}): "G" | "D" | "M" | "F" {
+  const slot = input.fieldPosition?.trim();
+  const display = input.position?.trim();
+  const tactical =
+    slot && slot !== "SUB" ? slot : display && display !== "SUB" ? display : null;
+  return normalizePlayerPosition(tactical);
+}
 
 export function comparePlayersByPosition(
   a: { position: string | null },

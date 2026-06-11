@@ -1,6 +1,6 @@
 import { listFbrefPlayerStatsForTeam } from "@/lib/fbref/supabase-store";
 import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
-import { squadPositionToLineupPos } from "@/lib/prediction/build-custom-lineup";
+import { resolveSquadPlayerLineupRole } from "@/lib/data/normalize-player-position";
 import type { FixtureLineup } from "@/lib/types/football";
 import type { SquadPlayer } from "@/lib/types/team-comparison";
 import type { Database } from "@/lib/supabase";
@@ -69,7 +69,10 @@ function squadPlayerToResolved(
   return {
     playerId: p.sofascorePlayerId,
     name: p.name,
-    role: squadPositionToLineupPos(p.fieldPosition ?? p.position) as "G" | "D" | "M" | "F",
+    role: resolveSquadPlayerLineupRole({
+      fieldPosition: p.fieldPosition,
+      position: p.position,
+    }),
     stats: rawStats,
     performanceScore: p.performanceScore,
   };

@@ -32,6 +32,8 @@ describe("build-custom-lineup", () => {
     expect(squadPositionToLineupPos("DEF")).toBe("D");
     expect(squadPositionToLineupPos("MID")).toBe("M");
     expect(squadPositionToLineupPos("FWD")).toBe("F");
+    expect(squadPositionToLineupPos("SUB", "ST")).toBe("F");
+    expect(squadPositionToLineupPos("SUB", "RCB")).toBe("D");
   });
 
   it("builds a fixture lineup with 11 starters and bench from roster", () => {

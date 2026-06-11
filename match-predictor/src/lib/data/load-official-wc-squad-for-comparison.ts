@@ -8,6 +8,7 @@ import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-displa
 import { aggregateLineupAppearances } from "@/lib/data/infer-usual-squad-from-lineups";
 import type { LineupAppearanceAgg } from "@/lib/data/infer-usual-squad-from-lineups";
 import { buildClubMetricsBySofascoreId } from "@/lib/data/build-club-metrics-for-lineup";
+import { loadSofifaWcSquadForComparison } from "@/lib/data/load-sofifa-wc-squad-for-comparison";
 import { pickOfficialWcMatchdayXi } from "@/lib/data/official-wc-matchday-xi";
 import {
   buildPlayerDetailStats,
@@ -195,6 +196,13 @@ export async function loadOfficialWcSquadForComparison(
 ): Promise<TeamSquadSnapshot | null> {
   const official = getOfficialWcTeamSquad(teamLabel);
   if (!official?.players.length) return null;
+
+  const sofifaSquad = await loadSofifaWcSquadForComparison(supabase, teamId, teamLabel, {
+    teamName: options?.teamName,
+    domesticLeagueId: options?.domesticLeagueId,
+    entityType: options?.entityType,
+  });
+  if (sofifaSquad) return sofifaSquad;
 
   const benchmarkLeagueId = options?.domesticLeagueId ?? 1;
   const teamName = options?.teamName ?? teamLabel;

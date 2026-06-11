@@ -625,6 +625,10 @@ export type Database = {
           country: string | null;
           birth_date: string | null;
           sofifa_overall: number | null;
+          sofifa_potential: number | null;
+          is_starter: boolean | null;
+          field_position: string | null;
+          jersey_number: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -637,6 +641,10 @@ export type Database = {
           country?: string | null;
           birth_date?: string | null;
           sofifa_overall?: number | null;
+          sofifa_potential?: number | null;
+          is_starter?: boolean | null;
+          field_position?: string | null;
+          jersey_number?: number | null;
           created_at?: string;
           updated_at?: string;
         };
