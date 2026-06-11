@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHero } from "@/components/match-predictor/PageHero";
+import { GoldenBootPanel } from "@/components/world-cup/GoldenBootPanel";
 import { GroupMatrixGrid } from "@/components/world-cup/GroupMatrixGrid";
 import { KnockoutProjectionPanel } from "@/components/world-cup/KnockoutProjectionPanel";
 import { TournamentForecastPanel } from "@/components/world-cup/TournamentForecastPanel";
@@ -119,6 +120,25 @@ export default async function WorldCupHubPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
+          Golden Boot predictions
+        </h2>
+        <WorldCupSectionHelp title="Top scorer model">
+          <p>
+            Model forecast for the tournament&apos;s leading goal scorers — not live Golden Boot
+            standings. Projections blend squad scoring rates (goals, xG, minutes), team attacking
+            strength, how far the bracket forecast expects each nation to advance, and opponent
+            defensive quality on that path.
+          </p>
+          <p>
+            Top three rows are highlighted gold, silver, and bronze. Expand the breakdown below for
+            per-player factor scores.
+          </p>
+        </WorldCupSectionHelp>
+        <GoldenBootPanel predictions={payload.goldenBootPredictions} />
       </section>
 
       <section className="mb-10">

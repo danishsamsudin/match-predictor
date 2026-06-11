@@ -15,7 +15,9 @@ import { parseHubPrediction } from "@/lib/world-cup/hub-prediction";
 import { resolveMatchPhase } from "@/lib/world-cup/match-kickoff";
 import { compareByKickoffAsc } from "@/lib/world-cup/sort-matches";
 import { filterWorldCup2026GroupStageMatches } from "@/lib/world-cup/tournament-fixtures";
+import type { GoldenBootPredictionPayload } from "@/lib/world-cup/golden-boot-prediction";
 import { buildCompletePredictionsMap } from "@/lib/world-cup/run-tournament-forecast";
+import { runGoldenBootForecast } from "@/lib/world-cup/run-golden-boot-forecast";
 import { runDeterministicTournamentForecast } from "@/lib/world-cup/tournament-simulation";
 import {
   toTournamentForecastPayload,
@@ -37,6 +39,7 @@ export type WorldCupHubPayload = {
   thirdPlaceRanking: ReturnType<typeof computeThirdPlaceWildcards>;
   knockoutProjection: ReturnType<typeof buildKnockoutProjection>;
   tournamentForecast: TournamentForecastPayload | null;
+  goldenBootPredictions: GoldenBootPredictionPayload | null;
   recent: HubMatchRow[];
   upcoming: Array<
     WcMatchRow & {
@@ -250,11 +253,12 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   let tournamentForecast =
     (forecastRow?.payload as TournamentForecastPayload | undefined) ?? null;
 
+  const predictionsByMatchId = buildCompletePredictionsMap(
+    matches,
+    (predRes.data ?? []) as Array<Record<string, unknown>>
+  );
+
   if (!tournamentForecast || tournamentForecast.knockoutMatches.length === 0) {
-    const predictionsByMatchId = buildCompletePredictionsMap(
-      matches,
-      (predRes.data ?? []) as Array<Record<string, unknown>>
-    );
     const liveForecast = await runDeterministicTournamentForecast({
       matches,
       teamNames,
@@ -267,9 +271,22 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
     }
   }
 
+  let goldenBootPredictions: GoldenBootPredictionPayload | null = null;
+  try {
+    goldenBootPredictions = await runGoldenBootForecast({
+      client: supabase,
+      forecast: tournamentForecast,
+      groupMatches: matches,
+      predictionsByMatchId,
+      teamNames,
+    });
+  } catch (err) {
+    console.warn("Golden Boot forecast failed:", err);
+  }
+
   const forecastAt = forecastRow?.computed_at as string | undefined;
   const updatedAt =
-    [latestPred, forecastAt, tournamentForecast?.computedAt]
+    [latestPred, forecastAt, tournamentForecast?.computedAt, goldenBootPredictions?.computedAt]
       .filter(Boolean)
       .sort()
       .reverse()[0] ?? new Date().toISOString();
@@ -280,6 +297,7 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
     thirdPlaceRanking,
     knockoutProjection,
     tournamentForecast,
+    goldenBootPredictions,
     recent,
     upcoming: upcomingEnriched,
   };
