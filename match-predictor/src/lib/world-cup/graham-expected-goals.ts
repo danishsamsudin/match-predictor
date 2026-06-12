@@ -16,6 +16,8 @@ import {
   GRAHAM_MU_XG,
   GRAHAM_STRENGTH_EXPONENT,
 } from "@/lib/world-cup/graham-model-config";
+import type { WcCalibrationConstants } from "@/lib/world-cup/wc-calibration-config";
+import { normalizeDeltaWeights } from "@/lib/world-cup/wc-calibration-config";
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
 import type { SquadTalentSnapshot } from "@/lib/world-cup/national-squad-talent";
 
@@ -31,6 +33,7 @@ export interface GrahamExpectedGoalsInput {
   awayTalent: SquadTalentSnapshot;
   medianSquadValueEur: number;
   mu?: number;
+  calibration?: WcCalibrationConstants;
 }
 
 export interface GrahamExpectedGoalsResult {
@@ -46,7 +49,10 @@ function fifaRating(teamId: number, teamName: string): number {
 }
 
 export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): GrahamExpectedGoalsResult {
-  const mu = input.mu ?? GRAHAM_MU_XG;
+  const cal = input.calibration;
+  const mu = input.mu ?? cal?.muXg ?? GRAHAM_MU_XG;
+  const strengthExponent = cal?.strengthExponent ?? GRAHAM_STRENGTH_EXPONENT;
+  const weights = normalizeDeltaWeights(cal?.deltaWeights ?? GRAHAM_DELTA_WEIGHTS);
   const homeIdStr = String(input.homeTeamId);
   const awayIdStr = String(input.awayTeamId);
 
@@ -111,15 +117,24 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
   const deltaMomentum = momentum * 120;
 
   const deltaS =
-    GRAHAM_DELTA_WEIGHTS.xgElo * deltaXgElo +
-    GRAHAM_DELTA_WEIGHTS.talent * (deltaTalent * 400) +
-    GRAHAM_DELTA_WEIGHTS.tournament * deltaTournament +
-    GRAHAM_DELTA_WEIGHTS.recentXgForm * (deltaRecentForm * 100) +
-    GRAHAM_DELTA_WEIGHTS.fifa * deltaFifa +
-    GRAHAM_DELTA_WEIGHTS.momentum * deltaMomentum;
+    weights.xgElo * deltaXgElo +
+    weights.talent * (deltaTalent * 400) +
+    weights.tournament * deltaTournament +
+    weights.recentXgForm * (deltaRecentForm * 100) +
+    weights.fifa * deltaFifa +
+    weights.momentum * deltaMomentum;
 
-  let homeXg = clampInternationalBaselineXg(mu * Math.exp(GRAHAM_STRENGTH_EXPONENT * deltaS));
-  let awayXg = clampInternationalBaselineXg(mu * Math.exp(-GRAHAM_STRENGTH_EXPONENT * deltaS));
+  let homeXg = clampInternationalBaselineXg(mu * Math.exp(strengthExponent * deltaS));
+  let awayXg = clampInternationalBaselineXg(mu * Math.exp(-strengthExponent * deltaS));
+
+  const awaySetPieceRate = cal?.teamSetPieceRates?.[String(input.awayTeamId)];
+  if (
+    cal &&
+    awaySetPieceRate != null &&
+    awaySetPieceRate >= cal.setPieceRateThreshold
+  ) {
+    awayXg = clampInternationalBaselineXg(awayXg + cal.setPieceXgBump);
+  }
 
   const withMomentum = applyGrahamMomentumToXg(homeXg, awayXg, momentum);
   homeXg = Math.max(INTERNATIONAL_XG_FLOOR, withMomentum.homeXg);
@@ -158,7 +173,13 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
       away_talent_source: input.awayTalent.source,
       home_form_fallback: homeRates.sample.fallback,
       away_form_fallback: awayRates.sample.fallback,
-      graham_weights: GRAHAM_DELTA_WEIGHTS,
+      graham_weights: weights,
+      calibration_version: cal?.modelVersion ?? null,
+      away_set_piece_rate: awaySetPieceRate ?? null,
+      set_piece_xg_bump_applied:
+        awaySetPieceRate != null && cal && awaySetPieceRate >= cal.setPieceRateThreshold
+          ? cal.setPieceXgBump
+          : 0,
     },
   };
 }

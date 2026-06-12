@@ -4,6 +4,7 @@ import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { enrichFormMatchesWithProcessMetrics } from "@/lib/world-cup/enrich-form-process-metrics";
 import { GRAHAM_MODEL_VERSION } from "@/lib/world-cup/graham-model-config";
+import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { resolveGrahamExpectedGoals } from "@/lib/world-cup/graham-expected-goals";
 import {
   loadInternationalFormMatchesForTeam,
@@ -117,9 +118,10 @@ export async function runGrahamWorldCupPredict(input: {
   const allForm = [...homeForm, ...awayForm];
   const deduped = [...new Map(allForm.map((m) => [`${m.date}|${m.home_team_id}|${m.away_team_id}`, m])).values()];
 
-  const [homeTalent, awayTalent] = await Promise.all([
+  const [homeTalent, awayTalent, calibration] = await Promise.all([
     resolveSquadTalentSnapshot(homeTeamId, homeName, medianTalent),
     resolveSquadTalentSnapshot(awayTeamId, awayName, medianTalent),
+    loadWcCalibrationConfig(),
   ]);
 
   const baseline = resolveGrahamExpectedGoals({
@@ -133,6 +135,7 @@ export async function runGrahamWorldCupPredict(input: {
     homeTalent,
     awayTalent,
     medianSquadValueEur: medianTalent,
+    calibration,
   });
 
   const venue = resolveStadiumVenue(match.venue_city ?? null);
@@ -166,7 +169,7 @@ export async function runGrahamWorldCupPredict(input: {
     predicted_score_away: outcomes.predictedAway,
     under_2_5_pct: Number(outcomes.under25.toFixed(4)),
     over_2_5_pct: Number(outcomes.over25.toFixed(4)),
-    model_version: GRAHAM_MODEL_VERSION,
+    model_version: calibration.modelVersion ?? GRAHAM_MODEL_VERSION,
     snapshot: {
       source: "graham-wc-hub",
       lambda: homeXg,

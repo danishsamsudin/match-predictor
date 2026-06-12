@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runPrediction } from "@/lib/prediction/engine";
 import { validateManualCustomLineups } from "@/lib/prediction/validate-custom-lineups";
+import { resolveWcMatchFromPredictInput } from "@/lib/world-cup/resolve-wc-match";
+import { runWcGrahamPredictForRequest } from "@/lib/world-cup/run-wc-graham-predict-for-request";
 import { tryCreateServiceClient, type Database } from "@/lib/supabase";
 import type { FixtureLineup } from "@/lib/types/football";
 import type { PredictRequest, PredictionLineupSource } from "@/lib/types/prediction";
@@ -158,12 +160,46 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const result = await runPrediction(input);
-
     const supabase = tryCreateServiceClient();
+    let result =
+      supabase && input.entityType === "national"
+        ? await (async () => {
+            const resolved = await resolveWcMatchFromPredictInput(supabase, {
+              homeTeamId: input.homeTeamId,
+              awayTeamId: input.awayTeamId,
+              homeName: input.homeTeamName,
+              awayName: input.awayTeamName,
+              matchDate: input.matchDate,
+              city: input.city,
+            });
+            if (!resolved) return null;
+            return runWcGrahamPredictForRequest({
+              request: input,
+              resolved,
+              supabase,
+            });
+          })()
+        : null;
+
+    if (!result) {
+      result = await runPrediction(input);
+    }
+
     if (supabase) {
       try {
         const predictedAt = new Date().toISOString();
+        const wcResolved =
+          input.entityType === "national"
+            ? await resolveWcMatchFromPredictInput(supabase, {
+                homeTeamId: input.homeTeamId,
+                awayTeamId: input.awayTeamId,
+                homeName: input.homeTeamName,
+                awayName: input.awayTeamName,
+                matchDate: input.matchDate,
+                city: input.city,
+              })
+            : null;
+
         const row: PredictionInsert = {
           match_id: input.matchId ?? 0,
           home_team_id: input.homeTeamId,
@@ -186,6 +222,8 @@ export async function POST(request: NextRequest) {
           home_league_id: input.homeLeagueId ?? null,
           away_league_id: input.awayLeagueId ?? null,
           comparison_mode: input.mode ?? "fixture",
+          analytics_snapshot: result.analytics ?? null,
+          wc_match_id: wcResolved?.matchId ?? null,
         };
 
         const { data: saved, error } = await supabase

@@ -4,6 +4,7 @@ import {
 } from "@/lib/data/world-cup-2026-teams";
 import { normalizePredictorVenueCity } from "@/lib/world-cup/stadium-metadata";
 import type { ForecastMatchResult } from "@/lib/world-cup/tournament-simulation";
+import type { WcMatchRow } from "@/lib/world-cup/standings";
 
 const DEFAULT_NATIONAL_LEAGUE_ID = 1;
 const DEFAULT_NATIONAL_COUNTRY = "International";
@@ -24,6 +25,18 @@ export function resolveNationalTeamApiId(teamName: string): number | null {
     (t) => normalizeNationalTeamName(t.name) === key
   );
   return team?.id ?? null;
+}
+
+/** Build predictor URL from official fixture home/away (World Cup cards). */
+export function buildNationalPredictorUrlFromMatch(match: WcMatchRow): string | null {
+  return buildNationalPredictorUrl({
+    homeName: match.home_team_name ?? "Home",
+    awayName: match.away_team_name ?? "Away",
+    city: match.venue_city ?? match.venue,
+    date: match.date,
+    time: match.time,
+    worldCupFixture: true,
+  });
 }
 
 /** Build predictor URL with national teams, venue, and kickoff pre-filled (compare mode). */

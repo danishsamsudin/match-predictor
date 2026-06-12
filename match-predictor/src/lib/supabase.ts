@@ -499,6 +499,8 @@ export type Database = {
           home_league_id: number | null;
           away_league_id: number | null;
           comparison_mode: string | null;
+          analytics_snapshot: unknown | null;
+          wc_match_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -523,9 +525,75 @@ export type Database = {
           home_league_id?: number | null;
           away_league_id?: number | null;
           comparison_mode?: string | null;
+          analytics_snapshot?: unknown | null;
+          wc_match_id?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["predictions"]["Insert"]>;
+        Relationships: [];
+      };
+      world_cup_calibration_config: {
+        Row: {
+          id: string;
+          version: string;
+          effective_from: string;
+          constants: Record<string, unknown>;
+          metrics: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          version: string;
+          effective_from?: string;
+          constants?: Record<string, unknown>;
+          metrics?: Record<string, unknown>;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["world_cup_calibration_config"]["Insert"]>;
+        Relationships: [];
+      };
+      world_cup_post_match_ingests: {
+        Row: {
+          id: string;
+          match_id: string;
+          source_path: string | null;
+          parsed: Record<string, unknown>;
+          article_text: string | null;
+          narrative_features: Record<string, unknown>;
+          ingested_at: string;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          source_path?: string | null;
+          parsed?: Record<string, unknown>;
+          article_text?: string | null;
+          narrative_features?: Record<string, unknown>;
+          ingested_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["world_cup_post_match_ingests"]["Insert"]>;
+        Relationships: [];
+      };
+      world_cup_prediction_evaluations: {
+        Row: {
+          match_id: string;
+          model_version: string;
+          calibration_version: string | null;
+          actual_score_home: number;
+          actual_score_away: number;
+          market_scores: Record<string, unknown>;
+          computed_at: string;
+        };
+        Insert: {
+          match_id: string;
+          model_version: string;
+          calibration_version?: string | null;
+          actual_score_home: number;
+          actual_score_away: number;
+          market_scores?: Record<string, unknown>;
+          computed_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["world_cup_prediction_evaluations"]["Insert"]>;
         Relationships: [];
       };
       soccerdata_event_enrichments: {
