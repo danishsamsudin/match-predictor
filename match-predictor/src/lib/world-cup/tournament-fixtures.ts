@@ -32,6 +32,8 @@ function matchRowScore(m: WcMatchRow): number {
   if (m.venue_city?.trim() || m.venue?.trim()) score += 5;
   if (m.group_code) score += 3;
   if (m.time) score += 1;
+  if (m.home_goals != null && m.away_goals != null) score += 25;
+  if (m.status === "finished") score += 10;
   return score;
 }
 

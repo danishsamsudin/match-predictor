@@ -3,6 +3,13 @@ import {
   getLatestFifaRankingForTeam,
 } from "@/lib/data/fifa-rankings-store";
 import { tryCreateServiceClient } from "@/lib/supabase";
+import { ingestPendingOptaResults } from "@/lib/world-cup/auto-ingest-opta";
+import { resolveMatchSummaryFromHtml } from "@/lib/world-cup/resolve-match-summary";
+import {
+  enrichSummaryFromNarrative,
+  parseWcMatchSummaryFromIngest,
+  type WcMatchSummary,
+} from "@/lib/world-cup/match-summary";
 import { enrichMatchEnvironment } from "@/lib/world-cup/enrich-matches";
 import {
   buildTeamIdToGroupMap,
@@ -40,7 +47,11 @@ export type WorldCupHubPayload = {
   knockoutProjection: ReturnType<typeof buildKnockoutProjection>;
   tournamentForecast: TournamentForecastPayload | null;
   goldenBootPredictions: GoldenBootPredictionPayload | null;
-  recent: HubMatchRow[];
+  recent: Array<
+    HubMatchRow & {
+      match_summary: WcMatchSummary | null;
+    }
+  >;
   upcoming: Array<
     WcMatchRow & {
       home_team_name: string;
@@ -124,9 +135,45 @@ function enrichMatchesForHub(
   });
 }
 
+function isMatchFinishedRow(m: HubMatchRow, ingestedMatchIds: Set<string>): boolean {
+  if (ingestedMatchIds.has(m.id)) return true;
+  if (m.status === "finished") return true;
+  return m.home_goals != null && m.away_goals != null;
+}
+
+function latestIngestSummariesByMatch(
+  rows: Array<Record<string, unknown>>
+): Map<string, { summary: WcMatchSummary; sourcePath: string | null }> {
+  const byMatch = new Map<
+    string,
+    { at: string; summary: WcMatchSummary; sourcePath: string | null }
+  >();
+  for (const row of rows) {
+    const matchId = row.match_id as string;
+    const ingestedAt = (row.ingested_at as string) ?? "";
+    let summary = parseWcMatchSummaryFromIngest(row.parsed);
+    if (!summary) continue;
+    summary = enrichSummaryFromNarrative(summary, row.narrative_features);
+    const sourcePath = (row.source_path as string | null) ?? null;
+    const existing = byMatch.get(matchId);
+    if (!existing || ingestedAt > existing.at) {
+      byMatch.set(matchId, { at: ingestedAt, summary, sourcePath });
+    }
+  }
+  return new Map(
+    [...byMatch.entries()].map(([id, v]) => [id, { summary: v.summary, sourcePath: v.sourcePath }])
+  );
+}
+
 export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | null> {
   const supabase = tryCreateServiceClient();
   if (!supabase) return null;
+
+  try {
+    await ingestPendingOptaResults(supabase);
+  } catch (err) {
+    console.warn("WC auto-ingest skipped:", err);
+  }
 
   const wcClient = supabase as unknown as {
     from: (table: string) => {
@@ -137,18 +184,21 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
     };
   };
 
-  const [teamsRes, matchesRes, discRes, predRes, forecastRes] = await Promise.all([
+  const [teamsRes, matchesRes, discRes, predRes, forecastRes, ingestsRes] = await Promise.all([
     supabase.from("teams").select("id, name"),
     supabase
       .from("matches")
       .select(
-        "id, date, time, venue, venue_city, venue_altitude_meters, competition, round, group_code, home_team_id, away_team_id, home_goals, away_goals"
+        "id, date, time, venue, venue_city, venue_altitude_meters, competition, round, group_code, status, home_team_id, away_team_id, home_goals, away_goals"
       )
       .or(WORLD_CUP_FINALS_COMPETITION_OR)
       .order("date", { ascending: true }),
     wcClient.from("world_cup_team_discipline").select("team_id, total_fair_play_points"),
     wcClient.from("world_cup_predictions").select("*"),
     wcClient.from("world_cup_tournament_projection").select("payload, computed_at"),
+    wcClient
+      .from("world_cup_post_match_ingests")
+      .select("match_id, parsed, narrative_features, source_path, ingested_at"),
   ]);
 
   const teamNames = new Map((teamsRes.data ?? []).map((t) => [t.id, t.name]));
@@ -184,13 +234,33 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
 
   const knockoutProjection = buildKnockoutProjection(thirdPlaceRanking, allMd3Done);
 
-  const recent: HubMatchRow[] = matches
-    .filter((m) => m.status === "finished")
-    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
-    .slice(0, 12);
+  const ingestedMatchIds = new Set(
+    ((ingestsRes.data ?? []) as Array<{ match_id: string }>).map((r) => r.match_id)
+  );
+  const summaryByMatchId = latestIngestSummariesByMatch(ingestsRes.data ?? []);
+
+  const recent = await Promise.all(
+    matches
+      .filter((m) => isMatchFinishedRow(m, ingestedMatchIds))
+      .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+      .slice(0, 12)
+      .map(async (m) => {
+        const ingest = summaryByMatchId.get(m.id);
+        const summary = await resolveMatchSummaryFromHtml(
+          supabase,
+          m.id,
+          ingest?.sourcePath,
+          ingest?.summary ?? null
+        );
+        return {
+          ...m,
+          match_summary: summary,
+        };
+      })
+  );
 
   const upcoming = matches
-    .filter((m) => !(m.home_goals != null && m.away_goals != null) && m.status !== "finished")
+    .filter((m) => !isMatchFinishedRow(m, ingestedMatchIds))
     .map((m) => {
       const official = resolveFixtureScheduleMeta({
         date: m.date,

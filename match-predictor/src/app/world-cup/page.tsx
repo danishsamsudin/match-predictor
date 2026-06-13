@@ -3,6 +3,7 @@ import { PageHero } from "@/components/match-predictor/PageHero";
 import { GoldenBootPanel } from "@/components/world-cup/GoldenBootPanel";
 import { GroupMatrixGrid } from "@/components/world-cup/GroupMatrixGrid";
 import { KnockoutProjectionPanel } from "@/components/world-cup/KnockoutProjectionPanel";
+import { RecentResultsSection } from "@/components/world-cup/RecentResultsSection";
 import { TournamentForecastPanel } from "@/components/world-cup/TournamentForecastPanel";
 import { UpcomingFixturesSection } from "@/components/world-cup/UpcomingFixturesSection";
 import type { UpcomingMatchCardProps } from "@/components/world-cup/MatchValueFlipCard";
@@ -172,22 +173,24 @@ export default async function WorldCupHubPage() {
           <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
             Recent results
           </h2>
-          <ul className="space-y-2">
-            {payload.recent.map((m) => (
-              <li
-                key={m.id}
-                className="liquid-glass-pill flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-2 text-sm"
-              >
-                <span>
-                  {m.home_team_name} {m.home_goals}-{m.away_goals} {m.away_team_name}
-                </span>
-                <span className="text-xs text-slate-500">
-                  {m.date}
-                  {m.group_code ? ` · Group ${m.group_code}` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <WorldCupSectionHelp title="Post-match stats">
+            <p>
+              Tap a result to expand a full-time summary — score, possession, expected goals,
+              shots, fouls, cards, and more from Opta Analyst match reports.
+            </p>
+          </WorldCupSectionHelp>
+          <RecentResultsSection
+            matches={payload.recent.map((m) => ({
+              matchId: m.id,
+              homeName: m.home_team_name,
+              awayName: m.away_team_name,
+              homeGoals: m.home_goals,
+              awayGoals: m.away_goals,
+              date: m.date,
+              groupCode: m.group_code,
+              summary: m.match_summary,
+            }))}
+          />
         </section>
       )}
 

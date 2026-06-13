@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { tryCreateServiceClient } from "@/lib/supabase";
+import { ingestPendingOptaResults } from "@/lib/world-cup/auto-ingest-opta";
 
 /** Until Supabase types include world_cup_* tables from migration 018. */
 function wcDb(client: SupabaseClient) {
@@ -40,6 +41,7 @@ export type WorldCupSyncResult = {
   matchesEnriched: number;
   predictionsUpserted: number;
   tournamentForecastUpdated: boolean;
+  optaIngested: number;
   errors: string[];
 };
 
@@ -104,17 +106,20 @@ async function upsertHubPrediction(
 
 export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
   const supabase = tryCreateServiceClient();
-  const errors: string[] = [];
   if (!supabase) {
     return {
       ok: false,
       matchesEnriched: 0,
       predictionsUpserted: 0,
       tournamentForecastUpdated: false,
+      optaIngested: 0,
       errors: ["No Supabase client"],
     };
   }
   const client = supabase;
+
+  const ingestResult = await ingestPendingOptaResults(client);
+  const errors: string[] = [...ingestResult.errors];
 
   const { data: teams } = await client.from("teams").select("id, name");
   const teamNames = new Map((teams ?? []).map((t) => [t.id, t.name]));
@@ -133,7 +138,8 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
       matchesEnriched: 0,
       predictionsUpserted: 0,
       tournamentForecastUpdated: false,
-      errors: [matchErr.message],
+      optaIngested: ingestResult.ingested,
+      errors: [...errors, matchErr.message],
     };
   }
 
@@ -242,6 +248,7 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
     matchesEnriched,
     predictionsUpserted,
     tournamentForecastUpdated,
+    optaIngested: ingestResult.ingested,
     errors,
   };
 }
