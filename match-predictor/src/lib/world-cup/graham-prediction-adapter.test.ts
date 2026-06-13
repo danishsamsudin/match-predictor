@@ -25,6 +25,12 @@ describe("grahamHubRowToPredictionResult", () => {
       pred: samplePred,
       homeName: "Mexico",
       awayName: "South Africa",
+      estimated: {
+        corners: 9.4,
+        fouls: 24.1,
+        yellowCards: 3.2,
+        redCards: 0.1,
+      },
     });
 
     expect(result.homeWinPct).toBeCloseTo(81.6, 0);
@@ -33,5 +39,7 @@ describe("grahamHubRowToPredictionResult", () => {
     expect(result.analytics?.overUnder.length).toBeGreaterThan(0);
     expect(result.analytics?.handicapMarkets.asianHandicap.length).toBeGreaterThan(0);
     expect(result.analytics?.topScores.length).toBeGreaterThan(0);
+    expect(result.estimated.corners).toBeGreaterThan(0);
+    expect(result.estimated.fouls).toBeGreaterThan(0);
   });
 });

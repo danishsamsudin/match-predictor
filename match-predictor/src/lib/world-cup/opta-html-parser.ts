@@ -4,6 +4,10 @@ import {
   normalizeNationalTeamName,
   WORLD_CUP_2026_TEAMS,
 } from "@/lib/data/world-cup-2026-teams";
+import {
+  extractOptaWidgetMatchStats,
+  type OptaWidgetMatchStats,
+} from "@/lib/world-cup/opta-widget-stats";
 
 export interface OptaNarrativeFeatures {
   setPieceGoal: boolean;
@@ -39,6 +43,11 @@ export interface OptaParsedMatch {
   awayShots: number | null;
   homeShotsOnTarget: number | null;
   awayShotsOnTarget: number | null;
+  homeCorners: number | null;
+  awayCorners: number | null;
+  homeFoulsConceded: number | null;
+  awayFoulsConceded: number | null;
+  widgetStats: OptaWidgetMatchStats | null;
   articleText: string;
   optaFacts: string[];
   narrativeFeatures: OptaNarrativeFeatures;
@@ -65,7 +74,8 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"');
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
 }
 
 function resolveTeam(name: string): { apiId: number | null; canonicalName: string } {
@@ -178,15 +188,32 @@ export function parseOptaDateString(raw: string): string | null {
   return `${m[3]}-${month}-${day}`;
 }
 
+function firstStatsBarsTable(widgetHtml: string): string {
+  const match = widgetHtml.match(/<table class="Opta-Stats-Bars"[^>]*>[\s\S]*?<\/table>/i);
+  return match?.[0] ?? widgetHtml;
+}
+
+const SUMMARY_STAT_LABELS = new Set([
+  "Goals",
+  "Possession",
+  "Shots",
+  "Shots on target",
+  "Corners won",
+]);
+
 function extractStatBarRow(
   widgetHtml: string,
   label: string
 ): { home: string | null; away: string | null } {
+  const searchHtml = SUMMARY_STAT_LABELS.has(label)
+    ? firstStatsBarsTable(widgetHtml)
+    : widgetHtml;
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(
-    `<th[^>]*>${label}</th></tr><tr[^>]*><td class="Opta-Outer[^"]*">([^<]*)</td>[\\s\\S]*?<td class="Opta-Outer">([^<]*)</td>`,
+    `<th[^>]*>${escapedLabel}</th></tr>\\s*<tr[^>]*><td class="Opta-Outer[^"]*">([^<]*)</td>[\\s\\S]*?<td class="Opta-Outer[^"]*">([^<]*)</td>`,
     "i"
   );
-  const m = widgetHtml.match(pattern);
+  const m = searchHtml.match(pattern);
   if (!m) return { home: null, away: null };
   return { home: m[1].trim(), away: m[2].trim() };
 }
@@ -246,7 +273,13 @@ function extractNarrativeFromArticle(
   awayName: string,
   possessionHome: number | null,
   possessionAway: number | null,
-  widgetHtml: string
+  widgetHtml: string,
+  discipline?: {
+    yellowHome: number | null;
+    yellowAway: number | null;
+    redHome: number | null;
+    redAway: number | null;
+  }
 ): OptaNarrativeFeatures {
   const lower = articleText.toLowerCase();
 
@@ -270,10 +303,14 @@ function extractNarrativeFromArticle(
     else if (possessionAway - possessionHome >= 8) dominantPossessionSide = "away";
   }
 
-  const redCardsHome = countCards(widgetHtml, "Home", "Red");
-  const redCardsAway = countCards(widgetHtml, "Away", "Red");
-  const yellowCardsHome = countCards(widgetHtml, "Home", "Yellow");
-  const yellowCardsAway = countCards(widgetHtml, "Away", "Yellow");
+  const redCardsHome =
+    discipline?.redHome ?? countCards(widgetHtml, "Home", "Red");
+  const redCardsAway =
+    discipline?.redAway ?? countCards(widgetHtml, "Away", "Red");
+  const yellowCardsHome =
+    discipline?.yellowHome ?? countCards(widgetHtml, "Home", "Yellow");
+  const yellowCardsAway =
+    discipline?.yellowAway ?? countCards(widgetHtml, "Away", "Yellow");
 
   const redMentions = (lower.match(/red card|sent off|dismissed/g) ?? []).length;
 
@@ -306,15 +343,28 @@ function extractTitleScore(mainHtml: string): {
   if (!titleMatch) return { homeName: null, awayName: null, homeGoals: null, awayGoals: null };
 
   const title = decodeHtmlEntities(titleMatch[1]);
-  const scoreMatch = title.match(/^(.+?)\s+(\d+)\s*[-–]\s*(\d+)\s+(.+?)\s+Stats/i);
-  if (!scoreMatch) return { homeName: null, awayName: null, homeGoals: null, awayGoals: null };
 
-  return {
-    homeName: scoreMatch[1].trim(),
-    awayName: scoreMatch[4].trim(),
-    homeGoals: Number(scoreMatch[2]),
-    awayGoals: Number(scoreMatch[3]),
-  };
+  const scoreMatch = title.match(/^(.+?)\s+(\d+)\s*[-–]\s*(\d+)\s+(.+?)\s+Stats/i);
+  if (scoreMatch) {
+    return {
+      homeName: scoreMatch[1].trim(),
+      awayName: scoreMatch[4].trim(),
+      homeGoals: Number(scoreMatch[2]),
+      awayGoals: Number(scoreMatch[3]),
+    };
+  }
+
+  const vsMatch = title.match(/^(.+?)\s+vs\.?\s+(.+?)\s+Stats:/i);
+  if (vsMatch) {
+    return {
+      homeName: vsMatch[1].trim(),
+      awayName: vsMatch[2].trim(),
+      homeGoals: null,
+      awayGoals: null,
+    };
+  }
+
+  return { homeName: null, awayName: null, homeGoals: null, awayGoals: null };
 }
 
 function scoreWidgetHtml(content: string): number {
@@ -351,7 +401,7 @@ export function resolveSiblingWidgetHtml(
   let best: { content: string; score: number } | null = null;
 
   for (const match of iframeMatches) {
-    const rel = match[1].replace(/^\.\//, "");
+    const rel = decodeHtmlEntities(match[1]).replace(/^\.\//, "");
     const widgetPath = path.join(dir, rel);
     if (!fs.existsSync(widgetPath)) continue;
     const content = fs.readFileSync(widgetPath, "utf8");
@@ -396,12 +446,17 @@ export function parseOptaMatchHtml(
   }
 
   const possession = extractStatBarRow(widgetHtml || combined, "Possession");
-  const shots = extractStatBarRow(widgetHtml || combined, "Shots");
-  const sot = extractStatBarRow(widgetHtml || combined, "Shots on target");
   const xg = extractXgRow(widgetHtml || combined);
+  const widgetStats = extractOptaWidgetMatchStats(widgetHtml || combined);
 
-  const possessionHome = parsePercent(possession.home);
-  const possessionAway = parsePercent(possession.away);
+  const possessionHome =
+    widgetStats?.home.possessionPct ?? parsePercent(possession.home);
+  const possessionAway =
+    widgetStats?.away.possessionPct ?? parsePercent(possession.away);
+  const disciplineYellowHome = widgetStats?.home.yellowCards ?? null;
+  const disciplineYellowAway = widgetStats?.away.yellowCards ?? null;
+  const disciplineRedHome = widgetStats?.home.redCards ?? null;
+  const disciplineRedAway = widgetStats?.away.redCards ?? null;
 
   const narrativeFeatures = extractNarrativeFromArticle(
     articleText,
@@ -409,7 +464,13 @@ export function parseOptaMatchHtml(
     awayTeamName,
     possessionHome,
     possessionAway,
-    widgetHtml
+    widgetHtml,
+    {
+      yellowHome: disciplineYellowHome,
+      yellowAway: disciplineYellowAway,
+      redHome: disciplineRedHome,
+      redAway: disciplineRedAway,
+    }
   );
 
   const homeTeamApiId = homeResolved.apiId;
@@ -450,10 +511,15 @@ export function parseOptaMatchHtml(
     awayFormation: header.awayFormation,
     homeXg: xg.home ?? articleXgHome,
     awayXg: xg.away ?? articleXgAway,
-    homeShots: parseIntStat(shots.home),
-    awayShots: parseIntStat(shots.away),
-    homeShotsOnTarget: parseIntStat(sot.home),
-    awayShotsOnTarget: parseIntStat(sot.away),
+    homeShots: widgetStats?.home.shots ?? null,
+    awayShots: widgetStats?.away.shots ?? null,
+    homeShotsOnTarget: widgetStats?.home.shotsOnTarget ?? null,
+    awayShotsOnTarget: widgetStats?.away.shotsOnTarget ?? null,
+    homeCorners: widgetStats?.home.cornersWon ?? null,
+    awayCorners: widgetStats?.away.cornersWon ?? null,
+    homeFoulsConceded: widgetStats?.home.foulsConceded ?? null,
+    awayFoulsConceded: widgetStats?.away.foulsConceded ?? null,
+    widgetStats,
     articleText,
     optaFacts,
     narrativeFeatures,

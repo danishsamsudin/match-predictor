@@ -6,6 +6,7 @@ import {
   outcomesFromGuardedGrid,
 } from "@/lib/world-cup/score-grid";
 import type { PredictionAnalytics, PredictionResult } from "@/lib/types/prediction";
+import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
 
 function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): number {
   for (const key of keys) {
@@ -62,6 +63,7 @@ export function grahamHubRowToPredictionResult(input: {
   homeName: string;
   awayName: string;
   explanation?: string;
+  estimated?: EstimatedMatchStats;
 }): PredictionResult {
   const { pred, homeName, awayName } = input;
   const snap = pred.snapshot;
@@ -80,7 +82,7 @@ export function grahamHubRowToPredictionResult(input: {
     drawPct: Math.round(pred.draw_pct * 1000) / 10,
     awayWinPct: Math.round(pred.away_win_pct * 1000) / 10,
     expectedGoals: { home: homeXg, away: awayXg },
-    estimated: {
+    estimated: input.estimated ?? {
       corners: 0,
       fouls: 0,
       yellowCards: 0,

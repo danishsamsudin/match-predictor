@@ -4,6 +4,7 @@
  * Usage: npx tsx scripts/wc-ingest-opta-html.ts /path/to/article.html [...]
  */
 import { upsertNationalMatchProcessMetrics } from "../src/lib/data/match-process-metrics";
+import { assertOptaHtmlBundle } from "../src/lib/world-cup/wc-opta-results-dir";
 import { internationalMatchTierWeight } from "../src/lib/world-cup/international-strength";
 import { parseOptaMatchFromFile } from "../src/lib/world-cup/opta-html-parser";
 import { clearWcCalibrationCache, loadWcCalibrationConfig } from "../src/lib/world-cup/wc-calibration-config";
@@ -36,6 +37,7 @@ async function ingestOne(
   supabase: NonNullable<ReturnType<typeof tryCreateServiceClient>>,
   filePath: string
 ): Promise<void> {
+  assertOptaHtmlBundle(filePath);
   const parsed = parseOptaMatchFromFile(filePath);
   if (!parsed.homeTeamApiId || !parsed.awayTeamApiId) {
     throw new Error(`Could not resolve teams in ${filePath}`);
@@ -152,7 +154,10 @@ async function ingestOne(
 
 async function main() {
   loadEnvLocal();
-  const files = process.argv.slice(2).filter((f) => f && !f.startsWith("-"));
+  const files = process.argv
+    .slice(2)
+    .map((f) => f.trim())
+    .filter((f) => f && !f.startsWith("-"));
   if (!files.length) {
     console.error("Usage: npx tsx scripts/wc-ingest-opta-html.ts <file.html> [...]");
     process.exit(1);

@@ -1,9 +1,20 @@
 /**
  * Post-match WC pipeline: ingest Opta HTML → ratings → evaluate → calibrate → sync.
  *
- * Usage: npx tsx scripts/wc-post-match.ts /path/to/article.html [...]
+ * Usage:
+ *   npx tsx scripts/wc-post-match.ts
+ *     → ingests all *.html in data/world-cup-2026/WC-Opta-Results
+ *   npx tsx scripts/wc-post-match.ts /path/to/article.html [...]
  */
 import { spawnSync } from "node:child_process";
+import path from "node:path";
+import {
+  assertOptaHtmlBundle,
+  expectedOptaFilesDir,
+  listWcOptaResultHtmlFiles,
+  WC_OPTA_RESULTS_DIR,
+} from "../src/lib/world-cup/wc-opta-results-dir";
+
 function run(cmd: string, args: string[]): void {
   const result = spawnSync(cmd, args, {
     cwd: process.cwd(),
@@ -15,12 +26,50 @@ function run(cmd: string, args: string[]): void {
   }
 }
 
+function resolveHtmlFiles(argv: string[]): string[] {
+  const explicit = argv.map((f) => f.trim()).filter((f) => f && !f.startsWith("-"));
+  if (explicit.length) return explicit;
+  return listWcOptaResultHtmlFiles();
+}
+
+function validateBundles(files: string[]): void {
+  const missing: string[] = [];
+  for (const file of files) {
+    try {
+      assertOptaHtmlBundle(file);
+    } catch {
+      missing.push(file);
+    }
+  }
+  if (!missing.length) return;
+
+  console.error("Cannot run post-match pipeline — missing Opta _files folders:\n");
+  for (const file of missing) {
+    console.error(`  • ${path.basename(file)}`);
+    console.error(`    expected: ${expectedOptaFilesDir(file)}\n`);
+  }
+  console.error(
+    "Save each article as “Web Page, Complete” and copy both the .html and _files folder into WC-Opta-Results."
+  );
+  process.exit(1);
+}
+
 function main() {
-  const files = process.argv.slice(2).filter((f) => f && !f.startsWith("-"));
+  const files = resolveHtmlFiles(process.argv.slice(2));
   if (!files.length) {
-    console.error("Usage: npx tsx scripts/wc-post-match.ts <file.html> [...]");
+    console.error(
+      `No Opta HTML files found. Add *.html articles to:\n  ${WC_OPTA_RESULTS_DIR}\n\nOr pass paths:\n  npm run wc:postmatch -- path/to/article.html`
+    );
     process.exit(1);
   }
+
+  console.log(`Processing ${files.length} Opta article(s) from WC-Opta-Results:\n`);
+  for (const file of files) {
+    console.log(`  • ${path.basename(file)}`);
+  }
+  console.log("");
+
+  validateBundles(files);
 
   run("npx", ["tsx", "scripts/wc-ingest-opta-html.ts", ...files]);
   run("npm", ["run", "xg-elo:recompute"]);

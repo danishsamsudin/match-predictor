@@ -2,6 +2,8 @@ import { grahamHubRowToPredictionResult } from "@/lib/world-cup/graham-predictio
 import { runHubMainPredict } from "@/lib/world-cup/hub-main-predict";
 import { resolveMatchPhase, shouldRefreshHubPrediction } from "@/lib/world-cup/match-kickoff";
 import type { ResolvedWcMatch } from "@/lib/world-cup/resolve-wc-match";
+import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
+import { computeWcEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
 import type { PredictRequest, PredictionResult } from "@/lib/types/prediction";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -79,9 +81,27 @@ export async function runWcGrahamPredictForRequest(input: {
     });
   }
 
+  const homeXg = Number(hubRow.snapshot.home_xg ?? hubRow.snapshot.lambda ?? 1.2);
+  const awayXg = Number(hubRow.snapshot.away_xg ?? hubRow.snapshot.mu ?? 1.2);
+  const homeTeamApiId = resolveApiTeamId(match.home_team_id!, homeName);
+  const awayTeamApiId = resolveApiTeamId(match.away_team_id!, awayName);
+
+  const estimated = computeWcEstimatedMatchStats({
+    homeTeamApiId,
+    awayTeamApiId,
+    homeName,
+    awayName,
+    homeDbTeamId: match.home_team_id!,
+    awayDbTeamId: match.away_team_id!,
+    homeXg,
+    awayXg,
+    finishedMatches,
+  });
+
   return grahamHubRowToPredictionResult({
     pred: hubRow,
     homeName,
     awayName,
+    estimated,
   });
 }
