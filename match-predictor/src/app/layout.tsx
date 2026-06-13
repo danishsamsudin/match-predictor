@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { Nav } from "@/components/Nav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -60,6 +61,7 @@ export default function RootLayout({
           <main className="relative z-10 min-w-0 flex-1 overflow-x-hidden">{children}</main>
           <SiteFooter />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
