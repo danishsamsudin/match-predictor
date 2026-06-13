@@ -121,6 +121,33 @@ describe("tournament fixture filter", () => {
     expect(rows[0].id).toBe("abc123");
   });
 
+  it("prefers finished results when home/away duplicates share a date", () => {
+    const rows = dedupeWorldCupMatches([
+      {
+        id: "scheduled-reversed",
+        date: "2026-06-11",
+        competition: "World Cup",
+        home_team_id: "sa",
+        away_team_id: "mx",
+        home_goals: null,
+        away_goals: null,
+        status: "scheduled",
+      },
+      {
+        id: "finished-official",
+        date: "2026-06-11",
+        competition: "World Cup",
+        home_team_id: "mx",
+        away_team_id: "sa",
+        home_goals: 2,
+        away_goals: 0,
+        status: "finished",
+      },
+    ] as WcMatchRow[]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe("finished-official");
+  });
+
   it("drops cross-group pairings", () => {
     const teamNames = new Map([
       ["mx", "Mexico"],

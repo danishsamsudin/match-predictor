@@ -2,6 +2,19 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAuthConfig } from "@/lib/auth/config";
 import { getSessionTokenFromRequest, verifySessionToken } from "@/lib/auth/session";
 
+function resolveCronSecret(): string | undefined {
+  return process.env.SYNC_CRON_SECRET?.trim() || process.env.CRON_SECRET?.trim() || undefined;
+}
+
+function isCronSecretAuthorized(request: NextRequest): boolean {
+  const secret = resolveCronSecret();
+  if (!secret) return false;
+  const authHeader = request.headers.get("authorization");
+  const querySecret = request.nextUrl.searchParams.get("secret");
+  const provided = authHeader?.replace(/^Bearer\s+/i, "") ?? querySecret;
+  return provided === secret;
+}
+
 function isPublicPath(pathname: string): boolean {
   if (pathname === "/") {
     return true;
@@ -13,6 +26,10 @@ function isPublicPath(pathname: string): boolean {
     return true;
   }
   return false;
+}
+
+function isDataOpsPath(pathname: string): boolean {
+  return pathname.startsWith("/api/soccerdata/");
 }
 
 export async function middleware(request: NextRequest) {
@@ -35,6 +52,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isPublicPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (isDataOpsPath(pathname) && isCronSecretAuthorized(request)) {
     return NextResponse.next();
   }
 

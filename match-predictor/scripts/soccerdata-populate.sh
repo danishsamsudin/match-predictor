@@ -15,8 +15,13 @@ curl -sS -X POST "${BASE_URL}/api/cron/sync?force=true" \
 echo ""
 
 echo "==> 2) SoccerData one-shot league backfill"
+if [[ -z "${SYNC_CRON_SECRET}" || "${SYNC_CRON_SECRET}" == "YOUR_SYNC_CRON_SECRET" ]]; then
+  echo "Set SYNC_CRON_SECRET in .env.local (required when app login is enabled)."
+  exit 1
+fi
 curl -sS -X POST "${BASE_URL}/api/soccerdata/import/backfill" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${SYNC_CRON_SECRET}" \
   -d "{\"leagueId\":${LEAGUE_ID},\"season\":${SEASON}}" | tee /tmp/soccerdata-backfill.json
 echo ""
 

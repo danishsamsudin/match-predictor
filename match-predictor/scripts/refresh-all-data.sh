@@ -32,6 +32,7 @@ if [[ -f .env.local ]]; then
 fi
 
 BASE_URL="${BASE_URL:-http://localhost:3000}"
+BASE_PORT="${BASE_PORT:-${BASE_URL##*:}}"
 SYNC_CRON_SECRET="${SYNC_CRON_SECRET:-${CRON_SECRET:-}}"
 STATS_MAX="${STATS_MAX:-0}"
 SOCCERDATA_LEAGUES="${SOCCERDATA_LEAGUES:-${LEAGUE_ID:-39}}"
@@ -65,10 +66,41 @@ ensure_python_deps() {
   python3 -m pip install -q -r services/soccerdata/requirements.txt
 }
 
+dev_server_ready() {
+  curl -sf "${BASE_URL}/api/cron/sync" >/dev/null 2>&1
+}
+
+port_in_use() {
+  local port="${1:-3000}"
+  lsof -nP -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+wait_for_dev_server() {
+  local attempts="${1:-30}"
+  for _ in $(seq 1 "${attempts}"); do
+    if dev_server_ready; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 ensure_dev_server() {
-  if curl -sf "${BASE_URL}/api/football/status" >/dev/null 2>&1; then
+  if dev_server_ready; then
     echo "Dev server already running at ${BASE_URL}"
     return 0
+  fi
+
+  if port_in_use "${BASE_PORT:-3000}"; then
+    echo "Port ${BASE_PORT:-3000} is in use — waiting for existing dev server..."
+    if wait_for_dev_server 30; then
+      echo "Dev server ready at ${BASE_URL}"
+      return 0
+    fi
+    echo "Something is listening on port ${BASE_PORT:-3000} but ${BASE_URL}/api/cron/sync is not responding." >&2
+    echo "Stop the other process or set BASE_URL to the correct port, then retry." >&2
+    exit 1
   fi
 
   if [[ "${SKIP_DEV_SERVER:-}" == "1" ]]; then
@@ -81,13 +113,10 @@ ensure_dev_server() {
   DEV_PID=$!
   STARTED_DEV=1
 
-  for _ in $(seq 1 45); do
-    if curl -sf "${BASE_URL}/api/football/status" >/dev/null 2>&1; then
-      echo "Dev server ready."
-      return 0
-    fi
-    sleep 2
-  done
+  if wait_for_dev_server 45; then
+    echo "Dev server ready."
+    return 0
+  fi
 
   echo "Dev server failed to start within 90s. Log: /tmp/match-predictor-dev.log" >&2
   tail -20 /tmp/match-predictor-dev.log >&2 || true
@@ -118,6 +147,10 @@ run_stats_backfill() {
 
 run_soccerdata_backfill() {
   step "SoccerData enrichment backfill (leagues=${SOCCERDATA_LEAGUES}, season=${SOCCERDATA_SEASON})"
+  if [[ -z "${SYNC_CRON_SECRET}" ]]; then
+    echo "Missing SYNC_CRON_SECRET — skipping SoccerData (routes require Bearer auth when login is enabled)." >&2
+    return 0
+  fi
   IFS=',' read -r -a leagues <<< "${SOCCERDATA_LEAGUES}"
   for league_id in "${leagues[@]}"; do
     league_id="$(echo "${league_id}" | tr -d ' ')"
@@ -125,6 +158,7 @@ run_soccerdata_backfill() {
     echo "--- league ${league_id} ---"
     curl -sS -X POST "${BASE_URL}/api/soccerdata/import/backfill" \
       -H "Content-Type: application/json" \
+      -H "Authorization: Bearer ${SYNC_CRON_SECRET}" \
       -d "{\"leagueId\":${league_id},\"season\":${SOCCERDATA_SEASON}}" \
       | tee "/tmp/soccerdata-backfill-${league_id}.json"
     echo ""

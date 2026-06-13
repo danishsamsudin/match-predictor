@@ -58,7 +58,6 @@ export function Nav() {
           </Link>
         );
       })}
-      {logoutButton}
     </nav>
   );
 
@@ -79,7 +78,8 @@ export function Nav() {
         {/* Mobile: theme top-right, logo centered, nav pill below */}
         <div className="sm:hidden">
           <div className="relative flex min-h-9 items-center justify-center">
-            <div className="absolute right-0 top-1/2 -translate-y-1/2">
+            <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-1">
+              {logoutButton}
               <ThemeToggle />
             </div>
             <Link href="/predict" className="transition-opacity hover:opacity-90">
@@ -98,9 +98,12 @@ export function Nav() {
           <Link href="/predict" className="shrink-0 transition-opacity hover:opacity-90">
             <BrandLogo size="md" />
           </Link>
-          <div className="liquid-glass-pill flex items-center gap-1.5 rounded-full p-1.5">
-            <ThemeToggle />
-            {navLinks}
+          <div className="flex items-center gap-2">
+            <div className="liquid-glass-pill flex items-center gap-1.5 rounded-full p-1.5">
+              <ThemeToggle />
+              {navLinks}
+            </div>
+            {logoutButton}
           </div>
         </div>
       </div>
