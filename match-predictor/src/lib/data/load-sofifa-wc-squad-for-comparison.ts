@@ -3,6 +3,7 @@ import {
   computePlayerPerformanceScore,
   sofifaOverallToScore,
 } from "@/lib/data/compute-player-performance-score";
+import { dedupeSquadPlayersById, pickUniqueStarters } from "@/lib/data/dedupe-squad-players";
 import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
 import {
   positionDisplayLabelFromTokens,
@@ -37,6 +38,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 type ServiceClient = SupabaseClient<Database>;
 
 export type SofifaDbPlayerRow = {
+  dbId: number;
+  sofifaPlayerId: number | null;
   name: string;
   position: string | null;
   country: string | null;
@@ -81,6 +84,26 @@ function ageFromDob(dob: string, asOf = new Date(2026, 5, 11)): number | null {
     age -= 1;
   }
   return age >= 0 && age < 60 ? age : null;
+}
+
+/** One SofaScore id per SoFIFA row — Scoutlyst ids are never reused across players. */
+export function resolveSofifaSquadPlayerId(input: {
+  sofifaPlayerId: number | null;
+  displayName: string;
+  teamLabel: string;
+  scout: ScoutlystSnapshotRow | null;
+  claimedScoutIds: Set<number>;
+}): number {
+  const scoutId = input.scout?.sofascore_player_id;
+  if (scoutId != null && scoutId > 0 && !input.claimedScoutIds.has(scoutId)) {
+    input.claimedScoutIds.add(scoutId);
+    return scoutId;
+  }
+  const seed =
+    input.sofifaPlayerId != null
+      ? `sofifa:${input.sofifaPlayerId}`
+      : `wc2026:${input.teamLabel}:${normalizeText(input.displayName)}`;
+  return stableSyntheticPlayerId(seed);
 }
 
 function toSquadPlayer(input: {
@@ -162,16 +185,43 @@ export async function loadSofifaPlayersForTeam(
   const { data, error } = await supabase
     .from("soccerdata_players")
     .select(
-      "name, position, country, sofifa_overall, sofifa_potential, is_starter, field_position, jersey_number, squad_order"
+      "id, name, position, country, sofifa_overall, sofifa_potential, is_starter, field_position, jersey_number, squad_order"
     )
     .eq("team_id", teamId)
-    .not("sofifa_overall", "is", null)
     .order("is_starter", { ascending: false })
     .order("squad_order", { ascending: true, nullsFirst: false })
     .order("jersey_number", { ascending: true, nullsFirst: false });
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as SofifaDbPlayerRow[];
+  const baseRows = data ?? [];
+  if (!baseRows.length) return [];
+
+  const dbIds = baseRows.map((row) => row.id);
+  const { data: links } = await supabase
+    .from("soccerdata_player_links")
+    .select("player_id, soccerdata_player_key")
+    .in("player_id", dbIds)
+    .eq("source", "SoFIFA");
+
+  const sofifaIdByDbId = new Map<number, number>();
+  for (const link of links ?? []) {
+    const parsed = Number(link.soccerdata_player_key);
+    if (Number.isFinite(parsed)) sofifaIdByDbId.set(link.player_id, parsed);
+  }
+
+  return baseRows.map((row) => ({
+    dbId: row.id,
+    sofifaPlayerId: sofifaIdByDbId.get(row.id) ?? null,
+    name: row.name,
+    position: row.position,
+    country: row.country,
+    sofifa_overall: row.sofifa_overall,
+    sofifa_potential: row.sofifa_potential,
+    is_starter: row.is_starter,
+    field_position: row.field_position,
+    jersey_number: row.jersey_number,
+    squad_order: row.squad_order,
+  }));
 }
 
 /**
@@ -210,29 +260,7 @@ export async function loadSofifaWcSquadForComparison(
     teamId,
   });
   const scoutlystByKey = buildScoutlystLookupIndex(scoutlystSnapshots);
-
-  const sofascoreIds = new Set<number>();
-  for (const row of rows) {
-    const displayName = formatPlayerDisplayNameIfNeeded(row.name);
-    const officialPlayer = findOfficialPlayerByNameKeys(
-      [displayName, row.name],
-      officialPlayers
-    );
-    const scout = resolveScoutlystForSofifaNames(
-      [displayName, row.name, officialPlayer?.name].filter(
-        (name): name is string => Boolean(name?.trim())
-      ),
-      scoutlystByKey
-    );
-    const id =
-      scout?.sofascore_player_id ??
-      stableSyntheticPlayerId(
-        `wc2026:${teamLabel}:${normalizeText(officialPlayer?.name ?? displayName)}`
-      );
-    if (id > 0) sofascoreIds.add(id);
-  }
-
-  const matchRatings = await loadMatchRatingsByPlayerIds(supabase, [...sofascoreIds]);
+  const claimedScoutIds = new Set<number>();
 
   const mapRow = (row: SofifaDbPlayerRow, isStarter: boolean): SquadPlayer => {
     const displayName = formatPlayerDisplayNameIfNeeded(row.name);
@@ -246,11 +274,13 @@ export async function loadSofifaWcSquadForComparison(
       ),
       scoutlystByKey
     );
-    const sofascorePlayerId =
-      scout?.sofascore_player_id ??
-      stableSyntheticPlayerId(
-        `wc2026:${teamLabel}:${normalizeText(officialPlayer?.name ?? displayName)}`
-      );
+    const sofascorePlayerId = resolveSofifaSquadPlayerId({
+      sofifaPlayerId: row.sofifaPlayerId,
+      displayName,
+      teamLabel,
+      scout,
+      claimedScoutIds,
+    });
 
     return toSquadPlayer({
       displayName,
@@ -264,14 +294,53 @@ export async function loadSofifaWcSquadForComparison(
       fieldPosition: row.field_position,
       sofifaOverall: row.sofifa_overall != null ? Number(row.sofifa_overall) : null,
       scoutlyst: scout,
-      matchAvgRating: matchRatings.get(sofascorePlayerId) ?? null,
+      matchAvgRating: null,
       official: officialPlayer,
       sofascorePlayerId,
     });
   };
 
-  const starters = startersRaw.slice(0, 11).map((row) => mapRow(row, true));
-  const substitutes = subsRaw.map((row) => mapRow(row, false));
+  const mapped = rows.map((row) => ({
+    row,
+    player: mapRow(row, row.is_starter === true),
+  }));
+
+  const matchRatings = await loadMatchRatingsByPlayerIds(
+    supabase,
+    [...new Set(mapped.map((entry) => entry.player.sofascorePlayerId))]
+  );
+
+  const withMatchRatings = (player: SquadPlayer): SquadPlayer => {
+    const matchAvgRating = matchRatings.get(player.sofascorePlayerId) ?? null;
+    if (matchAvgRating == null || player.performanceScore != null) return player;
+    return {
+      ...player,
+      performanceScore: computePlayerPerformanceScore({
+        scoutlystRating: null,
+        matchAvgRating,
+        stats: {},
+        position: player.fieldPosition ?? player.position,
+      }),
+    };
+  };
+
+  const allMapped = dedupeSquadPlayersById(mapped.map((entry) => withMatchRatings(entry.player)));
+  const starterCandidates = dedupeSquadPlayersById(
+    mapped
+      .filter((entry) => entry.row.is_starter === true)
+      .map((entry) => withMatchRatings(entry.player))
+  );
+  const benchCandidates = dedupeSquadPlayersById(
+    mapped
+      .filter((entry) => entry.row.is_starter !== true)
+      .map((entry) => withMatchRatings(entry.player))
+  );
+
+  const starters = pickUniqueStarters(starterCandidates, [...benchCandidates, ...allMapped], 11);
+  const starterIds = new Set(starters.map((p) => p.sofascorePlayerId));
+  const substitutes = dedupeSquadPlayersById(
+    allMapped.filter((p) => !starterIds.has(p.sofascorePlayerId))
+  );
 
   const hasScoutlystData = [...scoutlystSnapshots.values()].length > 0;
 
@@ -285,4 +354,24 @@ export async function loadSofifaWcSquadForComparison(
     snapshotDate: officialWcSquadPublishedDate(),
     coach: official?.coach ?? null,
   };
+}
+
+/** Model-squad XI: player names from SoFIFA HTML starting eleven. */
+export async function projectWcModelXiFromSofifa(input: {
+  supabase: ServiceClient;
+  teamApiId: number;
+  teamLabel: string;
+  teamName?: string;
+}): Promise<string[]> {
+  const squad = await loadSofifaWcSquadForComparison(
+    input.supabase,
+    input.teamApiId,
+    input.teamLabel,
+    {
+      teamName: input.teamName ?? input.teamLabel,
+      entityType: "national",
+    }
+  );
+  if (!squad?.starters.length) return [];
+  return squad.starters.map((player) => player.name);
 }

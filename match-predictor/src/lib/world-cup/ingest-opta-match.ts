@@ -1,9 +1,11 @@
 import path from "node:path";
 import { upsertNationalMatchProcessMetrics } from "@/lib/data/match-process-metrics";
 import { internationalMatchTierWeight } from "@/lib/world-cup/international-strength";
+import { swapOptaParsedMatch } from "@/lib/world-cup/match-orientation";
 import { buildWcMatchSummary } from "@/lib/world-cup/match-summary";
 import type { OptaParsedMatch } from "@/lib/world-cup/opta-html-parser";
 import { parseOptaMatchFromFile } from "@/lib/world-cup/opta-html-parser";
+import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
 import { resolveWcMatchFromParsedTeams } from "@/lib/world-cup/resolve-wc-match";
 import { assertOptaHtmlBundle } from "@/lib/world-cup/wc-opta-results-dir";
 import { clearWcCalibrationCache, loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
@@ -116,6 +118,9 @@ export async function ingestOptaMatchFile(
   }
 
   const matchId = resolved.matchId;
+  const fixtureParsed = resolved.teamsSwappedInInput
+    ? swapOptaParsedMatch(parsed)
+    : parsed;
 
   if (options?.skipIfIngested) {
     const { data: existing } = await supabase
@@ -134,51 +139,54 @@ export async function ingestOptaMatchFile(
     }
   }
 
-  const matchSummary = buildWcMatchSummary(parsed);
+  const matchSummary = buildWcMatchSummary(fixtureParsed);
 
   const { error: matchErr } = await supabase
     .from("matches")
     .update({
-      home_goals: parsed.homeGoals,
-      away_goals: parsed.awayGoals,
+      home_goals: fixtureParsed.homeGoals,
+      away_goals: fixtureParsed.awayGoals,
       status: "finished",
-      home_formation: parsed.homeFormation,
-      away_formation: parsed.awayFormation,
-      referee: parsed.referee,
-      attendance: parsed.attendance,
-      venue: parsed.venue ?? undefined,
+      home_formation: fixtureParsed.homeFormation,
+      away_formation: fixtureParsed.awayFormation,
+      referee: fixtureParsed.referee,
+      attendance: fixtureParsed.attendance,
+      venue: fixtureParsed.venue ?? undefined,
     })
     .eq("id", matchId);
 
   if (matchErr) throw new Error(matchErr.message);
 
+  const homeTeamDbId = resolved.match.home_team_id;
+  const awayTeamDbId = resolved.match.away_team_id;
+  const homeApiId = resolveApiTeamId(homeTeamDbId ?? "", resolved.match.home_team_name ?? "");
+  const awayApiId = resolveApiTeamId(awayTeamDbId ?? "", resolved.match.away_team_name ?? "");
+
   await upsertNationalMatchProcessMetrics(supabase, {
     event_id: optaSyntheticEventId(matchId),
     source: "opta_html",
-    match_date: parsed.matchDate,
-    home_team_id: parsed.homeTeamApiId,
-    away_team_id: parsed.awayTeamApiId,
-    home_xg: parsed.homeXg,
-    away_xg: parsed.awayXg,
-    home_shots: parsed.homeShots,
-    away_shots: parsed.awayShots,
-    home_sot: parsed.homeShotsOnTarget,
-    away_sot: parsed.awayShotsOnTarget,
+    match_date: fixtureParsed.matchDate,
+    home_team_id: homeApiId || fixtureParsed.homeTeamApiId,
+    away_team_id: awayApiId || fixtureParsed.awayTeamApiId,
+    home_xg: fixtureParsed.homeXg,
+    away_xg: fixtureParsed.awayXg,
+    home_shots: fixtureParsed.homeShots,
+    away_shots: fixtureParsed.awayShots,
+    home_sot: fixtureParsed.homeShotsOnTarget,
+    away_sot: fixtureParsed.awayShotsOnTarget,
     competition_tier: internationalMatchTierWeight("FIFA World Cup 2026"),
     payload: {
-      venue: parsed.venue,
-      narrative: parsed.narrativeFeatures,
-      opta_facts_count: parsed.optaFacts.length,
+      venue: fixtureParsed.venue,
+      narrative: fixtureParsed.narrativeFeatures,
+      opta_facts_count: fixtureParsed.optaFacts.length,
     },
   });
 
-  const homeTeamDbId = resolved.match.home_team_id;
-  const awayTeamDbId = resolved.match.away_team_id;
   if (homeTeamDbId) {
     await supabase.from("world_cup_team_discipline").upsert({
       team_id: homeTeamDbId,
-      yellow_cards: parsed.narrativeFeatures.yellowCardsHome,
-      direct_red_cards: parsed.narrativeFeatures.redCardsHome,
+      yellow_cards: fixtureParsed.narrativeFeatures.yellowCardsHome,
+      direct_red_cards: fixtureParsed.narrativeFeatures.redCardsHome,
       indirect_red_cards: 0,
       updated_at: new Date().toISOString(),
     });
@@ -186,8 +194,8 @@ export async function ingestOptaMatchFile(
   if (awayTeamDbId) {
     await supabase.from("world_cup_team_discipline").upsert({
       team_id: awayTeamDbId,
-      yellow_cards: parsed.narrativeFeatures.yellowCardsAway,
-      direct_red_cards: parsed.narrativeFeatures.redCardsAway,
+      yellow_cards: fixtureParsed.narrativeFeatures.yellowCardsAway,
+      direct_red_cards: fixtureParsed.narrativeFeatures.redCardsAway,
       indirect_red_cards: 0,
       updated_at: new Date().toISOString(),
     });
@@ -197,25 +205,25 @@ export async function ingestOptaMatchFile(
     match_id: matchId,
     source_path: filePath,
     parsed: {
-      homeTeamName: parsed.homeTeamName,
-      awayTeamName: parsed.awayTeamName,
-      homeGoals: parsed.homeGoals,
-      awayGoals: parsed.awayGoals,
-      homeXg: parsed.homeXg,
-      awayXg: parsed.awayXg,
-      matchDate: parsed.matchDate,
+      homeTeamName: fixtureParsed.homeTeamName,
+      awayTeamName: fixtureParsed.awayTeamName,
+      homeGoals: fixtureParsed.homeGoals,
+      awayGoals: fixtureParsed.awayGoals,
+      homeXg: fixtureParsed.homeXg,
+      awayXg: fixtureParsed.awayXg,
+      matchDate: fixtureParsed.matchDate,
       warnings: parsed.warnings,
       matchSummary,
     },
     article_text: parsed.articleText,
-    narrative_features: parsed.narrativeFeatures,
+    narrative_features: fixtureParsed.narrativeFeatures,
   });
 
-  if (parsed.narrativeFeatures.setPieceGoalRateMentioned != null && parsed.awayTeamApiId) {
+  if (fixtureParsed.narrativeFeatures.setPieceGoalRateMentioned != null && awayApiId) {
     const cal = await loadWcCalibrationConfig();
     const teamSetPieceRates = {
       ...cal.teamSetPieceRates,
-      [String(parsed.awayTeamApiId)]: parsed.narrativeFeatures.setPieceGoalRateMentioned,
+      [String(awayApiId)]: fixtureParsed.narrativeFeatures.setPieceGoalRateMentioned,
     };
     await supabase.from("world_cup_calibration_config").insert({
       version: `${cal.modelVersion}-ingest-sp`,

@@ -1,3 +1,5 @@
+import { projectWcModelXiFromSofifa } from "@/lib/data/load-sofifa-wc-squad-for-comparison";
+import { resolveWc2026TeamLabel } from "@/lib/data/world-cup-2026-official-squads";
 import { applyLineupImpactToHubPrediction } from "@/lib/world-cup/apply-wc-lineup-impact";
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import { INTERNATIONAL_BASE_GOALS } from "@/lib/world-cup/international-strength";
@@ -9,6 +11,27 @@ import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-
 import type { WcCalibrationConstants } from "@/lib/world-cup/wc-calibration-config";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+async function projectWcModelXiNames(input: {
+  supabase: SupabaseClient;
+  teamApiId: number;
+  teamName?: string;
+}): Promise<string[]> {
+  const teamLabel = resolveWc2026TeamLabel(input.teamName, input.teamApiId);
+  if (teamLabel) {
+    const fromSofifa = await projectWcModelXiFromSofifa({
+      supabase: input.supabase,
+      teamApiId: input.teamApiId,
+      teamLabel,
+      teamName: input.teamName,
+    });
+    if (fromSofifa.length >= 11) return fromSofifa;
+  }
+  return projectWcModelXiFromLastStarters({
+    supabase: input.supabase,
+    teamApiId: input.teamApiId,
+  });
+}
+
 function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): number {
   for (const key of keys) {
     const v = snapshot[key];
@@ -17,22 +40,26 @@ function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): n
   return 1.2;
 }
 
-/** Project last-match starters and apply WC tournament-form lineup impact. */
+/** Project SoFIFA HTML starters (fallback: last Opta match) and apply WC lineup impact. */
 export async function applyWcModelXiToHubPrediction(input: {
   supabase: SupabaseClient;
   hubRow: HubPredictionRow;
   homeTeamApiId: number;
   awayTeamApiId: number;
+  homeTeamName?: string;
+  awayTeamName?: string;
   calibration?: WcCalibrationConstants;
 }): Promise<HubPredictionRow> {
   const [homeNames, awayNames] = await Promise.all([
-    projectWcModelXiFromLastStarters({
+    projectWcModelXiNames({
       supabase: input.supabase,
       teamApiId: input.homeTeamApiId,
+      teamName: input.homeTeamName,
     }),
-    projectWcModelXiFromLastStarters({
+    projectWcModelXiNames({
       supabase: input.supabase,
       teamApiId: input.awayTeamApiId,
+      teamName: input.awayTeamName,
     }),
   ]);
 

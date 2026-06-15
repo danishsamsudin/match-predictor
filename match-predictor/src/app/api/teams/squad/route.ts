@@ -1,21 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { dedupeSquadPlayersById, pickUniqueStarters } from "@/lib/data/dedupe-squad-players";
 import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
 import { mergeOfficialWcPlayersIntoRoster } from "@/lib/data/merge-official-wc-roster";
 import { resolveWc2026TeamLabel } from "@/lib/data/world-cup-2026-official-squads";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import type { EntityType } from "@/lib/types/football-lookup";
 import type { SquadPlayer } from "@/lib/types/team-comparison";
-
-function dedupeRosterById(players: SquadPlayer[]): SquadPlayer[] {
-  const seen = new Set<number>();
-  const out: SquadPlayer[] = [];
-  for (const player of players) {
-    if (seen.has(player.sofascorePlayerId)) continue;
-    seen.add(player.sofascorePlayerId);
-    out.push(player);
-  }
-  return out;
-}
 
 export async function GET(request: NextRequest) {
   const teamId = Number(request.nextUrl.searchParams.get("teamId"));
@@ -50,15 +40,14 @@ export async function GET(request: NextRequest) {
       entityType
     );
 
-    let roster = dedupeRosterById([...squad.starters, ...squad.substitutes]);
-    if (squad.squadSource !== "sofifa") {
-      const wcTeamLabel = resolveWc2026TeamLabel(teamName || undefined, teamId);
-      if (wcTeamLabel) {
-        roster = mergeOfficialWcPlayersIntoRoster(roster, wcTeamLabel);
-      }
+    let roster = dedupeSquadPlayersById([...squad.starters, ...squad.substitutes]);
+    const wcTeamLabel = resolveWc2026TeamLabel(teamName || undefined, teamId);
+    if (wcTeamLabel) {
+      roster = dedupeSquadPlayersById(mergeOfficialWcPlayersIntoRoster(roster, wcTeamLabel));
     }
 
-    const suggestedStarters = squad.starters.map((starter) => {
+    const uniqueStarters = pickUniqueStarters(squad.starters, roster, 11);
+    const suggestedStarters = uniqueStarters.map((starter) => {
       const merged = roster.find((p) => p.sofascorePlayerId === starter.sofascorePlayerId);
       return merged ?? starter;
     });

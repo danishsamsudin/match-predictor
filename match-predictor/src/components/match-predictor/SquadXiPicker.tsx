@@ -78,8 +78,14 @@ function XiColumn({
 
 export function slotsFromSuggestedStarters(starters: SquadPlayer[]): (number | null)[] {
   const slots = [...EMPTY_SLOTS];
-  for (let i = 0; i < Math.min(XI_SLOT_COUNT, starters.length); i++) {
-    slots[i] = starters[i].sofascorePlayerId;
+  const used = new Set<number>();
+  let slotIndex = 0;
+  for (const starter of starters) {
+    if (slotIndex >= XI_SLOT_COUNT) break;
+    if (used.has(starter.sofascorePlayerId)) continue;
+    used.add(starter.sofascorePlayerId);
+    slots[slotIndex] = starter.sofascorePlayerId;
+    slotIndex += 1;
   }
   return slots;
 }

@@ -155,9 +155,11 @@ export async function runWcGrahamPredictForRequest(input: {
       hubRow,
       homeTeamApiId,
       awayTeamApiId,
+      homeTeamName: homeName,
+      awayTeamName: awayName,
       calibration,
     });
-    lineupNotes = ["Model XI — projected from last WC starters + tournament form."];
+    lineupNotes = ["Model XI — SoFIFA starting eleven from uploaded squad HTML."];
   }
 
   const phase = resolveMatchPhase({

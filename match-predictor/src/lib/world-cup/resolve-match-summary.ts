@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { swapOptaParsedMatch } from "@/lib/world-cup/match-orientation";
 import {
   buildWcMatchSummary,
   type WcMatchSummary,
@@ -39,7 +40,10 @@ export async function resolveMatchSummaryFromHtml(
         matchDate: parsed.matchDate,
       });
       if (!resolved || resolved.matchId !== matchId) continue;
-      const summary = buildWcMatchSummary(parsed);
+      const fixtureParsed = resolved.teamsSwappedInInput
+        ? swapOptaParsedMatch(parsed)
+        : parsed;
+      const summary = buildWcMatchSummary(fixtureParsed);
       if (summaryStatCount(summary) > 0) return summary;
     } catch {
       /* try next file */

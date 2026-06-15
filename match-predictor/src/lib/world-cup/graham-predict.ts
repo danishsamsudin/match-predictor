@@ -215,6 +215,8 @@ export async function runGrahamWorldCupPredict(input: {
       hubRow,
       homeTeamApiId: homeTeamId,
       awayTeamApiId: awayTeamId,
+      homeTeamName: homeName,
+      awayTeamName: awayName,
       calibration,
     });
   }
