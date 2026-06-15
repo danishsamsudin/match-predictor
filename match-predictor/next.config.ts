@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: import.meta.dirname,
   },
+  outputFileTracingExcludes: {
+    "*": [
+      "./data/world-cup-2026/WC-Opta-Results/**",
+      "./data/world-cup-2026/WC-Opta-Player-Stats/**",
+    ],
+  },
 };
 
 export default nextConfig;

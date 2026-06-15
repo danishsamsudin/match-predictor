@@ -1,7 +1,6 @@
 import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import { resolveOfficialFixtureTeams } from "@/lib/world-cup/fixture-venues";
-import { buildWcMatchSummary } from "@/lib/world-cup/match-summary";
-import { findOptaParsedMatch } from "@/lib/world-cup/resolve-opta-from-html";
+import { findOptaResultRecord } from "@/lib/world-cup/resolve-opta-from-html";
 import type { WcMatchSummary, WcMatchSummaryStat } from "@/lib/world-cup/match-summary";
 import type {
   OptaNarrativeFeatures,
@@ -125,22 +124,19 @@ export function alignRecentMatchDisplay(input: RecentMatchDisplayAlignInput): {
   const displayHome = official?.home ?? input.homeTeamName;
   const displayAway = official?.away ?? input.awayTeamName;
 
-  const opta = findOptaParsedMatch({
+  const opta = findOptaResultRecord({
     date: input.date,
     homeName: input.homeTeamName,
     awayName: input.awayTeamName,
   });
 
-  const scoreSourceHome = opta?.homeTeamName ?? input.ingestSourceHome ?? null;
-  const scoreSourceAway = opta?.awayTeamName ?? input.ingestSourceAway ?? null;
+  const scoreSourceHome = opta?.optaHome ?? input.ingestSourceHome ?? null;
+  const scoreSourceAway = opta?.optaAway ?? input.ingestSourceAway ?? null;
   const scoreHomeGoals = opta?.homeGoals ?? input.ingestSourceHomeGoals ?? null;
   const scoreAwayGoals = opta?.awayGoals ?? input.ingestSourceAwayGoals ?? null;
 
   let summary = input.summary;
-  if (opta) {
-    const oriented = alignOptaParsedMatchToFixture(opta, displayHome, displayAway);
-    summary = buildWcMatchSummary(oriented);
-  } else if (summary && scoreSourceHome && scoreSourceAway) {
+  if (summary && scoreSourceHome && scoreSourceAway) {
     summary = alignWcMatchSummaryToFixture(
       summary,
       displayHome,
@@ -153,10 +149,7 @@ export function alignRecentMatchDisplay(input: RecentMatchDisplayAlignInput): {
   let homeGoals = input.homeGoals;
   let awayGoals = input.awayGoals;
 
-  if (summary) {
-    homeGoals = summary.homeGoals;
-    awayGoals = summary.awayGoals;
-  } else if (
+  if (
     scoreHomeGoals != null &&
     scoreAwayGoals != null &&
     scoreSourceHome &&
@@ -170,6 +163,9 @@ export function alignRecentMatchDisplay(input: RecentMatchDisplayAlignInput): {
       scoreSourceHome,
       scoreSourceAway
     ));
+  } else if (summary) {
+    homeGoals = summary.homeGoals;
+    awayGoals = summary.awayGoals;
   }
 
   return {

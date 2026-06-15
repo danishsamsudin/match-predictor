@@ -1,0 +1,113 @@
+{
+  "generatedAt": "2026-06-15T13:55:59.729Z",
+  "matches": [
+    {
+      "date": "2026-06-14",
+      "optaHome": "Australia",
+      "optaAway": "Türkiye",
+      "homeTeam": "Australia",
+      "awayTeam": "Türkiye",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "date": "2026-06-14",
+      "optaHome": "Brazil",
+      "optaAway": "Morocco",
+      "homeTeam": "Brazil",
+      "awayTeam": "Morocco",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "date": "2026-06-12",
+      "optaHome": "Canada",
+      "optaAway": "Bosnia & Herzegovina",
+      "homeTeam": "Canada",
+      "awayTeam": "Bosnia & Herzegovina",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "date": "2026-06-14",
+      "optaHome": "Germany",
+      "optaAway": "Curaçao",
+      "homeTeam": "Germany",
+      "awayTeam": "Curaçao",
+      "homeGoals": 7,
+      "awayGoals": 1
+    },
+    {
+      "date": "2026-06-14",
+      "optaHome": "Haiti",
+      "optaAway": "Scotland",
+      "homeTeam": "Haiti",
+      "awayTeam": "Scotland",
+      "homeGoals": 0,
+      "awayGoals": 1
+    },
+    {
+      "date": "2026-06-15",
+      "optaHome": "Côte d'Ivoire",
+      "optaAway": "Ecuador",
+      "homeTeam": "Côte d'Ivoire",
+      "awayTeam": "Ecuador",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "date": "2026-06-11",
+      "optaHome": "Mexico",
+      "optaAway": "South Africa",
+      "homeTeam": "Mexico",
+      "awayTeam": "South Africa",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "date": "2026-06-14",
+      "optaHome": "Netherlands",
+      "optaAway": "Japan",
+      "homeTeam": "Netherlands",
+      "awayTeam": "Japan",
+      "homeGoals": 2,
+      "awayGoals": 2
+    },
+    {
+      "date": "2026-06-13",
+      "optaHome": "Qatar",
+      "optaAway": "Switzerland",
+      "homeTeam": "Qatar",
+      "awayTeam": "Switzerland",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "date": "2026-06-12",
+      "optaHome": "South Korea",
+      "optaAway": "Czechia",
+      "homeTeam": "South Korea",
+      "awayTeam": "Czechia",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "date": "2026-06-15",
+      "optaHome": "Sweden",
+      "optaAway": "Tunisia",
+      "homeTeam": "Sweden",
+      "awayTeam": "Tunisia",
+      "homeGoals": 5,
+      "awayGoals": 1
+    },
+    {
+      "date": "2026-06-13",
+      "optaHome": "USA",
+      "optaAway": "Paraguay",
+      "homeTeam": "USA",
+      "awayTeam": "Paraguay",
+      "homeGoals": 4,
+      "awayGoals": 1
+    }
+  ]
+}
