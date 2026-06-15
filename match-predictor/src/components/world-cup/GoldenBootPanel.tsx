@@ -76,7 +76,7 @@ export function GoldenBootPanel({
                       <NationalTeamFlag
                         teamName={row.teamName}
                         side="home"
-                        className="h-5 w-5 shrink-0"
+                        size="sm"
                       />
                       {row.teamName}
                     </span>

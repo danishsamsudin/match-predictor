@@ -46,10 +46,10 @@ export function RecentResultsSection({ matches }: { matches: RecentResultMatch[]
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="inline-flex flex-wrap items-center gap-2 font-medium text-slate-900 dark:text-white">
-                  <NationalTeamFlag teamName={m.homeName} side="home" className="h-4 w-4" />
+                  <NationalTeamFlag teamName={m.homeName} side="home" size="xs" />
                   <span>{m.homeName}</span>
                   <span className="tabular-nums text-slate-700 dark:text-slate-200">{scoreLabel}</span>
-                  <NationalTeamFlag teamName={m.awayName} side="away" className="h-4 w-4" />
+                  <NationalTeamFlag teamName={m.awayName} side="away" size="xs" />
                   <span>{m.awayName}</span>
                 </span>
                 <span className="inline-flex items-center gap-2 text-xs text-slate-500">

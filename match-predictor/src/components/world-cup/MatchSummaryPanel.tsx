@@ -79,7 +79,7 @@ export function MatchSummaryPanel({
     <div className="wc-match-summary liquid-glass-pill rounded-xl p-4">
       <div className="wc-match-summary-scoreboard">
         <div className="wc-match-summary-team wc-match-summary-team-home">
-          <NationalTeamFlag teamName={homeName} side="home" className="h-8 w-8" />
+          <NationalTeamFlag teamName={homeName} side="home" size="lg" />
           <span className="wc-match-summary-team-name">{homeName}</span>
           {summary.homeFormation && (
             <span className="wc-match-summary-formation">{summary.homeFormation}</span>
@@ -92,7 +92,7 @@ export function MatchSummaryPanel({
           {htLabel && <span className="wc-match-summary-ht">{htLabel}</span>}
         </div>
         <div className="wc-match-summary-team wc-match-summary-team-away">
-          <NationalTeamFlag teamName={awayName} side="away" className="h-8 w-8" />
+          <NationalTeamFlag teamName={awayName} side="away" size="lg" />
           <span className="wc-match-summary-team-name">{awayName}</span>
           {summary.awayFormation && (
             <span className="wc-match-summary-formation">{summary.awayFormation}</span>

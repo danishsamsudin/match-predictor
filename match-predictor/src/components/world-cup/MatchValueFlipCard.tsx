@@ -360,9 +360,9 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
 
         <div className="wc-flip-face wc-flip-back liquid-glass-pill">
           <header className="wc-card-back-header">
-            <NationalTeamFlag teamName={homeName} side="home" className="wc-team-flag-sm" />
+            <NationalTeamFlag teamName={homeName} side="home" size="card-sm" />
             <span className="wc-card-vs">vs</span>
-            <NationalTeamFlag teamName={awayName} side="away" className="wc-team-flag-sm" />
+            <NationalTeamFlag teamName={awayName} side="away" size="card-sm" />
           </header>
 
           <div className="wc-card-back-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">

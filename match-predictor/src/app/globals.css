@@ -676,23 +676,26 @@ body {
   }
 
   .wc-team-flag {
-    width: 3.25rem;
     height: 2.125rem;
+    width: auto;
+    aspect-ratio: 3 / 2;
     border-radius: 0.35rem;
     object-fit: cover;
+    font-size: 0.7rem;
     box-shadow:
       0 2px 8px rgba(0, 0, 0, 0.2),
       inset 0 0 0 1px rgba(255, 255, 255, 0.15);
   }
 
+  .wc-team-flag--square {
+    width: 2.125rem;
+    aspect-ratio: 1 / 1;
+  }
+
   .wc-team-flag-fallback {
     display: flex;
-    width: 3.25rem;
-    height: 2.125rem;
     align-items: center;
     justify-content: center;
-    border-radius: 0.35rem;
-    font-size: 0.7rem;
     font-weight: 800;
     color: white;
   }
@@ -928,11 +931,85 @@ body {
   }
 
   .wc-team-flag-sm {
-    width: 2.5rem;
     height: 1.65rem;
+    width: auto;
+    aspect-ratio: 3 / 2;
     border-radius: 0.3rem;
     object-fit: cover;
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .wc-team-flag-sm--square {
+    width: 1.65rem;
+    aspect-ratio: 1 / 1;
+  }
+
+  .wc-team-flag-2xs,
+  .wc-team-flag-xs,
+  .wc-team-flag-sm-inline,
+  .wc-team-flag-md,
+  .wc-team-flag-lg {
+    width: auto;
+    aspect-ratio: 3 / 2;
+    border-radius: 0.25rem;
+    object-fit: cover;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+    flex-shrink: 0;
+  }
+
+  .wc-team-flag-2xs {
+    height: 0.875rem;
+    font-size: 0.45rem;
+  }
+
+  .wc-team-flag-xs {
+    height: 1rem;
+    font-size: 0.5rem;
+  }
+
+  .wc-team-flag-sm-inline {
+    height: 1.25rem;
+    font-size: 0.55rem;
+  }
+
+  .wc-team-flag-md {
+    height: 1.5rem;
+    font-size: 0.6rem;
+  }
+
+  .wc-team-flag-lg {
+    height: 2rem;
+    border-radius: 0.35rem;
+    font-size: 0.7rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .wc-team-flag-2xs--square,
+  .wc-team-flag-xs--square,
+  .wc-team-flag-sm-inline--square,
+  .wc-team-flag-md--square,
+  .wc-team-flag-lg--square {
+    aspect-ratio: 1 / 1;
+  }
+
+  .wc-team-flag-2xs--square {
+    width: 0.875rem;
+  }
+
+  .wc-team-flag-xs--square {
+    width: 1rem;
+  }
+
+  .wc-team-flag-sm-inline--square {
+    width: 1.25rem;
+  }
+
+  .wc-team-flag-md--square {
+    width: 1.5rem;
+  }
+
+  .wc-team-flag-lg--square {
+    width: 2rem;
   }
 
   .wc-back-prob-bars {

@@ -14,7 +14,7 @@ const ROUND_LABELS: Record<string, string> = {
 function TeamBadge({ name, label }: { name: string; label?: string }) {
   return (
     <div className="flex items-center gap-2">
-      <NationalTeamFlag teamName={name} side="home" className="h-6 w-6 shrink-0" />
+      <NationalTeamFlag teamName={name} side="home" size="md" className="shrink-0" />
       <div>
         <p className="font-semibold text-slate-900 dark:text-white">{name}</p>
         {label && <p className="text-[10px] text-slate-500">{label}</p>}

@@ -2,9 +2,19 @@ import { describe, expect, it } from "vitest";
 import fs from "fs";
 import path from "path";
 import { TEAM_LOGO_ID_TO_NAME } from "@/lib/data/team-logo-manifest";
-import { resolveLogoIdForTeam, resolveTeamLogo } from "@/lib/data/team-logos";
+import {
+  isSquareNationalFlag,
+  resolveLogoIdForTeam,
+  resolveTeamLogo,
+} from "@/lib/data/team-logos";
 
 describe("team-logos", () => {
+  it("detects legally square national flags", () => {
+    expect(isSquareNationalFlag("Switzerland")).toBe(true);
+    expect(isSquareNationalFlag("Brazil")).toBe(false);
+    expect(isSquareNationalFlag("England")).toBe(false);
+  });
+
   it("resolves by canonical team id before name aliases", () => {
     expect(resolveLogoIdForTeam({ id: 33, name: "Wrong Label" })).toBe(33);
     expect(resolveLogoIdForTeam({ id: 33, name: "Tottenham Hotspur" })).toBe(33);

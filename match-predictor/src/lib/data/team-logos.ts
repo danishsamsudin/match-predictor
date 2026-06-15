@@ -71,6 +71,21 @@ const NATIONAL_NAME_TO_ISO: Record<string, string> = {
   Wales: "gb-wls",
 };
 
+/** Nations whose flags are legally square (1:1), not 2:3 or 3:2. */
+const SQUARE_NATIONAL_FLAG_NAMES = new Set([
+  "Switzerland",
+  "Vatican City",
+]);
+
+export function isSquareNationalFlag(teamName: string): boolean {
+  const key = normalizeNationalTeamName(teamName);
+  const team = WORLD_CUP_2026_TEAMS.find(
+    (t) => normalizeNationalTeamName(t.name) === key
+  );
+  if (team && SQUARE_NATIONAL_FLAG_NAMES.has(team.name)) return true;
+  return SQUARE_NATIONAL_FLAG_NAMES.has(teamName.trim());
+}
+
 export function nationalFlagUrl(teamName: string): string | undefined {
   const iso = NATIONAL_NAME_TO_ISO[teamName.trim()];
   if (!iso) return undefined;
