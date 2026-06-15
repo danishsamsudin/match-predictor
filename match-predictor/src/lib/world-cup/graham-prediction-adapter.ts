@@ -5,7 +5,11 @@ import {
   buildGuardedScoreMatrix,
   outcomesFromGuardedGrid,
 } from "@/lib/world-cup/score-grid";
-import type { PredictionAnalytics, PredictionResult } from "@/lib/types/prediction";
+import type {
+  PredictionAnalytics,
+  PredictionLineupSource,
+  PredictionResult,
+} from "@/lib/types/prediction";
 import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
 
 function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): number {
@@ -64,8 +68,12 @@ export function grahamHubRowToPredictionResult(input: {
   awayName: string;
   explanation?: string;
   estimated?: EstimatedMatchStats;
+  lineupSource?: PredictionLineupSource;
+  lineupNotes?: string[];
 }): PredictionResult {
   const { pred, homeName, awayName } = input;
+  const lineupSource = input.lineupSource ?? "model_xi";
+  const lineupNotes = input.lineupNotes ?? [];
   const snap = pred.snapshot;
   const homeXg = snapshotNumber(snap, "home_xg", "lambda");
   const awayXg = snapshotNumber(snap, "away_xg", "mu");
@@ -90,11 +98,18 @@ export function grahamHubRowToPredictionResult(input: {
     },
     explanation:
       input.explanation ??
-      `Graham World Cup model (${pred.model_version}): λ=${homeXg.toFixed(2)}, μ=${awayXg.toFixed(2)}, ρ=${rho.toFixed(3)}. Most likely ${outcomes.predictedHome}–${outcomes.predictedAway}.`,
+      [
+        `Graham World Cup model (${pred.model_version}): λ=${homeXg.toFixed(2)}, μ=${awayXg.toFixed(2)}, ρ=${rho.toFixed(3)}. Most likely ${outcomes.predictedHome}–${outcomes.predictedAway}.`,
+        lineupNotes.length ? "" : null,
+        lineupNotes.length ? "## Lineup Impact" : null,
+        ...lineupNotes,
+      ]
+        .filter((line): line is string => line != null && line.length > 0)
+        .join("\n"),
     analytics,
     mode: "compare",
     entityType: "national",
-    lineupSource: "model_xi",
+    lineupSource,
     debug: { factors: snap as Record<string, number> },
   };
 }

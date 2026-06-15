@@ -20,6 +20,11 @@ import type { WcCalibrationConstants } from "@/lib/world-cup/wc-calibration-conf
 import { normalizeDeltaWeights } from "@/lib/world-cup/wc-calibration-config";
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
 import type { SquadTalentSnapshot } from "@/lib/world-cup/national-squad-talent";
+import {
+  applyFinishingRegressionToXg,
+  applyWcFormToProcessRates,
+  type WcInTournamentFormNudges,
+} from "@/lib/world-cup/graham-wc-in-tournament-form";
 
 export interface GrahamExpectedGoalsInput {
   homeTeamId: number;
@@ -34,6 +39,10 @@ export interface GrahamExpectedGoalsInput {
   medianSquadValueEur: number;
   mu?: number;
   calibration?: WcCalibrationConstants;
+  wcForm?: {
+    home: WcInTournamentFormNudges;
+    away: WcInTournamentFormNudges;
+  };
 }
 
 export interface GrahamExpectedGoalsResult {
@@ -56,17 +65,25 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
   const homeIdStr = String(input.homeTeamId);
   const awayIdStr = String(input.awayTeamId);
 
-  const homeRates = computeGrahamProcessRatesFromMatches(
-    homeIdStr,
-    input.homeFormMatches,
-    Date.now(),
-    input.homeName
+  const homeRates = applyWcFormToProcessRates(
+    computeGrahamProcessRatesFromMatches(
+      homeIdStr,
+      input.homeFormMatches,
+      Date.now(),
+      input.homeName
+    ),
+    input.wcForm?.home ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 },
+    cal
   );
-  const awayRates = computeGrahamProcessRatesFromMatches(
-    awayIdStr,
-    input.awayFormMatches,
-    Date.now(),
-    input.awayName
+  const awayRates = applyWcFormToProcessRates(
+    computeGrahamProcessRatesFromMatches(
+      awayIdStr,
+      input.awayFormMatches,
+      Date.now(),
+      input.awayName
+    ),
+    input.wcForm?.away ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 },
+    cal
   );
 
   const homeProfile = computeShotProfileFromMatches(homeIdStr, input.homeFormMatches);
@@ -137,8 +154,14 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
   }
 
   const withMomentum = applyGrahamMomentumToXg(homeXg, awayXg, momentum);
-  homeXg = Math.max(INTERNATIONAL_XG_FLOOR, withMomentum.homeXg);
-  awayXg = Math.max(INTERNATIONAL_XG_FLOOR, withMomentum.awayXg);
+  const regressed = applyFinishingRegressionToXg(
+    withMomentum.homeXg,
+    withMomentum.awayXg,
+    input.wcForm?.home ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 },
+    input.wcForm?.away ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 }
+  );
+  homeXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.homeXg);
+  awayXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.awayXg);
 
   return {
     homeXg: Math.round(homeXg * 100) / 100,
@@ -180,6 +203,10 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
         awaySetPieceRate != null && cal && awaySetPieceRate >= cal.setPieceRateThreshold
           ? cal.setPieceXgBump
           : 0,
+      wc_form_home_matches: input.wcForm?.home.matchCount ?? 0,
+      wc_form_away_matches: input.wcForm?.away.matchCount ?? 0,
+      wc_attack_nudge_home: input.wcForm?.home.attackNudge ?? 1,
+      wc_attack_nudge_away: input.wcForm?.away.attackNudge ?? 1,
     },
   };
 }

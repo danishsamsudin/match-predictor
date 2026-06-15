@@ -30,6 +30,12 @@ export interface WcCalibrationConstants {
   modelVersion: string;
   /** Per-team set-piece goal share from Opta ingests (api team id → 0–1). */
   teamSetPieceRates: Record<string, number>;
+  wcAttackFormWeight: number;
+  wcDefenseFormWeight: number;
+  wcFinishingRegressionWeight: number;
+  wcLineupAttackBlend: number;
+  wcLineupDefenseBlend: number;
+  wcLowEventRhoBoost: number;
 }
 
 const DEFAULTS: WcCalibrationConstants = {
@@ -43,6 +49,12 @@ const DEFAULTS: WcCalibrationConstants = {
   deltaWeights: { ...GRAHAM_DELTA_WEIGHTS },
   modelVersion: GRAHAM_MODEL_VERSION,
   teamSetPieceRates: {},
+  wcAttackFormWeight: 0.35,
+  wcDefenseFormWeight: 0.35,
+  wcFinishingRegressionWeight: 0.15,
+  wcLineupAttackBlend: 0.35,
+  wcLineupDefenseBlend: 0.35,
+  wcLowEventRhoBoost: 0.025,
 };
 
 let cached: WcCalibrationConstants | null = null;
@@ -73,6 +85,14 @@ function mergeConstants(raw: Record<string, unknown> | null): WcCalibrationConst
     modelVersion: String(raw.modelVersion ?? DEFAULTS.modelVersion),
     teamSetPieceRates:
       (raw.teamSetPieceRates as Record<string, number> | undefined) ?? {},
+    wcAttackFormWeight: Number(raw.wcAttackFormWeight ?? DEFAULTS.wcAttackFormWeight),
+    wcDefenseFormWeight: Number(raw.wcDefenseFormWeight ?? DEFAULTS.wcDefenseFormWeight),
+    wcFinishingRegressionWeight: Number(
+      raw.wcFinishingRegressionWeight ?? DEFAULTS.wcFinishingRegressionWeight
+    ),
+    wcLineupAttackBlend: Number(raw.wcLineupAttackBlend ?? DEFAULTS.wcLineupAttackBlend),
+    wcLineupDefenseBlend: Number(raw.wcLineupDefenseBlend ?? DEFAULTS.wcLineupDefenseBlend),
+    wcLowEventRhoBoost: Number(raw.wcLowEventRhoBoost ?? DEFAULTS.wcLowEventRhoBoost),
   };
 }
 

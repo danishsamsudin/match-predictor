@@ -1,11 +1,21 @@
+import { computeLineupPlayerXgImpact } from "@/lib/prediction/lineup-player-xg-impact";
+import { resolveLineupPlayerStats } from "@/lib/prediction/resolve-lineup-player-stats";
+import { applyLineupImpactToHubPrediction } from "@/lib/world-cup/apply-wc-lineup-impact";
 import { grahamHubRowToPredictionResult } from "@/lib/world-cup/graham-prediction-adapter";
 import { runHubMainPredict } from "@/lib/world-cup/hub-main-predict";
+import { INTERNATIONAL_BASE_GOALS } from "@/lib/world-cup/international-strength";
 import { resolveMatchPhase, shouldRefreshHubPrediction } from "@/lib/world-cup/match-kickoff";
 import type { ResolvedWcMatch } from "@/lib/world-cup/resolve-wc-match";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
+import {
+  resolveWcLineupPlayerStats,
+} from "@/lib/world-cup/resolve-wc-lineup-player-stats";
+import { applyWcModelXiToHubPrediction } from "@/lib/world-cup/wc-hub-model-xi";
+import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
+import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
 import { computeWcEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
-import type { PredictRequest, PredictionResult } from "@/lib/types/prediction";
+import type { PredictRequest, PredictionLineupSource, PredictionResult } from "@/lib/types/prediction";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 function wcDb(client: SupabaseClient) {
@@ -62,8 +72,93 @@ export async function runWcGrahamPredictForRequest(input: {
   const awayName = match.away_team_name ?? request.awayTeamName ?? "Away";
 
   const finishedMatches = await loadFinishedWcMatches(supabase);
-  const hubRow = await runHubMainPredict(match, { finishedMatches });
-  if (!hubRow) return null;
+  const calibration = await loadWcCalibrationConfig();
+  const baseHubRow = await runHubMainPredict(match, {
+    finishedMatches,
+    applyModelXi: false,
+  });
+  if (!baseHubRow) return null;
+
+  let hubRow = baseHubRow;
+
+  const lineupSource: PredictionLineupSource = request.lineupSource ?? "manual_xi";
+  let lineupNotes: string[] = [];
+
+  const homeTeamApiId = resolveApiTeamId(match.home_team_id!, homeName);
+  const awayTeamApiId = resolveApiTeamId(match.away_team_id!, awayName);
+
+  if (lineupSource === "manual_xi" && request.customLineups?.length) {
+    const wcHomeNames = request.customLineups
+      .filter((l) => l.team.id === request.homeTeamId)
+      .flatMap((l) => l.startXI.map((p) => p.player.name));
+    const wcAwayNames = request.customLineups
+      .filter((l) => l.team.id === request.awayTeamId)
+      .flatMap((l) => l.startXI.map((p) => p.player.name));
+
+    const [wcHome, wcAway] = await Promise.all([
+      resolveWcLineupPlayerStats({
+        supabase,
+        teamApiId: homeTeamApiId,
+        playerNames: wcHomeNames,
+      }),
+      resolveWcLineupPlayerStats({
+        supabase,
+        teamApiId: awayTeamApiId,
+        playerNames: wcAwayNames,
+      }),
+    ]);
+
+    const baseHomeXg = Number(
+      hubRow.snapshot.home_xg ?? hubRow.snapshot.lambda ?? 1.2
+    );
+    const baseAwayXg = Number(hubRow.snapshot.away_xg ?? hubRow.snapshot.mu ?? 1.2);
+
+    const wcCoverage = Object.keys(wcHome).length + Object.keys(wcAway).length;
+    if (wcCoverage >= 8) {
+      const lineup = computeWcLineupPlayerXgImpact({
+        homePlayers: wcHome,
+        awayPlayers: wcAway,
+        baseHomeXg,
+        baseAwayXg,
+        mu: INTERNATIONAL_BASE_GOALS,
+        calibration,
+        mode: "manual_xi",
+      });
+      lineupNotes = lineup.notes;
+      hubRow = applyLineupImpactToHubPrediction(hubRow, lineup);
+    } else {
+      const playerStats = await resolveLineupPlayerStats({
+        lineups: request.customLineups,
+        homeTeamId: request.homeTeamId,
+        awayTeamId: request.awayTeamId,
+        homeTeamName: request.homeTeamName ?? homeName,
+        awayTeamName: request.awayTeamName ?? awayName,
+        homeLeagueId: request.homeLeagueId,
+        awayLeagueId: request.awayLeagueId,
+        entityType: "national",
+        supabase,
+      });
+
+      const lineup = computeLineupPlayerXgImpact({
+        homePlayers: playerStats.home,
+        awayPlayers: playerStats.away,
+        baseHomeXg,
+        baseAwayXg,
+        mu: INTERNATIONAL_BASE_GOALS,
+      });
+      lineupNotes = [...lineup.notes, "WC tournament form sparse — Scoutlyst/FBref fallback."];
+      hubRow = applyLineupImpactToHubPrediction(hubRow, lineup);
+    }
+  } else if (lineupSource === "model_xi") {
+    hubRow = await applyWcModelXiToHubPrediction({
+      supabase,
+      hubRow,
+      homeTeamApiId,
+      awayTeamApiId,
+      calibration,
+    });
+    lineupNotes = ["Model XI — projected from last WC starters + tournament form."];
+  }
 
   const phase = resolveMatchPhase({
     date: match.date,
@@ -76,15 +171,13 @@ export async function runWcGrahamPredictForRequest(input: {
   if (shouldRefreshHubPrediction(phase)) {
     await wcDb(supabase).from("world_cup_predictions").upsert({
       match_id: resolved.matchId,
-      ...hubRow,
+      ...baseHubRow,
       computed_at: new Date().toISOString(),
     });
   }
 
   const homeXg = Number(hubRow.snapshot.home_xg ?? hubRow.snapshot.lambda ?? 1.2);
   const awayXg = Number(hubRow.snapshot.away_xg ?? hubRow.snapshot.mu ?? 1.2);
-  const homeTeamApiId = resolveApiTeamId(match.home_team_id!, homeName);
-  const awayTeamApiId = resolveApiTeamId(match.away_team_id!, awayName);
 
   const estimated = computeWcEstimatedMatchStats({
     homeTeamApiId,
@@ -103,5 +196,7 @@ export async function runWcGrahamPredictForRequest(input: {
     homeName,
     awayName,
     estimated,
+    lineupSource,
+    lineupNotes,
   });
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSyncCronSecret } from "@/lib/config/data-source";
-import { runWorldCupHubSync } from "@/lib/world-cup/run-world-cup-sync";
+import { runWorldCupHubRefresh } from "@/lib/world-cup/hub-refresh";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await runWorldCupHubSync();
+  const result = await runWorldCupHubRefresh("cron");
   return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 }
 

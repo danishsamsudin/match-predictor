@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Graham World Cup Hub Model — Algorithm Reference</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
+  <style>
+    @page {
+      size: A4;
+      margin: 22mm 20mm 24mm 20mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    body {
+      font-family: "Times New Roman", "STIX Two Text", Times, serif;
+      font-size: 11pt;
+      line-height: 1.48;
+      color: #111;
+      margin: 0;
+      padding: 0;
+      hyphens: auto;
+      overflow-wrap: anywhere;
+      word-break: normal;
+    }
+
+    .doc {
+      width: 100%;
+      max-width: 170mm;
+      margin: 0 auto;
+    }
+
+    .running-header {
+      font-size: 9pt;
+      color: #444;
+      text-align: right;
+      border-bottom: 0.4pt solid #888;
+      padding-bottom: 4pt;
+      margin-bottom: 14pt;
+    }
+
+    h1.title {
+      font-size: 17pt;
+      font-weight: 700;
+      text-align: center;
+      margin: 0 0 6pt;
+      line-height: 1.25;
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 11pt;
+      font-style: italic;
+      color: #333;
+      margin: 0 0 14pt;
+    }
+
+    .meta {
+      text-align: center;
+      font-size: 10pt;
+      margin-bottom: 16pt;
+      color: #444;
+    }
+
+    .abstract {
+      margin: 0 0 18pt;
+      padding: 10pt 12pt;
+      border: 0.4pt solid #bbb;
+      background: #fafafa;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .abstract h2 {
+      font-size: 10.5pt;
+      margin: 0 0 6pt;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .abstract p {
+      margin: 0;
+      font-size: 10pt;
+      text-align: justify;
+    }
+
+    h2.section {
+      font-size: 12.5pt;
+      font-weight: 700;
+      margin: 18pt 0 8pt;
+      padding-top: 2pt;
+      border-bottom: 0.4pt solid #ccc;
+      page-break-after: avoid;
+      break-after: avoid;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    h3.subsection {
+      font-size: 11pt;
+      font-weight: 700;
+      margin: 12pt 0 6pt;
+      page-break-after: avoid;
+      break-after: avoid;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    p {
+      margin: 0 0 8pt;
+      text-align: justify;
+    }
+
+    ul, ol {
+      margin: 0 0 8pt 16pt;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 3pt;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5pt;
+      margin: 8pt 0 12pt;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    th, td {
+      border: 0.4pt solid #444;
+      padding: 4pt 6pt;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f0f0f0;
+      font-weight: 700;
+    }
+
+    .equation {
+      margin: 10pt 0;
+      padding: 6pt 4pt;
+      text-align: center;
+      overflow-x: auto;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .el5 {
+      margin: 8pt 0 12pt;
+      padding: 8pt 10pt;
+      border-left: 2pt solid #666;
+      background: #f8f8f8;
+      font-size: 10pt;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .el5 strong {
+      font-variant: small-caps;
+      letter-spacing: 0.03em;
+    }
+
+    .pipeline {
+      font-size: 9.5pt;
+      margin: 8pt 0 12pt;
+      padding: 8pt;
+      border: 0.4pt dashed #999;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    code, .mono {
+      font-family: "Courier New", Courier, monospace;
+      font-size: 9.5pt;
+    }
+
+    .page-break {
+      page-break-before: always;
+      break-before: page;
+    }
+
+    .katex {
+      font-size: 1.05em;
+    }
+
+    .katex-display {
+      margin: 0.6em 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="doc">
+    <div class="running-header">Graham WC Hub Model — Algorithm Reference</div>
+
+    <h1 class="title">Graham World Cup Hub Model:<br />Algorithm and Variable Reference</h1>
+    <p class="subtitle">Expected-goals forecasting for FIFA World Cup 2026 fixtures</p>
+    <p class="meta">Match Predictor · Technical documentation · Generated <span id="gen-date"></span></p>
+
+    <div class="abstract">
+      <h2>Abstract</h2>
+      <p>
+        This document specifies the Graham World Cup hub model used exclusively for FIFA World Cup match prediction.
+        The pipeline combines decay-weighted international process rates, shot-quality profiles, a six-component strength index
+        (<span class="math-inline">$\Delta S$</span>), in-tournament Opta composites, venue and motivation adjustments,
+        optional lineup-aware blending, and Dixon–Coles score correlation to produce expected goals and 1X2 outcomes.
+        Coefficients are bounded and updated post-match via calibration when sufficient finished fixtures exist.
+      </p>
+    </div>
+
+    <h2 class="section">1. Pipeline Overview</h2>
+    <div class="pipeline">
+      Historical international matches + WC 2026 results → process attack/defense rates<br />
+      Opta WC player/match data → tournament composites + lineup form<br />
+      → <span class="math-inline">$\Delta S$</span> strength index → baseline home/away xG<br />
+      → momentum + finishing regression + set-piece bump → venue (altitude, rest, jet lag, host, motivation)<br />
+      → optional Model XI lineup blend → Dixon–Coles score grid (<span class="math-inline">$\rho$</span>)<br />
+      → 1X2, scoreline, over/under 2.5
+    </div>
+    <p>
+      <strong>Entry point:</strong> <code>runGrahamWorldCupPredict</code> → <code>resolveGrahamExpectedGoals</code> → venue/motivation → optional lineup → <code>outcomesFromGuardedGrid</code>.
+      The club prediction engine is <em>not</em> used for World Cup matches.
+    </p>
+    <p>
+      Calibrated constants load from Supabase <code>world_cup_calibration_config</code> (latest saved version: <code>wc-graham-v1.12-md12</code>).
+      Defaults below apply when nothing is saved.
+    </p>
+
+    <h2 class="section">2. Process Attack and Defense Rates</h2>
+    <p><strong>Function:</strong> <code>computeGrahamProcessRatesFromMatches</code> → optionally <code>applyWcFormToProcessRates</code></p>
+
+    <h3 class="subsection">2.1 Match weights and rolling averages</h3>
+    <p>For each past match <span class="math-inline">$m$</span> for team <span class="math-inline">$T$</span>:</p>
+    <div class="equation">$$w_m = \text{decay}(\text{date}_m) \times \text{tier}(\text{competition}_m) \times c_{\text{opp}}$$</div>
+    <div class="equation">$$\overline{xGF} = \frac{\sum_m xGF_m \cdot w_m}{\sum_m w_m}, \qquad \overline{xGA} = \frac{\sum_m xGA_m \cdot w_m}{\sum_m w_m}$$</div>
+
+    <h3 class="subsection">2.2 Raw rates and shrinkage</h3>
+    <div class="equation">$$\text{attack}_{\text{raw}} = \text{clamp}\!\left(\frac{\overline{xGF}}{\mu},\; 0.4,\; 2.5\right), \qquad \text{defense}_{\text{raw}} = \text{clamp}\!\left(\frac{\overline{xGA}}{\mu},\; 0.4,\; 2.5\right)$$</div>
+    <div class="equation">$$\text{attack} = 1 + (\text{attack}_{\text{raw}} - 1)\cdot\frac{w}{w + K}, \qquad \text{defense} = 1 + (\text{defense}_{\text{raw}} - 1)\cdot\frac{w}{w + K}$$</div>
+
+    <h3 class="subsection">2.3 WC tournament nudge</h3>
+    <p>Applied only when the team has at least one WC 2026 match ingested:</p>
+    <div class="equation">$$\text{attack}' = 1 + (\text{attack}\cdot n_{\text{atk}} - 1)\cdot \omega_{\text{atk}} + (\text{attack} - 1)\cdot(1 - \omega_{\text{atk}})$$</div>
+    <div class="equation">$$\text{defense}' = 1 + \left(\frac{\text{defense}}{n_{\text{def}}} - 1\right)\cdot \omega_{\text{def}} + (\text{defense} - 1)\cdot(1 - \omega_{\text{def}})$$</div>
+
+    <table>
+      <thead><tr><th>Symbol</th><th>Default</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><span class="math-inline">$\mu$</span></td><td><strong>1.25</strong> (<code>muXg</code>)</td><td>Average team xG per game anchor</td></tr>
+        <tr><td>Decay <span class="math-inline">$\varphi$</span></td><td><strong>0.00048</strong>/day</td><td>Exponential time decay (~4-year half-life)</td></tr>
+        <tr><td>Tier weights</td><td>Friendly <strong>0.32</strong>, competitive <strong>1.0</strong>, WC finals <strong>1.0</strong></td><td>Friendlies count less</td></tr>
+        <tr><td><span class="math-inline">$c_{\text{opp}}$</span></td><td>Confederation modifier</td><td>Opponent region strength adjustment</td></tr>
+        <tr><td><span class="math-inline">$K$</span></td><td><strong>5</strong></td><td>Shrinkage toward 1.0 when few games</td></tr>
+        <tr><td>Rate clamps</td><td><strong>0.4 – 2.5</strong></td><td>Outlier bounds</td></tr>
+        <tr><td>SOT→xG fallback</td><td><strong>0.32</strong></td><td>Proxy when xG missing</td></tr>
+        <tr><td>Shots→xG fallback</td><td><strong>0.10</strong></td><td>Weaker proxy</td></tr>
+        <tr><td><span class="math-inline">$\omega_{\text{atk}}, \omega_{\text{def}}$</span></td><td><strong>0.35</strong> each</td><td>WC in-tournament form blend weight</td></tr>
+        <tr><td><span class="math-inline">$n_{\text{atk}}, n_{\text{def}}$</span></td><td><strong>1 ± 8%</strong> max</td><td>From Opta composites (Section 6)</td></tr>
+      </tbody>
+    </table>
+    <div class="el5"><strong>Plain-language summary.</strong> Count how many chances teams created and allowed in past games (recent games matter more). Then give a small extra push based on how they have played in this World Cup.</div>
+
+    <h2 class="section">3. Shot Quality Profiles (SCI / SSI)</h2>
+    <p><strong>Function:</strong> <code>computeShotProfileFromMatches</code> → <code>applyShotProfilesForFixture</code></p>
+    <div class="equation">$$SCI = \frac{xGF}{\text{shots}}, \qquad SSI = \frac{xGA}{\text{oppShots}}$$</div>
+    <div class="equation">$$\text{homeAttack} \leftarrow \text{homeAttack} \cdot \bigl(1 + 0.08\cdot(SCI_{\text{home}} - SCI_{\text{league}})\bigr)$$</div>
+    <div class="equation">$$\text{homeDefense} \leftarrow \text{homeDefense} \cdot \bigl(1 + 0.08\cdot(SSI_{\text{league}} - SSI_{\text{home}})\bigr)$$</div>
+    <p>(Symmetric adjustments for the away team.)</p>
+    <table>
+      <thead><tr><th>Coefficient</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td><code>GRAHAM_SCI_WEIGHT</code></td><td><strong>0.08</strong></td></tr>
+        <tr><td><code>GRAHAM_SSI_WEIGHT</code></td><td><strong>0.08</strong></td></tr>
+        <tr><td>League SCI/SSI</td><td>Average of both teams in the fixture</td></tr>
+      </tbody>
+    </table>
+    <div class="el5"><strong>Plain-language summary.</strong> Not just how many shots — how good each shot tends to be. Teams that need many shots for one chance get a small downgrade.</div>
+
+    <h2 class="section">4. Recent Form xG (feeds <span class="math-inline">$\Delta S$</span>)</h2>
+    <div class="equation">$$\text{recentForm}_{\text{home}} = \mu \cdot \text{homeAttack} \cdot \text{awayDefense}$$</div>
+    <div class="equation">$$\text{recentForm}_{\text{away}} = \mu \cdot \text{awayAttack} \cdot \text{homeDefense}$$</div>
+    <div class="equation">$$\Delta\,\text{recentForm} = \text{recentForm}_{\text{home}} - \text{recentForm}_{\text{away}}$$</div>
+    <div class="el5"><strong>Plain-language summary.</strong> If these two teams played right now based on recent chance creation, home would expect one xG level and away another. This difference feeds the strength index.</div>
+
+    <h2 class="section page-break">5. Core Strength Index and Baseline xG</h2>
+    <p><strong>Function:</strong> <code>resolveGrahamExpectedGoals</code></p>
+
+    <h3 class="subsection">5.1 Component deltas</h3>
+    <table>
+      <thead><tr><th>Component</th><th>Formula</th><th>Scale into <span class="math-inline">$\Delta S$</span></th></tr></thead>
+      <tbody>
+        <tr><td>xG-Elo</td><td><span class="math-inline">$\text{homeXgElo} - \text{awayXgElo}$</span></td><td>× <span class="math-inline">$w_{\text{xgElo}}$</span></td></tr>
+        <tr><td>Talent</td><td><span class="math-inline">$(\text{homeTalent} - \text{awayTalent}) \times 400$</span></td><td>× <span class="math-inline">$w_{\text{talent}}$</span></td></tr>
+        <tr><td>Tournament (WCTR)</td><td><span class="math-inline">$\text{homeWctr} - \text{awayWctr}$</span></td><td>× <span class="math-inline">$w_{\text{tournament}}$</span></td></tr>
+        <tr><td>Recent form</td><td><span class="math-inline">$\Delta\,\text{recentForm} \times 100$</span></td><td>× <span class="math-inline">$w_{\text{recent}}$</span></td></tr>
+        <tr><td>FIFA</td><td><span class="math-inline">$\text{homeFifaPts} - \text{awayFifaPts}$</span></td><td>× <span class="math-inline">$w_{\text{fifa}}$</span></td></tr>
+        <tr><td>Momentum</td><td><span class="math-inline">$\text{momentum} \times 120$</span></td><td>× <span class="math-inline">$w_{\text{momentum}}$</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="subsection">5.2 Strength index and exponential xG mapping</h3>
+    <div class="equation">$$\Delta S = \sum_i w_i \cdot \Delta_i$$</div>
+    <div class="equation">$$\lambda_{\text{home,base}} = \text{clamp}\!\left(\mu \cdot e^{c \cdot \Delta S},\; 0.1,\; 5.0\right)$$</div>
+    <div class="equation">$$\lambda_{\text{away,base}} = \text{clamp}\!\left(\mu \cdot e^{-c \cdot \Delta S},\; 0.1,\; 5.0\right)$$</div>
+
+    <h3 class="subsection">5.3 Default <span class="math-inline">$\Delta S$</span> weights (sum = 1)</h3>
+    <table>
+      <thead><tr><th>Weight</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td><span class="math-inline">$w_{\text{xgElo}}$</span></td><td><strong>40%</strong></td></tr>
+        <tr><td><span class="math-inline">$w_{\text{talent}}$</span></td><td><strong>20%</strong></td></tr>
+        <tr><td><span class="math-inline">$w_{\text{tournament}}$</span></td><td><strong>15%</strong></td></tr>
+        <tr><td><span class="math-inline">$w_{\text{recent}}$</span></td><td><strong>10%</strong></td></tr>
+        <tr><td><span class="math-inline">$w_{\text{fifa}}$</span></td><td><strong>10%</strong></td></tr>
+        <tr><td><span class="math-inline">$w_{\text{momentum}}$</span></td><td><strong>5%</strong></td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead><tr><th>Coefficient</th><th>Default</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><span class="math-inline">$c$</span> (<code>strengthExponent</code>)</td><td><strong>0.00305</strong></td><td>Steepness of strength → xG mapping</td></tr>
+        <tr><td><span class="math-inline">$\mu$</span> (<code>muXg</code>)</td><td><strong>1.25</strong></td><td>Baseline goals per team</td></tr>
+        <tr><td>xG floor/cap</td><td><strong>0.1 – 5.0</strong></td><td>Hard bounds on expected goals</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="subsection">5.4 Sub-model inputs</h3>
+    <ul>
+      <li><strong>xG-Elo</strong> (<code>computeXgEloFromMatches</code>): Elo-style rating updated by <span class="math-inline">$(\text{actual xG diff} - \text{expected diff}) \times K$</span>, with <span class="math-inline">$K = 0.32 \times$</span> match tier. Initialized from FIFA points.</li>
+      <li><strong>WCTR</strong> (<code>computeWctrFromMatches</code>): Same machinery on tournament-weighted matches (WC/Euro knockouts up to <strong>1.25×</strong>).</li>
+      <li><strong>Talent</strong> (<code>resolveSquadTalentSnapshot</code>): squad value = <strong>60%</strong> Transfermarkt + <strong>40%</strong> Scoutlyst; <span class="math-inline">$\text{talentRating} = \log(\text{squadValue} / \text{medianWC})$</span>.</li>
+      <li><strong>Momentum</strong> (<code>computeGrahamMomentumIndex</code>): <span class="math-inline">$\text{momentum} = (\text{homeFormScore} - \text{awayFormScore})\cdot 0.55 + \text{h2h}\cdot 0.10$</span>, clamped to <strong>±0.65</strong>, then applied as <span class="math-inline">$\lambda_{\text{home}} \leftarrow \lambda_{\text{home}} \cdot e^{0.015 \cdot \text{momentum}}$</span> and <span class="math-inline">$\lambda_{\text{away}} \leftarrow \lambda_{\text{away}} \cdot e^{-0.015 \cdot 0.92 \cdot \text{momentum}}$</span>.</li>
+    </ul>
+    <div class="el5"><strong>Plain-language summary.</strong> Build one “who is stronger?” score from six signals, then turn that into home and away expected goals.</div>
+
+    <h2 class="section">6. WC 2026 In-Tournament Form (Opta Composites)</h2>
+    <p><strong>Source:</strong> Opta player stats → <code>world_cup_team_match_aggregates</code> → <code>loadWcInTournamentFormNudges</code></p>
+
+    <h3 class="subsection">6.1 Five composites per team per match</h3>
+    <table>
+      <thead><tr><th>Composite</th><th>Built from (raw Opta)</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><strong>chanceIndex</strong></td><td>Player xG×<strong>1.2</strong> + shot created×<strong>0.18</strong> + in-box×<strong>0.06</strong>, minutes-weighted, winsorized ±<strong>2.5</strong></td><td>Attack signal</td></tr>
+        <tr><td><strong>defensiveSolidity</strong></td><td>Tackles×<strong>0.35</strong> + interceptions×<strong>0.4</strong> + blocks×<strong>0.25</strong> + SOT against×<strong>0.15</strong></td><td>Defense signal</td></tr>
+        <tr><td><strong>finishingDelta</strong></td><td><span class="math-inline">$\text{goals} - \text{team\_xG}$</span>, winsorized ±<strong>2.5</strong></td><td>Over/under-performance</td></tr>
+        <tr><td><strong>territoryIndex</strong></td><td>Possession×<strong>0.45</strong> + final-third×<strong>0.35</strong> + penalty-area×<strong>0.2</strong></td><td>Pitch control</td></tr>
+        <tr><td><strong>gkSaveIndex</strong></td><td>saves×<strong>0.5</strong> − goals×<strong>0.3</strong> + pen saves×<strong>0.8</strong></td><td>Goalkeeper quality</td></tr>
+        <tr><td><strong>disciplineLoad</strong></td><td>yellows×<strong>0.25</strong> + reds×<strong>1.5</strong> per player</td><td>Cards / availability</td></tr>
+        <tr><td><strong>opponentStrength</strong></td><td>FIFA/1400, clamped <strong>0.65–1.45</strong></td><td>Opponent adjustment</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="subsection">6.2 Opponent-adjusted tournament average</h3>
+    <div class="equation">$$\bar{x} = \frac{\sum_m (x_m / s_m^{\text{opp}}) \cdot \bigl(1/\max(0.7, s_m^{\text{opp}})\bigr)}{\sum_m 1/\max(0.7, s_m^{\text{opp}})}$$</div>
+
+    <h3 class="subsection">6.3 Nudges and finishing regression</h3>
+    <div class="equation">$$\text{attackSignal} = \text{chanceIndex}\cdot 0.12 + (\text{territory} - 0.5)\cdot 0.25$$</div>
+    <div class="equation">$$n_{\text{atk}} = \text{clamp}(1 + \text{attackSignal},\; 0.92,\; 1.08)$$</div>
+    <div class="equation">$$n_{\text{def}} = \text{clamp}(1 + \text{defensiveSolidity}\cdot 0.10,\; 0.92,\; 1.08)$$</div>
+    <div class="equation">$$\text{finishingRegression} = \text{clamp}(-\text{finishingDelta} \cdot 0.15,\; -0.06,\; 0.06)$$</div>
+    <div class="equation">$$\lambda_{\text{home}} \leftarrow \lambda_{\text{home}} \cdot (1 + \text{finishingRegression}_{\text{home}})$$</div>
+
+    <table>
+      <thead><tr><th>Calibrated weight</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td><code>wcAttackFormWeight</code> (<span class="math-inline">$\omega_{\text{atk}}$</span>)</td><td><strong>0.35</strong></td></tr>
+        <tr><td><code>wcDefenseFormWeight</code> (<span class="math-inline">$\omega_{\text{def}}$</span>)</td><td><strong>0.35</strong></td></tr>
+        <tr><td><code>wcFinishingRegressionWeight</code></td><td><strong>0.15</strong></td></tr>
+      </tbody>
+    </table>
+    <p>Squad market-value talent weights are <em>not</em> modified by Opta (by design).</p>
+    <div class="el5"><strong>Plain-language summary.</strong> After each WC game we summarize how teams played in five scores. Strong chance creation or defending nudges rates slightly; lucky finishing is gently regressed toward xG.</div>
+
+    <h2 class="section page-break">7. Set-Piece Bump</h2>
+    <p>If away team set-piece goal share ≥ <strong>40%</strong> (<code>setPieceRateThreshold</code>):</p>
+    <div class="equation">$$\lambda_{\text{away}} \leftarrow \lambda_{\text{away}} + 0.15$$</div>
+    <p>Rates come from Opta article ingests per team.</p>
+
+    <h2 class="section">8. Venue, Travel, and Group Motivation</h2>
+    <p><strong>Function:</strong> <code>runGrahamWorldCupPredict</code> (after baseline xG)</p>
+    <div class="equation">$$\lambda_{\text{home}} \leftarrow \lambda_{\text{home}} \cdot \gamma_{\text{alt}} \cdot \delta_{\text{home}} \cdot \sigma_{\text{home}} \cdot \text{hostBoost}$$</div>
+    <div class="equation">$$\lambda_{\text{away}} \leftarrow \lambda_{\text{away}} \cdot \gamma_{\text{alt}} \cdot \delta_{\text{away}} \cdot \sigma_{\text{away}}$$</div>
+
+    <table>
+      <thead><tr><th>Factor</th><th>Rule</th><th>Typical value</th></tr></thead>
+      <tbody>
+        <tr><td>Altitude <span class="math-inline">$\gamma_{\text{alt}}$</span></td><td>≤1500 m: <strong>1.0</strong>; else <strong>0.96</strong></td><td>Thin air → fewer goals</td></tr>
+        <tr><td>Rest <span class="math-inline">$\delta_{\text{rest}}$</span></td><td>72 h+ → <strong>1.0</strong>; 0 h → <strong>0.85</strong>; linear between</td><td>Fatigue penalty</td></tr>
+        <tr><td>Jet lag <span class="math-inline">$\theta$</span></td><td>Eastward: <strong>−1.5%</strong>/hour TZ; westward: <strong>−0.5%</strong></td><td>Travel fatigue</td></tr>
+        <tr><td><span class="math-inline">$\delta_{\text{final}}$</span></td><td><span class="math-inline">$\text{clamp}(\delta_{\text{rest}} \times \text{jetLag},\; 0.82,\; 1.0)$</span></td><td>Combined travel</td></tr>
+        <tr><td>Host boost</td><td>Mexico City <strong>×1.05</strong>; USA/Canada hosts <strong>×1.04</strong></td><td>Home advantage</td></tr>
+        <tr><td><span class="math-inline">$\sigma$</span> (motivation)</td><td>Group winner clinched → <strong>0.92–0.95</strong></td><td>Rotation risk</td></tr>
+        <tr><td><span class="math-inline">$\rho$</span> offset</td><td>Mutual advancement on draw → <strong>−0.12</strong></td><td>Strategic draws</td></tr>
+      </tbody>
+    </table>
+    <div class="el5"><strong>Plain-language summary.</strong> Adjust goals for tiredness, travel, altitude, home-country advantage, and whether both teams want to attack.</div>
+
+    <h2 class="section">9. Model XI Lineup Impact</h2>
+    <p><strong>Function:</strong> <code>computeWcLineupPlayerXgImpact</code> → <code>applyLineupImpactToHubPrediction</code></p>
+    <p>Per player in projected/matched XI:</p>
+    <div class="equation">$$\text{attackContrib} = (\mu\cdot 0.12 + \text{chanceIndexPer90}\cdot 0.85 + \text{optaNorm}\cdot 0.35)\cdot \text{roleBoost} \cdot \text{availability}$$</div>
+    <div class="equation">$$\lambda_{\text{lineup}} = 0.95 \cdot \sum \text{attackContrib}$$</div>
+    <div class="equation">$$\lambda_{\text{blended}} = (1 - \omega)\cdot \lambda_{\text{base}} + \omega\cdot \lambda_{\text{lineup}}, \qquad \omega = 0.35\;\text{(or } 0.175 \text{ if } &lt; 7 \text{ players matched)}$$</div>
+    <div class="equation">$$\lambda_{\text{home,final}} = \lambda_{\text{base,home}} \cdot \alpha_{\text{home}} \cdot \beta_{\text{away}}$$</div>
+    <p>Defense multipliers cross-apply: weak home defense boosts away xG.</p>
+
+    <table>
+      <thead><tr><th>Coefficient</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td><code>wcLineupAttackBlend</code></td><td><strong>0.35</strong></td></tr>
+        <tr><td><code>wcLineupDefenseBlend</code></td><td><strong>0.35</strong></td></tr>
+        <tr><td>Attack mult clamp</td><td><strong>0.78 – 1.14</strong></td></tr>
+        <tr><td>Defense mult clamp</td><td><strong>0.86 – 1.18</strong></td></tr>
+        <tr><td><code>availabilityFactor</code></td><td><strong>1 − fatigue×0.12 − cards×0.08</strong>, min <strong>0.55</strong></td></tr>
+        <tr><td>Role boosts</td><td>F <strong>×1.08</strong>, M <strong>×1.02</strong>, D/G <strong>×0.95</strong></td></tr>
+      </tbody>
+    </table>
+    <div class="el5"><strong>Plain-language summary.</strong> Who is starting and how they have played in the World Cup nudges expected goals up or down.</div>
+
+    <h2 class="section page-break">10. Score Correlation and Match Outcomes</h2>
+    <p><strong>Function:</strong> <code>outcomesFromGuardedGrid</code> (Dixon–Coles Poisson)</p>
+    <div class="equation">$$P(h,a) \propto \text{Poisson}(h;\,\lambda_{\text{home}}) \cdot \text{Poisson}(a;\,\lambda_{\text{away}}) \cdot \tau_{h,a}(\rho)$$</div>
+    <div class="equation">$$\rho_{\text{base}} = f\!\left(|\lambda_{\text{home}} - \lambda_{\text{away}}|,\; \lambda_{\text{home}} + \lambda_{\text{away}},\; |\Delta\text{FIFA}|\right) + \rho_{\text{motivation}}$$</div>
+
+    <h3 class="subsection">10.1 <span class="math-inline">$\rho$</span> rules</h3>
+    <table>
+      <thead><tr><th>Condition</th><th><span class="math-inline">$\rho$</span></th></tr></thead>
+      <tbody>
+        <tr><td>Effective gap ≥ 1.25</td><td><strong>+0.10</strong></td></tr>
+        <tr><td>Gap ≥ 0.75</td><td><strong>+0.06</strong></td></tr>
+        <tr><td>Gap ≥ 0.28</td><td><strong>+0.04</strong></td></tr>
+        <tr><td>Total xG ≥ 3.1</td><td><strong>−0.08</strong></td></tr>
+        <tr><td>Total xG ≥ 2.4</td><td><strong>−0.11</strong></td></tr>
+        <tr><td>Else</td><td><strong>−0.14</strong></td></tr>
+      </tbody>
+    </table>
+    <p><span class="math-inline">$\rho$</span> attenuates toward 0 as the xG gap widens. Low-event WC boost: if both teams’ <code>avgChanceIndex &lt; 1.2</code>, then <span class="math-inline">$\rho \leftarrow \rho + 0.025$</span>.</p>
+    <p><strong>Outputs:</strong> home win %, draw %, away win %, modal scoreline, over/under 2.5 %.</p>
+    <div class="el5"><strong>Plain-language summary.</strong> Build every plausible scoreline and add extra draw probability when the game looks tight or both teams might settle for a point.</div>
+
+    <h2 class="section">11. Post-Match Calibration</h2>
+    <p><strong>Function:</strong> <code>wc-calibrate-graham</code> after ≥2 evaluated matches. Tunable within <strong>±10%</strong> of defaults:</p>
+    <table>
+      <thead><tr><th>Constant</th><th>Default</th><th>What it moves</th></tr></thead>
+      <tbody>
+        <tr><td><code>muXg</code> (<span class="math-inline">$\mu$</span>)</td><td>1.25</td><td>Overall goal level</td></tr>
+        <tr><td><code>strengthExponent</code> (<span class="math-inline">$c$</span>)</td><td>0.00305</td><td>Strength → xG steepness</td></tr>
+        <tr><td><code>deltaWeights</code> (6)</td><td>see Section 5.3</td><td>Strength signal mix</td></tr>
+        <tr><td><code>wcAttackFormWeight</code></td><td>0.35</td><td>WC form on attack rate</td></tr>
+        <tr><td><code>wcDefenseFormWeight</code></td><td>0.35</td><td>WC form on defense rate</td></tr>
+        <tr><td><code>wcFinishingRegressionWeight</code></td><td>0.15</td><td>Luck correction</td></tr>
+        <tr><td><code>wcLineupAttackBlend</code></td><td>0.35</td><td>XI attack blend</td></tr>
+        <tr><td><code>wcLineupDefenseBlend</code></td><td>0.35</td><td>XI defense blend</td></tr>
+        <tr><td><code>wcLowEventRhoBoost</code></td><td>0.025</td><td>Extra draw mass (low chance)</td></tr>
+        <tr><td><code>setPieceXgBump</code></td><td>0.15</td><td>Set-piece team bump</td></tr>
+        <tr><td><code>setPieceRateThreshold</code></td><td>0.40</td><td>When bump applies</td></tr>
+      </tbody>
+    </table>
+    <p>Individual raw Opta stat weights are <em>not</em> calibrated (composites only).</p>
+
+    <h2 class="section">12. Variable Checklist</h2>
+    <h3 class="subsection">A. Historical match inputs</h3>
+    <p class="mono">home_xg, away_xg, home_shots, away_shots, home_sot, away_sot, home_goals, away_goals, competition, date, opponent confederation</p>
+    <h3 class="subsection">B. Strength / structural</h3>
+    <p>FIFA ranking points, xG-Elo, WCTR, squad market value (TM/Scoutlyst), median squad value, momentum index, H2H xG edge</p>
+    <h3 class="subsection">C. WC 2026 Opta-derived</h3>
+    <p>Player: xG, shot created, in-box attempts, tackles, interceptions, blocks, saves, goals, cards, minutes, Opta Points. Team composites: chanceIndex, defensiveSolidity, finishingDelta, territoryIndex, gkSaveIndex, disciplineLoad, opponentStrength. Player tournament form: avgOptaPoints, chanceIndexPer90, defensiveActionsPer90, gkSaveIndex, availabilityFactor, wasLastStarter.</p>
+    <h3 class="subsection">D. Match context</h3>
+    <p>Venue altitude, rest hours, timezone travel, host nation, group standings (<span class="math-inline">$\sigma$</span>, <span class="math-inline">$\rho$</span> offset), set-piece rate</p>
+    <h3 class="subsection">E. Outputs</h3>
+    <p><span class="math-inline">$\lambda_{\text{home}}$</span>, <span class="math-inline">$\lambda_{\text{away}}$</span>, 1X2 probabilities, predicted score, O/U 2.5</p>
+
+    <h2 class="section">13. Analyst Notes</h2>
+    <ol>
+      <li><strong>Two layers of form:</strong> long international history (decayed xG rates) plus WC-only Opta composites (bounded ±8%).</li>
+      <li><strong>Talent is separate:</strong> squad value enters <span class="math-inline">$\Delta S$</span> at 20%; Opta does not change talent.</li>
+      <li><strong>Lineup matters:</strong> hub predictions use projected last-match starters, not neutral team xG.</li>
+      <li><strong>Draws are explicit:</strong> Dixon–Coles <span class="math-inline">$\rho$</span>, group-motivation offsets, and low-event boost.</li>
+      <li><strong>Coefficients evolve slowly:</strong> <code>wc:postmatch</code> → evaluate → calibrate saves new constants when enough matches exist.</li>
+    </ol>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+  <script>
+    document.getElementById("gen-date").textContent = new Date().toLocaleDateString("en-GB", {
+      year: "numeric", month: "long", day: "numeric"
+    });
+
+    function renderAllMath() {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false }
+        ],
+        throwOnError: false,
+        strict: false
+      });
+      document.body.dataset.mathRendered = "true";
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", renderAllMath);
+    } else {
+      renderAllMath();
+    }
+  </script>
+</body>
+</html>

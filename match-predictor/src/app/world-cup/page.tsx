@@ -8,9 +8,11 @@ import { TournamentForecastPanel } from "@/components/world-cup/TournamentForeca
 import { UpcomingFixturesSection } from "@/components/world-cup/UpcomingFixturesSection";
 import type { UpcomingMatchCardProps } from "@/components/world-cup/MatchValueFlipCard";
 import { WorldCupSectionHelp } from "@/components/world-cup/WorldCupSectionHelp";
+import { WorldCupRefreshButton } from "@/components/world-cup/WorldCupRefreshButton";
 import { loadWorldCupHubPayload } from "@/lib/world-cup/hub-load";
 
-export const dynamic = "force-dynamic";
+/** Hub page ISR — aligns with HUB_PAGE_REVALIDATE_SECONDS in hub-snapshot.ts */
+export const revalidate = 3600;
 
 export const metadata = {
   title: "World Cup 2026 Hub",
@@ -26,8 +28,9 @@ export default async function WorldCupHubPage() {
         <PageHero
           eyebrow="FIFA World Cup 2026"
           title="World Cup hub"
-          description="Connect Supabase and import FBref World Cup data to enable this hub."
+          description="Hub data has not been computed yet. Use Refresh hub data after importing match files, or wait for the daily sync at 18:00 Amsterdam time."
         />
+        <WorldCupRefreshButton />
       </div>
     );
   }
@@ -46,9 +49,7 @@ export default async function WorldCupHubPage() {
         title="World Cup bettor hub"
         description="Group standings, best-third matrix, knockout routing, and model lines from the main national predictor (FIFA World Cup compare mode). Refreshes daily. Decimal odds by default."
       />
-      <p className="mb-6 text-xs text-slate-500">
-        Last model update: {new Date(payload.updatedAt).toLocaleString()} · Not betting advice.
-      </p>
+      <WorldCupRefreshButton initialUpdatedAt={payload.updatedAt} />
 
       <section className="mb-10">
         <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">Group stage</h2>

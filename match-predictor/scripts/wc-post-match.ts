@@ -1,5 +1,5 @@
 /**
- * Post-match WC pipeline: ingest Opta HTML → ratings → evaluate → calibrate → sync.
+ * Post-match WC pipeline: ingest Opta articles + player stats → form → ratings → evaluate → calibrate → sync.
  *
  * Usage:
  *   npx tsx scripts/wc-post-match.ts
@@ -14,6 +14,10 @@ import {
   listWcOptaResultHtmlFiles,
   WC_OPTA_RESULTS_DIR,
 } from "../src/lib/world-cup/wc-opta-results-dir";
+import {
+  listWcPlayerStatsFixtures,
+  WC_PLAYER_STATS_ROOT,
+} from "../src/lib/world-cup/wc-player-stats-dir";
 
 function run(cmd: string, args: string[]): void {
   const result = spawnSync(cmd, args, {
@@ -63,21 +67,28 @@ function main() {
     process.exit(1);
   }
 
+  const playerFixtures = listWcPlayerStatsFixtures();
+
   console.log(`Processing ${files.length} Opta article(s) from WC-Opta-Results:\n`);
   for (const file of files) {
     console.log(`  • ${path.basename(file)}`);
   }
+  console.log(`\nPlayer-stats fixtures in WC-Opta-Player-Stats: ${playerFixtures.length}`);
   console.log("");
 
   validateBundles(files);
 
   run("npx", ["tsx", "scripts/wc-ingest-opta-html.ts", ...files]);
+  run("npm", ["run", "wc:ingest-player-stats"]);
+  run("npm", ["run", "wc:recompute-wc-form"]);
   run("npm", ["run", "xg-elo:recompute"]);
   run("npx", ["tsx", "scripts/wc-evaluate-predictions.ts"]);
   run("npx", ["tsx", "scripts/wc-calibrate-graham.ts"]);
-  run("npm", ["run", "wc:sync"]);
+  run("npx", ["tsx", "scripts/wc-sync-cli.ts"]);
 
   console.log("\nPost-match pipeline complete.");
+  console.log(`  Articles ingested: ${files.length}`);
+  console.log(`  Player-stats folders: ${playerFixtures.length} (see ${WC_PLAYER_STATS_ROOT})`);
 }
 
 main();

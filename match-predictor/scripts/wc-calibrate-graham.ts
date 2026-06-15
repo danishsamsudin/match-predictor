@@ -76,19 +76,52 @@ async function main() {
     current.strengthExponent,
     current.strengthExponent * 1.05,
   ];
+  const wcFormCandidates = [0.9, 1, 1.1];
 
   for (const muXg of muCandidates) {
     for (const strengthExponent of expCandidates) {
+      for (const wcScale of wcFormCandidates) {
       const trial = {
         ...current,
         muXg: clampDelta(muXg, defaults.muXg, 0.1),
         strengthExponent: clampDelta(strengthExponent, defaults.strengthExponent, 0.1),
+        wcAttackFormWeight: clampDelta(
+          current.wcAttackFormWeight * wcScale,
+          defaults.wcAttackFormWeight,
+          0.1
+        ),
+        wcDefenseFormWeight: clampDelta(
+          current.wcDefenseFormWeight * wcScale,
+          defaults.wcDefenseFormWeight,
+          0.1
+        ),
+        wcFinishingRegressionWeight: clampDelta(
+          current.wcFinishingRegressionWeight,
+          defaults.wcFinishingRegressionWeight,
+          0.1
+        ),
+        wcLineupAttackBlend: clampDelta(
+          current.wcLineupAttackBlend,
+          defaults.wcLineupAttackBlend,
+          0.1
+        ),
+        wcLineupDefenseBlend: clampDelta(
+          current.wcLineupDefenseBlend,
+          defaults.wcLineupDefenseBlend,
+          0.1
+        ),
+        wcLowEventRhoBoost: clampDelta(
+          current.wcLowEventRhoBoost,
+          defaults.wcLowEventRhoBoost,
+          0.1
+        ),
         deltaWeights: normalizeDeltaWeights(current.deltaWeights),
       };
       const trialLoss = baselineLoss * (trial.muXg / current.muXg) * 0.98;
       if (trialLoss < bestLoss) {
         bestLoss = trialLoss;
         best = trial;
+      }
       }
     }
   }
@@ -125,6 +158,12 @@ async function main() {
     setPieceRateThreshold: best.setPieceRateThreshold,
     deltaWeights: best.deltaWeights,
     teamSetPieceRates: best.teamSetPieceRates,
+    wcAttackFormWeight: best.wcAttackFormWeight,
+    wcDefenseFormWeight: best.wcDefenseFormWeight,
+    wcFinishingRegressionWeight: best.wcFinishingRegressionWeight,
+    wcLineupAttackBlend: best.wcLineupAttackBlend,
+    wcLineupDefenseBlend: best.wcLineupDefenseBlend,
+    wcLowEventRhoBoost: best.wcLowEventRhoBoost,
     modelVersion: version,
   };
 
@@ -145,6 +184,12 @@ async function main() {
   console.log(`  muXg: ${current.muXg.toFixed(3)} → ${best.muXg.toFixed(3)}`);
   console.log(
     `  strengthExponent: ${current.strengthExponent.toFixed(5)} → ${best.strengthExponent.toFixed(5)}`
+  );
+  console.log(
+    `  wcAttackFormWeight: ${current.wcAttackFormWeight.toFixed(3)} → ${best.wcAttackFormWeight.toFixed(3)}`
+  );
+  console.log(
+    `  wcLineupAttackBlend: ${current.wcLineupAttackBlend.toFixed(3)} → ${best.wcLineupAttackBlend.toFixed(3)}`
   );
 }
 

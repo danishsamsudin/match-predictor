@@ -4,7 +4,6 @@ import {
 } from "@/lib/data/fifa-rankings-store";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { ingestPendingOptaResults } from "@/lib/world-cup/auto-ingest-opta";
-import { resolveMatchSummaryFromHtml } from "@/lib/world-cup/resolve-match-summary";
 import {
   enrichSummaryFromNarrative,
   parseWcMatchSummaryFromIngest,
@@ -16,6 +15,7 @@ import {
   loadGroupDraw,
   resolveGroupCode,
 } from "@/lib/world-cup/group-draw";
+import { loadHubSnapshotPayload } from "@/lib/world-cup/hub-snapshot";
 import { WORLD_CUP_FINALS_COMPETITION_OR } from "@/lib/world-cup/match-query";
 import { resolveFixtureScheduleMeta } from "@/lib/world-cup/fixture-venues";
 import { parseHubPrediction } from "@/lib/world-cup/hub-prediction";
@@ -39,6 +39,9 @@ import {
 } from "@/lib/world-cup/standings";
 
 type HubMatchRow = WcMatchRow & { home_team_name: string; away_team_name: string };
+
+const PREDICTION_COLUMNS =
+  "match_id, home_win_pct, draw_pct, away_win_pct, predicted_score_home, predicted_score_away, under_2_5_pct, over_2_5_pct, model_version, computed_at, snapshot";
 
 export type WorldCupHubPayload = {
   updatedAt: string;
@@ -68,6 +71,11 @@ export type WorldCupHubPayload = {
       card_prediction: ReturnType<typeof parseHubPrediction>;
     }
   >;
+};
+
+export type BuildHubPayloadOptions = {
+  /** Skip Opta file ingest (already run in sync). */
+  skipIngest?: boolean;
 };
 
 function mapMatch(
@@ -143,36 +151,116 @@ function isMatchFinishedRow(m: HubMatchRow, ingestedMatchIds: Set<string>): bool
 
 function latestIngestSummariesByMatch(
   rows: Array<Record<string, unknown>>
-): Map<string, { summary: WcMatchSummary; sourcePath: string | null }> {
-  const byMatch = new Map<
-    string,
-    { at: string; summary: WcMatchSummary; sourcePath: string | null }
-  >();
+): Map<string, WcMatchSummary> {
+  const byMatch = new Map<string, { at: string; summary: WcMatchSummary }>();
   for (const row of rows) {
     const matchId = row.match_id as string;
     const ingestedAt = (row.ingested_at as string) ?? "";
     let summary = parseWcMatchSummaryFromIngest(row.parsed);
     if (!summary) continue;
     summary = enrichSummaryFromNarrative(summary, row.narrative_features);
-    const sourcePath = (row.source_path as string | null) ?? null;
     const existing = byMatch.get(matchId);
     if (!existing || ingestedAt > existing.at) {
-      byMatch.set(matchId, { at: ingestedAt, summary, sourcePath });
+      byMatch.set(matchId, { at: ingestedAt, summary });
     }
   }
-  return new Map(
-    [...byMatch.entries()].map(([id, v]) => [id, { summary: v.summary, sourcePath: v.sourcePath }])
-  );
+  return new Map([...byMatch.entries()].map(([id, v]) => [id, v.summary]));
 }
 
+type LiveMatchPatch = {
+  home_goals: number | null;
+  away_goals: number | null;
+  status: string | null;
+};
+
+/** Patch snapshot goals/status from live `matches` rows (cheap read path). */
+export async function mergeLiveMatchScoresIntoPayload(
+  payload: WorldCupHubPayload
+): Promise<WorldCupHubPayload> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return payload;
+
+  const { data } = await supabase
+    .from("matches")
+    .select("id, home_goals, away_goals, status")
+    .or(WORLD_CUP_FINALS_COMPETITION_OR);
+
+  if (!data?.length) return payload;
+
+  const liveById = new Map(
+    data.map((r) => [
+      r.id as string,
+      {
+        home_goals: r.home_goals as number | null,
+        away_goals: r.away_goals as number | null,
+        status: r.status as string | null,
+      } satisfies LiveMatchPatch,
+    ])
+  );
+
+  const patchRow = <T extends { id: string; home_goals: number | null; away_goals: number | null; status?: string | null }>(
+    row: T
+  ): T => {
+    const live = liveById.get(row.id);
+    if (!live) return row;
+    return {
+      ...row,
+      home_goals: live.home_goals ?? row.home_goals,
+      away_goals: live.away_goals ?? row.away_goals,
+      status: live.status ?? row.status,
+    };
+  };
+
+  return {
+    ...payload,
+    recent: payload.recent.map(patchRow),
+    upcoming: payload.upcoming.map((m) => {
+      const patched = patchRow(m);
+      const matchPhase = resolveMatchPhase({
+        status: patched.status ?? null,
+        homeGoals: patched.home_goals,
+        awayGoals: patched.away_goals,
+        date: patched.date,
+        time: patched.time,
+        venueCity: patched.venue_city,
+      });
+      const cardPrediction = m.card_prediction
+        ? { ...m.card_prediction, locked: matchPhase !== "pre" }
+        : m.card_prediction;
+      return {
+        ...patched,
+        match_phase: matchPhase,
+        prediction_locked: matchPhase !== "pre",
+        card_prediction: cardPrediction,
+      };
+    }),
+  };
+}
+
+/**
+ * Fast read path: load precomputed snapshot from Supabase (+ optional live score merge).
+ */
 export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | null> {
+  const snapshot = await loadHubSnapshotPayload();
+  if (!snapshot?.updatedAt) return null;
+  return mergeLiveMatchScoresIntoPayload(snapshot);
+}
+
+/**
+ * Heavy write path: build full hub payload from DB (used by cron / manual refresh).
+ */
+export async function buildWorldCupHubPayload(
+  options: BuildHubPayloadOptions = {}
+): Promise<WorldCupHubPayload | null> {
   const supabase = tryCreateServiceClient();
   if (!supabase) return null;
 
-  try {
-    await ingestPendingOptaResults(supabase);
-  } catch (err) {
-    console.warn("WC auto-ingest skipped:", err);
+  if (!options.skipIngest) {
+    try {
+      await ingestPendingOptaResults(supabase);
+    } catch (err) {
+      console.warn("WC auto-ingest skipped:", err);
+    }
   }
 
   const wcClient = supabase as unknown as {
@@ -194,11 +282,11 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
       .or(WORLD_CUP_FINALS_COMPETITION_OR)
       .order("date", { ascending: true }),
     wcClient.from("world_cup_team_discipline").select("team_id, total_fair_play_points"),
-    wcClient.from("world_cup_predictions").select("*"),
+    wcClient.from("world_cup_predictions").select(PREDICTION_COLUMNS),
     wcClient.from("world_cup_tournament_projection").select("payload, computed_at"),
     wcClient
       .from("world_cup_post_match_ingests")
-      .select("match_id, parsed, narrative_features, source_path, ingested_at"),
+      .select("match_id, parsed, narrative_features, ingested_at"),
   ]);
 
   const teamNames = new Map((teamsRes.data ?? []).map((t) => [t.id, t.name]));
@@ -239,25 +327,14 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   );
   const summaryByMatchId = latestIngestSummariesByMatch(ingestsRes.data ?? []);
 
-  const recent = await Promise.all(
-    matches
-      .filter((m) => isMatchFinishedRow(m, ingestedMatchIds))
-      .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
-      .slice(0, 12)
-      .map(async (m) => {
-        const ingest = summaryByMatchId.get(m.id);
-        const summary = await resolveMatchSummaryFromHtml(
-          supabase,
-          m.id,
-          ingest?.sourcePath,
-          ingest?.summary ?? null
-        );
-        return {
-          ...m,
-          match_summary: summary,
-        };
-      })
-  );
+  const recent = matches
+    .filter((m) => isMatchFinishedRow(m, ingestedMatchIds))
+    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+    .slice(0, 12)
+    .map((m) => ({
+      ...m,
+      match_summary: summaryByMatchId.get(m.id) ?? null,
+    }));
 
   const upcoming = matches
     .filter((m) => !isMatchFinishedRow(m, ingestedMatchIds))
@@ -306,6 +383,7 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
     const cardPrediction = parseHubPrediction(rawPred, matchPhase);
     return {
       ...m,
+      prediction: null,
       home_fifa_rank: homeFifa?.rank ?? null,
       home_fifa_points: homeFifa?.points ?? null,
       away_fifa_rank: awayFifa?.rank ?? null,

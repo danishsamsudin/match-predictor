@@ -58,6 +58,7 @@ export async function runHubMainPredict(
   options?: {
     finishedMatches?: WcMatchRow[];
     standingsBeforeMd3?: Parameters<typeof resolveSingleFixtureMotivation>[2];
+    applyModelXi?: boolean;
   }
 ): Promise<HubPredictionRow | null> {
   const homeName = match.home_team_name ?? "Home";
@@ -82,6 +83,7 @@ export async function runHubMainPredict(
     motivation,
     priorHomeVenueTz: null,
     priorAwayVenueTz: null,
+    applyModelXi: options?.applyModelXi,
   });
 }
 

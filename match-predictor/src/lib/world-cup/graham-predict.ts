@@ -5,6 +5,8 @@ import { tryCreateServiceClient } from "@/lib/supabase";
 import { enrichFormMatchesWithProcessMetrics } from "@/lib/world-cup/enrich-form-process-metrics";
 import { GRAHAM_MODEL_VERSION } from "@/lib/world-cup/graham-model-config";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
+import { loadWcInTournamentFormNudges } from "@/lib/world-cup/graham-wc-in-tournament-form";
+import { applyWcModelXiToHubPrediction } from "@/lib/world-cup/wc-hub-model-xi";
 import { resolveGrahamExpectedGoals } from "@/lib/world-cup/graham-expected-goals";
 import {
   loadInternationalFormMatchesForTeam,
@@ -97,6 +99,7 @@ export async function runGrahamWorldCupPredict(input: {
   motivation: MotivationParams;
   priorHomeVenueTz: string | null;
   priorAwayVenueTz: string | null;
+  applyModelXi?: boolean;
 }): Promise<HubPredictionRow | null> {
   await ensureFifaRankingsLoaded();
 
@@ -118,10 +121,13 @@ export async function runGrahamWorldCupPredict(input: {
   const allForm = [...homeForm, ...awayForm];
   const deduped = [...new Map(allForm.map((m) => [`${m.date}|${m.home_team_id}|${m.away_team_id}`, m])).values()];
 
-  const [homeTalent, awayTalent, calibration] = await Promise.all([
+  const calibration = await loadWcCalibrationConfig();
+
+  const [homeTalent, awayTalent, homeWcForm, awayWcForm] = await Promise.all([
     resolveSquadTalentSnapshot(homeTeamId, homeName, medianTalent),
     resolveSquadTalentSnapshot(awayTeamId, awayName, medianTalent),
-    loadWcCalibrationConfig(),
+    loadWcInTournamentFormNudges(supabase, homeTeamId, calibration),
+    loadWcInTournamentFormNudges(supabase, awayTeamId, calibration),
   ]);
 
   const baseline = resolveGrahamExpectedGoals({
@@ -136,6 +142,7 @@ export async function runGrahamWorldCupPredict(input: {
     awayTalent,
     medianSquadValueEur: medianTalent,
     calibration,
+    wcForm: { home: homeWcForm, away: awayWcForm },
   });
 
   const venue = resolveStadiumVenue(match.venue_city ?? null);
@@ -155,13 +162,19 @@ export async function runGrahamWorldCupPredict(input: {
   const rhoBase =
     resolveInternationalScoreCorrelation(homeXg, awayXg, baseline.snapshot.delta_fifa as number) +
     motivation.rhoOffset;
-  const rho = attenuateRhoForExpectedGoalGap(rhoBase, homeXg, awayXg);
+  const lowEvent =
+    homeWcForm.avgChanceIndex < 1.2 &&
+    awayWcForm.avgChanceIndex < 1.2 &&
+    homeWcForm.matchCount > 0 &&
+    awayWcForm.matchCount > 0;
+  const rhoLowEventBoost = lowEvent ? calibration.wcLowEventRhoBoost : 0;
+  const rho = attenuateRhoForExpectedGoalGap(rhoBase + rhoLowEventBoost, homeXg, awayXg);
   const mutualDraw = motivation.scenario.includes("mutual_draw");
 
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
   const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw);
 
-  return {
+  let hubRow: HubPredictionRow = {
     home_win_pct: Number(outcomes.homeWin.toFixed(4)),
     draw_pct: Number(outcomes.draw.toFixed(4)),
     away_win_pct: Number(outcomes.awayWin.toFixed(4)),
@@ -178,6 +191,7 @@ export async function runGrahamWorldCupPredict(input: {
       away_xg: awayXg,
       rho,
       rho_base: rhoBase,
+      rho_low_event_boost: rhoLowEventBoost,
       gamma_home: gammaHome,
       gamma_away: gammaAway,
       host_nation_boost: hostBoost,
@@ -194,4 +208,16 @@ export async function runGrahamWorldCupPredict(input: {
       ...baseline.snapshot,
     },
   };
+
+  if (input.applyModelXi !== false) {
+    hubRow = await applyWcModelXiToHubPrediction({
+      supabase,
+      hubRow,
+      homeTeamApiId: homeTeamId,
+      awayTeamApiId: awayTeamId,
+      calibration,
+    });
+  }
+
+  return hubRow;
 }

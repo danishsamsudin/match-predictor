@@ -25,11 +25,78 @@ function optaSyntheticEventId(matchId: string): number {
   return -Math.abs(hash || 1) - 9_000_000;
 }
 
+async function findIngestedMatchIdForFile(
+  supabase: SupabaseClient,
+  filePath: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("world_cup_post_match_ingests")
+    .select("match_id")
+    .eq("source_path", filePath)
+    .limit(1);
+  return data?.[0]?.match_id ?? null;
+}
+
 export async function ingestOptaMatchFile(
   supabase: SupabaseClient,
   filePath: string,
   options?: { skipIfIngested?: boolean }
 ): Promise<OptaIngestResult> {
+  if (options?.skipIfIngested) {
+    const byPath = await findIngestedMatchIdForFile(supabase, filePath);
+    if (byPath) {
+      return {
+        filePath,
+        matchId: byPath,
+        parsed: {
+          homeTeamName: path.basename(filePath),
+          awayTeamName: "",
+          homeTeamApiId: null,
+          awayTeamApiId: null,
+          homeGoals: 0,
+          awayGoals: 0,
+          halfTimeHome: null,
+          halfTimeAway: null,
+          matchDate: null,
+          venue: null,
+          attendance: null,
+          referee: null,
+          homeFormation: null,
+          awayFormation: null,
+          homeXg: null,
+          awayXg: null,
+          homeShots: null,
+          awayShots: null,
+          homeShotsOnTarget: null,
+          awayShotsOnTarget: null,
+          homeCorners: null,
+          awayCorners: null,
+          homeFoulsConceded: null,
+          awayFoulsConceded: null,
+          widgetStats: null,
+          articleText: "",
+          optaFacts: [],
+          narrativeFeatures: {
+            setPieceGoal: false,
+            setPieceGoalRateMentioned: null,
+            redCardsHome: 0,
+            redCardsAway: 0,
+            yellowCardsHome: 0,
+            yellowCardsAway: 0,
+            comebackWin: false,
+            dominantPossessionSide: null,
+            possessionHomePct: null,
+            possessionAwayPct: null,
+          },
+          warnings: [],
+          sourcePath: filePath,
+        },
+        skipped: true,
+        skipReason: "already_ingested",
+      };
+    }
+  }
+
   assertOptaHtmlBundle(filePath);
   const parsed = parseOptaMatchFromFile(filePath);
   if (!parsed.homeTeamApiId || !parsed.awayTeamApiId) {
