@@ -1,23 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSyncCronSecret } from "@/lib/config/data-source";
+import { NextResponse } from "next/server";
 import { loadHubSnapshotMeta } from "@/lib/world-cup/hub-snapshot";
 import { runWorldCupHubRefresh } from "@/lib/world-cup/hub-refresh";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
-
-function resolveCronSecret(): string | undefined {
-  return getSyncCronSecret() ?? (process.env.CRON_SECRET?.trim() || undefined);
-}
-
-function isAuthorized(request: NextRequest): boolean {
-  const secret = resolveCronSecret();
-  if (!secret) return true;
-  const authHeader = request.headers.get("authorization");
-  const querySecret = request.nextUrl.searchParams.get("secret");
-  const provided = authHeader?.replace(/^Bearer\s+/i, "") ?? querySecret;
-  return provided === secret;
-}
 
 /** Refresh status + cooldown for the hub refresh button. */
 export async function GET() {
@@ -25,12 +11,8 @@ export async function GET() {
   return NextResponse.json(meta);
 }
 
-/** Manual hub refresh (10-minute cooldown). Optional cron secret for scripted runs. */
-export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+/** Manual hub refresh (10-minute cooldown). Session auth enforced by middleware. */
+export async function POST() {
   const result = await runWorldCupHubRefresh("manual");
 
   if (!result.ok && result.retryAfterSeconds) {
