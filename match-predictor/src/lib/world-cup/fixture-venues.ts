@@ -134,7 +134,7 @@ export function resolveFixtureVenue(input: {
   return null;
 }
 
-function lookupFixtureRow(input: {
+export function lookupFixtureRow(input: {
   date?: string | null;
   homeName?: string | null;
   awayName?: string | null;
@@ -144,6 +144,17 @@ function lookupFixtureRow(input: {
   if (fromDate) return fromDate;
   const tk = teamsOnlyKey(input.homeName, input.awayName);
   return tk ? byTeamsKey.get(tk) : undefined;
+}
+
+/** Canonical home/away from the official FIFA schedule (fixture-venues.json). */
+export function resolveOfficialFixtureTeams(input: {
+  date?: string | null;
+  homeName?: string | null;
+  awayName?: string | null;
+}): { home: string; away: string } | null {
+  const row = lookupFixtureRow(input);
+  if (!row) return null;
+  return { home: row.home_team, away: row.away_team };
 }
 
 /** Official schedule date, kickoff, and match number when the fixture is in the draw. */

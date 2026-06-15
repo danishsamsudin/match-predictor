@@ -1,4 +1,5 @@
 import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
+import { resolveOfficialFixtureTeams } from "@/lib/world-cup/fixture-venues";
 import type { WcMatchSummary, WcMatchSummaryStat } from "@/lib/world-cup/match-summary";
 import type {
   OptaNarrativeFeatures,
@@ -76,6 +77,104 @@ export function alignGoalsToFixture(
     return { homeGoals, awayGoals };
   }
   return { homeGoals: awayGoals, awayGoals: homeGoals };
+}
+
+/** Move goal counts from one home/away naming to another (same two teams). */
+export function mapGoalsBetweenOrientations(
+  homeGoals: number | null,
+  awayGoals: number | null,
+  fromHome: string,
+  fromAway: string,
+  toHome: string,
+  toAway: string
+): { homeGoals: number | null; awayGoals: number | null } {
+  return alignGoalsToFixture(homeGoals, awayGoals, toHome, toAway, fromHome, fromAway);
+}
+
+export type RecentMatchDisplayAlignInput = {
+  date: string | null;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeGoals: number | null;
+  awayGoals: number | null;
+  summary: WcMatchSummary | null;
+  ingestSourceHome?: string | null;
+  ingestSourceAway?: string | null;
+  ingestSourceHomeGoals?: number | null;
+  ingestSourceAwayGoals?: number | null;
+};
+
+/**
+ * Align recent-result rows to the official schedule home/away and correct scores.
+ * Prefers ingest/Opta scores (mapped to official orientation) over raw DB columns.
+ */
+export function alignRecentMatchDisplay(input: RecentMatchDisplayAlignInput): {
+  homeTeamName: string;
+  awayTeamName: string;
+  homeGoals: number | null;
+  awayGoals: number | null;
+  summary: WcMatchSummary | null;
+} {
+  const official = resolveOfficialFixtureTeams({
+    date: input.date,
+    homeName: input.homeTeamName,
+    awayName: input.awayTeamName,
+  });
+  const displayHome = official?.home ?? input.homeTeamName;
+  const displayAway = official?.away ?? input.awayTeamName;
+
+  const sourceHome = input.ingestSourceHome ?? input.homeTeamName;
+  const sourceAway = input.ingestSourceAway ?? input.awayTeamName;
+
+  let summary = input.summary;
+  if (summary) {
+    summary = alignWcMatchSummaryToFixture(
+      summary,
+      displayHome,
+      displayAway,
+      sourceHome,
+      sourceAway
+    );
+  }
+
+  let homeGoals = input.homeGoals;
+  let awayGoals = input.awayGoals;
+
+  if (summary) {
+    homeGoals = summary.homeGoals;
+    awayGoals = summary.awayGoals;
+  } else if (
+    input.ingestSourceHomeGoals != null &&
+    input.ingestSourceAwayGoals != null &&
+    input.ingestSourceHome &&
+    input.ingestSourceAway
+  ) {
+    ({ homeGoals, awayGoals } = alignGoalsToFixture(
+      input.ingestSourceHomeGoals,
+      input.ingestSourceAwayGoals,
+      displayHome,
+      displayAway,
+      input.ingestSourceHome,
+      input.ingestSourceAway
+    ));
+  } else if (official) {
+    ({ homeGoals, awayGoals } = mapGoalsBetweenOrientations(
+      homeGoals,
+      awayGoals,
+      input.homeTeamName,
+      input.awayTeamName,
+      displayHome,
+      displayAway
+    ));
+  }
+
+  return {
+    homeTeamName: displayHome,
+    awayTeamName: displayAway,
+    homeGoals,
+    awayGoals,
+    summary,
+  };
 }
 
 function swapWidgetStats(stats: OptaWidgetMatchStats | null): OptaWidgetMatchStats | null {

@@ -1,5 +1,6 @@
 import fs from "node:fs";
-import { swapOptaParsedMatch } from "@/lib/world-cup/match-orientation";
+import { alignOptaParsedMatchToFixture, swapOptaParsedMatch } from "@/lib/world-cup/match-orientation";
+import { resolveOfficialFixtureTeams } from "@/lib/world-cup/fixture-venues";
 import {
   buildWcMatchSummary,
   type WcMatchSummary,
@@ -40,10 +41,17 @@ export async function resolveMatchSummaryFromHtml(
         matchDate: parsed.matchDate,
       });
       if (!resolved || resolved.matchId !== matchId) continue;
-      const fixtureParsed = resolved.teamsSwappedInInput
-        ? swapOptaParsedMatch(parsed)
-        : parsed;
-      const summary = buildWcMatchSummary(fixtureParsed);
+      const official = resolveOfficialFixtureTeams({
+        date: parsed.matchDate,
+        homeName: parsed.homeTeamName,
+        awayName: parsed.awayTeamName,
+      });
+      const orientedParsed = official
+        ? alignOptaParsedMatchToFixture(parsed, official.home, official.away)
+        : resolved.teamsSwappedInInput
+          ? swapOptaParsedMatch(parsed)
+          : parsed;
+      const summary = buildWcMatchSummary(orientedParsed);
       if (summaryStatCount(summary) > 0) return summary;
     } catch {
       /* try next file */

@@ -5,8 +5,7 @@ import {
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { ingestPendingOptaResults } from "@/lib/world-cup/auto-ingest-opta";
 import {
-  alignGoalsToFixture,
-  alignWcMatchSummaryToFixture,
+  alignRecentMatchDisplay,
 } from "@/lib/world-cup/match-orientation";
 import {
   enrichSummaryFromNarrative,
@@ -57,6 +56,10 @@ export type WorldCupHubPayload = {
   recent: Array<
     HubMatchRow & {
       match_summary: WcMatchSummary | null;
+      ingest_source_home?: string | null;
+      ingest_source_away?: string | null;
+      ingest_source_home_goals?: number | null;
+      ingest_source_away_goals?: number | null;
     }
   >;
   upcoming: Array<
@@ -157,19 +160,30 @@ type IngestSummaryMeta = {
   summary: WcMatchSummary;
   sourceHomeName: string | null;
   sourceAwayName: string | null;
+  sourceHomeGoals: number | null;
+  sourceAwayGoals: number | null;
 };
 
 function parseIngestTeamNames(parsed: unknown): {
   sourceHomeName: string | null;
   sourceAwayName: string | null;
+  sourceHomeGoals: number | null;
+  sourceAwayGoals: number | null;
 } {
   if (!parsed || typeof parsed !== "object") {
-    return { sourceHomeName: null, sourceAwayName: null };
+    return {
+      sourceHomeName: null,
+      sourceAwayName: null,
+      sourceHomeGoals: null,
+      sourceAwayGoals: null,
+    };
   }
   const p = parsed as Record<string, unknown>;
   const sourceHomeName = typeof p.homeTeamName === "string" ? p.homeTeamName : null;
   const sourceAwayName = typeof p.awayTeamName === "string" ? p.awayTeamName : null;
-  return { sourceHomeName, sourceAwayName };
+  const sourceHomeGoals = typeof p.homeGoals === "number" ? p.homeGoals : null;
+  const sourceAwayGoals = typeof p.awayGoals === "number" ? p.awayGoals : null;
+  return { sourceHomeName, sourceAwayName, sourceHomeGoals, sourceAwayGoals };
 }
 
 function latestIngestSummariesByMatch(
@@ -182,47 +196,80 @@ function latestIngestSummariesByMatch(
     let summary = parseWcMatchSummaryFromIngest(row.parsed);
     if (!summary) continue;
     summary = enrichSummaryFromNarrative(summary, row.narrative_features);
-    const { sourceHomeName, sourceAwayName } = parseIngestTeamNames(row.parsed);
+    const { sourceHomeName, sourceAwayName, sourceHomeGoals, sourceAwayGoals } =
+      parseIngestTeamNames(row.parsed);
     const existing = byMatch.get(matchId);
     if (!existing || ingestedAt > existing.at) {
       byMatch.set(matchId, {
         at: ingestedAt,
-        meta: { summary, sourceHomeName, sourceAwayName },
+        meta: {
+          summary,
+          sourceHomeName,
+          sourceAwayName,
+          sourceHomeGoals,
+          sourceAwayGoals,
+        },
       });
     }
   }
   return new Map([...byMatch.entries()].map(([id, v]) => [id, v.meta]));
 }
 
+function ingestMetaFromRow(
+  m: HubMatchRow & {
+    ingest_source_home?: string | null;
+    ingest_source_away?: string | null;
+    ingest_source_home_goals?: number | null;
+    ingest_source_away_goals?: number | null;
+    match_summary?: WcMatchSummary | null;
+  },
+  fallback?: IngestSummaryMeta
+): IngestSummaryMeta | undefined {
+  if (fallback) return fallback;
+  if (!m.match_summary) return undefined;
+  return {
+    summary: m.match_summary,
+    sourceHomeName: m.ingest_source_home ?? null,
+    sourceAwayName: m.ingest_source_away ?? null,
+    sourceHomeGoals: m.ingest_source_home_goals ?? null,
+    sourceAwayGoals: m.ingest_source_away_goals ?? null,
+  };
+}
+
 function alignRecentMatchForDisplay(
   m: HubMatchRow,
   ingestMeta: IngestSummaryMeta | undefined
-): HubMatchRow & { match_summary: WcMatchSummary | null } {
-  if (!ingestMeta) {
-    return { ...m, match_summary: null };
-  }
-
-  const alignedGoals = alignGoalsToFixture(
-    m.home_goals,
-    m.away_goals,
-    m.home_team_name,
-    m.away_team_name,
-    ingestMeta.sourceHomeName,
-    ingestMeta.sourceAwayName
-  );
-  const match_summary = alignWcMatchSummaryToFixture(
-    ingestMeta.summary,
-    m.home_team_name,
-    m.away_team_name,
-    ingestMeta.sourceHomeName,
-    ingestMeta.sourceAwayName
-  );
+): HubMatchRow & {
+  match_summary: WcMatchSummary | null;
+  ingest_source_home?: string | null;
+  ingest_source_away?: string | null;
+  ingest_source_home_goals?: number | null;
+  ingest_source_away_goals?: number | null;
+} {
+  const aligned = alignRecentMatchDisplay({
+    date: m.date,
+    homeTeamName: m.home_team_name,
+    awayTeamName: m.away_team_name,
+    homeGoals: m.home_goals,
+    awayGoals: m.away_goals,
+    summary: ingestMeta?.summary ?? null,
+    ingestSourceHome: ingestMeta?.sourceHomeName,
+    ingestSourceAway: ingestMeta?.sourceAwayName,
+    ingestSourceHomeGoals: ingestMeta?.sourceHomeGoals,
+    ingestSourceAwayGoals: ingestMeta?.sourceAwayGoals,
+  });
 
   return {
     ...m,
-    home_goals: alignedGoals.homeGoals,
-    away_goals: alignedGoals.awayGoals,
-    match_summary,
+    home_team_name: aligned.homeTeamName,
+    away_team_name: aligned.awayTeamName,
+    home_goals: aligned.homeGoals,
+    away_goals: aligned.awayGoals,
+    match_summary: aligned.summary,
+    ingest_source_home: ingestMeta?.sourceHomeName ?? null,
+    ingest_source_away: ingestMeta?.sourceAwayName ?? null,
+    ingest_source_home_goals: ingestMeta?.sourceHomeGoals ?? null,
+    ingest_source_away_goals: ingestMeta?.sourceAwayGoals ?? null,
   };
 }
 
@@ -272,7 +319,8 @@ export async function mergeLiveMatchScoresIntoPayload(
 
   return {
     ...payload,
-    recent: payload.recent.map(patchRow),
+    // Finished recent rows use ingest-aligned scores; live DB columns can be reversed.
+    recent: payload.recent,
     upcoming: payload.upcoming.map((m) => {
       const patched = patchRow(m);
       const matchPhase = resolveMatchPhase({
@@ -297,33 +345,48 @@ export async function mergeLiveMatchScoresIntoPayload(
 }
 
 /** Re-align cached recent rows when ingest source home/away differs from fixture DB. */
+function realignRecentResultsInPayload(
+  payload: WorldCupHubPayload
+): WorldCupHubPayload {
+  if (payload.recent.length === 0) return payload;
+  return {
+    ...payload,
+    recent: payload.recent.map((m) =>
+      alignRecentMatchForDisplay(m, ingestMetaFromRow(m))
+    ),
+  };
+}
+
 async function realignRecentResultsFromIngests(
   payload: WorldCupHubPayload
 ): Promise<WorldCupHubPayload> {
-  if (payload.recent.length === 0) return payload;
+  const inlined = realignRecentResultsInPayload(payload);
 
   const supabase = tryCreateServiceClient();
-  if (!supabase) return payload;
+  if (!supabase) return inlined;
 
-  const matchIds = payload.recent.map((m) => m.id);
+  const needsFetch = inlined.recent.some(
+    (m) => m.match_summary && !m.ingest_source_home
+  );
+  if (!needsFetch) return inlined;
+
+  const matchIds = inlined.recent.map((m) => m.id);
   const { data } = await supabase
     .from("world_cup_post_match_ingests")
     .select("match_id, parsed, narrative_features, ingested_at")
     .in("match_id", matchIds);
 
-  if (!data?.length) return payload;
+  if (!data?.length) return inlined;
 
   const summaryByMatchId = latestIngestSummariesByMatch(
     data as Array<Record<string, unknown>>
   );
 
   return {
-    ...payload,
-    recent: payload.recent.map((m) => {
-      const meta = summaryByMatchId.get(m.id);
-      if (!meta) return m;
-      return alignRecentMatchForDisplay(m, meta);
-    }),
+    ...inlined,
+    recent: inlined.recent.map((m) =>
+      alignRecentMatchForDisplay(m, summaryByMatchId.get(m.id) ?? ingestMetaFromRow(m))
+    ),
   };
 }
 
