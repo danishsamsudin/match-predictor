@@ -237,7 +237,7 @@ function ingestMetaFromRow(
 }
 
 function alignRecentMatchForDisplay(
-  m: HubMatchRow,
+  m: HubMatchRow & { match_summary?: WcMatchSummary | null },
   ingestMeta: IngestSummaryMeta | undefined
 ): HubMatchRow & {
   match_summary: WcMatchSummary | null;
@@ -252,7 +252,7 @@ function alignRecentMatchForDisplay(
     awayTeamName: m.away_team_name,
     homeGoals: m.home_goals,
     awayGoals: m.away_goals,
-    summary: ingestMeta?.summary ?? null,
+    summary: ingestMeta?.summary ?? m.match_summary ?? null,
     ingestSourceHome: ingestMeta?.sourceHomeName,
     ingestSourceAway: ingestMeta?.sourceAwayName,
     ingestSourceHomeGoals: ingestMeta?.sourceHomeGoals,

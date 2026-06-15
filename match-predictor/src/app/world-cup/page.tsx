@@ -11,6 +11,9 @@ import { WorldCupSectionHelp } from "@/components/world-cup/WorldCupSectionHelp"
 import { WorldCupRefreshButton } from "@/components/world-cup/WorldCupRefreshButton";
 import { loadWorldCupHubPayload } from "@/lib/world-cup/hub-load";
 
+/** Hub page — always align recent scores from committed Opta HTML (avoid stale ISR snapshot). */
+export const dynamic = "force-dynamic";
+
 /** Hub page ISR — aligns with HUB_PAGE_REVALIDATE_SECONDS in hub-snapshot.ts */
 export const revalidate = 3600;
 

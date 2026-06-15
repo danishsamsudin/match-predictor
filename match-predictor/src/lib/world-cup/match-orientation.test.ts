@@ -114,6 +114,33 @@ describe("match orientation", () => {
     expect(aligned.awayGoals).toBe(1);
   });
 
+  it("aligns from committed Opta HTML when ingest metadata is missing", () => {
+    const aligned = alignRecentMatchDisplay({
+      date: "2026-06-14",
+      homeTeamName: "Curaçao",
+      awayTeamName: "Germany",
+      homeGoals: 7,
+      awayGoals: 1,
+      summary: {
+        homeGoals: 7,
+        awayGoals: 1,
+        halfTimeHome: null,
+        halfTimeAway: null,
+        homeXg: 2,
+        awayXg: 0.3,
+        venue: null,
+        referee: null,
+        homeFormation: null,
+        awayFormation: null,
+        stats: [],
+      },
+    });
+    expect(aligned.homeTeamName).toBe("Germany");
+    expect(aligned.awayTeamName).toBe("Curaçao");
+    expect(aligned.homeGoals).toBe(7);
+    expect(aligned.awayGoals).toBe(1);
+  });
+
   it("swaps Opta parsed match fields", () => {
     const swapped = swapOptaParsedMatch({
       homeTeamName: "Germany",

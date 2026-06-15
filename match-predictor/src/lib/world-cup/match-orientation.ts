@@ -1,5 +1,7 @@
 import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import { resolveOfficialFixtureTeams } from "@/lib/world-cup/fixture-venues";
+import { buildWcMatchSummary } from "@/lib/world-cup/match-summary";
+import { findOptaParsedMatch } from "@/lib/world-cup/resolve-opta-from-html";
 import type { WcMatchSummary, WcMatchSummaryStat } from "@/lib/world-cup/match-summary";
 import type {
   OptaNarrativeFeatures,
@@ -123,17 +125,28 @@ export function alignRecentMatchDisplay(input: RecentMatchDisplayAlignInput): {
   const displayHome = official?.home ?? input.homeTeamName;
   const displayAway = official?.away ?? input.awayTeamName;
 
-  const sourceHome = input.ingestSourceHome ?? input.homeTeamName;
-  const sourceAway = input.ingestSourceAway ?? input.awayTeamName;
+  const opta = findOptaParsedMatch({
+    date: input.date,
+    homeName: input.homeTeamName,
+    awayName: input.awayTeamName,
+  });
+
+  const scoreSourceHome = opta?.homeTeamName ?? input.ingestSourceHome ?? null;
+  const scoreSourceAway = opta?.awayTeamName ?? input.ingestSourceAway ?? null;
+  const scoreHomeGoals = opta?.homeGoals ?? input.ingestSourceHomeGoals ?? null;
+  const scoreAwayGoals = opta?.awayGoals ?? input.ingestSourceAwayGoals ?? null;
 
   let summary = input.summary;
-  if (summary) {
+  if (opta) {
+    const oriented = alignOptaParsedMatchToFixture(opta, displayHome, displayAway);
+    summary = buildWcMatchSummary(oriented);
+  } else if (summary && scoreSourceHome && scoreSourceAway) {
     summary = alignWcMatchSummaryToFixture(
       summary,
       displayHome,
       displayAway,
-      sourceHome,
-      sourceAway
+      scoreSourceHome,
+      scoreSourceAway
     );
   }
 
@@ -144,27 +157,18 @@ export function alignRecentMatchDisplay(input: RecentMatchDisplayAlignInput): {
     homeGoals = summary.homeGoals;
     awayGoals = summary.awayGoals;
   } else if (
-    input.ingestSourceHomeGoals != null &&
-    input.ingestSourceAwayGoals != null &&
-    input.ingestSourceHome &&
-    input.ingestSourceAway
+    scoreHomeGoals != null &&
+    scoreAwayGoals != null &&
+    scoreSourceHome &&
+    scoreSourceAway
   ) {
     ({ homeGoals, awayGoals } = alignGoalsToFixture(
-      input.ingestSourceHomeGoals,
-      input.ingestSourceAwayGoals,
+      scoreHomeGoals,
+      scoreAwayGoals,
       displayHome,
       displayAway,
-      input.ingestSourceHome,
-      input.ingestSourceAway
-    ));
-  } else if (official) {
-    ({ homeGoals, awayGoals } = mapGoalsBetweenOrientations(
-      homeGoals,
-      awayGoals,
-      input.homeTeamName,
-      input.awayTeamName,
-      displayHome,
-      displayAway
+      scoreSourceHome,
+      scoreSourceAway
     ));
   }
 
