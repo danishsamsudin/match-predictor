@@ -11,6 +11,7 @@ import type {
   PredictionResult,
 } from "@/lib/types/prediction";
 import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
+import type { WcPredictionAnalyticsContext } from "@/lib/world-cup/build-wc-prediction-analytics-context";
 
 function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): number {
   for (const key of keys) {
@@ -23,7 +24,8 @@ function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): n
 export function buildAnalyticsFromHubPrediction(
   pred: HubPredictionRow,
   homeName: string,
-  awayName: string
+  awayName: string,
+  context?: WcPredictionAnalyticsContext
 ): PredictionAnalytics {
   const snap = pred.snapshot;
   const homeXg = snapshotNumber(snap, "home_xg", "lambda");
@@ -41,11 +43,11 @@ export function buildAnalyticsFromHubPrediction(
   const handicapMarkets = computeHandicapMarkets(matrix);
 
   return computeMarketAnalytics(homeXg, awayXg, {
-    h2hHomeWinRate: pred.home_win_pct,
-    h2hDrawRate: pred.draw_pct,
-    h2hAwayWinRate: pred.away_win_pct,
-    homeFormScore: 0.5,
-    awayFormScore: 0.5,
+    h2hHomeWinRate: context?.h2hHomeWinRate ?? pred.home_win_pct,
+    h2hDrawRate: context?.h2hDrawRate ?? pred.draw_pct,
+    h2hAwayWinRate: context?.h2hAwayWinRate ?? pred.away_win_pct,
+    homeFormScore: context?.homeFormScore ?? 0.5,
+    awayFormScore: context?.awayFormScore ?? 0.5,
     momentumIndex: Number(snap.momentum_index ?? 0),
     modelImpact: [
       {
@@ -54,7 +56,7 @@ export function buildAnalyticsFromHubPrediction(
         awayMultiplier: Number(snap.gamma_away ?? 1),
       },
     ],
-    statComparison: [
+    statComparison: context?.statComparison ?? [
       { metric: "Expected goals", home: homeXg, away: awayXg },
     ],
     correlation: rho,
@@ -70,6 +72,7 @@ export function grahamHubRowToPredictionResult(input: {
   estimated?: EstimatedMatchStats;
   lineupSource?: PredictionLineupSource;
   lineupNotes?: string[];
+  analyticsContext?: WcPredictionAnalyticsContext;
 }): PredictionResult {
   const { pred, homeName, awayName } = input;
   const lineupSource = input.lineupSource ?? "model_xi";
@@ -80,7 +83,12 @@ export function grahamHubRowToPredictionResult(input: {
   const rho = snapshotNumber(snap, "rho");
   const mutualDraw = String(snap.scenario ?? "").includes("mutual_draw");
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
-  const analytics = buildAnalyticsFromHubPrediction(pred, homeName, awayName);
+  const analytics = buildAnalyticsFromHubPrediction(
+    pred,
+    homeName,
+    awayName,
+    input.analyticsContext
+  );
 
   return {
     modelVersion: pred.model_version,
@@ -107,6 +115,7 @@ export function grahamHubRowToPredictionResult(input: {
         .filter((line): line is string => line != null && line.length > 0)
         .join("\n"),
     analytics,
+    teamComparison: input.analyticsContext?.teamComparison,
     mode: "compare",
     entityType: "national",
     lineupSource,

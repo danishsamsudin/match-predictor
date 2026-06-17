@@ -11,6 +11,8 @@ import {
   resolveWcLineupPlayerStats,
 } from "@/lib/world-cup/resolve-wc-lineup-player-stats";
 import { applyWcModelXiToHubPrediction } from "@/lib/world-cup/wc-hub-model-xi";
+import { buildWcPredictionAnalyticsContext } from "@/lib/world-cup/build-wc-prediction-analytics-context";
+import { loadInternationalFormMatchesForTeam } from "@/lib/world-cup/load-international-form";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
 import { computeWcEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
@@ -181,6 +183,15 @@ export async function runWcGrahamPredictForRequest(input: {
   const homeXg = Number(hubRow.snapshot.home_xg ?? hubRow.snapshot.lambda ?? 1.2);
   const awayXg = Number(hubRow.snapshot.away_xg ?? hubRow.snapshot.mu ?? 1.2);
 
+  const [homeFormMatches, awayFormMatches] = await Promise.all([
+    loadInternationalFormMatchesForTeam(supabase, match.home_team_id!, homeName, {
+      limit: 60,
+    }),
+    loadInternationalFormMatchesForTeam(supabase, match.away_team_id!, awayName, {
+      limit: 60,
+    }),
+  ]);
+
   const estimated = computeWcEstimatedMatchStats({
     homeTeamApiId,
     awayTeamApiId,
@@ -197,6 +208,20 @@ export async function runWcGrahamPredictForRequest(input: {
     ),
   });
 
+  const analyticsContext = buildWcPredictionAnalyticsContext({
+    snapshot: hubRow.snapshot,
+    homeXg,
+    awayXg,
+    homeTeamApiId,
+    awayTeamApiId,
+    homeDbTeamId: match.home_team_id!,
+    awayDbTeamId: match.away_team_id!,
+    homeName,
+    awayName,
+    homeFormMatches,
+    awayFormMatches,
+  });
+
   return grahamHubRowToPredictionResult({
     pred: hubRow,
     homeName,
@@ -204,5 +229,6 @@ export async function runWcGrahamPredictForRequest(input: {
     estimated,
     lineupSource,
     lineupNotes,
+    analyticsContext,
   });
 }

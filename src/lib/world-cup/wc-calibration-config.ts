@@ -46,11 +46,21 @@ export interface WcCalibrationConstants {
   wcLowEventRhoBoost: number;
   /** L1-learned Opta aggregate coefficients (zeroed features excluded at inference). */
   optaFeatureWeights: Record<string, number>;
-  /** ML-learned Poisson-style coefficients for secondary event markets. */
+  /** ML-learned Poisson-style coefficients for secondary event markets (log-link intercepts). */
   eventModelCoeffs: {
     yellow: MlEventModelCoeffs;
     fouls: MlEventModelCoeffs;
     corners: MlEventModelCoeffs;
+    red?: MlEventModelCoeffs;
+  };
+}
+
+/** Legacy configs stored natural-scale intercepts; Poisson inference expects log-scale. */
+export function normalizeEventCoeffs(coeffs: MlEventModelCoeffs): MlEventModelCoeffs {
+  if (coeffs.intercept <= 8) return coeffs;
+  return {
+    ...coeffs,
+    intercept: Math.log(Math.max(coeffs.intercept, 0.5)),
   };
 }
 
@@ -74,25 +84,32 @@ const DEFAULTS: WcCalibrationConstants = {
   optaFeatureWeights: {},
   eventModelCoeffs: {
     yellow: {
-      intercept: 3.2,
+      intercept: Math.log(3.6),
       totalXgSlope: 0.35,
       knockoutSlope: 0.15,
       physicalitySlope: 0.4,
       refereeStrictnessSlope: 0.25,
     },
     fouls: {
-      intercept: 20,
+      intercept: Math.log(23.5),
       totalXgSlope: 0.8,
       knockoutSlope: 0.5,
       physicalitySlope: 1.2,
       refereeStrictnessSlope: 0.1,
     },
     corners: {
-      intercept: 9.5,
+      intercept: Math.log(9.8),
       totalXgSlope: 0.6,
       knockoutSlope: -0.2,
       physicalitySlope: 0.3,
       refereeStrictnessSlope: 0,
+    },
+    red: {
+      intercept: Math.log(0.12),
+      totalXgSlope: 0.05,
+      knockoutSlope: 0.08,
+      physicalitySlope: 0.15,
+      refereeStrictnessSlope: 0.1,
     },
   },
 };
@@ -103,13 +120,27 @@ function mergeEventCoeffs(
   raw: Partial<MlEventModelCoeffs> | undefined,
   fallback: MlEventModelCoeffs
 ): MlEventModelCoeffs {
-  return {
+  return normalizeEventCoeffs({
     intercept: Number(raw?.intercept ?? fallback.intercept),
     totalXgSlope: Number(raw?.totalXgSlope ?? fallback.totalXgSlope),
     knockoutSlope: Number(raw?.knockoutSlope ?? fallback.knockoutSlope),
     physicalitySlope: Number(raw?.physicalitySlope ?? fallback.physicalitySlope),
     refereeStrictnessSlope: Number(
       raw?.refereeStrictnessSlope ?? fallback.refereeStrictnessSlope
+    ),
+  });
+}
+
+function mergeEventModelCoeffs(
+  raw: Record<string, Partial<MlEventModelCoeffs>> | undefined
+): WcCalibrationConstants["eventModelCoeffs"] {
+  return {
+    yellow: mergeEventCoeffs(raw?.yellow, DEFAULT_EVENT_COEFFS.yellow),
+    fouls: mergeEventCoeffs(raw?.fouls, DEFAULT_EVENT_COEFFS.fouls),
+    corners: mergeEventCoeffs(raw?.corners, DEFAULT_EVENT_COEFFS.corners),
+    red: mergeEventCoeffs(
+      raw?.red,
+      DEFAULT_EVENT_COEFFS.red ?? DEFAULT_EVENT_COEFFS.yellow
     ),
   };
 }
@@ -152,23 +183,9 @@ function mergeConstants(raw: Record<string, unknown> | null): WcCalibrationConst
     wcLowEventRhoBoost: Number(raw.wcLowEventRhoBoost ?? DEFAULTS.wcLowEventRhoBoost),
     optaFeatureWeights:
       (raw.optaFeatureWeights as Record<string, number> | undefined) ?? {},
-    eventModelCoeffs: {
-      yellow: mergeEventCoeffs(
-        (raw.eventModelCoeffs as Record<string, Partial<MlEventModelCoeffs>> | undefined)
-          ?.yellow,
-        DEFAULT_EVENT_COEFFS.yellow
-      ),
-      fouls: mergeEventCoeffs(
-        (raw.eventModelCoeffs as Record<string, Partial<MlEventModelCoeffs>> | undefined)
-          ?.fouls,
-        DEFAULT_EVENT_COEFFS.fouls
-      ),
-      corners: mergeEventCoeffs(
-        (raw.eventModelCoeffs as Record<string, Partial<MlEventModelCoeffs>> | undefined)
-          ?.corners,
-        DEFAULT_EVENT_COEFFS.corners
-      ),
-    },
+    eventModelCoeffs: mergeEventModelCoeffs(
+      raw.eventModelCoeffs as Record<string, Partial<MlEventModelCoeffs>> | undefined
+    ),
   };
 }
 
@@ -177,11 +194,7 @@ export function getDefaultWcCalibrationConstants(): WcCalibrationConstants {
     ...DEFAULTS,
     deltaWeights: { ...GRAHAM_DELTA_WEIGHTS },
     optaFeatureWeights: { ...DEFAULTS.optaFeatureWeights },
-    eventModelCoeffs: {
-      yellow: { ...DEFAULT_EVENT_COEFFS.yellow },
-      fouls: { ...DEFAULT_EVENT_COEFFS.fouls },
-      corners: { ...DEFAULT_EVENT_COEFFS.corners },
-    },
+    eventModelCoeffs: mergeEventModelCoeffs(undefined),
     teamSetPieceRates: { ...DEFAULTS.teamSetPieceRates },
   };
 }

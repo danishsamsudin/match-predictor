@@ -87,25 +87,32 @@ DEFAULT_CONSTANTS: dict[str, Any] = {
     "optaFeatureWeights": {},
     "eventModelCoeffs": {
         "yellow": {
-            "intercept": 3.2,
+            "intercept": math.log(3.6),
             "totalXgSlope": 0.35,
             "knockoutSlope": 0.15,
             "physicalitySlope": 0.4,
             "refereeStrictnessSlope": 0.25,
         },
         "fouls": {
-            "intercept": 20.0,
+            "intercept": math.log(23.5),
             "totalXgSlope": 0.8,
             "knockoutSlope": 0.5,
             "physicalitySlope": 1.2,
             "refereeStrictnessSlope": 0.1,
         },
         "corners": {
-            "intercept": 9.5,
+            "intercept": math.log(9.8),
             "totalXgSlope": 0.6,
             "knockoutSlope": -0.2,
             "physicalitySlope": 0.3,
             "refereeStrictnessSlope": 0.0,
+        },
+        "red": {
+            "intercept": math.log(0.12),
+            "totalXgSlope": 0.05,
+            "knockoutSlope": 0.08,
+            "physicalitySlope": 0.15,
+            "refereeStrictnessSlope": 0.1,
         },
     },
 }
@@ -183,6 +190,7 @@ def fetch_training_rows(supabase: Client) -> pd.DataFrame:
         feat["actual_yellow"] = r.get("actual_yellow")
         feat["actual_fouls"] = r.get("actual_fouls")
         feat["actual_corners"] = r.get("actual_corners")
+        feat["actual_red"] = r.get("actual_red")
         records.append(feat)
     return pd.DataFrame.from_records(records)
 
@@ -383,6 +391,9 @@ def main() -> None:
         "yellow": train_event_poisson(df, "actual_yellow", event_defaults["yellow"]),
         "fouls": train_event_poisson(df, "actual_fouls", event_defaults["fouls"]),
         "corners": train_event_poisson(df, "actual_corners", event_defaults["corners"]),
+        "red": train_event_poisson(
+            df, "actual_red", event_defaults.get("red") or event_defaults["yellow"]
+        ),
     }
 
     candidate = {**deployed, **goal_params, "eventModelCoeffs": event_coeffs}

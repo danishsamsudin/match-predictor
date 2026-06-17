@@ -177,19 +177,55 @@ function poissonMlEstimate(
   return Math.max(0.01, Math.exp(logRate));
 }
 
+const ESTIMATED_STAT_BOUNDS = {
+  corners: { min: 4, max: 18 },
+  fouls: { min: 16, max: 32 },
+  yellowCards: { min: 1.5, max: 8 },
+  redCards: { min: 0.05, max: 0.8 },
+} as const;
+
+export function clampEstimatedMatchStats(stats: EstimatedMatchStats): EstimatedMatchStats {
+  return {
+    corners: round1(
+      clamp(stats.corners, ESTIMATED_STAT_BOUNDS.corners.min, ESTIMATED_STAT_BOUNDS.corners.max)
+    ),
+    fouls: round1(
+      clamp(stats.fouls, ESTIMATED_STAT_BOUNDS.fouls.min, ESTIMATED_STAT_BOUNDS.fouls.max)
+    ),
+    yellowCards: round1(
+      clamp(
+        stats.yellowCards,
+        ESTIMATED_STAT_BOUNDS.yellowCards.min,
+        ESTIMATED_STAT_BOUNDS.yellowCards.max
+      )
+    ),
+    redCards: round1(
+      clamp(
+        stats.redCards,
+        ESTIMATED_STAT_BOUNDS.redCards.min,
+        ESTIMATED_STAT_BOUNDS.redCards.max
+      )
+    ),
+  };
+}
+
 function mlEventPriorFromCoeffs(
   homeXg: number,
   awayXg: number,
   calibration: WcCalibrationConstants,
-  context: { isKnockout: boolean; physicality: number; refereeStrictness: number }
+  context: { isKnockout: boolean; physicality: number; refereeStrictness: number },
+  tournamentRedFallback: number
 ): EstimatedMatchStats {
   const coeffs = calibration.eventModelCoeffs;
+  const redCoeffs = coeffs.red ?? coeffs.yellow;
   return {
     corners: round1(poissonMlEstimate(homeXg, awayXg, coeffs.corners, context)),
     fouls: round1(poissonMlEstimate(homeXg, awayXg, coeffs.fouls, context)),
     yellowCards: round1(poissonMlEstimate(homeXg, awayXg, coeffs.yellow, context)),
     redCards: round1(
-      Math.max(0.05, poissonMlEstimate(homeXg, awayXg, coeffs.yellow, context) * 0.08)
+      coeffs.red
+        ? poissonMlEstimate(homeXg, awayXg, redCoeffs, context)
+        : Math.max(0.05, tournamentRedFallback)
     ),
   };
 }
@@ -318,14 +354,20 @@ export function computeWcEstimatedMatchStats(
   });
 
   const prior = input.calibration?.eventModelCoeffs
-    ? mlEventPriorFromCoeffs(input.homeXg, input.awayXg, input.calibration, {
-        isKnockout: input.isKnockout ?? false,
-        physicality:
-          ((calibration.teamStyles.get(input.homeTeamApiId)?.physicalityIndex ?? 1) +
-            (calibration.teamStyles.get(input.awayTeamApiId)?.physicalityIndex ?? 1)) /
-          2,
-        refereeStrictness: input.refereeStrictness ?? 1,
-      })
+    ? mlEventPriorFromCoeffs(
+        input.homeXg,
+        input.awayXg,
+        input.calibration,
+        {
+          isKnockout: input.isKnockout ?? false,
+          physicality:
+            ((calibration.teamStyles.get(input.homeTeamApiId)?.physicalityIndex ?? 1) +
+              (calibration.teamStyles.get(input.awayTeamApiId)?.physicalityIndex ?? 1)) /
+            2,
+          refereeStrictness: input.refereeStrictness ?? 1,
+        },
+        tournamentPriorFromXg(input.homeXg, input.awayXg, calibration).redCards
+      )
     : tournamentPriorFromXg(input.homeXg, input.awayXg, calibration);
   const blended = blendEstimates(model, prior, calibration.sampleCount);
   const style = styleMatchupMultipliers({
@@ -333,10 +375,10 @@ export function computeWcEstimatedMatchStats(
     awayStyle: calibration.teamStyles.get(input.awayTeamApiId) ?? null,
   });
 
-  return {
-    corners: Math.max(4, round1(blended.corners * style.corners)),
-    fouls: Math.max(16, round1(blended.fouls * style.fouls)),
-    yellowCards: Math.max(1.5, round1(blended.yellowCards * style.cards)),
-    redCards: Math.max(0.05, round1(blended.redCards * style.cards)),
-  };
+  return clampEstimatedMatchStats({
+    corners: round1(blended.corners * style.corners),
+    fouls: round1(blended.fouls * style.fouls),
+    yellowCards: round1(blended.yellowCards * style.cards),
+    redCards: round1(blended.redCards * style.cards),
+  });
 }

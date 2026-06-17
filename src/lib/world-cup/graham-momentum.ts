@@ -69,6 +69,71 @@ export function computeGrahamH2HStrength(
   return Math.max(-1, Math.min(1, homeEdge / w));
 }
 
+export interface GrahamH2HRates {
+  homeWinRate: number;
+  drawRate: number;
+  awayWinRate: number;
+  hasData: boolean;
+}
+
+/** Head-to-head 1X2 rates from the upcoming home team's perspective. */
+export function computeGrahamH2HRates(
+  matches: InternationalFormMatch[],
+  homeTeamId: string,
+  awayTeamId: string
+): GrahamH2HRates {
+  const h2h = matches
+    .filter(
+      (m) =>
+        m.home_goals != null &&
+        m.away_goals != null &&
+        ((m.home_team_id === homeTeamId && m.away_team_id === awayTeamId) ||
+          (m.home_team_id === awayTeamId && m.away_team_id === homeTeamId))
+    )
+    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+
+  if (!h2h.length) {
+    return { homeWinRate: 1 / 3, drawRate: 1 / 3, awayWinRate: 1 / 3, hasData: false };
+  }
+
+  let homeWeight = 0;
+  let drawWeight = 0;
+  let awayWeight = 0;
+
+  for (let i = 0; i < h2h.length; i++) {
+    const m = h2h[i]!;
+    const weight = Math.pow(0.88, i);
+    const homeIsTarget = m.home_team_id === homeTeamId;
+    const homeGoals = m.home_goals!;
+    const awayGoals = m.away_goals!;
+
+    let outcome: "home" | "draw" | "away";
+    if (homeGoals === awayGoals) {
+      outcome = "draw";
+    } else if (homeIsTarget) {
+      outcome = homeGoals > awayGoals ? "home" : "away";
+    } else {
+      outcome = awayGoals > homeGoals ? "home" : "away";
+    }
+
+    if (outcome === "home") homeWeight += weight;
+    else if (outcome === "draw") drawWeight += weight;
+    else awayWeight += weight;
+  }
+
+  const total = homeWeight + drawWeight + awayWeight;
+  if (total <= 0) {
+    return { homeWinRate: 1 / 3, drawRate: 1 / 3, awayWinRate: 1 / 3, hasData: false };
+  }
+
+  return {
+    homeWinRate: homeWeight / total,
+    drawRate: drawWeight / total,
+    awayWinRate: awayWeight / total,
+    hasData: true,
+  };
+}
+
 export function computeGrahamMomentumIndex(input: {
   homeFormMatches: InternationalFormMatch[];
   awayFormMatches: InternationalFormMatch[];

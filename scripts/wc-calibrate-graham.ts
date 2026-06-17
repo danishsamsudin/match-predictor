@@ -112,6 +112,9 @@ async function main() {
       yellow: { ...current.eventModelCoeffs.yellow },
       fouls: { ...current.eventModelCoeffs.fouls },
       corners: { ...current.eventModelCoeffs.corners },
+      ...(current.eventModelCoeffs.red
+        ? { red: { ...current.eventModelCoeffs.red } }
+        : {}),
     },
   };
   let bestLoss = baselineLoss;
@@ -153,6 +156,9 @@ async function main() {
                 yellow: { ...current.eventModelCoeffs.yellow },
                 fouls: { ...current.eventModelCoeffs.fouls },
                 corners: { ...current.eventModelCoeffs.corners },
+                ...(current.eventModelCoeffs.red
+                  ? { red: { ...current.eventModelCoeffs.red } }
+                  : {}),
               },
             };
             const trialLoss = avgCompositeLossForSnapshots(

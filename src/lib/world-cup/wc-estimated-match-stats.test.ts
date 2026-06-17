@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeWcEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
+import { computeWcEstimatedMatchStats, clampEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
+import {
+  getDefaultWcCalibrationConstants,
+  mergeCalibrationFromRecord,
+  normalizeEventCoeffs,
+} from "@/lib/world-cup/wc-calibration-config";
 import {
   loadWcOptaEventCalibration,
   clearWcOptaEventCalibrationCache,
@@ -95,5 +100,95 @@ describe("computeWcEstimatedMatchStats", () => {
 
     expect(withObserved.corners).toBeGreaterThan(3);
     expect(withObserved.fouls).toBeGreaterThan(16);
+  });
+
+  it("keeps ML-calibrated estimates within realistic bounds", () => {
+    const calibration = getDefaultWcCalibrationConstants();
+    const stats = computeWcEstimatedMatchStats({
+      homeTeamApiId: 4778,
+      awayTeamApiId: 4748,
+      homeName: "Morocco",
+      awayName: "Brazil",
+      homeDbTeamId: "morocco-db",
+      awayDbTeamId: "brazil-db",
+      homeXg: 1.4,
+      awayXg: 1.6,
+      finishedMatches: [],
+      calibration,
+    });
+
+    expect(stats.corners).toBeGreaterThanOrEqual(4);
+    expect(stats.corners).toBeLessThanOrEqual(18);
+    expect(stats.fouls).toBeGreaterThanOrEqual(16);
+    expect(stats.fouls).toBeLessThanOrEqual(32);
+    expect(stats.yellowCards).toBeGreaterThanOrEqual(1.5);
+    expect(stats.yellowCards).toBeLessThanOrEqual(8);
+    expect(stats.redCards).toBeGreaterThanOrEqual(0.05);
+    expect(stats.redCards).toBeLessThanOrEqual(0.8);
+  });
+
+  it("normalizes legacy natural-scale intercepts and clamps inflated priors", () => {
+    const legacy = mergeCalibrationFromRecord({
+      eventModelCoeffs: {
+        fouls: {
+          intercept: 20,
+          totalXgSlope: 0.8,
+          knockoutSlope: 0.5,
+          physicalitySlope: 1.2,
+          refereeStrictnessSlope: 0.1,
+        },
+        corners: {
+          intercept: 9.5,
+          totalXgSlope: 0.6,
+          knockoutSlope: -0.2,
+          physicalitySlope: 0.3,
+          refereeStrictnessSlope: 0,
+        },
+        yellow: {
+          intercept: 3.2,
+          totalXgSlope: 0.35,
+          knockoutSlope: 0.15,
+          physicalitySlope: 0.4,
+          refereeStrictnessSlope: 0.25,
+        },
+      },
+    });
+
+    expect(normalizeEventCoeffs({ ...legacy.eventModelCoeffs.fouls, intercept: 20 }).intercept).toBeLessThan(
+      5
+    );
+
+    const stats = computeWcEstimatedMatchStats({
+      homeTeamApiId: 4781,
+      awayTeamApiId: 4736,
+      homeName: "Mexico",
+      awayName: "South Africa",
+      homeDbTeamId: "mexico-db",
+      awayDbTeamId: "sa-db",
+      homeXg: 1.5,
+      awayXg: 1.5,
+      finishedMatches: [],
+      calibration: legacy,
+    });
+
+    expect(stats.fouls).toBeLessThanOrEqual(32);
+    expect(stats.corners).toBeLessThanOrEqual(18);
+    expect(stats.yellowCards).toBeLessThanOrEqual(8);
+  });
+
+  it("clampEstimatedMatchStats enforces ceilings", () => {
+    expect(
+      clampEstimatedMatchStats({
+        corners: 99_999,
+        fouls: 1_000_000,
+        yellowCards: 36,
+        redCards: 2.6,
+      })
+    ).toEqual({
+      corners: 18,
+      fouls: 32,
+      yellowCards: 8,
+      redCards: 0.8,
+    });
   });
 });

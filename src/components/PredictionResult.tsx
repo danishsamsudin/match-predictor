@@ -23,6 +23,15 @@ import {
 } from "@/lib/prediction/explanation-glossary";
 import { teamNamesFromSnapshot } from "@/lib/prediction/resolve-team-names";
 import type { PredictionResult } from "@/lib/types/prediction";
+import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
+
+function formatEstimatedStat(
+  key: keyof EstimatedMatchStats,
+  value: number
+): string {
+  if (key === "redCards") return value.toFixed(1);
+  return String(Math.round(value));
+}
 
 type Accent = "primary" | "accent" | "neutral";
 
@@ -194,28 +203,28 @@ export function PredictionResultCard({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatBox
               label="Corners"
-              value={String(result.estimated.corners)}
+              value={formatEstimatedStat("corners", result.estimated.corners)}
               accent="primary"
               small
               info={<>A corner kick happens when the ball goes out past the goal line off a defender.</>}
             />
             <StatBox
               label="Fouls"
-              value={String(result.estimated.fouls)}
+              value={formatEstimatedStat("fouls", result.estimated.fouls)}
               accent="neutral"
               small
               info={<>Rule breaks that usually stop play (trips, pushes, handball, etc.).</>}
             />
             <StatBox
               label="Yellow Cards"
-              value={String(result.estimated.yellowCards)}
+              value={formatEstimatedStat("yellowCards", result.estimated.yellowCards)}
               accent="accent"
               small
               info={<>Warnings from the referee. Two yellow cards for a player becomes a red card.</>}
             />
             <StatBox
               label="Red Cards"
-              value={String(result.estimated.redCards)}
+              value={formatEstimatedStat("redCards", result.estimated.redCards)}
               accent="neutral"
               small
               info={<>A player is sent off and their team plays with fewer players.</>}
