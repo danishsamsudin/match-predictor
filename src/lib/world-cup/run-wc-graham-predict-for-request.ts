@@ -192,7 +192,9 @@ export async function runWcGrahamPredictForRequest(input: {
     awayXg,
     finishedMatches,
     calibration,
-    isKnockout: Boolean(match.knockout),
+    isKnockout: /round of|quarter-?final|semi-?final|third place|final\b|knockout/i.test(
+      `${match.round ?? ""} ${match.competition ?? ""}`
+    ),
   });
 
   return grahamHubRowToPredictionResult({
