@@ -1,0 +1,58 @@
+body {
+	--fsAddBuffer: 22px;
+}
+[id='theanalyst-com_incontent_article_IAI'],
+[id='theanalyst-com_leaderboard_atf'],
+[id='theanalyst-com_primis_slider'],
+[id='theanalyst-com_siderail_left_article'],
+[id='theanalyst-com_siderail_right_article'],
+[id='theanalyst-com_siderail_right_sticky'] {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+	min-height: calc(var(--height) + var(--fsAddBuffer));
+	height: calc(var(--height) + var(--fsAddBuffer));
+	width: 100%;
+}
+[id='theanalyst-com_incontent_article_IAI'] {
+		--height: 280px;
+}
+[id='theanalyst-com_leaderboard_atf'] {
+		--height: 280px;
+}
+@media only screen and (min-width: 768px) {
+	[id='theanalyst-com_incontent_article_IAI'] {
+		--height: 280px;
+	}
+	[id='theanalyst-com_leaderboard_atf'] {
+		--height: 280px;
+	}
+}
+@media only screen and (min-width: 1000px) {
+	[id='theanalyst-com_incontent_article_IAI'] {
+		--height: 280px;
+	}
+	[id='theanalyst-com_leaderboard_atf'] {
+		--height: 280px;
+	}
+}
+@media only screen and (min-width: 1200px) {
+	[id='theanalyst-com_siderail_left_article'] {
+		--height: 600px;
+	}
+	[id='theanalyst-com_siderail_right_article'] {
+		--height: 600px;
+	}
+	[id='theanalyst-com_siderail_right_sticky'] {
+		--height: 280px;
+	}
+}
+@media only screen and (min-width: 1500px) {
+	[id='theanalyst-com_siderail_left_article'] {
+		--height: 600px;
+	}
+	[id='theanalyst-com_siderail_right_article'] {
+		--height: 600px;
+	}
+}

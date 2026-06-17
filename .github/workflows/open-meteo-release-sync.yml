@@ -10,10 +10,6 @@ permissions:
   contents: write
   pull-requests: write
 
-defaults:
-  run:
-    working-directory: match-predictor
-
 jobs:
   sync-version:
     runs-on: ubuntu-latest
