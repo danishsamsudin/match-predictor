@@ -9,6 +9,10 @@ import { loadWcInTournamentFormNudges } from "@/lib/world-cup/graham-wc-in-tourn
 import { applyWcModelXiToHubPrediction } from "@/lib/world-cup/wc-hub-model-xi";
 import { resolveGrahamExpectedGoals } from "@/lib/world-cup/graham-expected-goals";
 import {
+  computeTeamProcessProfile,
+} from "@/lib/world-cup/graham-process-features";
+import { loadWcOptaEventCalibration } from "@/lib/world-cup/wc-opta-event-calibration";
+import {
   loadInternationalFormMatchesForTeam,
   type InternationalFormMatch,
 } from "@/lib/world-cup/load-international-form";
@@ -122,6 +126,11 @@ export async function runGrahamWorldCupPredict(input: {
   const deduped = [...new Map(allForm.map((m) => [`${m.date}|${m.home_team_id}|${m.away_team_id}`, m])).values()];
 
   const calibration = await loadWcCalibrationConfig();
+  const optaEventCal = loadWcOptaEventCalibration();
+  const homeStyle = optaEventCal.teamStyles.get(homeTeamId);
+  const awayStyle = optaEventCal.teamStyles.get(awayTeamId);
+  const homeProcessProfile = computeTeamProcessProfile(homeId, homeForm);
+  const awayProcessProfile = computeTeamProcessProfile(awayId, awayForm);
 
   const [homeTalent, awayTalent, homeWcForm, awayWcForm] = await Promise.all([
     resolveSquadTalentSnapshot(homeTeamId, homeName, medianTalent),
@@ -143,6 +152,14 @@ export async function runGrahamWorldCupPredict(input: {
     medianSquadValueEur: medianTalent,
     calibration,
     wcForm: { home: homeWcForm, away: awayWcForm },
+    optaStyleExtras: {
+      physicality_index:
+        ((homeStyle?.physicalityIndex ?? homeProcessProfile.pressingIntensity) +
+          (awayStyle?.physicalityIndex ?? awayProcessProfile.pressingIntensity)) /
+        2,
+      wide_play_index: (homeStyle?.widePlayIndex ?? 1) - (awayStyle?.widePlayIndex ?? 1),
+      referee_strictness: 0,
+    },
   });
 
   const venue = resolveStadiumVenue(match.venue_city ?? null);

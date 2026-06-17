@@ -46,6 +46,8 @@ export interface WcCalibrationConstants {
   wcLowEventRhoBoost: number;
   /** L1-learned Opta aggregate coefficients (zeroed features excluded at inference). */
   optaFeatureWeights: Record<string, number>;
+  /** L1-learned StatsBomb/historical process feature coefficients. */
+  processFeatureWeights: Record<string, number>;
   /** ML-learned Poisson-style coefficients for secondary event markets (log-link intercepts). */
   eventModelCoeffs: {
     yellow: MlEventModelCoeffs;
@@ -105,6 +107,7 @@ const DEFAULTS: WcCalibrationConstants = {
   wcLineupDefenseBlend: 0.35,
   wcLowEventRhoBoost: 0.025,
   optaFeatureWeights: {},
+  processFeatureWeights: {},
   eventModelCoeffs: {
     yellow: {
       intercept: 3.6,
@@ -206,6 +209,8 @@ function mergeConstants(raw: Record<string, unknown> | null): WcCalibrationConst
     wcLowEventRhoBoost: Number(raw.wcLowEventRhoBoost ?? DEFAULTS.wcLowEventRhoBoost),
     optaFeatureWeights:
       (raw.optaFeatureWeights as Record<string, number> | undefined) ?? {},
+    processFeatureWeights:
+      (raw.processFeatureWeights as Record<string, number> | undefined) ?? {},
     eventModelCoeffs: mergeEventModelCoeffs(
       raw.eventModelCoeffs as Record<string, Partial<MlEventModelCoeffs>> | undefined
     ),
@@ -217,6 +222,7 @@ export function getDefaultWcCalibrationConstants(): WcCalibrationConstants {
     ...DEFAULTS,
     deltaWeights: { ...GRAHAM_DELTA_WEIGHTS },
     optaFeatureWeights: { ...DEFAULTS.optaFeatureWeights },
+    processFeatureWeights: { ...DEFAULTS.processFeatureWeights },
     eventModelCoeffs: mergeEventModelCoeffs(undefined),
     teamSetPieceRates: { ...DEFAULTS.teamSetPieceRates },
   };

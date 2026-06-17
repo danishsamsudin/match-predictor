@@ -60,7 +60,17 @@ export function recomputeXgFromSnapshot(
     optaDelta += coef * val;
   }
 
-  const totalDeltaS = deltaS + optaDelta;
+  const processWeights = calibration.processFeatureWeights ?? {};
+  let processDelta = 0;
+  const processSnap =
+    (snapshot.process_features as Record<string, number> | undefined) ?? {};
+  for (const [key, coef] of Object.entries(processWeights)) {
+    if (Math.abs(coef) < 1e-9) continue;
+    const val = processSnap[key] ?? snapNum(snapshot, `process_${key}`);
+    processDelta += coef * val;
+  }
+
+  const totalDeltaS = deltaS + optaDelta + processDelta;
 
   let homeXg = clampInternationalBaselineXg(mu * Math.exp(c * totalDeltaS));
   let awayXg = clampInternationalBaselineXg(mu * Math.exp(-c * totalDeltaS));

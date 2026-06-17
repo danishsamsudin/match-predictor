@@ -26,6 +26,10 @@ export type InternationalFormMatch = {
   away_shots?: number | null;
   home_sot?: number | null;
   away_sot?: number | null;
+  /** StatsBomb sb_process_v1 (or compatible) side aggregates from process metrics payload. */
+  processPayload?: import("@/lib/world-cup/enrich-form-process-metrics").MatchProcessPayload | null;
+  /** Source of merged process metrics row (opta_html, sofascore, statsbomb, …). */
+  metricsSource?: string | null;
 };
 
 function matchDedupeKey(m: InternationalFormMatch): string {

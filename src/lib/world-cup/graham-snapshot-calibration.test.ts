@@ -60,4 +60,25 @@ describe("graham-snapshot-calibration", () => {
     expect(loss).toBeGreaterThan(0);
     expect(Number.isFinite(loss)).toBe(true);
   });
+
+  it("applies process feature weights from snapshot", () => {
+    const cal = getDefaultWcCalibrationConstants();
+    const withProcess = {
+      ...snapshot,
+      process_features: {
+        chance_quality_diff: 0.05,
+        finishing_skill_diff: 0.1,
+      },
+    };
+    const tuned = {
+      ...cal,
+      processFeatureWeights: {
+        chance_quality_diff: 2,
+        finishing_skill_diff: 1.5,
+      },
+    };
+    const baseXg = recomputeXgFromSnapshot(withProcess, cal).homeXg;
+    const tunedXg = recomputeXgFromSnapshot(withProcess, tuned).homeXg;
+    expect(tunedXg).not.toBe(baseXg);
+  });
 });

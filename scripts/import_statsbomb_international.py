@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Import StatsBomb Open Data international tournament xG into national_match_process_metrics.
+Import StatsBomb Open Data international tournament process metrics.
 
 Downloads match + event JSON from https://github.com/statsbomb/open-data and upserts
-process metrics for World Cup, Euro, and Copa competitions.
+national_match_process_metrics for World Cup, Euro, and Copa competitions.
 
 Usage (from match-predictor/):
   pip install requests supabase
-  python scripts/import_statsbomb_international.py [--max-matches N]
+  python scripts/import_statsbomb_international.py [--max-matches N] [--dry-run]
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import sys
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +23,10 @@ from typing import Any, Optional
 
 import requests
 from supabase import Client, create_client
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPTS_DIR / "statsbomb"))
+from process_aggregates import aggregate_match_process  # noqa: E402
 
 OPEN_DATA_BASE = "https://raw.githubusercontent.com/statsbomb/open-data/master/data"
 INTERNATIONAL_COMPETITIONS = {
@@ -136,33 +141,6 @@ def fetch_json(url: str) -> Any:
     return res.json()
 
 
-def aggregate_shot_xg(
-    events: list[dict[str, Any]], match: dict[str, Any]
-) -> tuple[float, float, int, int]:
-    home_sb_id = match.get("home_team", {}).get("home_team_id") or match.get("home_team", {}).get("id")
-    away_sb_id = match.get("away_team", {}).get("away_team_id") or match.get("away_team", {}).get("id")
-
-    home_xg = 0.0
-    away_xg = 0.0
-    home_shots = 0
-    away_shots = 0
-
-    for event in events:
-        if event.get("type", {}).get("name") != "Shot":
-            continue
-        tid = event.get("team", {}).get("id")
-        xg = event.get("shot", {}).get("statsbomb_xg")
-        if xg is None or tid is None:
-            continue
-        if tid == home_sb_id:
-            home_xg += float(xg)
-            home_shots += 1
-        elif tid == away_sb_id:
-            away_xg += float(xg)
-            away_shots += 1
-    return home_xg, away_xg, home_shots, away_shots
-
-
 def create_supabase_client() -> Client:
     url = (os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or "").strip()
     key = (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY") or "").strip()
@@ -171,13 +149,52 @@ def create_supabase_client() -> Client:
     return create_client(url, key)
 
 
+def build_row(
+    match: dict[str, Any],
+    events: list[dict[str, Any]],
+    comp_id: int,
+    season_id: int,
+    comp_name: str,
+    home_id: int,
+    away_id: int,
+    synced_at: str,
+) -> dict[str, Any]:
+    match_id = int(match["match_id"])
+    agg = aggregate_match_process(events, match)
+    match_date = (match.get("match_date") or "")[:10] or None
+    process_payload = agg.process_payload()
+
+    return {
+        "event_id": statsbomb_event_id(match_id),
+        "source": "statsbomb",
+        "match_date": match_date,
+        "home_team_id": home_id,
+        "away_team_id": away_id,
+        "home_xg": round(agg.home_xg, 3),
+        "away_xg": round(agg.away_xg, 3),
+        "home_shots": agg.home_shots,
+        "away_shots": agg.away_shots,
+        "home_sot": agg.home_sot,
+        "away_sot": agg.away_sot,
+        "competition_tier": international_match_tier_weight(comp_name),
+        "payload": {
+            "competition": comp_name,
+            "statsbomb_match_id": match_id,
+            "statsbomb_competition_id": comp_id,
+            "statsbomb_season_id": season_id,
+            "process": process_payload,
+        },
+        "synced_at": synced_at,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--max-matches", type=int, default=0, help="Limit matches imported (0 = all)")
+    parser.add_argument("--dry-run", action="store_true", help="Print summary without upserting")
     args = parser.parse_args()
 
     load_env_local()
-    supabase = create_supabase_client()
     synced_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
     competitions = fetch_json(f"{OPEN_DATA_BASE}/competitions.json")
@@ -188,6 +205,7 @@ def main() -> None:
     }
 
     rows: list[dict[str, Any]] = []
+    skipped_teams: set[str] = set()
     imported = 0
 
     for comp in competitions:
@@ -208,46 +226,40 @@ def main() -> None:
             home_id = resolve_team_id(home_name)
             away_id = resolve_team_id(away_name)
             if not home_id or not away_id:
+                if not home_id:
+                    skipped_teams.add(home_name)
+                if not away_id:
+                    skipped_teams.add(away_name)
                 continue
 
             events = fetch_json(f"{OPEN_DATA_BASE}/events/{match_id}.json")
-            home_xg, away_xg, home_shots, away_shots = aggregate_shot_xg(events, match)
-            if home_xg <= 0 and away_xg <= 0:
+            agg = aggregate_match_process(events, match)
+            if agg.home_xg <= 0 and agg.away_xg <= 0:
                 continue
 
-            match_date = (match.get("match_date") or "")[:10] or None
             rows.append(
-                {
-                    "event_id": statsbomb_event_id(match_id),
-                    "source": "statsbomb",
-                    "match_date": match_date,
-                    "home_team_id": home_id,
-                    "away_team_id": away_id,
-                    "home_xg": round(home_xg, 3),
-                    "away_xg": round(away_xg, 3),
-                    "home_shots": home_shots,
-                    "away_shots": away_shots,
-                    "home_sot": None,
-                    "away_sot": None,
-                    "competition_tier": international_match_tier_weight(comp_name),
-                    "payload": {
-                        "competition": comp_name,
-                        "statsbomb_match_id": match_id,
-                        "statsbomb_competition_id": comp_id,
-                        "statsbomb_season_id": season_id,
-                    },
-                    "synced_at": synced_at,
-                }
+                build_row(match, events, comp_id, season_id, comp_name, home_id, away_id, synced_at)
             )
             imported += 1
 
         if args.max_matches > 0 and imported >= args.max_matches:
             break
 
+    if skipped_teams:
+        print(f"Skipped {len(skipped_teams)} unmapped team name(s): {', '.join(sorted(skipped_teams)[:10])}")
+
     if not rows:
         print("No StatsBomb international rows to upsert.")
         return
 
+    if args.dry_run:
+        print(f"Dry run: would upsert {len(rows)} rows.")
+        sample = rows[0]
+        print(f"  Sample: {sample['match_date']} {sample['home_team_id']} vs {sample['away_team_id']}")
+        print(f"  xG: {sample['home_xg']} - {sample['away_xg']}, SOT: {sample['home_sot']} - {sample['away_sot']}")
+        return
+
+    supabase = create_supabase_client()
     for i in range(0, len(rows), 200):
         supabase.table("national_match_process_metrics").upsert(
             rows[i : i + 200], on_conflict="event_id"

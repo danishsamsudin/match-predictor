@@ -47,6 +47,14 @@ OPTA_FEATURE_KEYS = [
     "lineup_impact_diff",
 ]
 
+PROCESS_FEATURE_KEYS = [
+    "chance_quality_diff",
+    "set_piece_xg_share_diff",
+    "box_xg_share_diff",
+    "finishing_skill_diff",
+    "pressing_intensity_diff",
+]
+
 DELTA_WEIGHT_KEYS = [
     "xgElo",
     "talent",
@@ -60,6 +68,8 @@ ML_MIN_TRAINING_EXAMPLES = 30
 ML_MIN_NEW_EXAMPLES_SINCE_LAST_TRAIN = 5
 ML_IMPROVEMENT_THRESHOLD = 0.005
 ML_MAX_WEIGHT_SHIFT_PCT = 0.15
+ML_MAX_PROCESS_WEIGHT_SHIFT_PCT = 0.25
+ML_EARLY_TOURNAMENT_EXAMPLES = 15
 ML_WALK_FORWARD_HOLDOUT = 8
 
 DEFAULT_CONSTANTS: dict[str, Any] = {
@@ -85,6 +95,7 @@ DEFAULT_CONSTANTS: dict[str, Any] = {
     "wcLineupDefenseBlend": 0.35,
     "wcLowEventRhoBoost": 0.025,
     "optaFeatureWeights": {},
+    "processFeatureWeights": {},
     "eventModelCoeffs": {
         "yellow": {
             "intercept": 3.6,
@@ -161,6 +172,11 @@ def extract_feature_row(features: dict[str, Any], opta: dict[str, Any] | None) -
         opta = {**opta, **features["opta_features"]}  # type: ignore[arg-type]
     for key in OPTA_FEATURE_KEYS:
         row[f"opta_{key}"] = nested_get(opta, key)
+    process = features.get("process_features")
+    if not isinstance(process, dict):
+        process = {}
+    for key in PROCESS_FEATURE_KEYS:
+        row[f"process_{key}"] = nested_get(process, key)
     return row
 
 
@@ -215,6 +231,10 @@ def load_deployed_constants(supabase: Client) -> dict[str, Any]:
         **DEFAULT_CONSTANTS["deltaWeights"],
         **(constants.get("deltaWeights") or {}),
     }
+    merged["processFeatureWeights"] = {
+        **DEFAULT_CONSTANTS["processFeatureWeights"],
+        **(constants.get("processFeatureWeights") or {}),
+    }
     merged["eventModelCoeffs"] = {
         **DEFAULT_CONSTANTS["eventModelCoeffs"],
         **(constants.get("eventModelCoeffs") or {}),
@@ -258,8 +278,28 @@ def coefs_to_opta_weights(coefs: np.ndarray, feature_names: list[str]) -> dict[s
     return weights
 
 
+def coefs_to_process_weights(coefs: np.ndarray, feature_names: list[str]) -> dict[str, float]:
+    weights: dict[str, float] = {}
+    for name, coef in zip(feature_names, coefs):
+        if not name.startswith("process_"):
+            continue
+        key = name.replace("process_", "", 1)
+        c = float(coef)
+        if abs(c) < 1e-6:
+            continue
+        weights[key] = c
+    return weights
+
+
 def train_goal_surrogate(df: pd.DataFrame) -> tuple[dict[str, Any], dict[str, Any]]:
-    feature_cols = [c for c in df.columns if c.startswith("delta_") or c.startswith("opta_") or c == "momentum_index"]
+    feature_cols = [
+        c
+        for c in df.columns
+        if c.startswith("delta_")
+        or c.startswith("opta_")
+        or c.startswith("process_")
+        or c == "momentum_index"
+    ]
     X = df[feature_cols].fillna(0.0).values
     y = df["actual_goal_diff"].values
 
@@ -271,6 +311,7 @@ def train_goal_surrogate(df: pd.DataFrame) -> tuple[dict[str, Any], dict[str, An
 
     delta_weights = coefs_to_delta_weights(model.coef_, feature_cols)
     opta_weights = coefs_to_opta_weights(model.coef_, feature_cols)
+    process_weights = coefs_to_process_weights(model.coef_, feature_cols)
 
     goal_std = float(np.std(y)) or 1.0
     mu = float(DEFAULT_CONSTANTS["muXg"] * (1.0 + model.intercept_ / (goal_std * 4.0)))
@@ -283,6 +324,7 @@ def train_goal_surrogate(df: pd.DataFrame) -> tuple[dict[str, Any], dict[str, An
         {
             "deltaWeights": delta_weights,
             "optaFeatureWeights": opta_weights,
+            "processFeatureWeights": process_weights,
             "muXg": mu,
             "strengthExponent": strength,
         },
@@ -334,6 +376,29 @@ def check_weight_stability(
         shift = abs(nxt - base) / base
         if shift > max_shift:
             reasons.append(f"{key} shifted {shift * 100:.1f}%")
+    return reasons
+
+
+def check_process_weight_stability(
+    candidate: dict[str, float],
+    deployed: dict[str, float],
+    total_examples: int,
+    max_shift: float = ML_MAX_PROCESS_WEIGHT_SHIFT_PCT,
+) -> list[str]:
+    cap = max_shift
+    if total_examples < ML_EARLY_TOURNAMENT_EXAMPLES:
+        cap = min(cap, ML_MAX_PROCESS_WEIGHT_SHIFT_PCT)
+    reasons: list[str] = []
+    all_keys = set(deployed) | set(candidate)
+    for key in all_keys:
+        base = deployed.get(key, 0.0)
+        nxt = candidate.get(key, 0.0)
+        if abs(base) < 1e-9 and abs(nxt) < 1e-9:
+            continue
+        denom = max(abs(base), 1e-6)
+        shift = abs(nxt - base) / denom
+        if shift > cap:
+            reasons.append(f"process.{key} shifted {shift * 100:.1f}%")
     return reasons
 
 
@@ -402,6 +467,13 @@ def main() -> None:
         candidate["deltaWeights"],
         deployed.get("deltaWeights") or DEFAULT_CONSTANTS["deltaWeights"],
     )
+    stability_issues.extend(
+        check_process_weight_stability(
+            candidate.get("processFeatureWeights") or {},
+            deployed.get("processFeatureWeights") or {},
+            total,
+        )
+    )
 
     ts_validation = validate_with_typescript([candidate])
     baseline_loss = None
@@ -422,6 +494,7 @@ def main() -> None:
     print(f"Goal surrogate: muXg={candidate['muXg']:.3f}, strength={candidate['strengthExponent']:.5f}")
     print(f"Delta weights: {json.dumps(candidate['deltaWeights'], indent=2)}")
     print(f"Opta weights (non-zero): {candidate.get('optaFeatureWeights')}")
+    print(f"Process weights (non-zero): {candidate.get('processFeatureWeights')}")
     if baseline_loss is not None and candidate_loss is not None:
         print(f"TS validation loss: {candidate_loss:.4f} (baseline {baseline_loss:.4f})")
 

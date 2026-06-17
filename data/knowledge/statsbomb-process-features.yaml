@@ -1,0 +1,56 @@
+# StatsBomb process features — machine-readable spec (sb_process_v1)
+# Distilled from StatsBomb Open Data guide; used by Graham + ML pipeline.
+
+schema: sb_process_v1
+pitch:
+  width: 120
+  height: 80
+  penalty_area_x_min: 102
+
+source_priority:
+  - opta_html
+  - sofascore
+  - statsbomb
+  - fbref
+  - fbref_goals_proxy
+
+match_payload:
+  home:
+    xg_open_play: float
+    xg_set_piece: float
+    xg_box: float
+    xg_outside_box: float
+    shots_under_pressure_pct: float
+    goals_minus_xg: float
+    pressure_events: int
+    defensive_actions: int
+  away: same_as_home
+
+team_profiles:
+  chanceQuality: xg_per_shot rolling average
+  setPieceXgShare: set_piece_xg / total_xg
+  boxXgShare: box_xg / total_xg
+  finishingSkill: shrunk goals_minus_xg (prior strength 6)
+  pressingIntensity: (pressure_events + 0.25 * defensive_actions) / (shots + 8)
+
+ml_process_features:
+  - chance_quality_diff
+  - set_piece_xg_share_diff
+  - box_xg_share_diff
+  - finishing_skill_diff
+  - pressing_intensity_diff
+
+leakage_rules:
+  - Features for match M may only use events/metrics from matches strictly before M.
+  - WC prediction snapshots are frozen at kickoff; labels added post-match.
+  - Do not use statsbomb_xg to predict goals at shot level inside training pipeline.
+
+opta_ml_features:
+  - chance_index_diff
+  - defensive_solidity_diff
+  - finishing_regression_diff
+  - wc_form_matches_diff
+  - physicality_index
+  - wide_play_index
+  - referee_strictness
+  - lineup_impact_diff

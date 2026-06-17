@@ -25,6 +25,10 @@ import {
   applyWcFormToProcessRates,
   type WcInTournamentFormNudges,
 } from "@/lib/world-cup/graham-wc-in-tournament-form";
+import {
+  computeProcessFeatureDiffs,
+  type ProcessFeatureSnapshot,
+} from "@/lib/world-cup/graham-process-features";
 
 export interface GrahamExpectedGoalsInput {
   homeTeamId: number;
@@ -42,6 +46,12 @@ export interface GrahamExpectedGoalsInput {
   wcForm?: {
     home: WcInTournamentFormNudges;
     away: WcInTournamentFormNudges;
+  };
+  /** Style indices from Opta calibration and/or StatsBomb pressing fallback. */
+  optaStyleExtras?: {
+    physicality_index?: number;
+    wide_play_index?: number;
+    referee_strictness?: number;
   };
 }
 
@@ -133,23 +143,47 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
   const deltaFifa = homeFifa - awayFifa;
   const deltaMomentum = momentum * 120;
 
+  const processFeatures: ProcessFeatureSnapshot = computeProcessFeatureDiffs(
+    homeIdStr,
+    awayIdStr,
+    input.homeFormMatches,
+    input.awayFormMatches
+  );
+
+  let processDelta = 0;
+  const processWeights = cal?.processFeatureWeights ?? {};
+  for (const [key, coef] of Object.entries(processWeights)) {
+    if (Math.abs(coef) < 1e-9) continue;
+    const val = processFeatures[key as keyof ProcessFeatureSnapshot];
+    if (typeof val === "number" && Number.isFinite(val)) processDelta += coef * val;
+  }
+
   let optaDelta = 0;
   const optaWeights = cal?.optaFeatureWeights ?? {};
-  const optaInputs = input.wcForm
+  const optaInputs: Record<string, number> = input.wcForm
     ? {
         chance_index_diff:
-          (input.wcForm.home.avgChanceIndex - input.wcForm.away.avgChanceIndex),
+          input.wcForm.home.avgChanceIndex - input.wcForm.away.avgChanceIndex,
         defensive_solidity_diff:
-          (input.wcForm.home.avgDefensiveSolidity - input.wcForm.away.avgDefensiveSolidity),
+          input.wcForm.home.avgDefensiveSolidity - input.wcForm.away.avgDefensiveSolidity,
         finishing_regression_diff:
-          (input.wcForm.home.finishingRegression - input.wcForm.away.finishingRegression),
+          input.wcForm.home.finishingRegression - input.wcForm.away.finishingRegression,
         wc_form_matches_diff:
           (input.wcForm.home.matchCount - input.wcForm.away.matchCount) / 3,
       }
     : {};
+
+  if (input.optaStyleExtras) {
+    for (const [key, val] of Object.entries(input.optaStyleExtras)) {
+      if (typeof val === "number" && Number.isFinite(val)) {
+        optaInputs[key] = val;
+      }
+    }
+  }
+
   for (const [key, coef] of Object.entries(optaWeights)) {
     if (Math.abs(coef) < 1e-9) continue;
-    const val = optaInputs[key as keyof typeof optaInputs];
+    const val = optaInputs[key];
     if (typeof val === "number" && Number.isFinite(val)) optaDelta += coef * val;
   }
 
@@ -160,7 +194,8 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
     weights.recentXgForm * (deltaRecentForm * 100) +
     weights.fifa * deltaFifa +
     weights.momentum * deltaMomentum +
-    optaDelta;
+    optaDelta +
+    processDelta;
 
   let homeXg = clampInternationalBaselineXg(mu * Math.exp(strengthExponent * deltaS));
   let awayXg = clampInternationalBaselineXg(mu * Math.exp(-strengthExponent * deltaS));
@@ -230,8 +265,12 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
       wc_attack_nudge_away: input.wcForm?.away.attackNudge ?? 1,
       finishing_regression_home: input.wcForm?.home.finishingRegression ?? 0,
       finishing_regression_away: input.wcForm?.away.finishingRegression ?? 0,
+      process_features: processFeatures,
+      process_delta_s: Math.round(processDelta * 1000) / 1000,
       opta_features: optaInputs,
       opta_delta_s: Math.round(optaDelta * 1000) / 1000,
+      home_team_api_id: input.homeTeamId,
+      away_team_api_id: input.awayTeamId,
     },
   };
 }

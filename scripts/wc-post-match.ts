@@ -81,6 +81,7 @@ function main() {
   run("npx", ["tsx", "scripts/wc-ingest-opta-html.ts", ...files]);
   run("npm", ["run", "wc:ingest-player-stats"]);
   run("npm", ["run", "wc:recompute-wc-form"]);
+  run("npm", ["run", "statsbomb:import"]);
   run("npm", ["run", "xg-elo:recompute"]);
   run("npx", ["tsx", "scripts/wc-evaluate-predictions.ts"]);
   run("npx", ["tsx", "scripts/wc-calibrate-graham.ts"]);

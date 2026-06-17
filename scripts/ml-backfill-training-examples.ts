@@ -7,6 +7,11 @@ import { getFifaRankingPoints, resolveNationalTeamForStrength } from "../src/lib
 import { ensureFifaRankingsLoaded } from "../src/lib/data/fifa-rankings-store";
 import { computeGrahamProcessRatesFromMatches } from "../src/lib/world-cup/graham-process-rates";
 import { computeGrahamMomentumIndex } from "../src/lib/world-cup/graham-momentum";
+import {
+  computeProcessFeatureDiffs,
+} from "../src/lib/world-cup/graham-process-features";
+import { enrichFormMatchesWithProcessMetrics } from "../src/lib/world-cup/enrich-form-process-metrics";
+import { loadWcOptaEventCalibration } from "../src/lib/world-cup/wc-opta-event-calibration";
 import { computeXgEloFromMatches, getXgEloRating } from "../src/lib/world-cup/graham-xg-elo";
 import { computeWctrFromMatches, getWctrRating } from "../src/lib/world-cup/graham-tournament-rating";
 import type { InternationalFormMatch } from "../src/lib/world-cup/load-international-form";
@@ -35,6 +40,11 @@ type MetricsRow = {
   away_team_id: number | null;
   home_xg: number | null;
   away_xg: number | null;
+  home_shots: number | null;
+  away_shots: number | null;
+  home_sot: number | null;
+  away_sot: number | null;
+  source: string | null;
   payload: Record<string, unknown> | null;
 };
 
@@ -43,6 +53,7 @@ function metricsToFormMatch(row: MetricsRow, scores?: { home: number; away: numb
   const homeGoals = scores?.home ?? Math.round(Number(row.home_xg ?? 0));
   const awayGoals = scores?.away ?? Math.round(Number(row.away_xg ?? 0));
   const competition = String(row.payload?.competition ?? "International");
+  const processPayload = row.payload?.process as InternationalFormMatch["processPayload"];
   return {
     date: row.match_date,
     home_team_id: String(row.home_team_id),
@@ -52,7 +63,13 @@ function metricsToFormMatch(row: MetricsRow, scores?: { home: number; away: numb
     competition,
     home_xg: row.home_xg,
     away_xg: row.away_xg,
+    home_shots: row.home_shots,
+    away_shots: row.away_shots,
+    home_sot: row.home_sot,
+    away_sot: row.away_sot,
     event_id: row.event_id,
+    processPayload: processPayload ?? null,
+    metricsSource: row.source,
   };
 }
 
@@ -115,6 +132,13 @@ function buildFeaturesFromHistory(input: {
   const deltaTalent =
     (input.homeTalentLog ?? 0) - (input.awayTalentLog ?? 0);
 
+  const processFeatures = computeProcessFeatureDiffs(
+    String(input.homeTeamId),
+    String(input.awayTeamId),
+    homeForm,
+    awayForm
+  );
+
   return {
     delta_xg_elo: deltaXgElo,
     delta_talent: deltaTalent,
@@ -122,6 +146,7 @@ function buildFeaturesFromHistory(input: {
     delta_recent_form: deltaRecentForm,
     delta_fifa: deltaFifa,
     momentum_index: momentum,
+    process_features: processFeatures,
     home_attack: homeRates.attack,
     home_defense: homeRates.defense,
     away_attack: awayRates.attack,
@@ -189,10 +214,27 @@ async function main() {
     corners = Number(parsed.total_corners ?? parsed.corners ?? 0) || null;
     yellow = Number(parsed.total_yellow ?? parsed.yellow_cards ?? yellow) || yellow;
 
-    const optaFeatures = (snapshot.opta_features as Record<string, unknown>) ?? {
-      chance_index_diff: 0,
-      defensive_solidity_diff: 0,
+    const optaFeatures = {
+      ...((snapshot.opta_features as Record<string, unknown>) ?? {
+        chance_index_diff: 0,
+        defensive_solidity_diff: 0,
+      }),
     };
+
+    const optaCal = loadWcOptaEventCalibration();
+    const homeApiId = Number(snapshot.home_team_api_id ?? match.home_team_id);
+    const awayApiId = Number(snapshot.away_team_api_id ?? match.away_team_id);
+    const homeStyle = optaCal.teamStyles.get(homeApiId);
+    const awayStyle = optaCal.teamStyles.get(awayApiId);
+    if (homeStyle || awayStyle) {
+      optaFeatures.physicality_index =
+        ((homeStyle?.physicalityIndex ?? 1) + (awayStyle?.physicalityIndex ?? 1)) / 2;
+      optaFeatures.wide_play_index =
+        (homeStyle?.widePlayIndex ?? 1) - (awayStyle?.widePlayIndex ?? 1);
+    }
+    if (optaFeatures.referee_strictness == null) {
+      optaFeatures.referee_strictness = 0;
+    }
 
     const { error } = await supabase.from("ml_training_examples").upsert(
       {
@@ -219,7 +261,9 @@ async function main() {
 
   const { data: metricsRows, error: metricsErr } = await supabase
     .from("national_match_process_metrics")
-    .select("event_id, match_date, home_team_id, away_team_id, home_xg, away_xg, payload")
+    .select(
+      "event_id, match_date, home_team_id, away_team_id, home_xg, away_xg, home_shots, away_shots, home_sot, away_sot, source, payload"
+    )
     .order("match_date", { ascending: true });
 
   if (metricsErr) throw new Error(metricsErr.message);
@@ -242,16 +286,19 @@ async function main() {
   }
 
   const history: InternationalFormMatch[] = [];
+  const metricsHistory: MetricsRow[] = [];
   for (const row of metricsRows ?? []) {
     const metricsRow = row as MetricsRow;
     const scores = eventScoreCache.get(metricsRow.event_id);
     const formMatch = metricsToFormMatch(metricsRow, scores);
     if (!formMatch || !metricsRow.home_team_id || !metricsRow.away_team_id) continue;
 
+    const priorEnriched = enrichFormMatchesWithProcessMetrics(history, metricsHistory);
+
     const features = buildFeaturesFromHistory({
       homeTeamId: metricsRow.home_team_id,
       awayTeamId: metricsRow.away_team_id,
-      priorMatches: history,
+      priorMatches: priorEnriched,
     });
 
     const matchId = `intl-${metricsRow.event_id}`;
@@ -280,6 +327,7 @@ async function main() {
     if (error) throw new Error(error.message);
     upserted += 1;
     history.push(formMatch);
+    metricsHistory.push(metricsRow);
   }
 
   console.log(`Upserted ${upserted} ml_training_examples rows.`);
