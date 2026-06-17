@@ -3,6 +3,7 @@ import { runPrediction } from "@/lib/prediction/engine";
 import { validateManualCustomLineups } from "@/lib/prediction/validate-custom-lineups";
 import { resolveWcMatchFromPredictInput } from "@/lib/world-cup/resolve-wc-match";
 import { runWcGrahamPredictForRequest } from "@/lib/world-cup/run-wc-graham-predict-for-request";
+import { clampEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
 import { tryCreateServiceClient, type Database } from "@/lib/supabase";
 import type { FixtureLineup } from "@/lib/types/football";
 import type { PredictRequest, PredictionLineupSource } from "@/lib/types/prediction";
@@ -246,6 +247,7 @@ export async function POST(request: NextRequest) {
     void debug;
     return NextResponse.json({
       ...publicResult,
+      estimated: clampEstimatedMatchStats(publicResult.estimated),
       mode: input.mode ?? "fixture",
       entityType: input.entityType ?? "club",
       lineupSource: input.lineupSource ?? "manual_xi",

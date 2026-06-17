@@ -17,7 +17,13 @@ import {
   type WcTournamentEventCalibration,
 } from "@/lib/world-cup/wc-opta-event-calibration";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
-import type { MlEventModelCoeffs, WcCalibrationConstants } from "@/lib/world-cup/wc-calibration-config";
+import {
+  isLegacyNaturalScaleEventCoeffs,
+  normalizeEventCoeffs,
+  type MlEventModelCoeffs,
+  type MlEventModelKind,
+  type WcCalibrationConstants,
+} from "@/lib/world-cup/wc-calibration-config";
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
@@ -162,19 +168,26 @@ function styleMatchupMultipliers(input: {
   };
 }
 
-function poissonMlEstimate(
+function eventMlRateEstimate(
   homeXg: number,
   awayXg: number,
   coeffs: MlEventModelCoeffs,
+  kind: MlEventModelKind,
   context: { isKnockout: boolean; physicality: number; refereeStrictness: number }
 ): number {
-  const logRate =
-    coeffs.intercept +
-    coeffs.totalXgSlope * (homeXg + awayXg) +
-    coeffs.knockoutSlope * (context.isKnockout ? 1 : 0) +
-    coeffs.physicalitySlope * context.physicality +
-    coeffs.refereeStrictnessSlope * context.refereeStrictness;
-  return Math.max(0.01, Math.exp(logRate));
+  const legacyNatural = isLegacyNaturalScaleEventCoeffs(coeffs, kind);
+  const c = legacyNatural ? coeffs : normalizeEventCoeffs(coeffs, kind);
+  const linear =
+    c.intercept +
+    c.totalXgSlope * (homeXg + awayXg) +
+    c.knockoutSlope * (context.isKnockout ? 1 : 0) +
+    c.physicalitySlope * context.physicality +
+    c.refereeStrictnessSlope * context.refereeStrictness;
+
+  if (legacyNatural) {
+    return Math.max(0.01, linear);
+  }
+  return Math.max(0.01, Math.exp(linear));
 }
 
 const ESTIMATED_STAT_BOUNDS = {
@@ -219,12 +232,14 @@ function mlEventPriorFromCoeffs(
   const coeffs = calibration.eventModelCoeffs;
   const redCoeffs = coeffs.red ?? coeffs.yellow;
   return {
-    corners: round1(poissonMlEstimate(homeXg, awayXg, coeffs.corners, context)),
-    fouls: round1(poissonMlEstimate(homeXg, awayXg, coeffs.fouls, context)),
-    yellowCards: round1(poissonMlEstimate(homeXg, awayXg, coeffs.yellow, context)),
+    corners: round1(eventMlRateEstimate(homeXg, awayXg, coeffs.corners, "corners", context)),
+    fouls: round1(eventMlRateEstimate(homeXg, awayXg, coeffs.fouls, "fouls", context)),
+    yellowCards: round1(
+      eventMlRateEstimate(homeXg, awayXg, coeffs.yellow, "yellow", context)
+    ),
     redCards: round1(
       coeffs.red
-        ? poissonMlEstimate(homeXg, awayXg, redCoeffs, context)
+        ? eventMlRateEstimate(homeXg, awayXg, redCoeffs, "red", context)
         : Math.max(0.05, tournamentRedFallback)
     ),
   };

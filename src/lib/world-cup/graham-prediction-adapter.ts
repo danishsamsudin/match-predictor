@@ -11,6 +11,7 @@ import type {
   PredictionResult,
 } from "@/lib/types/prediction";
 import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
+import { clampEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
 import type { WcPredictionAnalyticsContext } from "@/lib/world-cup/build-wc-prediction-analytics-context";
 
 function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): number {
@@ -98,12 +99,14 @@ export function grahamHubRowToPredictionResult(input: {
     drawPct: Math.round(pred.draw_pct * 1000) / 10,
     awayWinPct: Math.round(pred.away_win_pct * 1000) / 10,
     expectedGoals: { home: homeXg, away: awayXg },
-    estimated: input.estimated ?? {
-      corners: 0,
-      fouls: 0,
-      yellowCards: 0,
-      redCards: 0,
-    },
+    estimated: clampEstimatedMatchStats(
+      input.estimated ?? {
+        corners: 0,
+        fouls: 0,
+        yellowCards: 0,
+        redCards: 0,
+      }
+    ),
     explanation:
       input.explanation ??
       [

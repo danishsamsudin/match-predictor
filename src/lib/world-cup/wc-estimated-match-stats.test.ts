@@ -154,9 +154,12 @@ describe("computeWcEstimatedMatchStats", () => {
       },
     });
 
-    expect(normalizeEventCoeffs({ ...legacy.eventModelCoeffs.fouls, intercept: 20 }).intercept).toBeLessThan(
+    expect(normalizeEventCoeffs({ ...legacy.eventModelCoeffs.fouls, intercept: 20 }, "fouls").intercept).toBeLessThan(
       5
     );
+    expect(
+      normalizeEventCoeffs({ ...legacy.eventModelCoeffs.yellow, intercept: 3.2 }, "yellow").intercept
+    ).toBeLessThan(2);
 
     const stats = computeWcEstimatedMatchStats({
       homeTeamApiId: 4781,

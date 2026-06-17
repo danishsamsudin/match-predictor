@@ -55,9 +55,32 @@ export interface WcCalibrationConstants {
   };
 }
 
-/** Legacy configs stored natural-scale intercepts; Poisson inference expects log-scale. */
-export function normalizeEventCoeffs(coeffs: MlEventModelCoeffs): MlEventModelCoeffs {
-  if (coeffs.intercept <= 8) return coeffs;
+export type MlEventModelKind = "yellow" | "fouls" | "corners" | "red";
+
+const LEGACY_NATURAL_SCALE_THRESHOLD: Record<MlEventModelKind, number> = {
+  yellow: 2.2,
+  fouls: 5,
+  corners: 5,
+  red: 1.5,
+};
+
+/** True when intercept was stored as a per-match average (pre-ML deploy), not log(μ). */
+export function isLegacyNaturalScaleEventCoeffs(
+  coeffs: MlEventModelCoeffs,
+  kind: MlEventModelKind
+): boolean {
+  return coeffs.intercept > LEGACY_NATURAL_SCALE_THRESHOLD[kind];
+}
+
+/**
+ * Legacy configs stored natural per-match means as intercepts (e.g. fouls=20).
+ * Poisson / sklearn inference expects log-scale intercepts (~log(mean)).
+ */
+export function normalizeEventCoeffs(
+  coeffs: MlEventModelCoeffs,
+  kind: MlEventModelKind = "fouls"
+): MlEventModelCoeffs {
+  if (!isLegacyNaturalScaleEventCoeffs(coeffs, kind)) return coeffs;
   return {
     ...coeffs,
     intercept: Math.log(Math.max(coeffs.intercept, 0.5)),
@@ -84,21 +107,21 @@ const DEFAULTS: WcCalibrationConstants = {
   optaFeatureWeights: {},
   eventModelCoeffs: {
     yellow: {
-      intercept: Math.log(3.6),
+      intercept: 3.6,
       totalXgSlope: 0.35,
       knockoutSlope: 0.15,
       physicalitySlope: 0.4,
       refereeStrictnessSlope: 0.25,
     },
     fouls: {
-      intercept: Math.log(23.5),
+      intercept: 23.5,
       totalXgSlope: 0.8,
       knockoutSlope: 0.5,
       physicalitySlope: 1.2,
       refereeStrictnessSlope: 0.1,
     },
     corners: {
-      intercept: Math.log(9.8),
+      intercept: 9.8,
       totalXgSlope: 0.6,
       knockoutSlope: -0.2,
       physicalitySlope: 0.3,
@@ -120,7 +143,7 @@ function mergeEventCoeffs(
   raw: Partial<MlEventModelCoeffs> | undefined,
   fallback: MlEventModelCoeffs
 ): MlEventModelCoeffs {
-  return normalizeEventCoeffs({
+  return {
     intercept: Number(raw?.intercept ?? fallback.intercept),
     totalXgSlope: Number(raw?.totalXgSlope ?? fallback.totalXgSlope),
     knockoutSlope: Number(raw?.knockoutSlope ?? fallback.knockoutSlope),
@@ -128,7 +151,7 @@ function mergeEventCoeffs(
     refereeStrictnessSlope: Number(
       raw?.refereeStrictnessSlope ?? fallback.refereeStrictnessSlope
     ),
-  });
+  };
 }
 
 function mergeEventModelCoeffs(

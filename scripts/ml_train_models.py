@@ -87,21 +87,21 @@ DEFAULT_CONSTANTS: dict[str, Any] = {
     "optaFeatureWeights": {},
     "eventModelCoeffs": {
         "yellow": {
-            "intercept": math.log(3.6),
+            "intercept": 3.6,
             "totalXgSlope": 0.35,
             "knockoutSlope": 0.15,
             "physicalitySlope": 0.4,
             "refereeStrictnessSlope": 0.25,
         },
         "fouls": {
-            "intercept": math.log(23.5),
+            "intercept": 23.5,
             "totalXgSlope": 0.8,
             "knockoutSlope": 0.5,
             "physicalitySlope": 1.2,
             "refereeStrictnessSlope": 0.1,
         },
         "corners": {
-            "intercept": math.log(9.8),
+            "intercept": 9.8,
             "totalXgSlope": 0.6,
             "knockoutSlope": -0.2,
             "physicalitySlope": 0.3,
