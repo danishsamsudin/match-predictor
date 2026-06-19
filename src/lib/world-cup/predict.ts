@@ -19,6 +19,7 @@ import {
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
 import type { GroupStandingRow, WcMatchRow } from "@/lib/world-cup/standings";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
+import { wcFinalsFormSlice } from "@/lib/world-cup/wc-finals-form";
 
 const MODEL_VERSION = "wc-hub-v4.2";
 
@@ -90,29 +91,6 @@ function resolveHostNationXgBoost(
   return 1;
 }
 
-function wcFinalsFormSlice(
-  teamId: string,
-  finishedMatches: WcMatchRow[]
-): InternationalFormMatch[] {
-  return finishedMatches
-    .filter(
-      (m) =>
-        m.home_goals != null &&
-        m.away_goals != null &&
-        (m.home_team_id === teamId || m.away_team_id === teamId)
-    )
-    .map((m) => ({
-      date: m.date,
-      home_team_id: m.home_team_id,
-      away_team_id: m.away_team_id,
-      home_goals: m.home_goals,
-      away_goals: m.away_goals,
-      competition: m.competition ?? "FIFA World Cup 2026",
-      home_team_name: m.home_team_name,
-      away_team_name: m.away_team_name,
-    }));
-}
-
 function mergeInternationalForm(
   primary: InternationalFormMatch[] | undefined,
   finalsSlice: InternationalFormMatch[]
@@ -138,11 +116,11 @@ export async function runWorldCupPrediction(
 
   const homeForm = mergeInternationalForm(
     input.homeFormMatches,
-    wcFinalsFormSlice(homeId, finishedMatches)
+    wcFinalsFormSlice(homeId, finishedMatches, homeName)
   );
   const awayForm = mergeInternationalForm(
     input.awayFormMatches,
-    wcFinalsFormSlice(awayId, finishedMatches)
+    wcFinalsFormSlice(awayId, finishedMatches, awayName)
   );
 
   const homeRates = wcHubRatesFromHistory(homeId, homeForm, homeName);

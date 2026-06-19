@@ -1,5 +1,6 @@
 import type { FixtureLineup } from "@/lib/types/football";
 import type { TeamComparisonSnapshot } from "@/lib/types/team-comparison";
+import type { PlayerPropsPayload } from "@/lib/prediction/player-props";
 
 /** How lineup data drives xG: manual XI uses player-xG blend; model uses team structural xG only. */
 export type PredictionLineupSource = "manual_xi" | "model_xi";
@@ -81,6 +82,8 @@ export interface PredictionAnalytics {
     away: { bttsYesPct: number; over25Pct: number; sampleSize: number };
   };
   handicapMarkets: HandicapMarkets;
+  /** Match-level player goal markets (anytime scorer, goal or assist). */
+  playerProps?: PlayerPropsPayload;
 }
 
 export interface PredictionResult {
@@ -109,6 +112,7 @@ export interface PredictionResult {
   entityType?: "club" | "national";
   lineupSource?: PredictionLineupSource;
   debug?: { factors: Record<string, number> };
+  playerProps?: PlayerPropsPayload;
 }
 
 export interface TeamStatAverages {

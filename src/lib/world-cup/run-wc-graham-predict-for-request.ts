@@ -1,4 +1,5 @@
 import { computeLineupPlayerXgImpact } from "@/lib/prediction/lineup-player-xg-impact";
+import { computePlayerPropsForMatch } from "@/lib/prediction/compute-player-props-for-match";
 import { resolveLineupPlayerStats } from "@/lib/prediction/resolve-lineup-player-stats";
 import { applyLineupImpactToHubPrediction } from "@/lib/world-cup/apply-wc-lineup-impact";
 import { grahamHubRowToPredictionResult } from "@/lib/world-cup/graham-prediction-adapter";
@@ -12,7 +13,7 @@ import {
 } from "@/lib/world-cup/resolve-wc-lineup-player-stats";
 import { applyWcModelXiToHubPrediction } from "@/lib/world-cup/wc-hub-model-xi";
 import { buildWcPredictionAnalyticsContext } from "@/lib/world-cup/build-wc-prediction-analytics-context";
-import { loadInternationalFormMatchesForTeam } from "@/lib/world-cup/load-international-form";
+import { loadEnrichedFormForTeam } from "@/lib/world-cup/load-enriched-international-form";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
 import { computeWcEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
@@ -36,7 +37,9 @@ async function loadFinishedWcMatches(
 
   const { data: rows } = await supabase
     .from("matches")
-    .select("*")
+    .select(
+      "*, ingest_source_home, ingest_source_away, ingest_source_home_goals, ingest_source_away_goals"
+    )
     .eq("status", "finished")
     .or("competition.ilike.FIFA World Cup 2026%,competition.eq.World Cup");
 
@@ -60,6 +63,10 @@ async function loadFinishedWcMatches(
     venue: row.venue,
     competition: row.competition,
     round: row.round,
+    ingest_source_home: row.ingest_source_home,
+    ingest_source_away: row.ingest_source_away,
+    ingest_source_home_goals: row.ingest_source_home_goals,
+    ingest_source_away_goals: row.ingest_source_away_goals,
   }));
 }
 
@@ -184,12 +191,8 @@ export async function runWcGrahamPredictForRequest(input: {
   const awayXg = Number(hubRow.snapshot.away_xg ?? hubRow.snapshot.mu ?? 1.2);
 
   const [homeFormMatches, awayFormMatches] = await Promise.all([
-    loadInternationalFormMatchesForTeam(supabase, match.home_team_id!, homeName, {
-      limit: 60,
-    }),
-    loadInternationalFormMatchesForTeam(supabase, match.away_team_id!, awayName, {
-      limit: 60,
-    }),
+    loadEnrichedFormForTeam(supabase, match.home_team_id!, homeName, finishedMatches),
+    loadEnrichedFormForTeam(supabase, match.away_team_id!, awayName, finishedMatches),
   ]);
 
   const estimated = computeWcEstimatedMatchStats({
@@ -222,7 +225,7 @@ export async function runWcGrahamPredictForRequest(input: {
     awayFormMatches,
   });
 
-  return grahamHubRowToPredictionResult({
+  const result = grahamHubRowToPredictionResult({
     pred: hubRow,
     homeName,
     awayName,
@@ -231,4 +234,32 @@ export async function runWcGrahamPredictForRequest(input: {
     lineupNotes,
     analyticsContext,
   });
+
+  const playerProps = await computePlayerPropsForMatch({
+    homeTeamId: request.homeTeamId,
+    awayTeamId: request.awayTeamId,
+    homeTeamName: homeName,
+    awayTeamName: awayName,
+    homeLeagueId: request.homeLeagueId,
+    awayLeagueId: request.awayLeagueId,
+    entityType: "national",
+    homeXg,
+    awayXg,
+    teamComparison: analyticsContext.teamComparison,
+    customLineups: request.customLineups,
+    homeFormMatches,
+    awayFormMatches,
+    homeDbTeamId: match.home_team_id!,
+    awayDbTeamId: match.away_team_id!,
+    modelVersion: result.modelVersion,
+  }).catch(() => null);
+
+  if (playerProps) {
+    result.playerProps = playerProps;
+    if (result.analytics) {
+      result.analytics.playerProps = playerProps;
+    }
+  }
+
+  return result;
 }

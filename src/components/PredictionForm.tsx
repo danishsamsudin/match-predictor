@@ -138,6 +138,7 @@ function PredictionFormInner() {
             resultsBySource={form.resultsBySource}
             onRerunWithLineups={form.rerunWithCustomLineups}
             loading={form.loading}
+            matchKey={`${form.homeTeamId}-${form.awayTeamId}-${form.date}`}
           />
         </div>
       )}

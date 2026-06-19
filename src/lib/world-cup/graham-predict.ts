@@ -1,8 +1,6 @@
 import { ensureFifaRankingsLoaded } from "@/lib/data/fifa-rankings-store";
-import { loadProcessMetricsForTeam } from "@/lib/data/match-process-metrics";
 import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import { tryCreateServiceClient } from "@/lib/supabase";
-import { enrichFormMatchesWithProcessMetrics } from "@/lib/world-cup/enrich-form-process-metrics";
 import { GRAHAM_MODEL_VERSION } from "@/lib/world-cup/graham-model-config";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { loadWcInTournamentFormNudges } from "@/lib/world-cup/graham-wc-in-tournament-form";
@@ -12,10 +10,8 @@ import {
   computeTeamProcessProfile,
 } from "@/lib/world-cup/graham-process-features";
 import { loadWcOptaEventCalibration } from "@/lib/world-cup/wc-opta-event-calibration";
-import {
-  loadInternationalFormMatchesForTeam,
-  type InternationalFormMatch,
-} from "@/lib/world-cup/load-international-form";
+import { loadEnrichedFormForTeam } from "@/lib/world-cup/load-enriched-international-form";
+import { canonicalInternationalFormMatchKey } from "@/lib/world-cup/international-form-team-side";
 import {
   loadMedianSquadValueForWcTeams,
   resolveSquadTalentSnapshot,
@@ -53,48 +49,6 @@ function resolveHostNationXgBoost(matchCity: string | null, homeName: string): n
   return 1;
 }
 
-function wcFinalsFormSlice(teamId: string, finishedMatches: WcMatchRow[]): InternationalFormMatch[] {
-  return finishedMatches
-    .filter(
-      (m) =>
-        m.home_goals != null &&
-        m.away_goals != null &&
-        (m.home_team_id === teamId || m.away_team_id === teamId)
-    )
-    .map((m) => ({
-      date: m.date,
-      home_team_id: m.home_team_id,
-      away_team_id: m.away_team_id,
-      home_goals: m.home_goals,
-      away_goals: m.away_goals,
-      competition: m.competition ?? "FIFA World Cup 2026",
-      home_team_name: m.home_team_name,
-      away_team_name: m.away_team_name,
-    }));
-}
-
-async function loadEnrichedFormForTeam(
-  supabase: NonNullable<ReturnType<typeof tryCreateServiceClient>>,
-  teamId: string,
-  teamName: string,
-  finishedMatches: WcMatchRow[]
-): Promise<InternationalFormMatch[]> {
-  const [form, metrics] = await Promise.all([
-    loadInternationalFormMatchesForTeam(supabase, teamId, teamName, { limit: 60 }),
-    loadProcessMetricsForTeam(supabase, resolveApiTeamId(teamId, teamName), 120),
-  ]);
-
-  const finalsSlice = wcFinalsFormSlice(teamId, finishedMatches);
-  const merged = [...form];
-  const keys = new Set(form.map((m) => `${m.date}|${m.home_team_id}|${m.away_team_id}`));
-  for (const row of finalsSlice) {
-    const key = `${row.date}|${row.home_team_id}|${row.away_team_id}`;
-    if (!keys.has(key)) merged.push(row);
-  }
-
-  return enrichFormMatchesWithProcessMetrics(merged, metrics);
-}
-
 export async function runGrahamWorldCupPredict(input: {
   match: WcMatchRow;
   homeName: string;
@@ -123,14 +77,16 @@ export async function runGrahamWorldCupPredict(input: {
   ]);
 
   const allForm = [...homeForm, ...awayForm];
-  const deduped = [...new Map(allForm.map((m) => [`${m.date}|${m.home_team_id}|${m.away_team_id}`, m])).values()];
+  const deduped = [
+    ...new Map(allForm.map((m) => [canonicalInternationalFormMatchKey(m), m])).values(),
+  ];
 
   const calibration = await loadWcCalibrationConfig();
   const optaEventCal = loadWcOptaEventCalibration();
   const homeStyle = optaEventCal.teamStyles.get(homeTeamId);
   const awayStyle = optaEventCal.teamStyles.get(awayTeamId);
-  const homeProcessProfile = computeTeamProcessProfile(homeId, homeForm);
-  const awayProcessProfile = computeTeamProcessProfile(awayId, awayForm);
+  const homeProcessProfile = computeTeamProcessProfile(homeId, homeForm, Date.now(), homeName);
+  const awayProcessProfile = computeTeamProcessProfile(awayId, awayForm, Date.now(), awayName);
 
   const [homeTalent, awayTalent, homeWcForm, awayWcForm] = await Promise.all([
     resolveSquadTalentSnapshot(homeTeamId, homeName, medianTalent),

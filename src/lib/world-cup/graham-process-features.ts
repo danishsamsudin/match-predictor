@@ -1,6 +1,11 @@
 import type { MatchProcessPayload } from "@/lib/world-cup/enrich-form-process-metrics";
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
 import {
+  opponentInInternationalForm,
+  pickInternationalFormSideValue,
+  resolveInternationalFormTeamSide,
+} from "@/lib/world-cup/international-form-team-side";
+import {
   internationalDecayWeight,
   internationalMatchTierWeight,
   SHRINKAGE_K,
@@ -41,36 +46,44 @@ function num(v: unknown): number {
 function sidePayload(
   payload: MatchProcessPayload | null | undefined,
   teamId: string,
-  match: InternationalFormMatch
+  match: InternationalFormMatch,
+  teamName?: string
 ): Record<string, number> | null {
   if (!payload) return null;
-  const isHome = match.home_team_id === teamId;
-  const isAway = match.away_team_id === teamId;
-  if (isHome && payload.home) return payload.home;
-  if (isAway && payload.away) return payload.away;
+  const side = resolveInternationalFormTeamSide(match, teamId, teamName);
+  if (side === "home" && payload.home) return payload.home;
+  if (side === "away" && payload.away) return payload.away;
   return null;
 }
 
-function teamXgFor(m: InternationalFormMatch, teamId: string): number | null {
-  const isHome = m.home_team_id === teamId;
-  const xg = isHome ? m.home_xg : m.away_xg;
+function teamXgFor(
+  m: InternationalFormMatch,
+  teamId: string,
+  teamName?: string
+): number | null {
+  const xg = pickInternationalFormSideValue(m, teamId, teamName, m.home_xg, m.away_xg);
   if (xg != null) return xg;
-  const goals = isHome ? m.home_goals : m.away_goals;
-  return goals;
+  return pickInternationalFormSideValue(m, teamId, teamName, m.home_goals, m.away_goals);
 }
 
-function teamShotsFor(m: InternationalFormMatch, teamId: string): number {
-  const isHome = m.home_team_id === teamId;
-  const shots = isHome ? m.home_shots : m.away_shots;
+function teamShotsFor(
+  m: InternationalFormMatch,
+  teamId: string,
+  teamName?: string
+): number {
+  const shots = pickInternationalFormSideValue(m, teamId, teamName, m.home_shots, m.away_shots);
   if (shots != null && shots > 0) return shots;
-  const sot = isHome ? m.home_sot : m.away_sot;
+  const sot = pickInternationalFormSideValue(m, teamId, teamName, m.home_sot, m.away_sot);
   if (sot != null && sot > 0) return Math.max(1, sot * 2.5);
   return 1;
 }
 
-function teamGoalsFor(m: InternationalFormMatch, teamId: string): number | null {
-  const isHome = m.home_team_id === teamId;
-  return isHome ? m.home_goals : m.away_goals;
+function teamGoalsFor(
+  m: InternationalFormMatch,
+  teamId: string,
+  teamName?: string
+): number | null {
+  return pickInternationalFormSideValue(m, teamId, teamName, m.home_goals, m.away_goals);
 }
 
 function shrinkFinishing(goalsMinusXg: number, shotCount: number): number {
@@ -81,16 +94,17 @@ function shrinkFinishing(goalsMinusXg: number, shotCount: number): number {
 function matchWeight(
   m: InternationalFormMatch,
   teamId: string,
-  referenceMs: number
+  referenceMs: number,
+  teamName?: string
 ): number {
   if (!m.date) return 0;
+  if (!resolveInternationalFormTeamSide(m, teamId, teamName)) return 0;
   const tier = internationalMatchTierWeight(m.competition);
   const decay = internationalDecayWeight(m.date, referenceMs);
-  const oppId = m.home_team_id === teamId ? m.away_team_id : m.home_team_id;
-  const oppName = m.home_team_id === teamId ? m.away_team_name : m.home_team_name;
+  const opponent = opponentInInternationalForm(m, teamId, teamName);
   const cOpp = opponentConfederationModifier({
-    opponentTeamId: oppId,
-    opponentTeamName: oppName,
+    opponentTeamId: opponent?.id,
+    opponentTeamName: opponent?.name,
     competition: m.competition,
   });
   return decay * tier * cOpp;
@@ -98,7 +112,8 @@ function matchWeight(
 
 function sideMetricsFromMatch(
   m: InternationalFormMatch,
-  teamId: string
+  teamId: string,
+  teamName?: string
 ): {
   chanceQuality: number;
   setPieceXgShare: number;
@@ -106,10 +121,10 @@ function sideMetricsFromMatch(
   finishingSkill: number;
   pressingIntensity: number;
 } {
-  const xg = teamXgFor(m, teamId) ?? 0;
-  const shots = teamShotsFor(m, teamId);
-  const goals = teamGoalsFor(m, teamId);
-  const side = sidePayload(m.processPayload, teamId, m);
+  const xg = teamXgFor(m, teamId, teamName) ?? 0;
+  const shots = teamShotsFor(m, teamId, teamName);
+  const goals = teamGoalsFor(m, teamId, teamName);
+  const side = sidePayload(m.processPayload, teamId, m, teamName);
 
   const xgOpen = num(side?.xg_open_play);
   const xgSet = num(side?.xg_set_piece);
@@ -151,7 +166,8 @@ function sideMetricsFromMatch(
 export function computeTeamProcessProfile(
   teamId: string,
   matches: InternationalFormMatch[],
-  referenceMs = Date.now()
+  referenceMs = Date.now(),
+  teamName?: string
 ): TeamProcessProfile {
   let w = 0;
   let chanceQuality = 0;
@@ -162,14 +178,12 @@ export function computeTeamProcessProfile(
 
   for (const m of matches) {
     if (m.home_goals == null || m.away_goals == null) continue;
-    const isHome = m.home_team_id === teamId;
-    const isAway = m.away_team_id === teamId;
-    if (!isHome && !isAway) continue;
+    if (!resolveInternationalFormTeamSide(m, teamId, teamName)) continue;
 
-    const weight = matchWeight(m, teamId, referenceMs);
+    const weight = matchWeight(m, teamId, referenceMs, teamName);
     if (weight <= 0) continue;
 
-    const side = sideMetricsFromMatch(m, teamId);
+    const side = sideMetricsFromMatch(m, teamId, teamName);
     chanceQuality += side.chanceQuality * weight;
     setPieceXgShare += side.setPieceXgShare * weight;
     boxXgShare += side.boxXgShare * weight;
@@ -209,10 +223,12 @@ export function computeProcessFeatureDiffs(
   awayTeamId: string,
   homeMatches: InternationalFormMatch[],
   awayMatches: InternationalFormMatch[],
-  referenceMs = Date.now()
+  referenceMs = Date.now(),
+  homeName?: string,
+  awayName?: string
 ): ProcessFeatureSnapshot {
-  const home = computeTeamProcessProfile(homeTeamId, homeMatches, referenceMs);
-  const away = computeTeamProcessProfile(awayTeamId, awayMatches, referenceMs);
+  const home = computeTeamProcessProfile(homeTeamId, homeMatches, referenceMs, homeName);
+  const away = computeTeamProcessProfile(awayTeamId, awayMatches, referenceMs, awayName);
 
   return {
     chance_quality_diff: home.chanceQuality - away.chanceQuality,

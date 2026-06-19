@@ -51,6 +51,10 @@ export interface WcMatchRow {
   away_goals: number | null;
   home_team_name?: string;
   away_team_name?: string;
+  ingest_source_home?: string | null;
+  ingest_source_away?: string | null;
+  ingest_source_home_goals?: number | null;
+  ingest_source_away_goals?: number | null;
 }
 
 export function computeThirdPlaceWildcards(

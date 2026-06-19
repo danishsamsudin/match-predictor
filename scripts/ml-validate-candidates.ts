@@ -5,14 +5,20 @@
  *   npx tsx scripts/ml-validate-candidates.ts [candidates.json]
  *
  * Reads candidates JSON array from stdin/file; prints validation results JSON to stdout.
+ * When two configs are passed, [0] is the incremental candidate and [1] is deployed baseline.
  */
 import fs from "node:fs";
 import {
   avgCompositeLossForSnapshots,
 } from "../src/lib/world-cup/graham-snapshot-calibration";
+import {
+  beatsDeployedLoss,
+  mlHoldoutImprovementThreshold,
+} from "../src/lib/world-cup/incremental-calibration";
 import { ML_WALK_FORWARD_HOLDOUT } from "../src/lib/world-cup/ml-guardrails";
 import {
   getDefaultWcCalibrationConstants,
+  loadWcCalibrationConfig,
   mergeCalibrationFromRecord,
 } from "../src/lib/world-cup/wc-calibration-config";
 import { tryCreateServiceClient } from "../src/lib/supabase";
@@ -88,7 +94,7 @@ async function main() {
     process.exit(1);
   }
 
-  const candidates = JSON.parse(raw) as Array<Record<string, unknown>>;
+  const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
   const rows = await loadTrainingRows();
   if (!rows.length) {
     console.log(JSON.stringify({ error: "no training rows", results: [] }));
@@ -102,14 +108,25 @@ async function main() {
     actualAway: r.actual_away_goals,
   }));
 
-  const baseline = getDefaultWcCalibrationConstants();
-  const baselineLoss = avgCompositeLossForSnapshots(
+  const defaults = getDefaultWcCalibrationConstants();
+  const defaultBaselineLoss = avgCompositeLossForSnapshots(
     evalRows,
-    baseline,
-    baseline.modelVersion
+    defaults,
+    defaults.modelVersion
   );
 
-  const results = candidates.map((c, idx) => {
+  const deployedFromDb = await loadWcCalibrationConfig();
+  const deployedRecord =
+    parsed.length > 1 ? parsed[1]! : (deployedFromDb as unknown as Record<string, unknown>);
+  const deployed = mergeCalibrationFromRecord(deployedRecord);
+  const deployedBaselineLoss = avgCompositeLossForSnapshots(
+    evalRows,
+    deployed,
+    deployed.modelVersion
+  );
+
+  const threshold = mlHoldoutImprovementThreshold(holdout.length);
+  const results = parsed.slice(0, 1).map((c, idx) => {
     const constants = mergeCalibrationFromRecord(c);
     const loss = avgCompositeLossForSnapshots(
       evalRows,
@@ -119,7 +136,7 @@ async function main() {
     return {
       index: idx,
       loss,
-      improved: loss < baselineLoss * 0.995,
+      improved: beatsDeployedLoss(loss, deployedBaselineLoss, holdout.length),
       constants,
     };
   });
@@ -131,7 +148,9 @@ async function main() {
       {
         holdout_size: holdout.length,
         total_rows: rows.length,
-        baseline_loss: baselineLoss,
+        baseline_loss: defaultBaselineLoss,
+        deployed_baseline_loss: deployedBaselineLoss,
+        improvement_threshold: threshold,
         results: results.slice(0, 10),
       },
       null,

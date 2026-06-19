@@ -134,6 +134,8 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
     awayFormMatches: input.awayFormMatches,
     homeTeamId: homeIdStr,
     awayTeamId: awayIdStr,
+    homeName: input.homeName,
+    awayName: input.awayName,
   });
 
   const deltaXgElo = homeXgElo - awayXgElo;
@@ -147,7 +149,10 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
     homeIdStr,
     awayIdStr,
     input.homeFormMatches,
-    input.awayFormMatches
+    input.awayFormMatches,
+    Date.now(),
+    input.homeName,
+    input.awayName
   );
 
   let processDelta = 0;

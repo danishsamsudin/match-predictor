@@ -1,5 +1,10 @@
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
 import {
+  opponentInInternationalForm,
+  pickInternationalFormSideValue,
+  resolveInternationalFormTeamSide,
+} from "@/lib/world-cup/international-form-team-side";
+import {
   INTERNATIONAL_BASE_GOALS,
   INTERNATIONAL_DECAY_PHI,
   RATE_CLAMP_MAX,
@@ -40,19 +45,18 @@ function clampRate(rate: number): number {
 function resolveMatchXgForTeam(
   m: InternationalFormMatch,
   teamId: string,
-  side: "for" | "against"
+  side: "for" | "against",
+  teamName?: string
 ): { value: number; fallback: ProcessRateFallback } | null {
-  const isHome = m.home_team_id === teamId;
-  const isAway = m.away_team_id === teamId;
-  if (!isHome && !isAway) return null;
+  if (!resolveInternationalFormTeamSide(m, teamId, teamName)) return null;
 
-  const xgFor = isHome ? m.home_xg : m.away_xg;
-  const xgAgainst = isHome ? m.away_xg : m.home_xg;
-  const sotFor = isHome ? m.home_sot : m.away_sot;
-  const sotAgainst = isHome ? m.away_sot : m.home_sot;
-  const shotsFor = isHome ? m.home_shots : m.away_shots;
-  const gf = isHome ? m.home_goals : m.away_goals;
-  const ga = isHome ? m.away_goals : m.home_goals;
+  const xgFor = pickInternationalFormSideValue(m, teamId, teamName, m.home_xg, m.away_xg);
+  const xgAgainst = pickInternationalFormSideValue(m, teamId, teamName, m.away_xg, m.home_xg);
+  const sotFor = pickInternationalFormSideValue(m, teamId, teamName, m.home_sot, m.away_sot);
+  const sotAgainst = pickInternationalFormSideValue(m, teamId, teamName, m.away_sot, m.home_sot);
+  const shotsFor = pickInternationalFormSideValue(m, teamId, teamName, m.home_shots, m.away_shots);
+  const gf = pickInternationalFormSideValue(m, teamId, teamName, m.home_goals, m.away_goals);
+  const ga = pickInternationalFormSideValue(m, teamId, teamName, m.away_goals, m.home_goals);
 
   const target = side === "for" ? xgFor : xgAgainst;
   if (target != null && Number.isFinite(target)) {
@@ -65,7 +69,13 @@ function resolveMatchXgForTeam(
     if (gf != null) return { value: gf, fallback: "goals" };
   } else {
     if (sotAgainst != null) return { value: sotAgainst * SOT_TO_XG, fallback: "shots" };
-    const oppShots = isHome ? m.away_shots : m.home_shots;
+    const oppShots = pickInternationalFormSideValue(
+      m,
+      teamId,
+      teamName,
+      m.away_shots,
+      m.home_shots
+    );
     if (oppShots != null) return { value: oppShots * SHOT_TO_XG, fallback: "shots" };
     if (ga != null) return { value: ga, fallback: "goals" };
   }
@@ -99,20 +109,17 @@ export function computeGrahamProcessRatesFromMatches(
     const weight = internationalDecayWeight(m.date, referenceMs) * tier;
     if (weight <= 0) continue;
 
-    const isHome = m.home_team_id === teamId;
-    const isAway = m.away_team_id === teamId;
-    if (!isHome && !isAway) continue;
+    if (!resolveInternationalFormTeamSide(m, teamId, teamName)) continue;
 
-    const oppId = isHome ? m.away_team_id : m.home_team_id;
-    const oppName = isHome ? m.away_team_name : m.home_team_name;
+    const opponent = opponentInInternationalForm(m, teamId, teamName);
     const cOpp = opponentConfederationModifier({
-      opponentTeamId: oppId,
-      opponentTeamName: oppName,
+      opponentTeamId: opponent?.id,
+      opponentTeamName: opponent?.name,
       competition: m.competition,
     });
 
-    const forSide = resolveMatchXgForTeam(m, teamId, "for");
-    const againstSide = resolveMatchXgForTeam(m, teamId, "against");
+    const forSide = resolveMatchXgForTeam(m, teamId, "for", teamName);
+    const againstSide = resolveMatchXgForTeam(m, teamId, "against", teamName);
     if (!forSide || !againstSide) continue;
 
     fallbackCounts[forSide.fallback] += 1;

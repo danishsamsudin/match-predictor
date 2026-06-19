@@ -1,5 +1,11 @@
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
 import {
+  isTeamInInternationalFormMatch,
+  pickInternationalFormSideValue,
+  resolveInternationalFormTeamSide,
+  teamGoalsInInternationalForm,
+} from "@/lib/world-cup/international-form-team-side";
+import {
   GRAHAM_MOMENTUM_CLAMP,
   GRAHAM_MOMENTUM_GAMMA,
   GRAHAM_W1_FORM,
@@ -11,13 +17,19 @@ const FORM_RECENCY_WEIGHTS = [0.3, 0.25, 0.2, 0.15, 0.1];
 
 const XG_DIFF_SCALE = 2.4;
 
-function teamXgDiff(m: InternationalFormMatch, teamId: string): number | null {
-  const isHome = m.home_team_id === teamId;
-  const isAway = m.away_team_id === teamId;
-  if (!isHome && !isAway) return null;
+function teamXgDiff(
+  m: InternationalFormMatch,
+  teamId: string,
+  teamName?: string
+): number | null {
+  if (!resolveInternationalFormTeamSide(m, teamId, teamName)) return null;
 
-  const xgf = (isHome ? m.home_xg : m.away_xg) ?? (isHome ? m.home_goals : m.away_goals);
-  const xga = (isHome ? m.away_xg : m.home_xg) ?? (isHome ? m.away_goals : m.home_goals);
+  const xgf =
+    pickInternationalFormSideValue(m, teamId, teamName, m.home_xg, m.away_xg) ??
+    teamGoalsInInternationalForm(m, teamId, teamName)?.goalsFor;
+  const xga =
+    pickInternationalFormSideValue(m, teamId, teamName, m.away_xg, m.home_xg) ??
+    teamGoalsInInternationalForm(m, teamId, teamName)?.goalsAgainst;
   if (xgf == null || xga == null) return null;
   return xgf - xga;
 }
@@ -25,7 +37,8 @@ function teamXgDiff(m: InternationalFormMatch, teamId: string): number | null {
 export function computeGrahamXgFormScore(
   matches: InternationalFormMatch[],
   teamId: string,
-  maxMatches = 5
+  maxMatches = 5,
+  teamName?: string
 ): number {
   const recent = matches.slice(0, maxMatches);
   if (!recent.length) return 0.5;
@@ -33,7 +46,7 @@ export function computeGrahamXgFormScore(
   let weighted = 0;
   let weightSum = 0;
   for (let i = 0; i < recent.length; i++) {
-    const diff = teamXgDiff(recent[i], teamId);
+    const diff = teamXgDiff(recent[i], teamId, teamName);
     if (diff == null) continue;
     const normalized = Math.max(0, Math.min(1, (diff + XG_DIFF_SCALE) / (2 * XG_DIFF_SCALE)));
     const w = FORM_RECENCY_WEIGHTS[i] ?? FORM_RECENCY_WEIGHTS.at(-1)!;
@@ -47,19 +60,21 @@ export function computeGrahamXgFormScore(
 export function computeGrahamH2HStrength(
   matches: InternationalFormMatch[],
   homeTeamId: string,
-  awayTeamId: string
+  awayTeamId: string,
+  homeName?: string,
+  awayName?: string
 ): number {
   const h2h = matches.filter(
     (m) =>
-      (m.home_team_id === homeTeamId && m.away_team_id === awayTeamId) ||
-      (m.home_team_id === awayTeamId && m.away_team_id === homeTeamId)
+      isTeamInInternationalFormMatch(m, homeTeamId, homeName) &&
+      isTeamInInternationalFormMatch(m, awayTeamId, awayName)
   );
   if (!h2h.length) return 0;
 
   let homeEdge = 0;
   let w = 0;
   for (let i = 0; i < h2h.length; i++) {
-    const diff = teamXgDiff(h2h[i], homeTeamId);
+    const diff = teamXgDiff(h2h[i], homeTeamId, homeName);
     if (diff == null) continue;
     const weight = Math.pow(0.88, i);
     homeEdge += (diff / XG_DIFF_SCALE) * weight;
@@ -80,15 +95,17 @@ export interface GrahamH2HRates {
 export function computeGrahamH2HRates(
   matches: InternationalFormMatch[],
   homeTeamId: string,
-  awayTeamId: string
+  awayTeamId: string,
+  homeName?: string,
+  awayName?: string
 ): GrahamH2HRates {
   const h2h = matches
     .filter(
       (m) =>
         m.home_goals != null &&
         m.away_goals != null &&
-        ((m.home_team_id === homeTeamId && m.away_team_id === awayTeamId) ||
-          (m.home_team_id === awayTeamId && m.away_team_id === homeTeamId))
+        isTeamInInternationalFormMatch(m, homeTeamId, homeName) &&
+        isTeamInInternationalFormMatch(m, awayTeamId, awayName)
     )
     .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
 
@@ -103,17 +120,16 @@ export function computeGrahamH2HRates(
   for (let i = 0; i < h2h.length; i++) {
     const m = h2h[i]!;
     const weight = Math.pow(0.88, i);
-    const homeIsTarget = m.home_team_id === homeTeamId;
-    const homeGoals = m.home_goals!;
-    const awayGoals = m.away_goals!;
+    const scored = teamGoalsInInternationalForm(m, homeTeamId, homeName);
+    if (!scored) continue;
 
     let outcome: "home" | "draw" | "away";
-    if (homeGoals === awayGoals) {
+    if (scored.goalsFor === scored.goalsAgainst) {
       outcome = "draw";
-    } else if (homeIsTarget) {
-      outcome = homeGoals > awayGoals ? "home" : "away";
+    } else if (scored.goalsFor > scored.goalsAgainst) {
+      outcome = "home";
     } else {
-      outcome = awayGoals > homeGoals ? "home" : "away";
+      outcome = "away";
     }
 
     if (outcome === "home") homeWeight += weight;
@@ -139,13 +155,31 @@ export function computeGrahamMomentumIndex(input: {
   awayFormMatches: InternationalFormMatch[];
   homeTeamId: string;
   awayTeamId: string;
+  homeName?: string;
+  awayName?: string;
 }): number {
-  const homeForm = computeGrahamXgFormScore(input.homeFormMatches, input.homeTeamId);
-  const awayForm = computeGrahamXgFormScore(input.awayFormMatches, input.awayTeamId);
+  const homeForm = computeGrahamXgFormScore(
+    input.homeFormMatches,
+    input.homeTeamId,
+    5,
+    input.homeName
+  );
+  const awayForm = computeGrahamXgFormScore(
+    input.awayFormMatches,
+    input.awayTeamId,
+    5,
+    input.awayName
+  );
   const combined = [...input.homeFormMatches, ...input.awayFormMatches].sort((a, b) =>
     (b.date ?? "").localeCompare(a.date ?? "")
   );
-  const h2h = computeGrahamH2HStrength(combined, input.homeTeamId, input.awayTeamId);
+  const h2h = computeGrahamH2HStrength(
+    combined,
+    input.homeTeamId,
+    input.awayTeamId,
+    input.homeName,
+    input.awayName
+  );
 
   const raw = (homeForm - awayForm) * GRAHAM_W1_FORM + h2h * GRAHAM_W2_H2H;
   return Math.max(-GRAHAM_MOMENTUM_CLAMP, Math.min(GRAHAM_MOMENTUM_CLAMP, raw));

@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { MarketComparisonPanel } from "./MarketComparisonPanel";
+import { PlayerPropsPanel } from "./PlayerPropsPanel";
 import { HandicapMarketPanel } from "./HandicapMarketPanel";
 import { PredictionCharts } from "./prediction-charts/PredictionCharts";
 import { LineupWhatIfEditor } from "./LineupWhatIfEditor";
@@ -77,11 +78,14 @@ export function PredictionResultCard({
   onRerunWithLineups,
   loading,
   compact = false,
+  matchKey,
 }: {
   result: PredictionResult;
   onRerunWithLineups?: (lineups: FixtureLineup[]) => void;
   loading?: boolean;
   compact?: boolean;
+  /** Stable key for persisting per-fixture book odds (e.g. home-away-date). */
+  matchKey?: string;
 }) {
   const [showExplanation, setShowExplanation] = useState(false);
   const homeLabel = result.homeTeamName ?? "Home";
@@ -146,6 +150,18 @@ export function PredictionResultCard({
             result={result}
             onRerun={onRerunWithLineups}
             loading={loading}
+          />
+        ) : null}
+
+        {!compact && result.playerProps ? (
+          <PlayerPropsPanel
+            props={result.playerProps}
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
+            matchKey={
+              matchKey ??
+              `${result.homeTeamName ?? "home"}-${result.awayTeamName ?? "away"}`
+            }
           />
         ) : null}
 
@@ -575,17 +591,30 @@ export function PredictionResultDisplay({
     estimated_red_cards: number;
     explanation: string;
     inputs_snapshot?: unknown;
+    analytics_snapshot?: unknown;
+    match_date?: string;
   };
   homeTeamName?: string;
   awayTeamName?: string;
 }) {
   const fromSnapshot = teamNamesFromSnapshot(result.inputs_snapshot);
+  const analyticsSnapshot =
+    result.analytics_snapshot &&
+    typeof result.analytics_snapshot === "object" &&
+    !Array.isArray(result.analytics_snapshot)
+      ? (result.analytics_snapshot as Record<string, unknown>)
+      : null;
+  const playerProps = analyticsSnapshot?.playerProps ?? null;
+
+  const homeTeamName = homeTeamNameProp ?? fromSnapshot.homeTeamName;
+  const awayTeamName = awayTeamNameProp ?? fromSnapshot.awayTeamName;
+  const matchKey = `${homeTeamName}-${awayTeamName}-${result.match_date ?? "unknown"}`;
 
   return (
     <PredictionResultCard
       result={{
-        homeTeamName: homeTeamNameProp ?? fromSnapshot.homeTeamName,
-        awayTeamName: awayTeamNameProp ?? fromSnapshot.awayTeamName,
+        homeTeamName,
+        awayTeamName,
         homeWinPct: Number(result.home_win_pct),
         awayWinPct: Number(result.away_win_pct),
         drawPct: Number(result.draw_pct),
@@ -597,7 +626,9 @@ export function PredictionResultDisplay({
           redCards: Number(result.estimated_red_cards),
         },
         explanation: result.explanation,
+        playerProps: playerProps as PredictionResult["playerProps"],
       }}
+      matchKey={matchKey}
     />
   );
 }

@@ -292,9 +292,9 @@ function FormStrip({ matches }: { matches: TeamFormMatch[] }) {
 
   return (
     <ul className="space-y-1.5">
-      {recent.map((m) => (
+      {recent.map((m, index) => (
         <li
-          key={`${m.date}-${m.opponent}-${m.score}`}
+          key={`${m.date}-${m.opponent}-${m.score}-${index}`}
           className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/15 px-2 py-1.5 dark:border-slate-800/50 dark:bg-slate-900/25"
         >
           <FormResultBadge result={m.result} />

@@ -35,6 +35,7 @@ import {
   resolveScoreMatrixMaxGoals,
 } from "@/lib/prediction/market-probabilities";
 import { computeLineupPlayerXgImpact } from "@/lib/prediction/lineup-player-xg-impact";
+import { computePlayerPropsForMatch } from "@/lib/prediction/compute-player-props-for-match";
 import { resolveLineupPlayerStats } from "@/lib/prediction/resolve-lineup-player-stats";
 import { neutralLineupImpact } from "@/lib/prediction/validate-custom-lineups";
 import {
@@ -567,6 +568,25 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     analytics.historicalMarkets = historicalMarkets;
   }
 
+  const playerProps = await computePlayerPropsForMatch({
+    homeTeamId: input.homeTeamId,
+    awayTeamId: input.awayTeamId,
+    homeTeamName,
+    awayTeamName,
+    homeLeagueId: input.homeLeagueId,
+    awayLeagueId: input.awayLeagueId,
+    entityType: input.entityType ?? "club",
+    homeXg,
+    awayXg,
+    teamComparison,
+    customLineups: input.customLineups,
+    modelVersion: MODEL_VERSION,
+  }).catch(() => null);
+
+  if (playerProps) {
+    analytics.playerProps = playerProps;
+  }
+
   return {
     modelVersion: MODEL_VERSION,
     lineupSource,
@@ -583,6 +603,7 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
     explanation: explanationParts.join("\n"),
     teamComparison,
     analytics,
+    playerProps: playerProps ?? undefined,
     debug: {
       factors: {
         homeFormScore,

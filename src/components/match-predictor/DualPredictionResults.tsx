@@ -47,10 +47,12 @@ export function DualPredictionResults({
   resultsBySource,
   loading,
   onRerunWithLineups,
+  matchKey,
 }: {
   resultsBySource: Partial<Record<PredictionLineupSource, PredictionResult>>;
   loading?: boolean;
   onRerunWithLineups?: (lineups: FixtureLineup[]) => void;
+  matchKey?: string;
 }) {
   const manual = resultsBySource.manual_xi;
   const model = resultsBySource.model_xi;
@@ -72,6 +74,7 @@ export function DualPredictionResults({
             single.lineupSource === "model_xi" ? undefined : onRerunWithLineups
           }
           loading={loading}
+          matchKey={matchKey}
         />
       </div>
     );

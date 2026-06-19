@@ -14,7 +14,7 @@ import {
   type GrahamDeltaWeights,
   type WcCalibrationConstants,
 } from "../src/lib/world-cup/wc-calibration-config";
-import { ML_IMPROVEMENT_THRESHOLD } from "../src/lib/world-cup/ml-guardrails";
+import { calibrationGridImproved } from "../src/lib/world-cup/incremental-calibration";
 import { tryCreateServiceClient } from "../src/lib/supabase";
 
 function loadEnvLocal() {
@@ -108,6 +108,7 @@ async function main() {
     ...current,
     deltaWeights: { ...current.deltaWeights },
     optaFeatureWeights: { ...current.optaFeatureWeights },
+    processFeatureWeights: { ...(current.processFeatureWeights ?? {}) },
     eventModelCoeffs: {
       yellow: { ...current.eventModelCoeffs.yellow },
       fouls: { ...current.eventModelCoeffs.fouls },
@@ -176,7 +177,7 @@ async function main() {
     }
   }
 
-  const improved = bestLoss < baselineLoss * (1 - ML_IMPROVEMENT_THRESHOLD);
+  const improved = calibrationGridImproved(bestLoss, baselineLoss);
   if (!improved) {
     console.log(
       `No improvement (baseline composite ${baselineLoss.toFixed(4)}, best ${bestLoss.toFixed(4)}) — keeping ${current.modelVersion}.`
@@ -215,6 +216,7 @@ async function main() {
     wcLineupDefenseBlend: best.wcLineupDefenseBlend,
     wcLowEventRhoBoost: best.wcLowEventRhoBoost,
     optaFeatureWeights: best.optaFeatureWeights,
+    processFeatureWeights: best.processFeatureWeights ?? current.processFeatureWeights,
     eventModelCoeffs: best.eventModelCoeffs,
     modelVersion: version,
   };

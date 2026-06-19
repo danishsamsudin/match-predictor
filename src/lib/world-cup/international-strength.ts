@@ -10,6 +10,11 @@ import {
   resolveNationalConfederation,
 } from "@/lib/world-cup/confederation-strength";
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
+import {
+  opponentInInternationalForm,
+  resolveInternationalFormTeamSide,
+  teamGoalsInInternationalForm,
+} from "@/lib/world-cup/international-form-team-side";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
 
 const CORNER_XG_BASELINE = 2.7;
@@ -113,29 +118,24 @@ export function computeInternationalRatesFromMatches(
 
   for (const m of finishedMatches) {
     if (m.home_goals == null || m.away_goals == null) continue;
-    const isHome = m.home_team_id === teamId;
-    const isAway = m.away_team_id === teamId;
-    if (!isHome && !isAway) continue;
+    const side = resolveInternationalFormTeamSide(m, teamId, teamName);
+    if (!side) continue;
 
     const tier = internationalMatchTierWeight(m.competition);
     const weight = internationalDecayWeight(m.date, referenceMs) * tier;
     if (weight <= 0) continue;
 
-    const oppId = isHome ? m.away_team_id : m.home_team_id;
-    const oppName = isHome ? m.away_team_name : m.home_team_name;
+    const opponent = opponentInInternationalForm(m, teamId, teamName);
     const cOpp = opponentConfederationModifier({
-      opponentTeamId: oppId,
-      opponentTeamName: oppName,
+      opponentTeamId: opponent?.id,
+      opponentTeamName: opponent?.name,
       competition: m.competition,
     });
 
-    if (isHome) {
-      gf += m.home_goals * weight * cOpp;
-      ga += m.away_goals * weight * cOpp;
-    } else {
-      gf += m.away_goals * weight * cOpp;
-      ga += m.home_goals * weight * cOpp;
-    }
+    const scored = teamGoalsInInternationalForm(m, teamId, teamName);
+    if (!scored) continue;
+    gf += scored.goalsFor * weight * cOpp;
+    ga += scored.goalsAgainst * weight * cOpp;
     w += weight;
     matchCount += 1;
   }

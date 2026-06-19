@@ -66,11 +66,12 @@ DELTA_WEIGHT_KEYS = [
 
 ML_MIN_TRAINING_EXAMPLES = 30
 ML_MIN_NEW_EXAMPLES_SINCE_LAST_TRAIN = 5
-ML_IMPROVEMENT_THRESHOLD = 0.005
-ML_MAX_WEIGHT_SHIFT_PCT = 0.15
-ML_MAX_PROCESS_WEIGHT_SHIFT_PCT = 0.25
-ML_EARLY_TOURNAMENT_EXAMPLES = 15
 ML_WALK_FORWARD_HOLDOUT = 8
+
+# Incremental learning: move a small fraction toward the ML target each deploy.
+ML_DELTA_BLEND_STEP = 0.08
+ML_SCALAR_MAX_REL_STEP = 0.05
+ML_FEATURE_MAX_ABS_STEP = 0.025
 
 DEFAULT_CONSTANTS: dict[str, Any] = {
     "muXg": 1.25,
@@ -365,41 +366,71 @@ def train_event_poisson(
         return defaults
 
 
-def check_weight_stability(
-    candidate: dict[str, float], deployed: dict[str, float], max_shift: float = ML_MAX_WEIGHT_SHIFT_PCT
-) -> list[str]:
-    reasons: list[str] = []
-    for key, base in deployed.items():
-        if base <= 0:
-            continue
-        nxt = candidate.get(key, base)
-        shift = abs(nxt - base) / base
-        if shift > max_shift:
-            reasons.append(f"{key} shifted {shift * 100:.1f}%")
-    return reasons
+def blend_delta_weights(
+    deployed: dict[str, float], target: dict[str, float], step: float = ML_DELTA_BLEND_STEP
+) -> dict[str, float]:
+    blended: dict[str, float] = {}
+    for key in DELTA_WEIGHT_KEYS:
+        base = float(deployed.get(key, 0.0))
+        tgt = float(target.get(key, base))
+        blended[key] = base + step * (tgt - base)
+    return normalize_delta_weights(blended)
 
 
-def check_process_weight_stability(
-    candidate: dict[str, float],
+def blend_scalar(deployed: float, target: float, max_rel_step: float = ML_SCALAR_MAX_REL_STEP) -> float:
+    if not math.isfinite(deployed) or not math.isfinite(target):
+        return deployed
+    scale = max(abs(deployed), 1e-4)
+    max_delta = scale * max_rel_step
+    delta = max(-max_delta, min(max_delta, target - deployed))
+    return deployed + delta
+
+
+def ramp_feature_weights(
     deployed: dict[str, float],
-    total_examples: int,
-    max_shift: float = ML_MAX_PROCESS_WEIGHT_SHIFT_PCT,
-) -> list[str]:
-    cap = max_shift
-    if total_examples < ML_EARLY_TOURNAMENT_EXAMPLES:
-        cap = min(cap, ML_MAX_PROCESS_WEIGHT_SHIFT_PCT)
-    reasons: list[str] = []
-    all_keys = set(deployed) | set(candidate)
-    for key in all_keys:
-        base = deployed.get(key, 0.0)
-        nxt = candidate.get(key, 0.0)
-        if abs(base) < 1e-9 and abs(nxt) < 1e-9:
-            continue
-        denom = max(abs(base), 1e-6)
-        shift = abs(nxt - base) / denom
-        if shift > cap:
-            reasons.append(f"process.{key} shifted {shift * 100:.1f}%")
-    return reasons
+    target: dict[str, float],
+    max_abs_step: float = ML_FEATURE_MAX_ABS_STEP,
+) -> dict[str, float]:
+    out = dict(deployed)
+    for key in set(deployed) | set(target):
+        base = float(deployed.get(key, 0.0))
+        tgt = float(target.get(key, 0.0))
+        delta = max(-max_abs_step, min(max_abs_step, tgt - base))
+        nxt = base + delta
+        if abs(nxt) < 1e-8:
+            out.pop(key, None)
+        else:
+            out[key] = nxt
+    return out
+
+
+def ml_holdout_improvement_threshold(holdout_size: int) -> float:
+    if holdout_size <= 0:
+        return 0.005
+    return max(0.0005, 0.004 / math.sqrt(holdout_size / 8.0))
+
+
+def build_incremental_candidate(deployed: dict[str, Any], raw_goal: dict[str, Any]) -> dict[str, Any]:
+    """Small step from deployed toward the unconstrained ML fit."""
+    deployed_dw = deployed.get("deltaWeights") or DEFAULT_CONSTANTS["deltaWeights"]
+    raw_dw = raw_goal.get("deltaWeights") or deployed_dw
+    deployed_process = deployed.get("processFeatureWeights") or {}
+    raw_process = raw_goal.get("processFeatureWeights") or {}
+    deployed_opta = deployed.get("optaFeatureWeights") or {}
+    raw_opta = raw_goal.get("optaFeatureWeights") or {}
+
+    return {
+        **deployed,
+        "deltaWeights": blend_delta_weights(deployed_dw, raw_dw),
+        "processFeatureWeights": ramp_feature_weights(deployed_process, raw_process),
+        "optaFeatureWeights": ramp_feature_weights(deployed_opta, raw_opta),
+        "muXg": blend_scalar(float(deployed.get("muXg", DEFAULT_CONSTANTS["muXg"])), float(raw_goal.get("muXg", deployed.get("muXg", DEFAULT_CONSTANTS["muXg"])))),
+        "strengthExponent": blend_scalar(
+            float(deployed.get("strengthExponent", DEFAULT_CONSTANTS["strengthExponent"])),
+            float(raw_goal.get("strengthExponent", deployed.get("strengthExponent", DEFAULT_CONSTANTS["strengthExponent"]))),
+        ),
+        "eventModelCoeffs": deployed.get("eventModelCoeffs") or DEFAULT_CONSTANTS["eventModelCoeffs"],
+    }
 
 
 def validate_with_typescript(candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -449,61 +480,48 @@ def main() -> None:
         return
 
     train_df = df.iloc[:-ML_WALK_FORWARD_HOLDOUT] if len(df) > ML_WALK_FORWARD_HOLDOUT else df
-    goal_params, goal_metrics = train_goal_surrogate(train_df)
+    raw_goal_params, goal_metrics = train_goal_surrogate(train_df)
+    candidate = build_incremental_candidate(deployed, raw_goal_params)
 
-    event_defaults = deployed.get("eventModelCoeffs") or DEFAULT_CONSTANTS["eventModelCoeffs"]
-    event_coeffs = {
-        "yellow": train_event_poisson(df, "actual_yellow", event_defaults["yellow"]),
-        "fouls": train_event_poisson(df, "actual_fouls", event_defaults["fouls"]),
-        "corners": train_event_poisson(df, "actual_corners", event_defaults["corners"]),
-        "red": train_event_poisson(
-            df, "actual_red", event_defaults.get("red") or event_defaults["yellow"]
-        ),
-    }
-
-    candidate = {**deployed, **goal_params, "eventModelCoeffs": event_coeffs}
-
-    stability_issues = check_weight_stability(
-        candidate["deltaWeights"],
-        deployed.get("deltaWeights") or DEFAULT_CONSTANTS["deltaWeights"],
-    )
-    stability_issues.extend(
-        check_process_weight_stability(
-            candidate.get("processFeatureWeights") or {},
-            deployed.get("processFeatureWeights") or {},
-            total,
-        )
-    )
-
-    ts_validation = validate_with_typescript([candidate])
-    baseline_loss = None
+    ts_validation = validate_with_typescript([candidate, deployed])
+    default_baseline_loss = None
+    deployed_baseline_loss = None
     candidate_loss = None
     if ts_validation:
-        baseline_loss = ts_validation.get("baseline_loss")
+        default_baseline_loss = ts_validation.get("baseline_loss")
+        deployed_baseline_loss = ts_validation.get("deployed_baseline_loss")
         results = ts_validation.get("results") or []
         if results:
             candidate_loss = results[0].get("loss")
 
+    holdout_size = int(ts_validation.get("holdout_size", ML_WALK_FORWARD_HOLDOUT) if ts_validation else ML_WALK_FORWARD_HOLDOUT)
+    improvement_threshold = ml_holdout_improvement_threshold(holdout_size)
+
     improved = False
+    required: float | None = None
     if ts_validation is None:
         print("TypeScript validation unavailable — not deploying.", file=sys.stderr)
-    elif baseline_loss is not None and candidate_loss is not None:
-        improved = candidate_loss < float(baseline_loss) * (1.0 - ML_IMPROVEMENT_THRESHOLD)
+    elif deployed_baseline_loss is not None and candidate_loss is not None:
+        required = float(deployed_baseline_loss) * (1.0 - improvement_threshold)
+        improved = float(candidate_loss) < required
 
     print(f"Training rows: {total} (train {len(train_df)}, holdout {ML_WALK_FORWARD_HOLDOUT})")
+    print(f"Incremental step: delta={ML_DELTA_BLEND_STEP}, scalar={ML_SCALAR_MAX_REL_STEP}, features={ML_FEATURE_MAX_ABS_STEP}")
     print(f"Goal surrogate: muXg={candidate['muXg']:.3f}, strength={candidate['strengthExponent']:.5f}")
     print(f"Delta weights: {json.dumps(candidate['deltaWeights'], indent=2)}")
     print(f"Opta weights (non-zero): {candidate.get('optaFeatureWeights')}")
     print(f"Process weights (non-zero): {candidate.get('processFeatureWeights')}")
-    if baseline_loss is not None and candidate_loss is not None:
-        print(f"TS validation loss: {candidate_loss:.4f} (baseline {baseline_loss:.4f})")
-
-    if stability_issues:
-        print("Guardrail warnings:", "; ".join(stability_issues))
-        return
+    if deployed_baseline_loss is not None and candidate_loss is not None and required is not None:
+        print(
+            f"TS validation loss: {candidate_loss:.4f} "
+            f"(deployed {deployed_baseline_loss:.4f}, "
+            f"need < {required:.4f} for {(improvement_threshold * 100):.2f}% gain)"
+        )
+        if default_baseline_loss is not None:
+            print(f"  (factory default holdout loss: {default_baseline_loss:.4f})")
 
     if not improved:
-        print("Candidate did not beat baseline on holdout — not deploying.")
+        print("Incremental candidate did not beat deployed model on holdout — not deploying.")
         return
 
     if args.dry_run:
@@ -516,12 +534,17 @@ def main() -> None:
     metrics = {
         "training_count": total,
         "new_since_last_train": new_since,
-        "baseline_loss": baseline_loss,
+        "baseline_loss": deployed_baseline_loss,
+        "default_baseline_loss": default_baseline_loss,
         "candidate_loss": candidate_loss,
         "goal_surrogate": goal_metrics,
         "walk_forward_holdout": ML_WALK_FORWARD_HOLDOUT,
-        "stability_passed": True,
-        "method": "elasticnet_poisson_walkforward",
+        "incremental_step": {
+            "delta_blend": ML_DELTA_BLEND_STEP,
+            "scalar_max_rel": ML_SCALAR_MAX_REL_STEP,
+            "feature_max_abs": ML_FEATURE_MAX_ABS_STEP,
+        },
+        "method": "incremental_elasticnet_walkforward",
     }
 
     existing = (

@@ -6,10 +6,10 @@ export const ML_MIN_TRAINING_EXAMPLES = 30;
 /** Minimum new examples since last training run. */
 export const ML_MIN_NEW_EXAMPLES_SINCE_LAST_TRAIN = 5;
 
-/** Validation loss must improve by at least this fraction (0.5%). */
+/** Validation loss must improve by at least this fraction vs deployed (legacy default). */
 export const ML_IMPROVEMENT_THRESHOLD = 0.005;
 
-/** Max relative shift per delta weight vs deployed values. */
+/** Max relative shift per delta weight vs deployed values (legacy hard reject — prefer incremental blend). */
 export const ML_MAX_WEIGHT_SHIFT_PCT = 0.15;
 
 /** Walk-forward holdout window size (matches). */

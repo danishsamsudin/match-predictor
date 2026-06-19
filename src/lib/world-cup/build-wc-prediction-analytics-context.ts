@@ -10,6 +10,11 @@ import {
   computeGrahamXgFormScore,
 } from "@/lib/world-cup/graham-momentum";
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
+import {
+  canonicalInternationalFormMatchKey,
+  opponentInInternationalForm,
+  teamGoalsInInternationalForm,
+} from "@/lib/world-cup/international-form-team-side";
 import { loadWcOptaEventCalibration } from "@/lib/world-cup/wc-opta-event-calibration";
 import type { PredictionAnalytics } from "@/lib/types/prediction";
 
@@ -31,26 +36,32 @@ function snapshotNum(snapshot: Record<string, unknown>, key: string): number | n
 function mapInternationalFormToRecentForm(
   matches: InternationalFormMatch[],
   teamId: string,
+  teamName: string,
   max = 5
 ): TeamFormMatch[] {
-  return matches.slice(0, max).map((m) => {
-    const isHome = m.home_team_id === teamId;
-    const gf = isHome ? m.home_goals : m.away_goals;
-    const ga = isHome ? m.away_goals : m.home_goals;
-    const opponent = (isHome ? m.away_team_name : m.home_team_name) ?? "Opponent";
+  const rows: TeamFormMatch[] = [];
+  const seen = new Set<string>();
+  for (const m of matches) {
+    if (rows.length >= max) break;
+    const dedupeKey = canonicalInternationalFormMatchKey(m);
+    if (seen.has(dedupeKey)) continue;
+    const scored = teamGoalsInInternationalForm(m, teamId, teamName);
+    if (!scored) continue;
+    seen.add(dedupeKey);
+    const opponent = opponentInInternationalForm(m, teamId, teamName);
+    const { goalsFor, goalsAgainst } = scored;
     let result: TeamFormMatch["result"] = "N/A";
-    if (gf != null && ga != null) {
-      if (gf > ga) result = "W";
-      else if (gf < ga) result = "L";
-      else result = "D";
-    }
-    return {
+    if (goalsFor > goalsAgainst) result = "W";
+    else if (goalsFor < goalsAgainst) result = "L";
+    else result = "D";
+    rows.push({
       date: m.date ?? "",
-      opponent,
-      score: gf != null && ga != null ? `${gf}-${ga}` : "—",
+      opponent: opponent?.name ?? "Opponent",
+      score: `${goalsFor}-${goalsAgainst}`,
       result,
-    };
-  });
+    });
+  }
+  return rows;
 }
 
 function seasonStatsFromAverages(
@@ -117,7 +128,8 @@ function buildWcComparisonSide(input: {
 
   const recentForm = mapInternationalFormToRecentForm(
     input.formMatches,
-    input.teamDbId
+    input.teamDbId,
+    input.teamName
   );
 
   return {
@@ -158,11 +170,15 @@ export function buildWcPredictionAnalyticsContext(input: {
   const snap = input.snapshot;
   const homeFormScore = computeGrahamXgFormScore(
     input.homeFormMatches,
-    input.homeDbTeamId
+    input.homeDbTeamId,
+    5,
+    input.homeName
   );
   const awayFormScore = computeGrahamXgFormScore(
     input.awayFormMatches,
-    input.awayDbTeamId
+    input.awayDbTeamId,
+    5,
+    input.awayName
   );
 
   const combinedForm = [...input.homeFormMatches, ...input.awayFormMatches].sort((a, b) =>
@@ -171,7 +187,9 @@ export function buildWcPredictionAnalyticsContext(input: {
   const h2h = computeGrahamH2HRates(
     combinedForm,
     input.homeDbTeamId,
-    input.awayDbTeamId
+    input.awayDbTeamId,
+    input.homeName,
+    input.awayName
   );
 
   const statComparison: PredictionAnalytics["statComparison"] = [

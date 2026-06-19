@@ -10,6 +10,7 @@ import {
   type InternationalTeamRates,
 } from "@/lib/world-cup/international-strength";
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
+import { wcFinalsFormSlice } from "@/lib/world-cup/wc-finals-form";
 import {
   loadWcOptaEventCalibration,
   type WcTeamEventRates,
@@ -31,26 +32,6 @@ function round1(value: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
-}
-
-function wcFinalsFormSlice(teamId: string, finishedMatches: WcMatchRow[]): InternationalFormMatch[] {
-  return finishedMatches
-    .filter(
-      (m) =>
-        m.home_goals != null &&
-        m.away_goals != null &&
-        (m.home_team_id === teamId || m.away_team_id === teamId)
-    )
-    .map((m) => ({
-      date: m.date,
-      home_team_id: m.home_team_id,
-      away_team_id: m.away_team_id,
-      home_goals: m.home_goals,
-      away_goals: m.away_goals,
-      competition: m.competition ?? "FIFA World Cup 2026",
-      home_team_name: m.home_team_name,
-      away_team_name: m.away_team_name,
-    }));
 }
 
 function blendTowardTournament(
@@ -318,10 +299,10 @@ export function computeWcEstimatedMatchStats(
 
   const homeForm =
     input.homeFormMatches ??
-    wcFinalsFormSlice(input.homeDbTeamId, finished);
+    wcFinalsFormSlice(input.homeDbTeamId, finished, input.homeName);
   const awayForm =
     input.awayFormMatches ??
-    wcFinalsFormSlice(input.awayDbTeamId, finished);
+    wcFinalsFormSlice(input.awayDbTeamId, finished, input.awayName);
 
   const homeRates = computeInternationalRatesFromMatches(
     input.homeDbTeamId,

@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { BarChart3 } from "lucide-react";
 import { TeamBettingInsightsPanel } from "@/components/TeamBettingInsightsPanel";
-import { TeamSquadComparison } from "@/components/TeamSquadComparison";
 import { resolveTeamShortLabel } from "@/lib/utils/team-display-name";
 import { displayValue } from "@/lib/data/team-comparison-utils";
 import { formatCalendarDateLocal } from "@/lib/utils/kickoff-display";
@@ -156,9 +155,9 @@ function RecentFormColumn({ matches }: { matches: TeamFormMatch[] }) {
 
   return (
     <ul className="space-y-2">
-      {matches.map((m) => (
+      {matches.map((m, index) => (
         <li
-          key={`${m.date}-${m.opponent}-${m.score}`}
+          key={`${m.date}-${m.opponent}-${m.score}-${index}`}
           className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/20 px-2 py-1.5 dark:border-slate-800/50 dark:bg-slate-900/30"
         >
           <FormBadge result={m.result} />
@@ -246,8 +245,6 @@ export function TeamComparisonPanel({ comparison }: { comparison: TeamComparison
           </div>
         </div>
       </div>
-
-      <TeamSquadComparison home={home} away={away} />
     </div>
   );
 }

@@ -32,14 +32,23 @@ export type InternationalFormMatch = {
   metricsSource?: string | null;
 };
 
-function matchDedupeKey(m: InternationalFormMatch): string {
-  return [
-    m.date ?? "",
-    m.home_team_id ?? "",
-    m.away_team_id ?? "",
-    m.home_goals ?? "",
-    m.away_goals ?? "",
-  ].join("|");
+import {
+  canonicalInternationalFormMatchKey,
+  internationalFormMatchPriority,
+} from "@/lib/world-cup/international-form-team-side";
+
+function mergeFormRow(
+  byKey: Map<string, InternationalFormMatch>,
+  row: InternationalFormMatch
+): void {
+  const key = canonicalInternationalFormMatchKey(row);
+  const existing = byKey.get(key);
+  if (
+    !existing ||
+    internationalFormMatchPriority(row) > internationalFormMatchPriority(existing)
+  ) {
+    byKey.set(key, row);
+  }
 }
 
 function goalsForTeamInEvent(event: SportApiEvent, teamId: number): number | null {
@@ -146,7 +155,7 @@ export async function loadInternationalFormMatchesForTeam(
 
   const fbrefRows = await loadFbrefInternationalForm(teamName, limit);
   for (const row of fbrefRows) {
-    byKey.set(matchDedupeKey(row), row);
+    mergeFormRow(byKey, row);
   }
 
   const apiTeamId = resolveApiTeamId(teamId, teamName);
@@ -154,7 +163,7 @@ export async function loadInternationalFormMatchesForTeam(
     const events = await loadRecentFormEventsForTeam(supabase, apiTeamId, teamName, limit);
     for (const event of events) {
       const row = mapSyncedEventToForm(event, apiTeamId);
-      if (row) byKey.set(matchDedupeKey(row), row);
+      if (row) mergeFormRow(byKey, row);
     }
   }
 
