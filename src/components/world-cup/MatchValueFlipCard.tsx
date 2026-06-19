@@ -6,7 +6,7 @@ import { NationalTeamFlag } from "@/components/world-cup/NationalTeamFlag";
 import type { HubCardPrediction } from "@/lib/world-cup/hub-prediction";
 import type { MatchPhase } from "@/lib/world-cup/match-kickoff";
 import { buildNationalPredictorUrl } from "@/lib/world-cup/predictor-prefill";
-import { formatKickoffTime } from "@/lib/world-cup/sort-matches";
+import { formatWcVenueKickoff } from "@/lib/world-cup/match-kickoff";
 import { buildGuardedScoreMatrix } from "@/lib/world-cup/score-grid";
 import {
   computeOutcomeEdges,
@@ -117,7 +117,11 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
   const snapshot = cardPrediction?.snapshot;
   const altitude = venueAltitude ?? 0;
   const highAltitude = altitude > HIGH_ALTITUDE_M;
-  const kickoff = formatKickoffTime(matchTime);
+  const kickoff = formatWcVenueKickoff({
+    date: matchDate,
+    time: matchTime,
+    venueCity: venueCity,
+  });
   const predictorUrl = buildNationalPredictorUrl({
     homeName,
     awayName,

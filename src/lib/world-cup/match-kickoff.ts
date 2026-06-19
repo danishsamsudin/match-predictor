@@ -78,6 +78,39 @@ export function resolveWcKickoffUtcMs(input: {
   return guess;
 }
 
+/** UTC ISO for a World Cup kickoff in the host city's local wall clock. */
+export function wcVenueKickoffToUtcIso(input: {
+  date?: string | null | undefined;
+  time?: string | null | undefined;
+  venueCity?: string | null;
+}): string | null {
+  const ms = resolveWcKickoffUtcMs(input);
+  return ms != null ? new Date(ms).toISOString() : null;
+}
+
+/** Venue-local kickoff label with stadium timezone (e.g. `15:00 GMT-6`). */
+export function formatWcVenueKickoff(input: {
+  date?: string | null | undefined;
+  time?: string | null | undefined;
+  venueCity?: string | null;
+}): string | null {
+  const ms = resolveWcKickoffUtcMs(input);
+  if (ms == null) {
+    const clock = parseClock(input.time);
+    return clock ? `${String(clock.hour).padStart(2, "0")}:${String(clock.minute).padStart(2, "0")}` : null;
+  }
+
+  const venue = resolveStadiumVenue(input.venueCity ?? null);
+  const timeZone = venue?.timezone ?? "America/New_York";
+
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(ms));
+}
+
 export function isMatchFinished(input: {
   status?: string | null;
   homeGoals?: number | null;

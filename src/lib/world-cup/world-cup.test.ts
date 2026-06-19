@@ -13,8 +13,10 @@ import { buildRoundOf32Matchups } from "@/lib/world-cup/knockout-display";
 import {
   buildBracketMatchPredictorUrl,
   buildNationalPredictorUrl,
+  parsePredictorPrefillFromSearchParams,
   resolveNationalTeamApiId,
 } from "@/lib/world-cup/predictor-prefill";
+import { utcIsoToLocalDateTime } from "@/lib/utils/kickoff-display";
 import type { ForecastMatchResult } from "@/lib/world-cup/tournament-simulation";
 import fixtureVenueSchedule from "../../../data/world-cup-2026/fixture-venues.json";
 import {
@@ -308,6 +310,7 @@ describe("predictor prefill", () => {
     expect(url).toContain("home=4714");
     expect(url).toContain("away=4735");
     expect(url).toContain("city=Guadalajara");
+    expect(url).toContain("kickoffUtc=2026-06-20T21%3A00%3A00.000Z");
 
     const fallback = buildNationalPredictorUrl({
       homeName: "Czechia",
@@ -338,7 +341,19 @@ describe("predictor prefill", () => {
     expect(url).toContain("awayName=Argentina");
     expect(url).toContain("date=2026-07-19");
     expect(url).toContain("time=15%3A00");
+    expect(url).toContain("kickoffUtc=2026-07-19T19%3A00%3A00.000Z");
     expect(url).toContain("city=New+York");
+  });
+
+  it("converts venue kickoffUtc to viewer-local date/time on prefill", () => {
+    const kickoffUtc = "2026-06-20T21:00:00.000Z";
+    const params = new URLSearchParams(
+      `entity=national&mode=compare&home=4714&away=4735&city=Guadalajara&kickoffUtc=${encodeURIComponent(kickoffUtc)}`
+    );
+    const prefill = parsePredictorPrefillFromSearchParams(params);
+    const expected = utcIsoToLocalDateTime(kickoffUtc);
+    expect(prefill?.date).toBe(expected.date);
+    expect(prefill?.time).toBe(expected.time);
   });
 
   it("skips placeholder bracket matches", () => {
