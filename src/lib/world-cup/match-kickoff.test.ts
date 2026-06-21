@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveMatchPhase,
+  resolveWcKickoffForFixture,
   shouldRefreshHubPrediction,
   wcVenueKickoffToUtcIso,
 } from "@/lib/world-cup/match-kickoff";
@@ -55,5 +56,20 @@ describe("wcVenueKickoffToUtcIso", () => {
         venueCity: "New York",
       })
     ).toBe("2026-07-19T19:00:00.000Z");
+  });
+});
+
+describe("resolveWcKickoffForFixture", () => {
+  it("converts Spain vs Saudi Arabia Atlanta noon to 18:00 CEST", () => {
+    const resolved = resolveWcKickoffForFixture({
+      date: "2026-06-21",
+      time: null,
+      homeName: "Spain",
+      awayName: "Saudi Arabia",
+      venueCity: "Atlanta",
+    });
+    expect(resolved?.venueLocalTime).toBe("12:00");
+    expect(resolved?.cestTime).toBe("18:00");
+    expect(resolved?.kickoffUtc).toBe("2026-06-21T16:00:00.000Z");
   });
 });

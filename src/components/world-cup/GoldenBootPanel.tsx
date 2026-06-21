@@ -39,17 +39,30 @@ export function GoldenBootPanel({
     );
   }
 
+  const liveLeader = predictions.liveLeader;
+
   return (
     <div className="space-y-4">
+      {liveLeader && (
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Live tournament leader:{" "}
+          <span className="font-semibold text-slate-900 dark:text-white">
+            {liveLeader.playerName}
+          </span>{" "}
+          ({liveLeader.goals} goal{liveLeader.goals === 1 ? "" : "s"})
+        </p>
+      )}
+
       <div className="liquid-glass-pill overflow-x-auto rounded-2xl">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="text-left text-slate-500">
-              <th className="px-4 py-2">Rank</th>
+              <th className="px-4 py-2">Pred.</th>
               <th>Player</th>
               <th>Team</th>
               <th>Pos</th>
               <th>Scored</th>
+              <th>Live</th>
               <th>Projected</th>
               <th>Matches</th>
               <th>Share</th>
@@ -70,6 +83,11 @@ export function GoldenBootPanel({
                   </td>
                   <td className="py-2 font-medium text-slate-900 dark:text-white">
                     {row.playerName}
+                    {row.isLiveLeader && (
+                      <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                        Live lead
+                      </span>
+                    )}
                   </td>
                   <td className="py-2">
                     <span className="inline-flex items-center gap-2">
@@ -84,7 +102,10 @@ export function GoldenBootPanel({
                   <td className="py-2 text-slate-600 dark:text-slate-300">
                     {row.fieldPosition ?? row.position}
                   </td>
-                  <td className="py-2">{row.goalsSoFar}</td>
+                  <td className="py-2 font-medium">{row.goalsSoFar}</td>
+                  <td className="py-2 text-slate-600 dark:text-slate-300">
+                    {row.liveTournamentRank != null ? `${row.liveTournamentRank}` : "—"}
+                  </td>
                   <td className="py-2 font-semibold text-emerald-700 dark:text-emerald-400">
                     {formatGoals(row.projectedTotalGoals)}
                   </td>
@@ -96,6 +117,17 @@ export function GoldenBootPanel({
           </tbody>
         </table>
       </div>
+
+      {predictions.frozenAt && (
+        <p className="text-xs text-slate-500">
+          Predicted top 10 locked {new Date(predictions.frozenAt).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}
+          . Row order and projections stay fixed; scored and live columns update after each match.
+        </p>
+      )}
 
       <details className="liquid-glass-pill rounded-2xl p-4 text-sm">
         <summary className="cursor-pointer font-semibold text-slate-900 dark:text-white">

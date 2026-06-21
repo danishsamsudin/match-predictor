@@ -1,10 +1,16 @@
-import { getFifaRankingPoints, resolveNationalTeamForStrength } from "@/lib/prediction/fifa-team-strength";
+import { getLatestFifaRankingForTeamId } from "@/lib/data/fifa-rankings-store";
+import { WORLD_CUP_2026_TEAMS } from "@/lib/data/world-cup-2026-teams";
+import {
+  getFifaRankingPoints,
+  resolveNationalTeamForStrength,
+} from "@/lib/prediction/fifa-team-strength";
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
 import { GRAHAM_XG_ELO_BASE_K } from "@/lib/world-cup/graham-model-config";
 import { internationalMatchTierWeight } from "@/lib/world-cup/international-strength";
 
 const DEFAULT_RATING = 1500;
 const ELO_SCALE = 400;
+const ELO_RANK_STEP = 8;
 
 export type XgEloMatchRow = InternationalFormMatch & {
   home_xgf?: number | null;
@@ -18,26 +24,26 @@ function expectedXgDiff(homeR: number, awayR: number): number {
   return (expHomeWin - 0.5) * 2.4;
 }
 
-function resolveTeamXg(m: InternationalFormMatch, teamId: string): { xgf: number; xga: number } | null {
-  const isHome = m.home_team_id === teamId;
-  const isAway = m.away_team_id === teamId;
-  if (!isHome && !isAway) return null;
+function estimateFifaRank(teamId: number, teamName?: string): number {
+  const resolved = resolveNationalTeamForStrength(teamId, teamName);
+  const fromDb = getLatestFifaRankingForTeamId(resolved.teamId, resolved.teamName);
+  if (fromDb?.rank != null && fromDb.rank > 0) return fromDb.rank;
 
-  const xgf =
-    (isHome ? m.home_xg : m.away_xg) ??
-    (isHome ? m.home_goals : m.away_goals);
-  const xga =
-    (isHome ? m.away_xg : m.home_xg) ??
-    (isHome ? m.away_goals : m.home_goals);
-  if (xgf == null || xga == null) return null;
-  return { xgf, xga };
+  const sorted = [...WORLD_CUP_2026_TEAMS]
+    .map((t) => ({
+      id: t.id,
+      pts: getFifaRankingPoints(t.id, t.name) ?? 1400,
+    }))
+    .sort((a, b) => b.pts - a.pts);
+
+  const idx = sorted.findIndex((t) => t.id === resolved.teamId);
+  return idx >= 0 ? idx + 1 : Math.ceil(sorted.length / 2);
 }
 
+/** Elo-scale rating from FIFA rank (rank 1 ≈ 1500, wider spread than raw FIFA points). */
 export function initialXgEloRating(teamId: number, teamName?: string): number {
-  const resolved = resolveNationalTeamForStrength(teamId, teamName);
-  const pts = getFifaRankingPoints(resolved.teamId, resolved.teamName ?? teamName);
-  if (pts == null) return DEFAULT_RATING;
-  return pts;
+  const rank = estimateFifaRank(teamId, teamName);
+  return DEFAULT_RATING - (rank - 1) * ELO_RANK_STEP;
 }
 
 export function computeXgEloFromMatches(

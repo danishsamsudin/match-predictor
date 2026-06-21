@@ -1,4 +1,8 @@
 import {
+  GRAHAM_1X2_TEMPERATURE,
+  GRAHAM_DELTA_S_CAP,
+} from "@/lib/world-cup/graham-model-config";
+import {
   clampInternationalBaselineXg,
   INTERNATIONAL_XG_FLOOR,
 } from "@/lib/world-cup/international-strength";
@@ -70,7 +74,10 @@ export function recomputeXgFromSnapshot(
     processDelta += coef * val;
   }
 
-  const totalDeltaS = deltaS + optaDelta + processDelta;
+  const totalDeltaS = Math.max(
+    -GRAHAM_DELTA_S_CAP,
+    Math.min(GRAHAM_DELTA_S_CAP, deltaS + optaDelta + processDelta)
+  );
 
   let homeXg = clampInternationalBaselineXg(mu * Math.exp(c * totalDeltaS));
   let awayXg = clampInternationalBaselineXg(mu * Math.exp(-c * totalDeltaS));
@@ -145,12 +152,16 @@ export function recomputeHubPredictionFromSnapshot(
   const { homeXg, awayXg, rho } = recomputeXgFromSnapshot(snapshot, calibration);
   const mutualDraw = String(snapshot.scenario ?? "").includes("mutual_draw");
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
+  const temperedH = Math.pow(outcomes.homeWin, GRAHAM_1X2_TEMPERATURE);
+  const temperedD = Math.pow(outcomes.draw, GRAHAM_1X2_TEMPERATURE);
+  const temperedA = Math.pow(outcomes.awayWin, GRAHAM_1X2_TEMPERATURE);
+  const temperedSum = temperedH + temperedD + temperedA || 1;
   const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw);
 
   return {
-    home_win_pct: Number(outcomes.homeWin.toFixed(4)),
-    draw_pct: Number(outcomes.draw.toFixed(4)),
-    away_win_pct: Number(outcomes.awayWin.toFixed(4)),
+    home_win_pct: Number((temperedH / temperedSum).toFixed(4)),
+    draw_pct: Number((temperedD / temperedSum).toFixed(4)),
+    away_win_pct: Number((temperedA / temperedSum).toFixed(4)),
     predicted_score_home: outcomes.predictedHome,
     predicted_score_away: outcomes.predictedAway,
     under_2_5_pct: Number(outcomes.under25.toFixed(4)),
@@ -163,6 +174,7 @@ export function recomputeHubPredictionFromSnapshot(
       lambda: homeXg,
       mu: awayXg,
       rho,
+      top_scorelines: outcomes.topScorelines,
       ml_recomputed: true,
       calibration_version: calibration.modelVersion,
     },
@@ -200,6 +212,30 @@ export function avgCompositeLossForSnapshots(
       modelVersion
     );
     sum += scores.compositeLoss;
+  }
+  return sum / rows.length;
+}
+
+export function avgBrier1x2ForSnapshots(
+  rows: Array<{
+    snapshot: Record<string, unknown>;
+    actualHome: number;
+    actualAway: number;
+  }>,
+  calibration: WcCalibrationConstants,
+  modelVersion: string
+): number {
+  if (!rows.length) return Infinity;
+  let sum = 0;
+  for (const row of rows) {
+    const scores = evaluateSnapshotWithCalibration(
+      row.snapshot,
+      calibration,
+      row.actualHome,
+      row.actualAway,
+      modelVersion
+    );
+    sum += scores.brier1x2;
   }
   return sum / rows.length;
 }

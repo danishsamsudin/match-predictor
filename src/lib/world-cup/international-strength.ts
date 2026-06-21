@@ -319,9 +319,9 @@ export function resolveInternationalScoreCorrelation(
     fifaRatingDelta != null ? Math.abs(fifaRatingDelta) / 280 : 0;
   const effectiveDiff = Math.max(xgDiff, impliedFromFifa);
 
-  if (effectiveDiff >= 1.25) return 0.1;
-  if (effectiveDiff >= 0.75) return 0.06;
-  if (effectiveDiff >= 0.28) return 0.04;
+  if (effectiveDiff >= 1.25) return 0;
+  if (effectiveDiff >= 0.75) return -0.04;
+  if (effectiveDiff >= 0.28) return 0.02;
   const total = homeXg + awayXg;
   if (total >= 3.1) return -0.08;
   if (total >= 2.4) return -0.11;

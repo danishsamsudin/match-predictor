@@ -2,8 +2,8 @@ import {
   normalizeNationalTeamName,
   WORLD_CUP_2026_TEAMS,
 } from "@/lib/data/world-cup-2026-teams";
-import { utcIsoToLocalDateTime } from "@/lib/utils/kickoff-display";
-import { wcVenueKickoffToUtcIso } from "@/lib/world-cup/match-kickoff";
+import { utcIsoToWcDateTime } from "@/lib/utils/kickoff-display";
+import { resolveWcKickoffForFixture } from "@/lib/world-cup/match-kickoff";
 import { normalizePredictorVenueCity } from "@/lib/world-cup/stadium-metadata";
 import type { ForecastMatchResult } from "@/lib/world-cup/tournament-simulation";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
@@ -55,9 +55,21 @@ export function buildNationalPredictorUrl(input: {
   const awayId = resolveNationalTeamApiId(input.awayName);
   if (homeId == null || awayId == null) return null;
 
-  const city = normalizePredictorVenueCity(input.city, {
-    defaultWhenUnknown: input.worldCupFixture ? "Mexico City" : "Neutral",
-  });
+  const resolvedKickoff = input.worldCupFixture
+    ? resolveWcKickoffForFixture({
+        date: input.date,
+        time: input.time,
+        homeName: input.homeName,
+        awayName: input.awayName,
+        venueCity: input.city,
+      })
+    : null;
+
+  const city =
+    resolvedKickoff?.venueCity ??
+    normalizePredictorVenueCity(input.city, {
+      defaultWhenUnknown: input.worldCupFixture ? "Mexico City" : "Neutral",
+    });
 
   const params = new URLSearchParams({
     entity: "national",
@@ -69,18 +81,12 @@ export function buildNationalPredictorUrl(input: {
     city,
   });
 
-  const kickoffUtc =
-    input.date && input.time
-      ? wcVenueKickoffToUtcIso({
-          date: input.date,
-          time: input.time,
-          venueCity: city,
-        })
-      : null;
+  const kickoffUtc = resolvedKickoff?.kickoffUtc ?? null;
   if (kickoffUtc) params.set("kickoffUtc", kickoffUtc);
 
-  if (input.date) params.set("date", input.date);
-  const time = input.time ? normalizeKickoffTime(input.time) : "";
+  const date = resolvedKickoff?.cestDate ?? input.date;
+  const time = resolvedKickoff?.cestTime ?? (input.time ? normalizeKickoffTime(input.time) : "");
+  if (date) params.set("date", date);
   if (time) params.set("time", time);
 
   return `/predict?${params.toString()}`;
@@ -110,7 +116,7 @@ export function buildBracketMatchPredictorUrl(match: ForecastMatchResult): strin
 function normalizeKickoffTime(time: string): string {
   const trimmed = time.trim();
   if (/^\d{1,2}:\d{2}$/.test(trimmed)) return trimmed;
-  const m = trimmed.match(/^(\d{1,2}):(\d{2}):/);
+  const m = trimmed.match(/^(\d{1,2}):(\d{2})/);
   if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
   return trimmed;
 }
@@ -126,13 +132,32 @@ export function parsePredictorPrefillFromSearchParams(
   const mode = params.get("mode") === "fixture" ? "fixture" : "compare";
   const defaultCity = entity === "national" ? "Mexico City" : "Manchester";
 
+  const homeName = params.get("homeName") ?? "";
+  const awayName = params.get("awayName") ?? "";
+  const city = normalizePredictorVenueCity(params.get("city") ?? defaultCity, {
+    defaultWhenUnknown: defaultCity,
+  });
+
   const kickoffUtc = params.get("kickoffUtc");
   let date = params.get("date") ?? undefined;
   let time = params.get("time") ?? undefined;
+
   if (kickoffUtc) {
-    const local = utcIsoToLocalDateTime(kickoffUtc);
-    date = local.date;
-    time = local.time;
+    const cest = utcIsoToWcDateTime(kickoffUtc);
+    date = cest.date;
+    time = cest.time;
+  } else if (entity === "national" && homeName && awayName) {
+    const resolved = resolveWcKickoffForFixture({
+      date,
+      time,
+      homeName,
+      awayName,
+      venueCity: city,
+    });
+    if (resolved) {
+      date = resolved.cestDate;
+      time = resolved.cestTime;
+    }
   }
 
   return {
@@ -140,11 +165,9 @@ export function parsePredictorPrefillFromSearchParams(
     inputMode: mode,
     homeTeamId: Number(home),
     awayTeamId: Number(away),
-    homeName: params.get("homeName") ?? "",
-    awayName: params.get("awayName") ?? "",
-    city: normalizePredictorVenueCity(params.get("city") ?? defaultCity, {
-      defaultWhenUnknown: defaultCity,
-    }),
+    homeName,
+    awayName,
+    city,
     date,
     time,
   };

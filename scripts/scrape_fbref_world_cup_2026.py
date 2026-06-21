@@ -378,6 +378,10 @@ def _parse_fbref_time(value: str) -> Optional[dt_time]:
     value = (value or "").strip()
     if not value or value in ("—", "-", ""):
         return None
+    # FBref group stage uses "12:00(18:00)" — local wall clock, then CEST in parentheses.
+    local_match = re.match(r"^(\d{1,2}:\d{2})", value)
+    if local_match:
+        value = local_match.group(1)
     for fmt in ("%H:%M", "%I:%M %p"):
         try:
             from datetime import datetime

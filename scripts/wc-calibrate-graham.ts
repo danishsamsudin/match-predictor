@@ -4,6 +4,7 @@
  * Usage: npx tsx scripts/wc-calibrate-graham.ts
  */
 import {
+  avgBrier1x2ForSnapshots,
   avgCompositeLossForSnapshots,
 } from "../src/lib/world-cup/graham-snapshot-calibration";
 import {
@@ -103,6 +104,11 @@ async function main() {
     current,
     current.modelVersion
   );
+  const baselineBrier = avgBrier1x2ForSnapshots(evalRows, current, current.modelVersion);
+  const useBrierBlend = evalRows.length >= 5;
+
+  const scoreTrial = (composite: number, brier: number) =>
+    useBrierBlend ? composite * 0.65 + brier * 0.35 : composite;
 
   let best: WcCalibrationConstants = {
     ...current,
@@ -118,7 +124,7 @@ async function main() {
         : {}),
     },
   };
-  let bestLoss = baselineLoss;
+  let bestLoss = scoreTrial(baselineLoss, baselineBrier);
 
   const muCandidates = [current.muXg * 0.95, current.muXg, current.muXg * 1.05];
   const expCandidates = [
@@ -167,8 +173,14 @@ async function main() {
               trial,
               trial.modelVersion
             );
-            if (trialLoss < bestLoss) {
-              bestLoss = trialLoss;
+            const trialBrier = avgBrier1x2ForSnapshots(
+              evalRows,
+              trial,
+              trial.modelVersion
+            );
+            const trialScore = scoreTrial(trialLoss, trialBrier);
+            if (trialScore < bestLoss) {
+              bestLoss = trialScore;
               best = trial;
             }
           }
@@ -177,10 +189,10 @@ async function main() {
     }
   }
 
-  const improved = calibrationGridImproved(bestLoss, baselineLoss);
+  const improved = calibrationGridImproved(bestLoss, scoreTrial(baselineLoss, baselineBrier));
   if (!improved) {
     console.log(
-      `No improvement (baseline composite ${baselineLoss.toFixed(4)}, best ${bestLoss.toFixed(4)}) — keeping ${current.modelVersion}.`
+      `No improvement (baseline composite ${baselineLoss.toFixed(4)}, brier ${baselineBrier.toFixed(4)}, best ${bestLoss.toFixed(4)}) — keeping ${current.modelVersion}.`
     );
     return;
   }
@@ -226,9 +238,10 @@ async function main() {
     constants,
     metrics: {
       baseline_composite: baselineLoss,
+      baseline_brier_1x2: baselineBrier,
       candidate_composite: bestLoss,
       evaluation_count: evalRows.length,
-      method: "snapshot_backtest",
+      method: useBrierBlend ? "snapshot_backtest_composite_brier" : "snapshot_backtest",
     },
   });
 

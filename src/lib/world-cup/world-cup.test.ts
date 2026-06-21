@@ -16,7 +16,7 @@ import {
   parsePredictorPrefillFromSearchParams,
   resolveNationalTeamApiId,
 } from "@/lib/world-cup/predictor-prefill";
-import { utcIsoToLocalDateTime } from "@/lib/utils/kickoff-display";
+import { utcIsoToWcDateTime } from "@/lib/utils/kickoff-display";
 import type { ForecastMatchResult } from "@/lib/world-cup/tournament-simulation";
 import fixtureVenueSchedule from "../../../data/world-cup-2026/fixture-venues.json";
 import {
@@ -311,13 +311,15 @@ describe("predictor prefill", () => {
     expect(url).toContain("away=4735");
     expect(url).toContain("city=Guadalajara");
     expect(url).toContain("kickoffUtc=2026-06-20T21%3A00%3A00.000Z");
+    expect(url).toContain("time=23%3A00");
 
     const fallback = buildNationalPredictorUrl({
       homeName: "Czechia",
       awayName: "South Korea",
       worldCupFixture: true,
     });
-    expect(fallback).toContain("city=Mexico+City");
+    expect(fallback).toContain("city=Guadalajara");
+    expect(fallback).toContain("kickoffUtc=2026-06-12T02%3A00%3A00.000Z");
     expect(url).toContain("homeName=Czechia");
   });
 
@@ -340,20 +342,57 @@ describe("predictor prefill", () => {
     expect(url).toContain("homeName=France");
     expect(url).toContain("awayName=Argentina");
     expect(url).toContain("date=2026-07-19");
-    expect(url).toContain("time=15%3A00");
+    expect(url).toContain("time=21%3A00");
     expect(url).toContain("kickoffUtc=2026-07-19T19%3A00%3A00.000Z");
     expect(url).toContain("city=New+York");
   });
 
-  it("converts venue kickoffUtc to viewer-local date/time on prefill", () => {
+  it("converts venue kickoffUtc to CEST date/time on prefill", () => {
     const kickoffUtc = "2026-06-20T21:00:00.000Z";
     const params = new URLSearchParams(
       `entity=national&mode=compare&home=4714&away=4735&city=Guadalajara&kickoffUtc=${encodeURIComponent(kickoffUtc)}`
     );
     const prefill = parsePredictorPrefillFromSearchParams(params);
-    const expected = utcIsoToLocalDateTime(kickoffUtc);
+    const expected = utcIsoToWcDateTime(kickoffUtc);
     expect(prefill?.date).toBe(expected.date);
     expect(prefill?.time).toBe(expected.time);
+  });
+
+  it("Germany vs Curaçao venue noon maps to CEST prefill from official schedule", () => {
+    const url = buildNationalPredictorUrl({
+      homeName: "Germany",
+      awayName: "Curaçao",
+      city: "Houston",
+      date: "2026-06-14",
+      time: null,
+      worldCupFixture: true,
+    });
+    expect(url).toBeTruthy();
+    const params = new URLSearchParams(url!.split("?")[1]);
+    const prefill = parsePredictorPrefillFromSearchParams(params);
+    const kickoffUtc = params.get("kickoffUtc");
+    expect(kickoffUtc).toBe("2026-06-14T17:00:00.000Z");
+    expect(prefill?.time).toBe("19:00");
+    expect(prefill?.date).toBe("2026-06-14");
+  });
+
+  it("Spain vs Saudi Arabia pre-fills 18:00 CEST from Atlanta noon even when DB time is null", () => {
+    const url = buildNationalPredictorUrl({
+      homeName: "Spain",
+      awayName: "Saudi Arabia",
+      city: "Atlanta",
+      date: "2026-06-21",
+      time: null,
+      worldCupFixture: true,
+    });
+    expect(url).toBeTruthy();
+    expect(url).toContain("kickoffUtc=2026-06-21T16%3A00%3A00.000Z");
+    expect(url).toContain("time=18%3A00");
+    const prefill = parsePredictorPrefillFromSearchParams(
+      new URLSearchParams(url!.split("?")[1])
+    );
+    expect(prefill?.time).toBe("18:00");
+    expect(prefill?.date).toBe("2026-06-21");
   });
 
   it("skips placeholder bracket matches", () => {

@@ -117,15 +117,18 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
   const snapshot = cardPrediction?.snapshot;
   const altitude = venueAltitude ?? 0;
   const highAltitude = altitude > HIGH_ALTITUDE_M;
+  const kickoffVenueLabel = venueCity ?? venueStadium ?? null;
   const kickoff = formatWcVenueKickoff({
     date: matchDate,
     time: matchTime,
-    venueCity: venueCity,
+    venueCity: kickoffVenueLabel,
+    homeName,
+    awayName,
   });
   const predictorUrl = buildNationalPredictorUrl({
     homeName,
     awayName,
-    city: venueCity,
+    city: kickoffVenueLabel,
     date: matchDate,
     time: matchTime,
     worldCupFixture: true,

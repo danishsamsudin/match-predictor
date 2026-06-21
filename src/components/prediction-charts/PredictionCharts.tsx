@@ -680,8 +680,8 @@ export function PredictionCharts({
           tipBody={
             <>
               <strong>Form score</strong> reflects recent results (recent games weighted more).{" "}
-              <strong>Momentum index</strong> blends form (35%) and head-to-head history (65%) into
-              one number - positive favours the home side in our model.
+              <strong>Momentum index</strong> blends recent form (55%) and head-to-head history
+              (10%) into one number - positive favours the home side in our model.
             </>
           }
         >

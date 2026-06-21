@@ -45,12 +45,23 @@ export type GoldenBootCandidate = {
   expectedMatches: number;
   scoringSharePct: number;
   factors: GoldenBootCandidateFactors;
+  /** Current tournament rank by actual goals (not prediction rank). */
+  liveTournamentRank?: number | null;
+  /** Tied for most goals in the tournament so far. */
+  isLiveLeader?: boolean;
 };
 
 export type GoldenBootPredictionPayload = {
   computedAt: string;
+  /** Set when the predicted top-10 roster is locked for the tournament. */
+  frozenAt?: string | null;
   candidates: GoldenBootCandidate[];
   warnings: string[];
+  liveLeader?: {
+    playerName: string;
+    teamId: string;
+    goals: number;
+  } | null;
 };
 
 export type TeamSquadMap = Map<

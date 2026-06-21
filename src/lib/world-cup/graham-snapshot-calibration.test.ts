@@ -66,15 +66,15 @@ describe("graham-snapshot-calibration", () => {
     const withProcess = {
       ...snapshot,
       process_features: {
-        chance_quality_diff: 0.05,
-        finishing_skill_diff: 0.1,
+        chance_quality_diff: 0.35,
+        finishing_skill_diff: 0.4,
       },
     };
     const tuned = {
       ...cal,
       processFeatureWeights: {
-        chance_quality_diff: 2,
-        finishing_skill_diff: 1.5,
+        chance_quality_diff: 8,
+        finishing_skill_diff: 6,
       },
     };
     const baseXg = recomputeXgFromSnapshot(withProcess, cal).homeXg;

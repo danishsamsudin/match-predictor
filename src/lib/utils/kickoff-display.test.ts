@@ -3,7 +3,10 @@ import {
   formatKickoffLocal,
   getDefaultMatchDateTimeLocal,
   localDateTimeToUtcIso,
+  timezoneDateTimeToUtcIso,
   utcIsoToLocalDateTime,
+  utcIsoToWcDateTime,
+  wcDateTimeToUtcIso,
 } from "./kickoff-display";
 
 describe("kickoff-display", () => {
@@ -25,5 +28,20 @@ describe("kickoff-display", () => {
     const fixed = new Date("2026-01-10T14:45:00");
     const { time } = getDefaultMatchDateTimeLocal(fixed);
     expect(time.endsWith(":00")).toBe(true);
+  });
+
+  it("round-trips WC CEST wall clock to UTC", () => {
+    const iso = wcDateTimeToUtcIso("2026-06-15", "18:00");
+    const back = utcIsoToWcDateTime(iso);
+    expect(back.date).toBe("2026-06-15");
+    expect(back.time).toBe("18:00");
+  });
+
+  it("Houston venue kickoff UTC maps to CEST prefill time", () => {
+    const iso = timezoneDateTimeToUtcIso("2026-06-15", "18:00", "America/Chicago");
+    expect(iso).toBe("2026-06-15T23:00:00.000Z");
+    const cest = utcIsoToWcDateTime(iso);
+    expect(cest.date).toBe("2026-06-16");
+    expect(cest.time).toBe("01:00");
   });
 });

@@ -28,7 +28,7 @@ import {
   sanitizeUserFacingMessage,
   shouldHideUserFacingWarning,
 } from "@/lib/api/user-facing-messages";
-import { localDateTimeToUtcIso } from "@/lib/utils/kickoff-display";
+import { localDateTimeToUtcIso, wcDateTimeToUtcIso } from "@/lib/utils/kickoff-display";
 import { getDefaultMatchDateTime, parseFixtureDateTime } from "./utils";
 
 const DEFAULT_CLUB_COUNTRY = "England";
@@ -561,7 +561,10 @@ export function usePredictionForm() {
     setLoading(true);
     setError(null);
 
-    const matchDate = localDateTimeToUtcIso(date, time);
+    const matchDate =
+      entityType === "national"
+        ? wcDateTimeToUtcIso(date, time)
+        : localDateTimeToUtcIso(date, time);
     const basePayload =
       inputMode === "compare"
         ? {

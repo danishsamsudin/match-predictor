@@ -1,7 +1,7 @@
 import { ensureFifaRankingsLoaded } from "@/lib/data/fifa-rankings-store";
 import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import { tryCreateServiceClient } from "@/lib/supabase";
-import { GRAHAM_MODEL_VERSION } from "@/lib/world-cup/graham-model-config";
+import { GRAHAM_1X2_TEMPERATURE, GRAHAM_MODEL_VERSION } from "@/lib/world-cup/graham-model-config";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { loadWcInTournamentFormNudges } from "@/lib/world-cup/graham-wc-in-tournament-form";
 import { applyWcModelXiToHubPrediction } from "@/lib/world-cup/wc-hub-model-xi";
@@ -47,6 +47,19 @@ function resolveHostNationXgBoost(matchCity: string | null, homeName: string): n
     return 1.04;
   }
   return 1;
+}
+
+function temper1x2Probs(
+  homeWin: number,
+  draw: number,
+  awayWin: number,
+  tau = GRAHAM_1X2_TEMPERATURE
+): { homeWin: number; draw: number; awayWin: number } {
+  const h = Math.pow(homeWin, tau);
+  const d = Math.pow(draw, tau);
+  const a = Math.pow(awayWin, tau);
+  const sum = h + d + a || 1;
+  return { homeWin: h / sum, draw: d / sum, awayWin: a / sum };
 }
 
 export async function runGrahamWorldCupPredict(input: {
@@ -145,12 +158,13 @@ export async function runGrahamWorldCupPredict(input: {
   const mutualDraw = motivation.scenario.includes("mutual_draw");
 
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
+  const tempered = temper1x2Probs(outcomes.homeWin, outcomes.draw, outcomes.awayWin);
   const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw);
 
   let hubRow: HubPredictionRow = {
-    home_win_pct: Number(outcomes.homeWin.toFixed(4)),
-    draw_pct: Number(outcomes.draw.toFixed(4)),
-    away_win_pct: Number(outcomes.awayWin.toFixed(4)),
+    home_win_pct: Number(tempered.homeWin.toFixed(4)),
+    draw_pct: Number(tempered.draw.toFixed(4)),
+    away_win_pct: Number(tempered.awayWin.toFixed(4)),
     predicted_score_home: outcomes.predictedHome,
     predicted_score_away: outcomes.predictedAway,
     under_2_5_pct: Number(outcomes.under25.toFixed(4)),
@@ -174,6 +188,7 @@ export async function runGrahamWorldCupPredict(input: {
       sigma_away: motivation.sigmaAway,
       scenario: motivation.scenario,
       grid_renormalized: grid.renormalized,
+      top_scorelines: outcomes.topScorelines,
       home_form_match_count: homeForm.length,
       away_form_match_count: awayForm.length,
       home_talent_eur: homeTalent.squadValueEur,

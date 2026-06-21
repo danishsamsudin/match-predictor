@@ -6,6 +6,7 @@ import {
   type GoldenBootPredictionPayload,
   type TeamSquadMap,
 } from "@/lib/world-cup/golden-boot-prediction";
+import { loadTournamentGoalTotals, resolvePlayerGoals } from "@/lib/world-cup/golden-boot-live";
 import type { GroupMatchPrediction } from "@/lib/world-cup/simulate-group-stage";
 import type { TournamentForecastPayload } from "@/lib/world-cup/tournament-forecast-payload";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
@@ -129,6 +130,19 @@ export async function runGoldenBootForecast(input: {
     });
   }
 
+  const goalTotals = await loadTournamentGoalTotals(input.client, input.teamNames);
+  const goalsByPlayerTeam = new Map<string, Map<string, number>>();
+  for (const [teamId, { squad }] of squads) {
+    const teamGoalEntries = goalTotals.byTeam.get(teamId);
+    if (!teamGoalEntries) continue;
+    const playerMap = new Map<string, number>();
+    for (const player of [...squad.starters, ...squad.substitutes]) {
+      const goals = resolvePlayerGoals(teamGoalEntries, player.name);
+      if (goals > 0) playerMap.set(player.name, goals);
+    }
+    if (playerMap.size) goalsByPlayerTeam.set(teamId, playerMap);
+  }
+
   const payload = computeGoldenBootPredictions({
     forecast: input.forecast,
     groupMatches: input.groupMatches,
@@ -136,6 +150,7 @@ export async function runGoldenBootForecast(input: {
     teamNames: input.teamNames,
     squads,
     penaltyTakersByTeamName,
+    goalsByPlayerTeam,
   });
 
   cache = {

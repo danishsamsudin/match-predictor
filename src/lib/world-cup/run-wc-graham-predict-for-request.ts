@@ -13,6 +13,7 @@ import {
 } from "@/lib/world-cup/resolve-wc-lineup-player-stats";
 import { applyWcModelXiToHubPrediction } from "@/lib/world-cup/wc-hub-model-xi";
 import { buildWcPredictionAnalyticsContext } from "@/lib/world-cup/build-wc-prediction-analytics-context";
+import { resolveWcLineupApiIds } from "@/lib/world-cup/resolve-wc-lineup-orientation";
 import { loadEnrichedFormForTeam } from "@/lib/world-cup/load-enriched-international-form";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
@@ -95,13 +96,14 @@ export async function runWcGrahamPredictForRequest(input: {
 
   const homeTeamApiId = resolveApiTeamId(match.home_team_id!, homeName);
   const awayTeamApiId = resolveApiTeamId(match.away_team_id!, awayName);
+  const { lineupHomeApiId, lineupAwayApiId } = resolveWcLineupApiIds(resolved, request);
 
   if (lineupSource === "manual_xi" && request.customLineups?.length) {
     const wcHomeNames = request.customLineups
-      .filter((l) => l.team.id === request.homeTeamId)
+      .filter((l) => l.team.id === lineupHomeApiId)
       .flatMap((l) => l.startXI.map((p) => p.player.name));
     const wcAwayNames = request.customLineups
-      .filter((l) => l.team.id === request.awayTeamId)
+      .filter((l) => l.team.id === lineupAwayApiId)
       .flatMap((l) => l.startXI.map((p) => p.player.name));
 
     const [wcHome, wcAway] = await Promise.all([
@@ -211,7 +213,7 @@ export async function runWcGrahamPredictForRequest(input: {
     ),
   });
 
-  const analyticsContext = buildWcPredictionAnalyticsContext({
+  const analyticsContext = await buildWcPredictionAnalyticsContext({
     snapshot: hubRow.snapshot,
     homeXg,
     awayXg,
@@ -223,6 +225,7 @@ export async function runWcGrahamPredictForRequest(input: {
     awayName,
     homeFormMatches,
     awayFormMatches,
+    supabase,
   });
 
   const result = grahamHubRowToPredictionResult({
@@ -236,8 +239,8 @@ export async function runWcGrahamPredictForRequest(input: {
   });
 
   const playerProps = await computePlayerPropsForMatch({
-    homeTeamId: request.homeTeamId,
-    awayTeamId: request.awayTeamId,
+    homeTeamId: homeTeamApiId,
+    awayTeamId: awayTeamApiId,
     homeTeamName: homeName,
     awayTeamName: awayName,
     homeLeagueId: request.homeLeagueId,

@@ -33,8 +33,8 @@ export interface GrahamProcessRates {
 const SOT_TO_XG = 0.32;
 const SHOT_TO_XG = 0.1;
 
-function shrinkTowardMean(rate: number, effectiveN: number): number {
-  const conf = effectiveN / (effectiveN + SHRINKAGE_K);
+function shrinkTowardMean(rate: number, effectiveN: number, shrinkageK = SHRINKAGE_K): number {
+  const conf = effectiveN / (effectiveN + shrinkageK);
   return 1 + (rate - 1) * conf;
 }
 
@@ -89,7 +89,8 @@ export function computeGrahamProcessRatesFromMatches(
   teamId: string,
   finishedMatches: InternationalFormMatch[],
   referenceMs = Date.now(),
-  teamName?: string
+  teamName?: string,
+  shrinkageK = SHRINKAGE_K
 ): GrahamProcessRates {
   let xgf = 0;
   let xga = 0;
@@ -150,8 +151,8 @@ export function computeGrahamProcessRatesFromMatches(
   const avgXga = xga / w;
 
   return {
-    attack: shrinkTowardMean(clampRate(avgXgf / mu), w),
-    defense: shrinkTowardMean(clampRate(avgXga / mu), w),
+    attack: shrinkTowardMean(clampRate(avgXgf / mu), w, shrinkageK),
+    defense: shrinkTowardMean(clampRate(avgXga / mu), w, shrinkageK),
     sample: {
       xgFor: avgXgf,
       xgAgainst: avgXga,

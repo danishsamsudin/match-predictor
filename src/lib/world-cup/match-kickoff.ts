@@ -1,4 +1,13 @@
-import { resolveStadiumVenue } from "@/lib/world-cup/stadium-metadata";
+import {
+  getWcTimezoneLabel,
+  WC_DISPLAY_TIMEZONE,
+  utcIsoToWcDateTime,
+} from "@/lib/utils/kickoff-display";
+import {
+  resolveFixtureScheduleMeta,
+  resolveFixtureVenue,
+} from "@/lib/world-cup/fixture-venues";
+import { normalizePredictorVenueCity, resolveStadiumVenue } from "@/lib/world-cup/stadium-metadata";
 
 export type MatchPhase = "pre" | "live" | "finished";
 
@@ -12,7 +21,14 @@ function parseClock(time: string | null | undefined): { hour: number; minute: nu
   return { hour, minute };
 }
 
-/** UTC epoch ms for kickoff in the host city's timezone (null if date missing). */
+function readDateTimePart(
+  parts: Intl.DateTimeFormatPart[],
+  type: Intl.DateTimeFormatPartTypes
+): number {
+  return Number(parts.find((p) => p.type === type)?.value ?? "0");
+}
+
+/** UTC epoch ms for wall-clock kickoff in the host city's IANA timezone. */
 export function resolveWcKickoffUtcMs(input: {
   date?: string | null | undefined;
   time?: string | null | undefined;
@@ -26,55 +42,40 @@ export function resolveWcKickoffUtcMs(input: {
   const timeZone = venue?.timezone ?? "America/New_York";
 
   const [y, mo, d] = date.split("-").map(Number);
-  const desiredLocal = {
-    year: y,
-    month: mo,
-    day: d,
-    hour: clock.hour,
-    minute: clock.minute,
-  };
-
   let guess = Date.UTC(y, mo - 1, d, clock.hour, clock.minute, 0, 0);
-  for (let i = 0; i < 6; i++) {
+
+  for (let i = 0; i < 12; i++) {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone,
       year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
       hour12: false,
     }).formatToParts(new Date(guess));
 
-    const read = (type: Intl.DateTimeFormatPartTypes) =>
-      Number(parts.find((p) => p.type === type)?.value ?? "0");
+    const ty = readDateTimePart(parts, "year");
+    const tmo = readDateTimePart(parts, "month");
+    const td = readDateTimePart(parts, "day");
+    const th = readDateTimePart(parts, "hour") % 24;
+    const tm = readDateTimePart(parts, "minute");
 
-    const actual = {
-      year: read("year"),
-      month: read("month"),
-      day: read("day"),
-      hour: read("hour") % 24,
-      minute: read("minute"),
-    };
+    const diffMin =
+      (y - ty) * 525600 +
+      (mo - tmo) * 43200 +
+      (d - td) * 1440 +
+      (clock.hour - th) * 60 +
+      (clock.minute - tm);
 
-    const desiredTotal =
-      desiredLocal.year * 1e6 +
-      desiredLocal.month * 1e4 +
-      desiredLocal.day * 1e2 +
-      desiredLocal.hour * 60 +
-      desiredLocal.minute;
-    const actualTotal =
-      actual.year * 1e6 +
-      actual.month * 1e4 +
-      actual.day * 1e2 +
-      actual.hour * 60 +
-      actual.minute;
-
-    const diffMin = desiredTotal - actualTotal;
     if (diffMin === 0) return guess;
     guess += diffMin * 60 * 1000;
   }
 
+  console.warn(
+    `[match-kickoff] Failed to converge kickoff for ${date} ${clock.hour}:${String(clock.minute).padStart(2, "0")} in ${timeZone}`
+  );
   return guess;
 }
 
@@ -88,23 +89,88 @@ export function wcVenueKickoffToUtcIso(input: {
   return ms != null ? new Date(ms).toISOString() : null;
 }
 
-/** Venue-local kickoff label with stadium timezone (e.g. `15:00 GMT-6`). */
+export type ResolvedWcKickoff = {
+  date: string;
+  venueCity: string;
+  /** Kickoff in the host stadium's local wall clock (from official schedule when known). */
+  venueLocalTime: string;
+  kickoffUtc: string;
+  cestDate: string;
+  cestTime: string;
+};
+
+/**
+ * Resolve kickoff from the official fixture schedule: venue-local time + stadium TZ → UTC → CEST.
+ */
+export function resolveWcKickoffForFixture(input: {
+  date?: string | null;
+  time?: string | null;
+  homeName?: string | null;
+  awayName?: string | null;
+  venueCity?: string | null;
+}): ResolvedWcKickoff | null {
+  const schedule = resolveFixtureScheduleMeta({
+    date: input.date,
+    time: input.time,
+    homeName: input.homeName,
+    awayName: input.awayName,
+  });
+  const fixtureVenue = resolveFixtureVenue({
+    date: schedule?.date ?? input.date,
+    homeName: input.homeName,
+    awayName: input.awayName,
+    venue_city: input.venueCity,
+  });
+
+  const date = schedule?.date?.trim() || input.date?.trim().slice(0, 10);
+  const venueLocalTime = schedule?.kickoff_time?.trim() || input.time?.trim();
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !venueLocalTime) return null;
+
+  const venueCity = normalizePredictorVenueCity(
+    fixtureVenue?.city ?? input.venueCity,
+    { defaultWhenUnknown: "Mexico City" }
+  );
+
+  const kickoffUtc = wcVenueKickoffToUtcIso({
+    date,
+    time: venueLocalTime,
+    venueCity,
+  });
+  if (!kickoffUtc) return null;
+
+  const cest = utcIsoToWcDateTime(kickoffUtc);
+  return {
+    date,
+    venueCity,
+    venueLocalTime,
+    kickoffUtc,
+    cestDate: cest.date,
+    cestTime: cest.time,
+  };
+}
+
+/** Kickoff label in Central European time (CEST/CET) for hub cards and predictor. */
 export function formatWcVenueKickoff(input: {
   date?: string | null | undefined;
   time?: string | null | undefined;
   venueCity?: string | null;
+  homeName?: string | null;
+  awayName?: string | null;
 }): string | null {
+  const resolved = resolveWcKickoffForFixture(input);
+  if (resolved) {
+    const label = getWcTimezoneLabel(new Date(resolved.kickoffUtc));
+    return `${resolved.cestTime} ${label}`;
+  }
+
   const ms = resolveWcKickoffUtcMs(input);
   if (ms == null) {
     const clock = parseClock(input.time);
     return clock ? `${String(clock.hour).padStart(2, "0")}:${String(clock.minute).padStart(2, "0")}` : null;
   }
 
-  const venue = resolveStadiumVenue(input.venueCity ?? null);
-  const timeZone = venue?.timezone ?? "America/New_York";
-
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone,
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: WC_DISPLAY_TIMEZONE,
     hour: "2-digit",
     minute: "2-digit",
     timeZoneName: "short",

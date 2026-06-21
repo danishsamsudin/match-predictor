@@ -27,6 +27,10 @@ import { resolveMatchPhase } from "@/lib/world-cup/match-kickoff";
 import { compareByKickoffAsc } from "@/lib/world-cup/sort-matches";
 import { filterWorldCup2026GroupStageMatches } from "@/lib/world-cup/tournament-fixtures";
 import type { GoldenBootPredictionPayload } from "@/lib/world-cup/golden-boot-prediction";
+import {
+  applyLiveGoldenBootGoals,
+  freezeGoldenBootPredictions,
+} from "@/lib/world-cup/golden-boot-live";
 import { buildCompletePredictionsMap } from "@/lib/world-cup/run-tournament-forecast";
 import { runGoldenBootForecast } from "@/lib/world-cup/run-golden-boot-forecast";
 import { runDeterministicTournamentForecast } from "@/lib/world-cup/tournament-simulation";
@@ -511,7 +515,24 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
 
   const withLiveScores = await mergeLiveMatchScoresIntoPayload(snapshot);
   const repartitioned = repartitionRecentAndUpcoming(withLiveScores);
-  return realignRecentResultsFromIngests(repartitioned);
+  const realigned = await realignRecentResultsFromIngests(repartitioned);
+
+  const supabase = tryCreateServiceClient();
+  const teamNames = new Map<string, string>();
+  for (const group of Object.values(realigned.groupMatrix)) {
+    for (const row of group) {
+      teamNames.set(row.teamId, row.teamName);
+    }
+  }
+  const goldenBootPredictions = await applyLiveGoldenBootGoals(
+    supabase,
+    teamNames,
+    realigned.goldenBootPredictions
+  );
+
+  return goldenBootPredictions
+    ? { ...realigned, goldenBootPredictions }
+    : realigned;
 }
 
 /**
@@ -687,13 +708,23 @@ export async function buildWorldCupHubPayload(
 
   let goldenBootPredictions: GoldenBootPredictionPayload | null = null;
   try {
-    goldenBootPredictions = await runGoldenBootForecast({
+    const previousSnapshot = await loadHubSnapshotPayload();
+    const freshGoldenBoot = await runGoldenBootForecast({
       client: supabase,
       forecast: tournamentForecast,
       groupMatches: matches,
       predictionsByMatchId,
       teamNames,
     });
+    goldenBootPredictions = freezeGoldenBootPredictions(
+      previousSnapshot?.goldenBootPredictions,
+      freshGoldenBoot
+    );
+    goldenBootPredictions = await applyLiveGoldenBootGoals(
+      supabase,
+      teamNames,
+      goldenBootPredictions
+    );
   } catch (err) {
     console.warn("Golden Boot forecast failed:", err);
   }

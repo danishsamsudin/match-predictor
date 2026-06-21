@@ -1,6 +1,8 @@
 import type { TeamStatAverages } from "@/lib/types/prediction";
 import type { TeamComparisonSnapshot, TeamFormMatch } from "@/lib/types/team-comparison";
 import { buildNationalTeamStatAverages } from "@/lib/data/national-team-stats";
+import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
+import { loadPreferredFormationForTeam } from "@/lib/data/team-formations";
 import {
   computeInternationalRatesFromMatches,
   INTERNATIONAL_BASE_GOALS,
@@ -17,6 +19,7 @@ import {
 } from "@/lib/world-cup/international-form-team-side";
 import { loadWcOptaEventCalibration } from "@/lib/world-cup/wc-opta-event-calibration";
 import type { PredictionAnalytics } from "@/lib/types/prediction";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const EMPTY_SQUAD = {
   starters: [],
@@ -68,7 +71,9 @@ function seasonStatsFromAverages(
   stats: TeamStatAverages,
   rates: { attack: number; defense: number },
   formScore: number,
-  recentForm: TeamFormMatch[]
+  recentForm: TeamFormMatch[],
+  venue: { name: string; capacity: number } | null,
+  preferredFormation: string | null
 ): TeamComparisonSnapshot["home"]["seasonStats"] {
   const goalsFor = (rates.attack * INTERNATIONAL_BASE_GOALS).toFixed(2);
   const goalsAgainst = (rates.defense * INTERNATIONAL_BASE_GOALS).toFixed(2);
@@ -82,19 +87,20 @@ function seasonStatsFromAverages(
     yellowCardsPerGame: stats.yellowCards.toFixed(2),
     redCardsPerGame: stats.redCards.toFixed(2),
     shotsOnTargetPerGame: stats.shotsOnTarget.toFixed(1),
-    preferredFormation: null,
-    venueName: null,
-    venueCapacity: null,
+    preferredFormation,
+    venueName: venue?.name ?? null,
+    venueCapacity: venue?.capacity != null ? String(venue.capacity) : null,
   };
 }
 
-function buildWcComparisonSide(input: {
+async function buildWcComparisonSide(input: {
   teamApiId: number;
   teamDbId: string;
   teamName: string;
   formMatches: InternationalFormMatch[];
   formScore: number;
-}): TeamComparisonSnapshot["home"] {
+  supabase?: SupabaseClient | null;
+}): Promise<TeamComparisonSnapshot["home"]> {
   const calibration = loadWcOptaEventCalibration();
   const rates = computeInternationalRatesFromMatches(
     input.teamDbId,
@@ -132,11 +138,23 @@ function buildWcComparisonSide(input: {
     input.teamName
   );
 
+  const venue = getCanonicalTeamHomeVenue(input.teamApiId, input.teamName);
+  const preferredFormation = input.supabase
+    ? await loadPreferredFormationForTeam(input.supabase, input.teamApiId, input.teamName)
+    : null;
+
   return {
     teamId: input.teamApiId,
     teamName: input.teamName,
     leagueName: "International",
-    seasonStats: seasonStatsFromAverages(stats, rates, input.formScore, recentForm),
+    seasonStats: seasonStatsFromAverages(
+      stats,
+      rates,
+      input.formScore,
+      recentForm,
+      venue,
+      preferredFormation
+    ),
     recentForm,
     players: [],
     squad: { ...EMPTY_SQUAD },
@@ -154,7 +172,7 @@ export interface WcPredictionAnalyticsContext {
   teamComparison: TeamComparisonSnapshot;
 }
 
-export function buildWcPredictionAnalyticsContext(input: {
+export async function buildWcPredictionAnalyticsContext(input: {
   snapshot: Record<string, unknown>;
   homeXg: number;
   awayXg: number;
@@ -166,7 +184,8 @@ export function buildWcPredictionAnalyticsContext(input: {
   awayName: string;
   homeFormMatches: InternationalFormMatch[];
   awayFormMatches: InternationalFormMatch[];
-}): WcPredictionAnalyticsContext {
+  supabase?: SupabaseClient | null;
+}): Promise<WcPredictionAnalyticsContext> {
   const snap = input.snapshot;
   const homeFormScore = computeGrahamXgFormScore(
     input.homeFormMatches,
@@ -199,7 +218,16 @@ export function buildWcPredictionAnalyticsContext(input: {
   const homeXgElo = snapshotNum(snap, "home_xg_elo");
   const awayXgElo = snapshotNum(snap, "away_xg_elo");
   if (homeXgElo != null && awayXgElo != null) {
-    statComparison.push({ metric: "xG-Elo", home: homeXgElo, away: awayXgElo });
+    statComparison.push({
+      metric: "xG-Elo rating",
+      home: Math.round(homeXgElo),
+      away: Math.round(awayXgElo),
+    });
+    statComparison.push({
+      metric: "xG-Elo advantage",
+      home: Math.round(homeXgElo - awayXgElo),
+      away: 0,
+    });
   }
 
   const homeWctr = snapshotNum(snap, "home_wctr");
@@ -207,8 +235,13 @@ export function buildWcPredictionAnalyticsContext(input: {
   if (homeWctr != null && awayWctr != null) {
     statComparison.push({
       metric: "Tournament rating (WCTR)",
-      home: homeWctr,
-      away: awayWctr,
+      home: Math.round(homeWctr),
+      away: Math.round(awayWctr),
+    });
+    statComparison.push({
+      metric: "WCTR advantage",
+      home: Math.round(homeWctr - awayWctr),
+      away: 0,
     });
   }
 
@@ -248,22 +281,29 @@ export function buildWcPredictionAnalyticsContext(input: {
     });
   }
 
-  const teamComparison: TeamComparisonSnapshot = {
-    home: buildWcComparisonSide({
+  const [homeSide, awaySide] = await Promise.all([
+    buildWcComparisonSide({
       teamApiId: input.homeTeamApiId,
       teamDbId: input.homeDbTeamId,
       teamName: input.homeName,
       formMatches: input.homeFormMatches,
       formScore: homeFormScore,
+      supabase: input.supabase,
     }),
-    away: buildWcComparisonSide({
+    buildWcComparisonSide({
       teamApiId: input.awayTeamApiId,
       teamDbId: input.awayDbTeamId,
       teamName: input.awayName,
       formMatches: input.awayFormMatches,
       formScore: awayFormScore,
+      supabase: input.supabase,
     }),
-    usesDatabaseStats: false,
+  ]);
+
+  const teamComparison: TeamComparisonSnapshot = {
+    home: homeSide,
+    away: awaySide,
+    usesDatabaseStats: Boolean(input.supabase),
     fixtureContext: null,
   };
 

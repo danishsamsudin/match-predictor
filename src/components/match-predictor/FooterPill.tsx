@@ -1,6 +1,6 @@
 "use client";
 
-import { getLocalTimezoneLabel } from "@/lib/utils/kickoff-display";
+import { getLocalTimezoneLabel, getWcTimezoneLabel } from "@/lib/utils/kickoff-display";
 import type { PredictionLineupSource } from "@/lib/types/prediction";
 import { Calendar, ChevronDown, Clock, Loader2, MapPin } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -34,6 +34,7 @@ export function FooterPill({
   citySuggestions = [],
   lineupSource,
   onLineupSourceChange,
+  entityType = "club",
 }: {
   city: string;
   onCityChange: (v: string) => void;
@@ -46,6 +47,7 @@ export function FooterPill({
   citySuggestions?: string[];
   lineupSource: PredictionLineupSource;
   onLineupSourceChange: (v: PredictionLineupSource) => void;
+  entityType?: "club" | "national";
 }) {
   const [cityFocused, setCityFocused] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -53,8 +55,10 @@ export function FooterPill({
   const [timezoneLabel, setTimezoneLabel] = useState("local");
 
   useEffect(() => {
-    setTimezoneLabel(getLocalTimezoneLabel());
-  }, []);
+    setTimezoneLabel(
+      entityType === "national" ? getWcTimezoneLabel() : getLocalTimezoneLabel()
+    );
+  }, [entityType]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -148,7 +152,11 @@ export function FooterPill({
 
           <label
             className="flex min-w-0 items-center gap-2 text-slate-700 dark:text-slate-300 sm:border-l sm:border-slate-300/80 sm:pl-6 dark:sm:border-slate-800 md:pl-8"
-            title={`Kickoff time in your local timezone (${timezoneLabel})`}
+            title={
+              entityType === "national"
+                ? `Kickoff time in Central European time (${timezoneLabel})`
+                : `Kickoff time in your local timezone (${timezoneLabel})`
+            }
           >
             <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
             <span className="sr-only">Kickoff time ({timezoneLabel})</span>

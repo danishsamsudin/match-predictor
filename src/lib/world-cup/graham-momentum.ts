@@ -16,6 +16,7 @@ import {
 const FORM_RECENCY_WEIGHTS = [0.3, 0.25, 0.2, 0.15, 0.1];
 
 const XG_DIFF_SCALE = 2.4;
+const POOL_XG_DIFF_STD = 0.9;
 
 function teamXgDiff(
   m: InternationalFormMatch,
@@ -34,6 +35,27 @@ function teamXgDiff(
   return xgf - xga;
 }
 
+function resultPoints(m: InternationalFormMatch, teamId: string, teamName?: string): number | null {
+  const scored = teamGoalsInInternationalForm(m, teamId, teamName);
+  if (!scored) return null;
+  if (scored.goalsFor > scored.goalsAgainst) return 1;
+  if (scored.goalsFor < scored.goalsAgainst) return 0;
+  return 0.35;
+}
+
+/** Map xG diff to [0, 1] with wider spread via z-score sigmoid. */
+function normalizeFormComponent(diff: number | null, resultPts: number | null): number | null {
+  if (diff != null) {
+    const z = diff / POOL_XG_DIFF_STD;
+    const score = 1 / (1 + Math.exp(-z * 1.15));
+    return Math.max(0.12, Math.min(0.88, score));
+  }
+  if (resultPts != null) {
+    return Math.max(0.15, Math.min(0.85, 0.15 + resultPts * 0.7));
+  }
+  return null;
+}
+
 export function computeGrahamXgFormScore(
   matches: InternationalFormMatch[],
   teamId: string,
@@ -47,8 +69,9 @@ export function computeGrahamXgFormScore(
   let weightSum = 0;
   for (let i = 0; i < recent.length; i++) {
     const diff = teamXgDiff(recent[i], teamId, teamName);
-    if (diff == null) continue;
-    const normalized = Math.max(0, Math.min(1, (diff + XG_DIFF_SCALE) / (2 * XG_DIFF_SCALE)));
+    const pts = resultPoints(recent[i], teamId, teamName);
+    const normalized = normalizeFormComponent(diff, pts);
+    if (normalized == null) continue;
     const w = FORM_RECENCY_WEIGHTS[i] ?? FORM_RECENCY_WEIGHTS.at(-1)!;
     weighted += normalized * w;
     weightSum += w;
@@ -181,7 +204,12 @@ export function computeGrahamMomentumIndex(input: {
     input.awayName
   );
 
-  const raw = (homeForm - awayForm) * GRAHAM_W1_FORM + h2h * GRAHAM_W2_H2H;
+  const poolMedian = 0.5;
+  const homeVsPool = (homeForm - poolMedian) * 0.35;
+  const awayVsPool = (awayForm - poolMedian) * 0.35;
+  const fixtureDiff = (homeForm - awayForm) * GRAHAM_W1_FORM;
+
+  const raw = fixtureDiff + homeVsPool - awayVsPool + h2h * GRAHAM_W2_H2H;
   return Math.max(-GRAHAM_MOMENTUM_CLAMP, Math.min(GRAHAM_MOMENTUM_CLAMP, raw));
 }
 

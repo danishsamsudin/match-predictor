@@ -128,6 +128,7 @@ export function MatchPredictorShell({
             citySuggestions={citySuggestions}
             lineupSource={lineupSource}
             onLineupSourceChange={setLineupSource}
+            entityType={entityType}
           />
         </div>
       </div>

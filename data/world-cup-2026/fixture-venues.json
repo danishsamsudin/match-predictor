@@ -1,6 +1,6 @@
 {
-  "version": "fbref-schedule-2026-v1",
-  "source": "FBref World Cup Scores & Fixtures + FIFA host city mapping",
+  "version": "fbref-schedule-2026-v2",
+  "source": "FBref World Cup Scores & Fixtures (local kickoff times) + FIFA host city mapping",
   "stadium_count": 16,
   "fixture_count": 72,
   "stadiums": [
@@ -121,7 +121,7 @@
     {
       "match_number": 1,
       "date": "2026-06-11",
-      "kickoff_time": null,
+      "kickoff_time": "13:00",
       "home_team": "Mexico",
       "away_team": "South Africa",
       "venue_raw": "Estadio Banorte (Neutral Site)",
@@ -131,7 +131,7 @@
     {
       "match_number": 2,
       "date": "2026-06-12",
-      "kickoff_time": null,
+      "kickoff_time": "15:00",
       "home_team": "Canada",
       "away_team": "Bosnia-Herzegovina",
       "venue_raw": "BMO Field (Neutral Site)",
@@ -141,7 +141,7 @@
     {
       "match_number": 3,
       "date": "2026-06-11",
-      "kickoff_time": null,
+      "kickoff_time": "20:00",
       "home_team": "Korea Republic",
       "away_team": "Czechia",
       "venue_raw": "Estadio Akron (Neutral Site)",
@@ -151,7 +151,7 @@
     {
       "match_number": 4,
       "date": "2026-06-13",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Qatar",
       "away_team": "Switzerland",
       "venue_raw": "Levi's Stadium (Neutral Site)",
@@ -161,7 +161,7 @@
     {
       "match_number": 5,
       "date": "2026-06-13",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Brazil",
       "away_team": "Morocco",
       "venue_raw": "MetLife Stadium (Neutral Site)",
@@ -171,7 +171,7 @@
     {
       "match_number": 6,
       "date": "2026-06-12",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "United States",
       "away_team": "Paraguay",
       "venue_raw": "SoFi Stadium (Neutral Site)",
@@ -181,9 +181,9 @@
     {
       "match_number": 7,
       "date": "2026-06-14",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Germany",
-      "away_team": "Cura\u00e7ao",
+      "away_team": "Curaçao",
       "venue_raw": "Reliant Stadium (Neutral Site)",
       "stadium": "NRG Stadium",
       "city": "Houston"
@@ -191,7 +191,7 @@
     {
       "match_number": 8,
       "date": "2026-06-14",
-      "kickoff_time": null,
+      "kickoff_time": "15:00",
       "home_team": "Netherlands",
       "away_team": "Japan",
       "venue_raw": "AT&T Stadium (Neutral Site)",
@@ -201,8 +201,8 @@
     {
       "match_number": 9,
       "date": "2026-06-14",
-      "kickoff_time": null,
-      "home_team": "C\u00f4te d'Ivoire",
+      "kickoff_time": "19:00",
+      "home_team": "Côte d'Ivoire",
       "away_team": "Ecuador",
       "venue_raw": "Lincoln Financial Field (Neutral Site)",
       "stadium": "Lincoln Financial Field",
@@ -211,7 +211,7 @@
     {
       "match_number": 10,
       "date": "2026-06-13",
-      "kickoff_time": null,
+      "kickoff_time": "21:00",
       "home_team": "Haiti",
       "away_team": "Scotland",
       "venue_raw": "Gillette Stadium (Neutral Site)",
@@ -221,9 +221,9 @@
     {
       "match_number": 11,
       "date": "2026-06-13",
-      "kickoff_time": null,
+      "kickoff_time": "21:00",
       "home_team": "Australia",
-      "away_team": "T\u00fcrkiye",
+      "away_team": "Türkiye",
       "venue_raw": "BC Place Stadium (Neutral Site)",
       "stadium": "BC Place",
       "city": "Vancouver"
@@ -231,7 +231,7 @@
     {
       "match_number": 12,
       "date": "2026-06-15",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Belgium",
       "away_team": "Egypt",
       "venue_raw": "Lumen Field (Neutral Site)",
@@ -241,7 +241,7 @@
     {
       "match_number": 13,
       "date": "2026-06-15",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Spain",
       "away_team": "Cape Verde",
       "venue_raw": "Mercedes-Benz Stadium (Neutral Site)",
@@ -251,7 +251,7 @@
     {
       "match_number": 14,
       "date": "2026-06-15",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Saudi Arabia",
       "away_team": "Uruguay",
       "venue_raw": "Hard Rock Stadium (Neutral Site)",
@@ -261,7 +261,7 @@
     {
       "match_number": 15,
       "date": "2026-06-14",
-      "kickoff_time": null,
+      "kickoff_time": "20:00",
       "home_team": "Sweden",
       "away_team": "Tunisia",
       "venue_raw": "Estadio BBVA Bancomer (Neutral Site)",
@@ -271,7 +271,7 @@
     {
       "match_number": 16,
       "date": "2026-06-16",
-      "kickoff_time": null,
+      "kickoff_time": "15:00",
       "home_team": "France",
       "away_team": "Senegal",
       "venue_raw": "MetLife Stadium (Neutral Site)",
@@ -281,7 +281,7 @@
     {
       "match_number": 17,
       "date": "2026-06-15",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "IR Iran",
       "away_team": "New Zealand",
       "venue_raw": "SoFi Stadium (Neutral Site)",
@@ -291,7 +291,7 @@
     {
       "match_number": 18,
       "date": "2026-06-16",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Iraq",
       "away_team": "Norway",
       "venue_raw": "Gillette Stadium (Neutral Site)",
@@ -301,7 +301,7 @@
     {
       "match_number": 19,
       "date": "2026-06-17",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Portugal",
       "away_team": "Congo DR",
       "venue_raw": "Reliant Stadium (Neutral Site)",
@@ -311,7 +311,7 @@
     {
       "match_number": 20,
       "date": "2026-06-17",
-      "kickoff_time": null,
+      "kickoff_time": "15:00",
       "home_team": "England",
       "away_team": "Croatia",
       "venue_raw": "AT&T Stadium (Neutral Site)",
@@ -321,7 +321,7 @@
     {
       "match_number": 21,
       "date": "2026-06-17",
-      "kickoff_time": null,
+      "kickoff_time": "19:00",
       "home_team": "Ghana",
       "away_team": "Panama",
       "venue_raw": "BMO Field (Neutral Site)",
@@ -331,7 +331,7 @@
     {
       "match_number": 22,
       "date": "2026-06-16",
-      "kickoff_time": null,
+      "kickoff_time": "20:00",
       "home_team": "Argentina",
       "away_team": "Algeria",
       "venue_raw": "GEHA Field at Arrowhead Stadium (Neutral Site)",
@@ -341,7 +341,7 @@
     {
       "match_number": 23,
       "date": "2026-06-16",
-      "kickoff_time": null,
+      "kickoff_time": "21:00",
       "home_team": "Austria",
       "away_team": "Jordan",
       "venue_raw": "Levi's Stadium (Neutral Site)",
@@ -351,7 +351,7 @@
     {
       "match_number": 24,
       "date": "2026-06-18",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Switzerland",
       "away_team": "Bosnia-Herzegovina",
       "venue_raw": "SoFi Stadium (Neutral Site)",
@@ -361,7 +361,7 @@
     {
       "match_number": 25,
       "date": "2026-06-18",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Czechia",
       "away_team": "South Africa",
       "venue_raw": "Mercedes-Benz Stadium (Neutral Site)",
@@ -371,7 +371,7 @@
     {
       "match_number": 26,
       "date": "2026-06-18",
-      "kickoff_time": null,
+      "kickoff_time": "15:00",
       "home_team": "Canada",
       "away_team": "Qatar",
       "venue_raw": "BC Place Stadium (Neutral Site)",
@@ -381,7 +381,7 @@
     {
       "match_number": 27,
       "date": "2026-06-17",
-      "kickoff_time": null,
+      "kickoff_time": "20:00",
       "home_team": "Uzbekistan",
       "away_team": "Colombia",
       "venue_raw": "Estadio Banorte (Neutral Site)",
@@ -391,7 +391,7 @@
     {
       "match_number": 28,
       "date": "2026-06-19",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "United States",
       "away_team": "Australia",
       "venue_raw": "Lumen Field (Neutral Site)",
@@ -401,7 +401,7 @@
     {
       "match_number": 29,
       "date": "2026-06-19",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Scotland",
       "away_team": "Morocco",
       "venue_raw": "Gillette Stadium (Neutral Site)",
@@ -411,7 +411,7 @@
     {
       "match_number": 30,
       "date": "2026-06-18",
-      "kickoff_time": null,
+      "kickoff_time": "19:00",
       "home_team": "Mexico",
       "away_team": "Korea Republic",
       "venue_raw": "Estadio Akron (Neutral Site)",
@@ -421,7 +421,7 @@
     {
       "match_number": 31,
       "date": "2026-06-20",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Netherlands",
       "away_team": "Sweden",
       "venue_raw": "Reliant Stadium (Neutral Site)",
@@ -431,9 +431,9 @@
     {
       "match_number": 32,
       "date": "2026-06-20",
-      "kickoff_time": null,
+      "kickoff_time": "16:00",
       "home_team": "Germany",
-      "away_team": "C\u00f4te d'Ivoire",
+      "away_team": "Côte d'Ivoire",
       "venue_raw": "BMO Field (Neutral Site)",
       "stadium": "BMO Field",
       "city": "Toronto"
@@ -441,8 +441,8 @@
     {
       "match_number": 33,
       "date": "2026-06-19",
-      "kickoff_time": null,
-      "home_team": "T\u00fcrkiye",
+      "kickoff_time": "20:00",
+      "home_team": "Türkiye",
       "away_team": "Paraguay",
       "venue_raw": "Levi's Stadium (Neutral Site)",
       "stadium": "Levi's Stadium",
@@ -451,7 +451,7 @@
     {
       "match_number": 34,
       "date": "2026-06-19",
-      "kickoff_time": null,
+      "kickoff_time": "20:30",
       "home_team": "Brazil",
       "away_team": "Haiti",
       "venue_raw": "Lincoln Financial Field (Neutral Site)",
@@ -461,7 +461,7 @@
     {
       "match_number": 35,
       "date": "2026-06-21",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Spain",
       "away_team": "Saudi Arabia",
       "venue_raw": "Mercedes-Benz Stadium (Neutral Site)",
@@ -471,7 +471,7 @@
     {
       "match_number": 36,
       "date": "2026-06-21",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Belgium",
       "away_team": "IR Iran",
       "venue_raw": "SoFi Stadium (Neutral Site)",
@@ -481,7 +481,7 @@
     {
       "match_number": 37,
       "date": "2026-06-21",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Uruguay",
       "away_team": "Cape Verde",
       "venue_raw": "Hard Rock Stadium (Neutral Site)",
@@ -491,9 +491,9 @@
     {
       "match_number": 38,
       "date": "2026-06-20",
-      "kickoff_time": null,
+      "kickoff_time": "19:00",
       "home_team": "Ecuador",
-      "away_team": "Cura\u00e7ao",
+      "away_team": "Curaçao",
       "venue_raw": "GEHA Field at Arrowhead Stadium (Neutral Site)",
       "stadium": "GEHA Field at Arrowhead Stadium",
       "city": "Kansas City"
@@ -501,7 +501,7 @@
     {
       "match_number": 39,
       "date": "2026-06-20",
-      "kickoff_time": null,
+      "kickoff_time": "22:00",
       "home_team": "Tunisia",
       "away_team": "Japan",
       "venue_raw": "Estadio BBVA Bancomer (Neutral Site)",
@@ -511,7 +511,7 @@
     {
       "match_number": 40,
       "date": "2026-06-22",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Argentina",
       "away_team": "Austria",
       "venue_raw": "AT&T Stadium (Neutral Site)",
@@ -521,7 +521,7 @@
     {
       "match_number": 41,
       "date": "2026-06-22",
-      "kickoff_time": null,
+      "kickoff_time": "17:00",
       "home_team": "France",
       "away_team": "Iraq",
       "venue_raw": "Lincoln Financial Field (Neutral Site)",
@@ -531,7 +531,7 @@
     {
       "match_number": 42,
       "date": "2026-06-21",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "New Zealand",
       "away_team": "Egypt",
       "venue_raw": "BC Place Stadium (Neutral Site)",
@@ -541,7 +541,7 @@
     {
       "match_number": 43,
       "date": "2026-06-23",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Portugal",
       "away_team": "Uzbekistan",
       "venue_raw": "Reliant Stadium (Neutral Site)",
@@ -551,7 +551,7 @@
     {
       "match_number": 44,
       "date": "2026-06-23",
-      "kickoff_time": null,
+      "kickoff_time": "16:00",
       "home_team": "England",
       "away_team": "Ghana",
       "venue_raw": "Gillette Stadium (Neutral Site)",
@@ -561,7 +561,7 @@
     {
       "match_number": 45,
       "date": "2026-06-23",
-      "kickoff_time": null,
+      "kickoff_time": "19:00",
       "home_team": "Panama",
       "away_team": "Croatia",
       "venue_raw": "BMO Field (Neutral Site)",
@@ -571,7 +571,7 @@
     {
       "match_number": 46,
       "date": "2026-06-22",
-      "kickoff_time": null,
+      "kickoff_time": "20:00",
       "home_team": "Norway",
       "away_team": "Senegal",
       "venue_raw": "MetLife Stadium (Neutral Site)",
@@ -581,7 +581,7 @@
     {
       "match_number": 47,
       "date": "2026-06-22",
-      "kickoff_time": null,
+      "kickoff_time": "20:00",
       "home_team": "Jordan",
       "away_team": "Algeria",
       "venue_raw": "Levi's Stadium (Neutral Site)",
@@ -591,7 +591,7 @@
     {
       "match_number": 48,
       "date": "2026-06-24",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Switzerland",
       "away_team": "Canada",
       "venue_raw": "BC Place Stadium (Neutral Site)",
@@ -601,7 +601,7 @@
     {
       "match_number": 49,
       "date": "2026-06-24",
-      "kickoff_time": null,
+      "kickoff_time": "12:00",
       "home_team": "Bosnia-Herzegovina",
       "away_team": "Qatar",
       "venue_raw": "Lumen Field (Neutral Site)",
@@ -611,7 +611,7 @@
     {
       "match_number": 50,
       "date": "2026-06-24",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Scotland",
       "away_team": "Brazil",
       "venue_raw": "Hard Rock Stadium (Neutral Site)",
@@ -621,7 +621,7 @@
     {
       "match_number": 51,
       "date": "2026-06-24",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Morocco",
       "away_team": "Haiti",
       "venue_raw": "Mercedes-Benz Stadium (Neutral Site)",
@@ -631,7 +631,7 @@
     {
       "match_number": 52,
       "date": "2026-06-23",
-      "kickoff_time": null,
+      "kickoff_time": "20:00",
       "home_team": "Colombia",
       "away_team": "Congo DR",
       "venue_raw": "Estadio Akron (Neutral Site)",
@@ -641,9 +641,9 @@
     {
       "match_number": 53,
       "date": "2026-06-25",
-      "kickoff_time": null,
-      "home_team": "Cura\u00e7ao",
-      "away_team": "C\u00f4te d'Ivoire",
+      "kickoff_time": "16:00",
+      "home_team": "Curaçao",
+      "away_team": "Côte d'Ivoire",
       "venue_raw": "Lincoln Financial Field (Neutral Site)",
       "stadium": "Lincoln Financial Field",
       "city": "Philadelphia"
@@ -651,7 +651,7 @@
     {
       "match_number": 54,
       "date": "2026-06-25",
-      "kickoff_time": null,
+      "kickoff_time": "16:00",
       "home_team": "Ecuador",
       "away_team": "Germany",
       "venue_raw": "MetLife Stadium (Neutral Site)",
@@ -661,7 +661,7 @@
     {
       "match_number": 55,
       "date": "2026-06-25",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Japan",
       "away_team": "Sweden",
       "venue_raw": "AT&T Stadium (Neutral Site)",
@@ -671,7 +671,7 @@
     {
       "match_number": 56,
       "date": "2026-06-25",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Tunisia",
       "away_team": "Netherlands",
       "venue_raw": "GEHA Field at Arrowhead Stadium (Neutral Site)",
@@ -681,7 +681,7 @@
     {
       "match_number": 57,
       "date": "2026-06-24",
-      "kickoff_time": null,
+      "kickoff_time": "19:00",
       "home_team": "South Africa",
       "away_team": "Korea Republic",
       "venue_raw": "Estadio BBVA Bancomer (Neutral Site)",
@@ -691,7 +691,7 @@
     {
       "match_number": 58,
       "date": "2026-06-24",
-      "kickoff_time": null,
+      "kickoff_time": "19:00",
       "home_team": "Czechia",
       "away_team": "Mexico",
       "venue_raw": "Estadio Banorte (Neutral Site)",
@@ -701,7 +701,7 @@
     {
       "match_number": 59,
       "date": "2026-06-26",
-      "kickoff_time": null,
+      "kickoff_time": "15:00",
       "home_team": "Norway",
       "away_team": "France",
       "venue_raw": "Gillette Stadium (Neutral Site)",
@@ -711,7 +711,7 @@
     {
       "match_number": 60,
       "date": "2026-06-26",
-      "kickoff_time": null,
+      "kickoff_time": "15:00",
       "home_team": "Senegal",
       "away_team": "Iraq",
       "venue_raw": "BMO Field (Neutral Site)",
@@ -721,7 +721,7 @@
     {
       "match_number": 61,
       "date": "2026-06-25",
-      "kickoff_time": null,
+      "kickoff_time": "19:00",
       "home_team": "Paraguay",
       "away_team": "Australia",
       "venue_raw": "Levi's Stadium (Neutral Site)",
@@ -731,8 +731,8 @@
     {
       "match_number": 62,
       "date": "2026-06-25",
-      "kickoff_time": null,
-      "home_team": "T\u00fcrkiye",
+      "kickoff_time": "19:00",
+      "home_team": "Türkiye",
       "away_team": "United States",
       "venue_raw": "SoFi Stadium (Neutral Site)",
       "stadium": "SoFi Stadium",
@@ -741,7 +741,7 @@
     {
       "match_number": 63,
       "date": "2026-06-27",
-      "kickoff_time": null,
+      "kickoff_time": "17:00",
       "home_team": "Panama",
       "away_team": "England",
       "venue_raw": "MetLife Stadium (Neutral Site)",
@@ -751,7 +751,7 @@
     {
       "match_number": 64,
       "date": "2026-06-27",
-      "kickoff_time": null,
+      "kickoff_time": "17:00",
       "home_team": "Croatia",
       "away_team": "Ghana",
       "venue_raw": "Lincoln Financial Field (Neutral Site)",
@@ -761,7 +761,7 @@
     {
       "match_number": 65,
       "date": "2026-06-26",
-      "kickoff_time": null,
+      "kickoff_time": "18:00",
       "home_team": "Uruguay",
       "away_team": "Spain",
       "venue_raw": "Estadio Akron (Neutral Site)",
@@ -771,7 +771,7 @@
     {
       "match_number": 66,
       "date": "2026-06-26",
-      "kickoff_time": null,
+      "kickoff_time": "19:00",
       "home_team": "Cape Verde",
       "away_team": "Saudi Arabia",
       "venue_raw": "Reliant Stadium (Neutral Site)",
@@ -781,7 +781,7 @@
     {
       "match_number": 67,
       "date": "2026-06-27",
-      "kickoff_time": null,
+      "kickoff_time": "19:30",
       "home_team": "Colombia",
       "away_team": "Portugal",
       "venue_raw": "Hard Rock Stadium (Neutral Site)",
@@ -791,7 +791,7 @@
     {
       "match_number": 68,
       "date": "2026-06-27",
-      "kickoff_time": null,
+      "kickoff_time": "19:30",
       "home_team": "Congo DR",
       "away_team": "Uzbekistan",
       "venue_raw": "Mercedes-Benz Stadium (Neutral Site)",
@@ -801,7 +801,7 @@
     {
       "match_number": 69,
       "date": "2026-06-26",
-      "kickoff_time": null,
+      "kickoff_time": "20:00",
       "home_team": "Egypt",
       "away_team": "IR Iran",
       "venue_raw": "Lumen Field (Neutral Site)",
@@ -811,7 +811,7 @@
     {
       "match_number": 70,
       "date": "2026-06-26",
-      "kickoff_time": null,
+      "kickoff_time": "20:00",
       "home_team": "New Zealand",
       "away_team": "Belgium",
       "venue_raw": "BC Place Stadium (Neutral Site)",
@@ -821,7 +821,7 @@
     {
       "match_number": 71,
       "date": "2026-06-27",
-      "kickoff_time": null,
+      "kickoff_time": "21:00",
       "home_team": "Jordan",
       "away_team": "Argentina",
       "venue_raw": "AT&T Stadium (Neutral Site)",
@@ -831,7 +831,7 @@
     {
       "match_number": 72,
       "date": "2026-06-27",
-      "kickoff_time": null,
+      "kickoff_time": "21:00",
       "home_team": "Algeria",
       "away_team": "Austria",
       "venue_raw": "GEHA Field at Arrowhead Stadium (Neutral Site)",

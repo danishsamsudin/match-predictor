@@ -142,6 +142,7 @@ export function lookupFixtureRow(input: {
   const key = fixtureKey(input.date, input.homeName, input.awayName);
   const fromDate = key ? byFixtureKey.get(key) : undefined;
   if (fromDate) return fromDate;
+  if (input.date?.trim()) return undefined;
   const tk = teamsOnlyKey(input.homeName, input.awayName);
   return tk ? byTeamsKey.get(tk) : undefined;
 }

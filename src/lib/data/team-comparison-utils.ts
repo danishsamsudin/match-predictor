@@ -2,8 +2,13 @@
 
 export const BETTING_INSIGHTS_WINDOW = 10;
 
-export function displayValue(value: string | null | undefined): string {
-  if (value == null || value === "") return "N/A";
+export function displayValue(value: string | number | null | undefined): string {
+  if (value == null) return "N/A";
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value === 0) return "N/A";
+    return String(value);
+  }
+  if (value === "") return "N/A";
   const t = value.trim();
   if (t === "0" || t === "0.0" || t === "0.00") return "N/A";
   return value;

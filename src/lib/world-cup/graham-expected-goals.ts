@@ -2,6 +2,8 @@ import { getFifaRankingPoints, resolveNationalTeamForStrength } from "@/lib/pred
 import {
   clampInternationalBaselineXg,
   INTERNATIONAL_XG_FLOOR,
+  pullInternationalXgTowardFifaAnchor,
+  SHRINKAGE_K,
 } from "@/lib/world-cup/international-strength";
 import { computeGrahamProcessRatesFromMatches } from "@/lib/world-cup/graham-process-rates";
 import { applyShotProfilesForFixture, computeShotProfileFromMatches } from "@/lib/world-cup/graham-shot-profiles";
@@ -12,6 +14,7 @@ import {
   computeGrahamMomentumIndex,
 } from "@/lib/world-cup/graham-momentum";
 import {
+  GRAHAM_DELTA_S_CAP,
   GRAHAM_DELTA_WEIGHTS,
   GRAHAM_MU_XG,
   GRAHAM_STRENGTH_EXPONENT,
@@ -75,12 +78,16 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
   const homeIdStr = String(input.homeTeamId);
   const awayIdStr = String(input.awayTeamId);
 
+  const homeShrinkage = (input.wcForm?.home.matchCount ?? 0) >= 2 ? 2 : SHRINKAGE_K;
+  const awayShrinkage = (input.wcForm?.away.matchCount ?? 0) >= 2 ? 2 : SHRINKAGE_K;
+
   const homeRates = applyWcFormToProcessRates(
     computeGrahamProcessRatesFromMatches(
       homeIdStr,
       input.homeFormMatches,
       Date.now(),
-      input.homeName
+      input.homeName,
+      homeShrinkage
     ),
     input.wcForm?.home ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 },
     cal
@@ -90,7 +97,8 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
       awayIdStr,
       input.awayFormMatches,
       Date.now(),
-      input.awayName
+      input.awayName,
+      awayShrinkage
     ),
     input.wcForm?.away ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 },
     cal
@@ -192,7 +200,7 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
     if (typeof val === "number" && Number.isFinite(val)) optaDelta += coef * val;
   }
 
-  const deltaS =
+  const rawDeltaS =
     weights.xgElo * deltaXgElo +
     weights.talent * (deltaTalent * 400) +
     weights.tournament * deltaTournament +
@@ -201,6 +209,8 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
     weights.momentum * deltaMomentum +
     optaDelta +
     processDelta;
+
+  const deltaS = Math.max(-GRAHAM_DELTA_S_CAP, Math.min(GRAHAM_DELTA_S_CAP, rawDeltaS));
 
   let homeXg = clampInternationalBaselineXg(mu * Math.exp(strengthExponent * deltaS));
   let awayXg = clampInternationalBaselineXg(mu * Math.exp(-strengthExponent * deltaS));
@@ -223,6 +233,25 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
   );
   homeXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.homeXg);
   awayXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.awayXg);
+
+  const anchored = pullInternationalXgTowardFifaAnchor(homeXg, awayXg, {
+    homeTeamId: input.homeTeamId,
+    awayTeamId: input.awayTeamId,
+    homeName: input.homeName,
+    awayName: input.awayName,
+    mu,
+  });
+  homeXg = anchored.homeXg;
+  awayXg = anchored.awayXg;
+
+  if (Math.abs(deltaS) > 120) {
+    const underdogFloor = Math.max(
+      0.28,
+      mu * Math.exp(-strengthExponent * Math.abs(deltaS)) * 0.45
+    );
+    if (deltaS > 0) awayXg = Math.max(underdogFloor, awayXg);
+    else homeXg = Math.max(underdogFloor, homeXg);
+  }
 
   return {
     homeXg: Math.round(homeXg * 100) / 100,

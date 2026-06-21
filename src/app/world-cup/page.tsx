@@ -133,14 +133,17 @@ export default async function WorldCupHubPage() {
         </h2>
         <WorldCupSectionHelp title="Top scorer model">
           <p>
-            Model forecast for the tournament&apos;s leading goal scorers — not live Golden Boot
-            standings. Projections blend squad scoring rates (goals, xG, minutes), team attacking
-            strength, how far the bracket forecast expects each nation to advance, and opponent
-            defensive quality on that path.
+            Pre-tournament model forecast for the leading goal scorers. The predicted top 10 is
+            locked in row order so you can compare projections to reality after the final.
           </p>
           <p>
-            Top three rows are highlighted gold, silver, and bronze. Expand the breakdown below for
-            per-player factor scores.
+            <strong>Scored</strong> updates from Opta match player stats after each game.{" "}
+            <strong>Live</strong> is the player&apos;s current tournament rank by actual goals.
+            The live leader is highlighted without reordering this table.
+          </p>
+          <p>
+            Top three predicted rows are highlighted gold, silver, and bronze. Expand the breakdown
+            below for per-player factor scores.
           </p>
         </WorldCupSectionHelp>
         <GoldenBootPanel predictions={payload.goldenBootPredictions} />

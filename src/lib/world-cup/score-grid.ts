@@ -104,6 +104,47 @@ export function buildGuardedScoreMatrix(
   };
 }
 
+export function selectPredictedScoreline(
+  homeXg: number,
+  awayXg: number,
+  cells: { home: number; away: number; probability: number }[]
+): { home: number; away: number } {
+  let roundedHome = Math.max(0, Math.round(homeXg));
+  let roundedAway = Math.max(0, Math.round(awayXg));
+  const underdogLambda = Math.min(homeXg, awayXg);
+  const favoriteIsHome = homeXg >= awayXg;
+
+  if (underdogLambda >= 0.55) {
+    if (favoriteIsHome && roundedAway === 0) roundedAway = 1;
+    if (!favoriteIsHome && roundedHome === 0) roundedHome = 1;
+  }
+
+  const roundedCell = cells.find((c) => c.home === roundedHome && c.away === roundedAway);
+  if (roundedCell && roundedCell.probability > 0) {
+    return { home: roundedHome, away: roundedAway };
+  }
+
+  let top = cells[0] ?? { home: roundedHome, away: roundedAway, probability: 0 };
+  for (const c of cells) {
+    if (c.probability > top.probability) top = c;
+  }
+  return { home: top.home, away: top.away };
+}
+
+export function topScorelinesFromCells(
+  cells: { home: number; away: number; probability: number }[],
+  limit = 5
+): { home: number; away: number; probability: number }[] {
+  return [...cells]
+    .sort((a, b) => b.probability - a.probability)
+    .slice(0, limit)
+    .map((c) => ({
+      home: c.home,
+      away: c.away,
+      probability: Math.round(c.probability * 10000) / 10000,
+    }));
+}
+
 export function outcomesFromGuardedGrid(
   homeXg: number,
   awayXg: number,
@@ -116,24 +157,25 @@ export function outcomesFromGuardedGrid(
   let awayWin = 0;
   let under25 = 0;
 
-  let top = cells[0];
   for (const c of cells) {
     if (c.home > c.away) homeWin += c.probability;
     else if (c.home === c.away) draw += c.probability;
     else awayWin += c.probability;
     if (c.home + c.away < 2.5) under25 += c.probability;
-    if (c.probability > top.probability) top = c;
   }
 
   const total = homeWin + draw + awayWin || 1;
+  const predicted = selectPredictedScoreline(homeXg, awayXg, cells);
+
   return {
     homeWin: homeWin / total,
     draw: draw / total,
     awayWin: awayWin / total,
     under25,
     over25: 1 - under25,
-    predictedHome: top.home,
-    predictedAway: top.away,
+    predictedHome: predicted.home,
+    predictedAway: predicted.away,
+    topScorelines: topScorelinesFromCells(cells),
   };
 }
 
