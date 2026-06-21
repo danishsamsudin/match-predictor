@@ -49,8 +49,13 @@ async function resolveSquad(input: {
   leagueId?: number;
   entityType: "club" | "national";
   fromComparison?: TeamSquadSnapshot;
+  comparisonTeamId?: number;
 }): Promise<TeamSquadSnapshot> {
-  if (input.fromComparison && squadHasPlayers(input.fromComparison)) {
+  if (
+    input.fromComparison &&
+    squadHasPlayers(input.fromComparison) &&
+    (input.comparisonTeamId == null || input.comparisonTeamId === input.teamId)
+  ) {
     return input.fromComparison;
   }
 
@@ -105,6 +110,7 @@ export async function computePlayerPropsForMatch(input: {
       leagueId: input.homeLeagueId,
       entityType: input.entityType,
       fromComparison: comparison?.home.squad,
+      comparisonTeamId: comparison?.home.teamId,
     }),
     resolveSquad({
       teamId: input.awayTeamId,
@@ -112,6 +118,7 @@ export async function computePlayerPropsForMatch(input: {
       leagueId: input.awayLeagueId,
       entityType: input.entityType,
       fromComparison: comparison?.away.squad,
+      comparisonTeamId: comparison?.away.teamId,
     }),
   ]);
 

@@ -23,6 +23,7 @@ import {
   normalizeExplanationText,
 } from "@/lib/prediction/explanation-glossary";
 import { teamNamesFromSnapshot } from "@/lib/prediction/resolve-team-names";
+import { alignPlayerPropsToLabels } from "@/lib/prediction/align-player-props-orientation";
 import type { PredictionResult } from "@/lib/types/prediction";
 import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
 
@@ -90,6 +91,9 @@ export function PredictionResultCard({
   const [showExplanation, setShowExplanation] = useState(false);
   const homeLabel = result.homeTeamName ?? "Home";
   const awayLabel = result.awayTeamName ?? "Away";
+  const playerProps = result.playerProps
+    ? alignPlayerPropsToLabels(result.playerProps, homeLabel, awayLabel)
+    : undefined;
 
   return (
     <div className="liquid-glass-panel min-w-0 max-w-full rounded-2xl sm:rounded-[2rem]">
@@ -153,9 +157,9 @@ export function PredictionResultCard({
           />
         ) : null}
 
-        {!compact && result.playerProps ? (
+        {!compact && playerProps ? (
           <PlayerPropsPanel
-            props={result.playerProps}
+            props={playerProps}
             homeLabel={homeLabel}
             awayLabel={awayLabel}
             matchKey={
@@ -609,6 +613,16 @@ export function PredictionResultDisplay({
   const homeTeamName = homeTeamNameProp ?? fromSnapshot.homeTeamName;
   const awayTeamName = awayTeamNameProp ?? fromSnapshot.awayTeamName;
   const matchKey = `${homeTeamName}-${awayTeamName}-${result.match_date ?? "unknown"}`;
+  const homeLabel = homeTeamName ?? "Home";
+  const awayLabel = awayTeamName ?? "Away";
+  const alignedPlayerProps =
+    playerProps && homeTeamName && awayTeamName
+      ? alignPlayerPropsToLabels(
+          playerProps as NonNullable<PredictionResult["playerProps"]>,
+          homeLabel,
+          awayLabel
+        )
+      : (playerProps as PredictionResult["playerProps"]);
 
   return (
     <PredictionResultCard
@@ -626,7 +640,7 @@ export function PredictionResultDisplay({
           redCards: Number(result.estimated_red_cards),
         },
         explanation: result.explanation,
-        playerProps: playerProps as PredictionResult["playerProps"],
+        playerProps: alignedPlayerProps,
       }}
       matchKey={matchKey}
     />

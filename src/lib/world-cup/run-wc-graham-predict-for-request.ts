@@ -1,5 +1,6 @@
 import { computeLineupPlayerXgImpact } from "@/lib/prediction/lineup-player-xg-impact";
 import { computePlayerPropsForMatch } from "@/lib/prediction/compute-player-props-for-match";
+import { shouldOrientWcCompareToRequest } from "@/lib/prediction/align-player-props-orientation";
 import { resolveLineupPlayerStats } from "@/lib/prediction/resolve-lineup-player-stats";
 import { applyLineupImpactToHubPrediction } from "@/lib/world-cup/apply-wc-lineup-impact";
 import { grahamHubRowToPredictionResult } from "@/lib/world-cup/graham-prediction-adapter";
@@ -14,6 +15,10 @@ import {
 import { applyWcModelXiToHubPrediction } from "@/lib/world-cup/wc-hub-model-xi";
 import { buildWcPredictionAnalyticsContext } from "@/lib/world-cup/build-wc-prediction-analytics-context";
 import { resolveWcLineupApiIds } from "@/lib/world-cup/resolve-wc-lineup-orientation";
+import {
+  swapHubPredictionRow,
+  swapWcAnalyticsContext,
+} from "@/lib/world-cup/swap-hub-prediction-orientation";
 import { loadEnrichedFormForTeam } from "@/lib/world-cup/load-enriched-international-form";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
@@ -228,32 +233,48 @@ export async function runWcGrahamPredictForRequest(input: {
     supabase,
   });
 
+  const orientToRequest = shouldOrientWcCompareToRequest(request, resolved);
+  const displayHomeName = orientToRequest
+    ? (request.homeTeamName ?? awayName)
+    : homeName;
+  const displayAwayName = orientToRequest
+    ? (request.awayTeamName ?? homeName)
+    : awayName;
+  const displayHomeXg = orientToRequest ? awayXg : homeXg;
+  const displayAwayXg = orientToRequest ? homeXg : awayXg;
+  const displayHubRow = orientToRequest ? swapHubPredictionRow(hubRow) : hubRow;
+  const displayAnalyticsContext = orientToRequest
+    ? swapWcAnalyticsContext(analyticsContext)
+    : analyticsContext;
+  const propsHomeTeamId = orientToRequest ? request.homeTeamId : homeTeamApiId;
+  const propsAwayTeamId = orientToRequest ? request.awayTeamId : awayTeamApiId;
+
   const result = grahamHubRowToPredictionResult({
-    pred: hubRow,
-    homeName,
-    awayName,
+    pred: displayHubRow,
+    homeName: displayHomeName,
+    awayName: displayAwayName,
     estimated,
     lineupSource,
     lineupNotes,
-    analyticsContext,
+    analyticsContext: displayAnalyticsContext,
   });
 
   const playerProps = await computePlayerPropsForMatch({
-    homeTeamId: homeTeamApiId,
-    awayTeamId: awayTeamApiId,
-    homeTeamName: homeName,
-    awayTeamName: awayName,
+    homeTeamId: propsHomeTeamId,
+    awayTeamId: propsAwayTeamId,
+    homeTeamName: displayHomeName,
+    awayTeamName: displayAwayName,
     homeLeagueId: request.homeLeagueId,
     awayLeagueId: request.awayLeagueId,
     entityType: "national",
-    homeXg,
-    awayXg,
-    teamComparison: analyticsContext.teamComparison,
+    homeXg: displayHomeXg,
+    awayXg: displayAwayXg,
+    teamComparison: displayAnalyticsContext.teamComparison,
     customLineups: request.customLineups,
-    homeFormMatches,
-    awayFormMatches,
-    homeDbTeamId: match.home_team_id!,
-    awayDbTeamId: match.away_team_id!,
+    homeFormMatches: orientToRequest ? awayFormMatches : homeFormMatches,
+    awayFormMatches: orientToRequest ? homeFormMatches : awayFormMatches,
+    homeDbTeamId: orientToRequest ? match.away_team_id! : match.home_team_id!,
+    awayDbTeamId: orientToRequest ? match.home_team_id! : match.away_team_id!,
     modelVersion: result.modelVersion,
   }).catch(() => null);
 
