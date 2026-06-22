@@ -1,6 +1,13 @@
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
-import { computeXgEloFromMatches, initialXgEloRating } from "@/lib/world-cup/graham-xg-elo";
+import { GRAHAM_WCTR_BASE_K } from "@/lib/world-cup/graham-model-config";
+import {
+  applyXgEloMatchUpdates,
+  XG_ELO_DEFAULT_RATING,
+} from "@/lib/world-cup/graham-xg-elo";
 import { internationalMatchTierWeight } from "@/lib/world-cup/international-strength";
+
+/** Fallback when a team has no tournament matches in the sample. */
+export const WCTR_DEFAULT_RATING = XG_ELO_DEFAULT_RATING;
 
 export function tournamentMatchWeight(competition: string | null | undefined): number {
   const c = (competition ?? "").toLowerCase();
@@ -20,27 +27,33 @@ export function filterTournamentMatches(matches: InternationalFormMatch[]): Inte
   return matches.filter((m) => tournamentMatchWeight(m.competition) > 0);
 }
 
+function initialWctrRating(_teamId: number, _teamName?: string): number {
+  return WCTR_DEFAULT_RATING;
+}
+
+/**
+ * World Cup Tournament Rating — xG-Elo on competitive internationals only.
+ * Unlike xG-Elo (all matches incl. friendlies, FIFA-seeded), WCTR starts at a
+ * neutral 1500 and only moves on tournament matches with tier-weighted K.
+ */
 export function computeWctrFromMatches(
   allMatches: InternationalFormMatch[],
   teamIds: number[],
   teamNames: Map<number, string>
 ): Map<number, number> {
-  const weighted = allMatches.flatMap((m) => {
-    const w = tournamentMatchWeight(m.competition);
-    if (w <= 0) return [];
-    const copies = Math.max(1, Math.round(w * 2));
-    return Array.from({ length: copies }, () => m);
-  });
-
-  if (!weighted.length) {
+  const tournamentMatches = filterTournamentMatches(allMatches);
+  if (!tournamentMatches.length) {
     const fallback = new Map<number, number>();
     for (const id of teamIds) {
-      fallback.set(id, initialXgEloRating(id, teamNames.get(id)));
+      fallback.set(id, initialWctrRating(id, teamNames.get(id)));
     }
     return fallback;
   }
 
-  return computeXgEloFromMatches(weighted, teamIds, teamNames);
+  return applyXgEloMatchUpdates(tournamentMatches, teamIds, teamNames, {
+    initialRating: initialWctrRating,
+    matchK: (m) => GRAHAM_WCTR_BASE_K * tournamentMatchWeight(m.competition),
+  });
 }
 
 export function getWctrRating(
@@ -48,7 +61,7 @@ export function getWctrRating(
   teamId: number,
   teamName?: string
 ): number {
-  return ratings.get(teamId) ?? initialXgEloRating(teamId, teamName);
+  return ratings.get(teamId) ?? initialWctrRating(teamId, teamName);
 }
 
 /** Re-export tier helper for snapshots. */

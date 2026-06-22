@@ -30,6 +30,9 @@ export const GRAHAM_SSI_WEIGHT = 0.08;
 /** xG-Elo update scale (higher τ ⇒ larger K). */
 export const GRAHAM_XG_ELO_BASE_K = 0.32;
 
+/** WCTR update scale — higher than xG-Elo because fewer tournament-only matches. */
+export const GRAHAM_WCTR_BASE_K = 0.55;
+
 /** Squad talent blend: Transfermarkt vs Scoutlyst. */
 export const GRAHAM_TALENT_TM_WEIGHT = 0.6;
 export const GRAHAM_TALENT_SCOUTLYST_WEIGHT = 0.4;
