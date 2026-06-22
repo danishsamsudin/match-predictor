@@ -244,9 +244,15 @@ function buildLikelyXi(squad: TeamSquadSnapshot): SquadPlayer[] {
     }
   }
 
-  return [...byId.values()].sort(
-    (a, b) => (b.startSharePct ?? 0) - (a.startSharePct ?? 0)
-  );
+  return [...byId.values()]
+    .filter(
+      (player) =>
+        resolveSquadPlayerLineupRole({
+          fieldPosition: player.fieldPosition,
+          position: player.position,
+        }) !== "G"
+    )
+    .sort((a, b) => (b.startSharePct ?? 0) - (a.startSharePct ?? 0));
 }
 
 function buildCandidatesForTeam(input: {

@@ -178,6 +178,49 @@ describe("computePlayerPropsPayload", () => {
     expect(payload.home.goalOrAssist).toHaveLength(5);
   });
 
+  it("excludes goalkeepers from goal markets", () => {
+    const squad = makeSquad([
+      makePlayer({
+        name: "E. Martinez",
+        sofascorePlayerId: 1,
+        position: "GK",
+        fieldPosition: "GK",
+        startSharePct: 100,
+        detailStats: [{ label: "Minutes", value: "2700" }],
+      }),
+      ...Array.from({ length: 6 }, (_, i) =>
+        makePlayer({
+          name: `F${i + 1}`,
+          sofascorePlayerId: 10 + i,
+          fieldPosition: "ST",
+          startSharePct: 90 - i,
+          detailStats: [
+            { label: "xG", value: String(18 - i * 2) },
+            { label: "Minutes", value: "2700" },
+          ],
+        })
+      ),
+    ]);
+
+    const payload = computePlayerPropsPayload({
+      modelVersion: "test",
+      homeTeamName: "Argentina",
+      awayTeamName: "Austria",
+      homeTeamId: 4819,
+      awayTeamId: 4718,
+      homeXg: 2.1,
+      awayXg: 0.6,
+      homeSquad: squad,
+      awaySquad: makeSquad([makePlayer({ name: "Away Striker", sofascorePlayerId: 99 })]),
+    });
+
+    const anytimeNames = payload.home.anytimeScorer.map((p) => p.playerName);
+    const goalOrAssistNames = payload.home.goalOrAssist.map((p) => p.playerName);
+    expect(anytimeNames).not.toContain("E. Martinez");
+    expect(goalOrAssistNames).not.toContain("E. Martinez");
+    expect(anytimeNames.every((name) => name.startsWith("F"))).toBe(true);
+  });
+
   it("goal-or-assist market ranks wingers with high xA", () => {
     const squad = makeSquad([
       makePlayer({
