@@ -233,11 +233,6 @@ export async function buildWcPredictionAnalyticsContext(input: {
       home: Math.round(homeXgElo),
       away: Math.round(awayXgElo),
     });
-    statComparison.push({
-      metric: "xG-Elo advantage",
-      home: Math.round(homeXgElo - awayXgElo),
-      away: 0,
-    });
   }
 
   const homeWctr = homeWctrDb ?? snapshotNum(snap, "home_wctr");
@@ -248,11 +243,6 @@ export async function buildWcPredictionAnalyticsContext(input: {
       home: Math.round(homeWctr),
       away: Math.round(awayWctr),
     });
-    statComparison.push({
-      metric: "WCTR advantage",
-      home: Math.round(homeWctr - awayWctr),
-      away: 0,
-    });
   }
 
   const homeAttack = snapshotNum(snap, "home_attack");
@@ -260,8 +250,8 @@ export async function buildWcPredictionAnalyticsContext(input: {
   if (homeAttack != null && awayAttack != null) {
     statComparison.push({
       metric: "Attack process rate",
-      home: homeAttack,
-      away: awayAttack,
+      home: Math.round(homeAttack * 1000) / 1000,
+      away: Math.round(awayAttack * 1000) / 1000,
     });
   }
 
@@ -270,8 +260,8 @@ export async function buildWcPredictionAnalyticsContext(input: {
   if (homeDefense != null && awayDefense != null) {
     statComparison.push({
       metric: "Defense process rate",
-      home: homeDefense,
-      away: awayDefense,
+      home: Math.round(homeDefense * 1000) / 1000,
+      away: Math.round(awayDefense * 1000) / 1000,
     });
   }
 
