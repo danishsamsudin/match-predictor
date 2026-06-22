@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   alignPlayerPropsToLabels,
+  alignStatComparisonToLabels,
+  alignTeamComparisonToLabels,
   shouldOrientWcCompareToRequest,
   swapPlayerPropsPayload,
 } from "@/lib/prediction/align-player-props-orientation";
+import type { TeamComparisonSnapshot } from "@/lib/types/team-comparison";
 import type { PlayerPropsPayload } from "@/lib/prediction/player-props";
 import type { ResolvedWcMatch } from "@/lib/world-cup/resolve-wc-match";
 import { swapHubPredictionRow } from "@/lib/world-cup/swap-hub-prediction-orientation";
@@ -72,6 +75,87 @@ describe("alignPlayerPropsToLabels", () => {
     const payload = samplePayload("Argentina", "Austria");
     const aligned = alignPlayerPropsToLabels(payload, "Argentina", "Austria");
     expect(aligned).toBe(payload);
+  });
+});
+
+function sampleComparison(
+  homeTeamName: string,
+  awayTeamName: string
+): TeamComparisonSnapshot {
+  return {
+    home: {
+      teamId: homeTeamName === "Argentina" ? 4819 : 4718,
+      teamName: homeTeamName,
+      leagueName: "International",
+      seasonStats: {
+        formScorePct: null,
+        form: null,
+        goalsForPerGame: null,
+        goalsAgainstPerGame: null,
+        cornersPerGame: null,
+        foulsPerGame: null,
+        yellowCardsPerGame: null,
+        redCardsPerGame: null,
+        shotsOnTargetPerGame: null,
+        preferredFormation: "4-3-3",
+        venueName: homeTeamName === "Argentina" ? "Estadio Monumental" : "Ernst-Happel-Stadion",
+        venueCapacity: "48000",
+      },
+      recentForm: [],
+      players: [],
+      squad: { starters: [], substitutes: [], preferredFormation: null, formations: [] },
+      insights: null,
+    },
+    away: {
+      teamId: awayTeamName === "Argentina" ? 4819 : 4718,
+      teamName: awayTeamName,
+      leagueName: "International",
+      seasonStats: {
+        formScorePct: null,
+        form: null,
+        goalsForPerGame: null,
+        goalsAgainstPerGame: null,
+        cornersPerGame: null,
+        foulsPerGame: null,
+        yellowCardsPerGame: null,
+        redCardsPerGame: null,
+        shotsOnTargetPerGame: null,
+        preferredFormation: "4-2-3-1",
+        venueName: awayTeamName === "Argentina" ? "Estadio Monumental" : "Ernst-Happel-Stadion",
+        venueCapacity: "48000",
+      },
+      recentForm: [],
+      players: [],
+      squad: { starters: [], substitutes: [], preferredFormation: null, formations: [] },
+      insights: null,
+    },
+    usesDatabaseStats: true,
+    fixtureContext: null,
+  };
+}
+
+describe("alignTeamComparisonToLabels", () => {
+  it("swaps comparison sides when labels are reversed", () => {
+    const comparison = sampleComparison("Argentina", "Austria");
+    const aligned = alignTeamComparisonToLabels(comparison, "Austria", "Argentina");
+    expect(aligned.home.teamName).toBe("Austria");
+    expect(aligned.away.teamName).toBe("Argentina");
+    expect(aligned.home.seasonStats.venueName).toBe("Ernst-Happel-Stadion");
+  });
+});
+
+describe("alignStatComparisonToLabels", () => {
+  it("swaps stat comparison values when sides are reversed", () => {
+    const rows = [{ metric: "xG-Elo rating", home: 1875, away: 1597 }];
+    const aligned = alignStatComparisonToLabels(
+      rows,
+      "Argentina",
+      "Austria",
+      "Austria",
+      "Argentina"
+    );
+    expect(aligned[0]?.home).toBe(1597);
+    expect(aligned[0]?.away).toBe(1875);
   });
 });
 

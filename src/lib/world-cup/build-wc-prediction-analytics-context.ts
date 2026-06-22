@@ -17,6 +17,7 @@ import {
   opponentInInternationalForm,
   teamGoalsInInternationalForm,
 } from "@/lib/world-cup/international-form-team-side";
+import { loadNationalTeamRating } from "@/lib/world-cup/load-national-ratings";
 import { loadWcOptaEventCalibration } from "@/lib/world-cup/wc-opta-event-calibration";
 import type { PredictionAnalytics } from "@/lib/types/prediction";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -215,8 +216,17 @@ export async function buildWcPredictionAnalyticsContext(input: {
     { metric: "Expected goals", home: input.homeXg, away: input.awayXg },
   ];
 
-  const homeXgElo = snapshotNum(snap, "home_xg_elo");
-  const awayXgElo = snapshotNum(snap, "away_xg_elo");
+  const [homeXgEloDb, awayXgEloDb, homeWctrDb, awayWctrDb] = input.supabase
+    ? await Promise.all([
+        loadNationalTeamRating(input.homeTeamApiId, "xg_elo"),
+        loadNationalTeamRating(input.awayTeamApiId, "xg_elo"),
+        loadNationalTeamRating(input.homeTeamApiId, "tournament"),
+        loadNationalTeamRating(input.awayTeamApiId, "tournament"),
+      ])
+    : [null, null, null, null];
+
+  const homeXgElo = homeXgEloDb ?? snapshotNum(snap, "home_xg_elo");
+  const awayXgElo = awayXgEloDb ?? snapshotNum(snap, "away_xg_elo");
   if (homeXgElo != null && awayXgElo != null) {
     statComparison.push({
       metric: "xG-Elo rating",
@@ -230,8 +240,8 @@ export async function buildWcPredictionAnalyticsContext(input: {
     });
   }
 
-  const homeWctr = snapshotNum(snap, "home_wctr");
-  const awayWctr = snapshotNum(snap, "away_wctr");
+  const homeWctr = homeWctrDb ?? snapshotNum(snap, "home_wctr");
+  const awayWctr = awayWctrDb ?? snapshotNum(snap, "away_wctr");
   if (homeWctr != null && awayWctr != null) {
     statComparison.push({
       metric: "Tournament rating (WCTR)",

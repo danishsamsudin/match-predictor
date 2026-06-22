@@ -23,7 +23,11 @@ import {
   normalizeExplanationText,
 } from "@/lib/prediction/explanation-glossary";
 import { teamNamesFromSnapshot } from "@/lib/prediction/resolve-team-names";
-import { alignPlayerPropsToLabels } from "@/lib/prediction/align-player-props-orientation";
+import {
+  alignPlayerPropsToLabels,
+  alignStatComparisonToLabels,
+  alignTeamComparisonToLabels,
+} from "@/lib/prediction/align-player-props-orientation";
 import type { PredictionResult } from "@/lib/types/prediction";
 import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
 
@@ -91,9 +95,32 @@ export function PredictionResultCard({
   const [showExplanation, setShowExplanation] = useState(false);
   const homeLabel = result.homeTeamName ?? "Home";
   const awayLabel = result.awayTeamName ?? "Away";
+  const teamComparison = result.teamComparison
+    ? alignTeamComparisonToLabels(result.teamComparison, homeLabel, awayLabel)
+    : undefined;
   const playerProps = result.playerProps
     ? alignPlayerPropsToLabels(result.playerProps, homeLabel, awayLabel)
     : undefined;
+  const analytics =
+    result.analytics && result.teamComparison
+      ? {
+          ...result.analytics,
+          statComparison: alignStatComparisonToLabels(
+            result.analytics.statComparison,
+            result.teamComparison.home.teamName,
+            result.teamComparison.away.teamName,
+            homeLabel,
+            awayLabel
+          ),
+          playerProps: playerProps ?? result.analytics.playerProps,
+        }
+      : result.analytics;
+  const displayResult: PredictionResult = {
+    ...result,
+    teamComparison,
+    playerProps,
+    analytics,
+  };
 
   return (
     <div className="liquid-glass-panel min-w-0 max-w-full rounded-2xl sm:rounded-[2rem]">
@@ -142,8 +169,8 @@ export function PredictionResultCard({
           awayLabel={awayLabel}
         />
 
-        {!compact && result.teamComparison ? (
-          <TeamComparisonPanel comparison={result.teamComparison} />
+        {!compact && teamComparison ? (
+          <TeamComparisonPanel comparison={teamComparison} />
         ) : null}
 
         {!compact &&
@@ -177,9 +204,9 @@ export function PredictionResultCard({
           />
         ) : null}
 
-        {!compact ? <PredictionCharts result={result} /> : null}
-        {!compact ? <MarketComparisonPanel result={result} /> : null}
-        {!compact ? <HandicapMarketPanel result={result} /> : null}
+        {!compact ? <PredictionCharts result={displayResult} /> : null}
+        {!compact ? <MarketComparisonPanel result={displayResult} /> : null}
+        {!compact ? <HandicapMarketPanel result={displayResult} /> : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <StatBox

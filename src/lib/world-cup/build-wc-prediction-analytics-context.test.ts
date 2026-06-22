@@ -26,5 +26,11 @@ describe("buildWcPredictionAnalyticsContext", () => {
     expect(ctx.teamComparison.home.seasonStats.venueCapacity).toBe("83186");
     expect(ctx.statComparison.some((r) => r.metric === "xG-Elo rating")).toBe(true);
     expect(ctx.statComparison.some((r) => r.metric === "xG-Elo advantage")).toBe(true);
+    const xgEloRow = ctx.statComparison.find((r) => r.metric === "xG-Elo rating");
+    expect(xgEloRow?.home).toBe(1500);
+    expect(xgEloRow?.away).toBe(1124);
+    const wctrRow = ctx.statComparison.find((r) => r.metric === "Tournament rating (WCTR)");
+    expect(wctrRow?.home).toBe(1490);
+    expect(wctrRow?.away).toBe(1180);
   });
 });

@@ -8,6 +8,19 @@ function normTeamName(name: string): string {
   return normalizeNationalTeamName(name.trim());
 }
 
+function shouldSwapSidesToLabels(
+  sideHomeName: string,
+  sideAwayName: string,
+  homeLabel: string,
+  awayLabel: string
+): boolean {
+  const home = normTeamName(homeLabel);
+  const away = normTeamName(awayLabel);
+  const payloadHome = normTeamName(sideHomeName);
+  const payloadAway = normTeamName(sideAwayName);
+  return payloadHome === away && payloadAway === home;
+}
+
 export function swapPlayerPropsPayload(payload: PlayerPropsPayload): PlayerPropsPayload {
   return {
     ...payload,
@@ -34,14 +47,44 @@ export function alignPlayerPropsToLabels(
   homeLabel: string,
   awayLabel: string
 ): PlayerPropsPayload {
-  const home = normTeamName(homeLabel);
-  const away = normTeamName(awayLabel);
-  const payloadHome = normTeamName(payload.home.teamName);
-  const payloadAway = normTeamName(payload.away.teamName);
-
-  if (payloadHome === home && payloadAway === away) return payload;
-  if (payloadHome === away && payloadAway === home) return swapPlayerPropsPayload(payload);
+  if (
+    shouldSwapSidesToLabels(
+      payload.home.teamName,
+      payload.away.teamName,
+      homeLabel,
+      awayLabel
+    )
+  ) {
+    return swapPlayerPropsPayload(payload);
+  }
   return payload;
+}
+
+/** Same home/away label alignment as player props — keeps team comparison in sync with the UI. */
+export function alignTeamComparisonToLabels(
+  snapshot: TeamComparisonSnapshot,
+  homeLabel: string,
+  awayLabel: string
+): TeamComparisonSnapshot {
+  if (
+    shouldSwapSidesToLabels(snapshot.home.teamName, snapshot.away.teamName, homeLabel, awayLabel)
+  ) {
+    return swapTeamComparisonSides(snapshot);
+  }
+  return snapshot;
+}
+
+export function alignStatComparisonToLabels<T extends { home: number; away: number }>(
+  rows: T[],
+  sideHomeName: string,
+  sideAwayName: string,
+  homeLabel: string,
+  awayLabel: string
+): T[] {
+  if (!shouldSwapSidesToLabels(sideHomeName, sideAwayName, homeLabel, awayLabel)) {
+    return rows;
+  }
+  return rows.map((row) => ({ ...row, home: row.away, away: row.home }));
 }
 
 export function shouldOrientWcCompareToRequest(
