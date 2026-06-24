@@ -6,20 +6,7 @@ import {
   priorFinishedWcMatchesForTeam,
 } from "../src/lib/world-cup/wc-tournament-discipline";
 import type { WcMatchRow } from "../src/lib/world-cup/standings";
-
-function loadEnvLocal() {
-  const fs = require("fs") as typeof import("fs");
-  const path = require("path") as typeof import("path");
-  const envPath = path.join(process.cwd(), ".env.local");
-  if (!fs.existsSync(envPath)) return;
-  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
-    const t = line.trim();
-    if (!t || t.startsWith("#") || !t.includes("=")) continue;
-    const [key, ...rest] = t.split("=");
-    const val = rest.join("=").trim().replace(/^["']|["']$/g, "");
-    if (key && !(key in process.env)) process.env[key] = val;
-  }
-}
+import { loadEnvLocal } from "./load-env-local";
 
 async function main() {
   loadEnvLocal();
