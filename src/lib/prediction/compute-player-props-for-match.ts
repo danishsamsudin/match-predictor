@@ -89,6 +89,8 @@ export async function computePlayerPropsForMatch(input: {
   entityType: "club" | "national";
   homeXg: number;
   awayXg: number;
+  homeTeamExpectedSot?: number;
+  awayTeamExpectedSot?: number;
   teamComparison?: TeamComparisonSnapshot;
   customLineups?: FixtureLineup[];
   homeFormMatches?: InternationalFormMatch[];
@@ -143,6 +145,8 @@ export async function computePlayerPropsForMatch(input: {
     awayTeamId: input.awayTeamId,
     homeXg: input.homeXg,
     awayXg: input.awayXg,
+    homeTeamExpectedSot: input.homeTeamExpectedSot,
+    awayTeamExpectedSot: input.awayTeamExpectedSot,
     homeSquad,
     awaySquad,
     homeOpponentProfile,

@@ -3,7 +3,7 @@ import { PageHero } from "@/components/match-predictor/PageHero";
 import { GoldenBootPanel } from "@/components/world-cup/GoldenBootPanel";
 import { GroupMatrixGrid } from "@/components/world-cup/GroupMatrixGrid";
 import { KnockoutProjectionPanel } from "@/components/world-cup/KnockoutProjectionPanel";
-import { RecentResultsSection } from "@/components/world-cup/RecentResultsSection";
+import { RecentResultsSection, type RecentResultMatch } from "@/components/world-cup/RecentResultsSection";
 import { TournamentForecastPanel } from "@/components/world-cup/TournamentForecastPanel";
 import { UpcomingFixturesSection } from "@/components/world-cup/UpcomingFixturesSection";
 import type { UpcomingMatchCardProps } from "@/components/world-cup/MatchValueFlipCard";
@@ -201,6 +201,7 @@ export default async function WorldCupHubPage() {
               date: m.date,
               groupCode: m.group_code,
               summary: m.match_summary,
+              modelSquadPrediction: m.model_squad_prediction as RecentResultMatch["modelSquadPrediction"],
             }))}
           />
         </section>

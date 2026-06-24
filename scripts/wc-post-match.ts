@@ -16,7 +16,6 @@ import {
 } from "../src/lib/world-cup/wc-opta-results-dir";
 import {
   listWcPlayerStatsFixtures,
-  WC_PLAYER_STATS_ROOT,
 } from "../src/lib/world-cup/wc-player-stats-dir";
 
 function run(cmd: string, args: string[]): void {
@@ -78,20 +77,22 @@ function main() {
 
   validateBundles(files);
 
+  run("npx", ["tsx", "scripts/wc-postmatch-snapshot.ts", ...files]);
   run("npx", ["tsx", "scripts/wc-ingest-opta-html.ts", ...files]);
   run("npm", ["run", "wc:ingest-player-stats"]);
   run("npm", ["run", "wc:recompute-wc-form"]);
   run("npm", ["run", "statsbomb:import"]);
   run("npm", ["run", "xg-elo:recompute"]);
   run("npx", ["tsx", "scripts/wc-evaluate-predictions.ts"]);
+  run("npx", ["tsx", "scripts/wc-evaluate-player-props.ts"]);
   run("npx", ["tsx", "scripts/wc-calibrate-graham.ts"]);
   run("npx", ["tsx", "scripts/ml-backfill-training-examples.ts"]);
   run("npm", ["run", "wc:ml-train"]);
   run("npx", ["tsx", "scripts/wc-sync-cli.ts"]);
+  run("npx", ["tsx", "scripts/wc-post-match-report.ts"]);
 
   console.log("\nPost-match pipeline complete.");
-  console.log(`  Articles ingested: ${files.length}`);
-  console.log(`  Player-stats folders: ${playerFixtures.length} (see ${WC_PLAYER_STATS_ROOT})`);
+  console.log(`  See the WC POST-MATCH SUMMARY above for collected data, model changes, and holdout performance.`);
 
   maybeTriggerMlPipelineWorkflow();
 }

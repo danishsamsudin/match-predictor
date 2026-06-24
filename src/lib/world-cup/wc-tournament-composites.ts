@@ -226,7 +226,7 @@ export function computePlayerTournamentForm(
       yellowCards,
       wasLastStarter: p.isStarter,
       availabilityFactor,
-      payload: { last_match_id: latest.matchId },
+      payload: { last_match_id: latest.matchId, last_position: p.position ?? null },
     });
   }
 

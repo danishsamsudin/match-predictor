@@ -230,8 +230,8 @@ export async function buildWcPredictionAnalyticsContext(input: {
   if (homeXgElo != null && awayXgElo != null) {
     statComparison.push({
       metric: "xG-Elo rating",
-      home: Math.round(homeXgElo),
-      away: Math.round(awayXgElo),
+      home: Math.round(homeXgElo * 10) / 10,
+      away: Math.round(awayXgElo * 10) / 10,
     });
   }
 
@@ -240,8 +240,8 @@ export async function buildWcPredictionAnalyticsContext(input: {
   if (homeWctr != null && awayWctr != null) {
     statComparison.push({
       metric: "Tournament rating (WCTR)",
-      home: Math.round(homeWctr),
-      away: Math.round(awayWctr),
+      home: Math.round(homeWctr * 10) / 10,
+      away: Math.round(awayWctr * 10) / 10,
     });
   }
 

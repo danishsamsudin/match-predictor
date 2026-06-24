@@ -189,6 +189,42 @@ async function main() {
     }
   }
 
+  const wcScalarKeys = [
+    "wcAttackFormWeight",
+    "wcDefenseFormWeight",
+    "wcFinishingRegressionWeight",
+    "wcLineupAttackBlend",
+    "wcLineupDefenseBlend",
+    "wcLowEventRhoBoost",
+  ] as const;
+  const wcScales = [0.9, 1, 1.1];
+
+  for (const key of wcScalarKeys) {
+    for (const scale of wcScales) {
+      const baseVal = current[key];
+      const trial: WcCalibrationConstants = {
+        ...best,
+        [key]: clampDelta(baseVal * scale, defaults[key], 0.1),
+        deltaWeights: { ...best.deltaWeights },
+        optaFeatureWeights: { ...best.optaFeatureWeights },
+        processFeatureWeights: { ...(best.processFeatureWeights ?? {}) },
+        eventModelCoeffs: {
+          yellow: { ...best.eventModelCoeffs.yellow },
+          fouls: { ...best.eventModelCoeffs.fouls },
+          corners: { ...best.eventModelCoeffs.corners },
+          ...(best.eventModelCoeffs.red ? { red: { ...best.eventModelCoeffs.red } } : {}),
+        },
+      };
+      const trialLoss = avgCompositeLossForSnapshots(evalRows, trial, trial.modelVersion);
+      const trialBrier = avgBrier1x2ForSnapshots(evalRows, trial, trial.modelVersion);
+      const trialScore = scoreTrial(trialLoss, trialBrier);
+      if (trialScore < bestLoss) {
+        bestLoss = trialScore;
+        best = trial;
+      }
+    }
+  }
+
   const improved = calibrationGridImproved(bestLoss, scoreTrial(baselineLoss, baselineBrier));
   if (!improved) {
     console.log(

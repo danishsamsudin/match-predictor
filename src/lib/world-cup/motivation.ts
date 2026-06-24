@@ -1,3 +1,4 @@
+import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import type { GroupStandingRow, WcMatchRow } from "@/lib/world-cup/standings";
 import { OFFICIAL_WC_2026_SQUADS } from "@/lib/data/world-cup-2026-official-squads";
 
@@ -6,6 +7,9 @@ export interface MotivationParams {
   sigmaAway: number;
   rhoOffset: number;
   scenario: string;
+  /** Host-nation crowd / stakes multiplier on home sigma (distinct from xG host boost). */
+  hostMotivationHome?: number;
+  stakesIndex?: number;
   md3Permutation?: {
     scenarios: Array<{ label: string; weight: number }>;
     finalSigmaHome: number;
@@ -16,6 +20,59 @@ export interface MotivationParams {
 
 const ROTATION_MIN = 0.92;
 const ROTATION_MAX = 0.95;
+
+/** xG multiplier when a co-host plays in a home-nation venue. */
+export function resolveHostNationXgBoost(matchCity: string | null, homeName: string): number {
+  const city = (matchCity ?? "").toLowerCase();
+  const home = normalizeNationalTeamName(homeName).toLowerCase();
+  if (home.includes("mexico") && city.includes("mexico")) return 1.05;
+  if (
+    home.includes("united states") &&
+    (city.includes("usa") || city.includes("york") || city.includes("angeles"))
+  ) {
+    return 1.04;
+  }
+  if (home.includes("canada") && (city.includes("toronto") || city.includes("vancouver"))) {
+    return 1.04;
+  }
+  return 1;
+}
+
+/** Motivation sigma boost for co-hosts (separate ML feature from xG host boost). */
+export function resolveHostMotivationBoost(matchCity: string | null, homeName: string): number {
+  const xgBoost = resolveHostNationXgBoost(matchCity, homeName);
+  if (xgBoost <= 1) return 1;
+  return xgBoost >= 1.05 ? 1.05 : 1.03;
+}
+
+export function encodeStakesIndex(input: {
+  isKnockout: boolean;
+  isMatchday3: boolean;
+}): number {
+  if (input.isKnockout) return 2;
+  if (input.isMatchday3) return 1.5;
+  return 1;
+}
+
+export function buildMotivationFeatureSnapshot(input: {
+  motivation: MotivationParams;
+  hostMotivationHome: number;
+  stakesIndex: number;
+}): Record<string, number | boolean | string> {
+  const { motivation, hostMotivationHome, stakesIndex } = input;
+  return {
+    motivation_sigma_home: motivation.sigmaHome,
+    motivation_sigma_away: motivation.sigmaAway,
+    motivation_sigma_diff: motivation.sigmaHome - motivation.sigmaAway,
+    motivation_rho_offset: motivation.rhoOffset,
+    motivation_scenario: motivation.scenario,
+    is_mutual_draw: motivation.scenario.includes("mutual_draw"),
+    is_rotation: motivation.scenario.includes("rotation"),
+    is_host_nation_home: hostMotivationHome > 1,
+    host_motivation_boost: hostMotivationHome,
+    stakes_index: stakesIndex,
+  };
+}
 
 function squadDepthFactor(teamName: string): number {
   const squad = OFFICIAL_WC_2026_SQUADS.teams[teamName];

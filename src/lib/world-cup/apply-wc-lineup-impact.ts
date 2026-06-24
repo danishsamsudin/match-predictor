@@ -30,6 +30,10 @@ export function applyLineupImpactToHubPrediction(
   homeXg = Math.max(INTERNATIONAL_XG_FLOOR, Math.round(homeXg * 100) / 100);
   awayXg = Math.max(INTERNATIONAL_XG_FLOOR, Math.round(awayXg * 100) / 100);
 
+  const lineupImpactHome = homeXg - baseHomeXg;
+  const lineupImpactAway = awayXg - baseAwayXg;
+  const priorOpta = { ...((snap.opta_features as Record<string, unknown>) ?? {}) };
+
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
 
   return {
@@ -53,6 +57,12 @@ export function applyLineupImpactToHubPrediction(
       lineup_away_xg_mult: lineup.awayXgMultiplier,
       lineup_home_defense_mult: lineup.homeDefenseMultiplier,
       lineup_away_defense_mult: lineup.awayDefenseMultiplier,
+      opta_features: {
+        ...priorOpta,
+        lineup_impact_home: lineupImpactHome,
+        lineup_impact_away: lineupImpactAway,
+        lineup_impact_diff: lineupImpactHome - lineupImpactAway,
+      },
     },
   };
 }

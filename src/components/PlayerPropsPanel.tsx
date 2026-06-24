@@ -255,7 +255,9 @@ export function PlayerPropsPanel({
       payload.home.anytimeScorer.length > 0 ||
       payload.away.anytimeScorer.length > 0 ||
       payload.home.goalOrAssist.length > 0 ||
-      payload.away.goalOrAssist.length > 0,
+      payload.away.goalOrAssist.length > 0 ||
+      payload.home.shotsOnTarget.length > 0 ||
+      payload.away.shotsOnTarget.length > 0,
     [payload]
   );
 
@@ -320,6 +322,34 @@ export function PlayerPropsPanel({
           awayLabel={awayLabel}
           matchKey={matchKey}
         />
+        {(payload.home.shotsOnTarget.length > 0 || payload.away.shotsOnTarget.length > 0) && (
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Shots on target
+              </h4>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Top attackers — P(over 0.5 / 1.5 / 2.5 SoT) from team predicted SoT budget.
+              </p>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {[payload.home, payload.away].map((side, idx) => (
+                <div key={idx}>
+                  <p className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+                    {idx === 0 ? homeLabel : awayLabel}
+                  </p>
+                  <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
+                    {side.shotsOnTarget.filter((l) => l.line === 0.5).slice(0, 5).map((line) => (
+                      <li key={`${line.playerName}-${line.line}`}>
+                        {line.playerName}: λ {line.expectedSot} · P(1+ SoT) {line.probabilityPct}%
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

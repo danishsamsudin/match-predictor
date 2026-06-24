@@ -3,6 +3,10 @@
 import type { ReactNode } from "react";
 import { BarChart3, Goal, TrendingUp } from "lucide-react";
 import type { PredictionAnalytics, PredictionResult } from "@/lib/types/prediction";
+import {
+  formatPairedStatValue,
+  pairedStatDecimalPlaces,
+} from "@/lib/prediction/format-paired-stat-values";
 import type { TeamComparisonSnapshot, TeamFormMatch } from "@/lib/types/team-comparison";
 import { formatCalendarDateLocal } from "@/lib/utils/kickoff-display";
 import { resolveTeamShortLabel } from "@/lib/utils/team-display-name";
@@ -93,8 +97,11 @@ function DualHorizontalBar({
     : maxValue > 0
       ? (awayValue / maxValue) * 100
       : 0;
+  const valueDecimals = scaleAsPercent ? 1 : pairedStatDecimalPlaces(homeValue, awayValue);
   const formatVal = (v: number) =>
-    scaleAsPercent ? `${Math.round(v * 10) / 10}${valueSuffix || "%"}` : `${v}${valueSuffix}`;
+    scaleAsPercent
+      ? `${Math.round(v * 10) / 10}${valueSuffix || "%"}`
+      : `${formatPairedStatValue(v, valueDecimals)}${valueSuffix}`;
 
   return (
     <div className="min-w-0 space-y-2 border-b border-white/20 py-3 last:border-0 dark:border-slate-800/50">
@@ -524,7 +531,8 @@ export function PredictionCharts({
           tipLabel="Over/Under goals (model)"
           tipBody={
             <>
-              Chance of total goals going over or under common lines (1.5, 2.5, 3.5) for this fixture.
+              Chance of total goals going over or under common lines (0.5, 1.5, 2.5, 3.5) for this
+              fixture.
               Based on the same expected-goals model as the main prediction.
             </>
           }

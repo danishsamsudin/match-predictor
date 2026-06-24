@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import {
+  extractSofifaStartingXi,
   isWc2026SofifaSquadFilename,
   parseSofifaSquadHtml,
   resolveWc2026SofifaTeamLabel,
@@ -14,6 +15,10 @@ const SOFIFA_DIR = path.join(
 const ENGLAND_HTML = path.join(
   SOFIFA_DIR,
   "England - FC 26 - Jun 10, 2026 _ SoFIFA.html"
+);
+const BELGIUM_HTML = path.join(
+  SOFIFA_DIR,
+  "Belgium - FC 26 - Jun 10, 2026 _ SoFIFA.html"
 );
 
 describe("parseSofifaSquadHtml", () => {
@@ -38,6 +43,21 @@ describe("parseSofifaSquadHtml", () => {
     expect(watkins?.positions).toContain("ST");
     expect(kane?.overall).toBeGreaterThan(80);
     expect(squad.setPieces.Penalties).toBe("Harry Kane");
+  });
+
+  it("Belgium Squad table: first 11 non-SUB in order, 12th is bench", () => {
+    const html = readFileSync(BELGIUM_HTML, "utf-8");
+    const squad = parseSofifaSquadHtml(html, path.basename(BELGIUM_HTML));
+    const xi = extractSofifaStartingXi(squad.players);
+
+    expect(xi).toHaveLength(11);
+    expect(xi[0]?.squadRole).toBe("GK");
+    expect(xi.every((p) => p.isStarter && p.squadRole !== "SUB")).toBe(true);
+
+    const firstSub = squad.players.find((p) => p.squadRole === "SUB");
+    expect(firstSub).toBeDefined();
+    expect(firstSub!.squadOrder).toBeGreaterThanOrEqual(11);
+    expect(xi.map((p) => p.fullName)).not.toContain(firstSub!.fullName);
   });
 
   it("flags non-WC nations", () => {

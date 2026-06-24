@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { MatchSummaryPanel } from "@/components/world-cup/MatchSummaryPanel";
+import {
+  ModelPredictionComparePanel,
+  type ModelSquadPredictionCompare,
+} from "@/components/world-cup/ModelPredictionComparePanel";
 import { NationalTeamFlag } from "@/components/world-cup/NationalTeamFlag";
+import type { PlayerPropsPayload } from "@/lib/prediction/player-props";
 import type { WcMatchSummary } from "@/lib/world-cup/match-summary";
 
 export type RecentResultMatch = {
@@ -14,6 +19,11 @@ export type RecentResultMatch = {
   date: string | null;
   groupCode: string | null;
   summary: WcMatchSummary | null;
+  modelSquadPrediction?: {
+    computed_at?: string;
+    team_prediction?: ModelSquadPredictionCompare["teamPrediction"];
+    player_props?: PlayerPropsPayload;
+  } | null;
 };
 
 export function RecentResultsSection({ matches }: { matches: RecentResultMatch[] }) {
@@ -70,6 +80,24 @@ export function RecentResultsSection({ matches }: { matches: RecentResultMatch[]
                   awayName={m.awayName}
                   summary={m.summary}
                 />
+                {m.modelSquadPrediction?.team_prediction && (
+                  <ModelPredictionComparePanel
+                    homeName={m.homeName}
+                    awayName={m.awayName}
+                    compare={{
+                      matchId: m.matchId,
+                      computedAt: m.modelSquadPrediction.computed_at ?? null,
+                      teamPrediction: m.modelSquadPrediction.team_prediction ?? null,
+                      playerProps: m.modelSquadPrediction.player_props ?? null,
+                      actual: {
+                        homeGoals: m.homeGoals,
+                        awayGoals: m.awayGoals,
+                        homeSot: m.summary?.home?.shotsOnTarget ?? null,
+                        awaySot: m.summary?.away?.shotsOnTarget ?? null,
+                      },
+                    }}
+                  />
+                )}
               </div>
             )}
           </li>

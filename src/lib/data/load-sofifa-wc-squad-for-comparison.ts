@@ -3,7 +3,7 @@ import {
   computePlayerPerformanceScore,
   sofifaOverallToScore,
 } from "@/lib/data/compute-player-performance-score";
-import { dedupeSquadPlayersById, pickUniqueStarters } from "@/lib/data/dedupe-squad-players";
+import { dedupeSquadPlayersById } from "@/lib/data/dedupe-squad-players";
 import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
 import {
   positionDisplayLabelFromTokens,
@@ -242,7 +242,9 @@ export async function loadSofifaWcSquadForComparison(
   const rows = await loadSofifaPlayersForTeam(supabase, teamId);
   if (!rows.length) return null;
 
-  const startersRaw = rows.filter((row) => row.is_starter === true);
+  const startersRaw = rows
+    .filter((row) => row.is_starter === true)
+    .sort((a, b) => (a.squad_order ?? 999) - (b.squad_order ?? 999));
   const subsRaw = rows.filter((row) => row.is_starter !== true);
   if (startersRaw.length < 11) return null;
 
@@ -328,6 +330,7 @@ export async function loadSofifaWcSquadForComparison(
   const starterCandidates = dedupeSquadPlayersById(
     mapped
       .filter((entry) => entry.row.is_starter === true)
+      .sort((a, b) => (a.row.squad_order ?? 999) - (b.row.squad_order ?? 999))
       .map((entry) => withMatchRatings(entry.player))
   );
   const benchCandidates = dedupeSquadPlayersById(
@@ -336,7 +339,7 @@ export async function loadSofifaWcSquadForComparison(
       .map((entry) => withMatchRatings(entry.player))
   );
 
-  const starters = pickUniqueStarters(starterCandidates, [...benchCandidates, ...allMapped], 11);
+  const starters = starterCandidates.slice(0, 11);
   const starterIds = new Set(starters.map((p) => p.sofascorePlayerId));
   const substitutes = dedupeSquadPlayersById(
     allMapped.filter((p) => !starterIds.has(p.sofascorePlayerId))
@@ -356,22 +359,18 @@ export async function loadSofifaWcSquadForComparison(
   };
 }
 
-/** Model-squad XI: player names from SoFIFA HTML starting eleven. */
+/** Model-squad XI: first 11 non-SUB players in SoFIFA Squad table order. */
 export async function projectWcModelXiFromSofifa(input: {
   supabase: ServiceClient;
   teamApiId: number;
   teamLabel: string;
   teamName?: string;
 }): Promise<string[]> {
-  const squad = await loadSofifaWcSquadForComparison(
-    input.supabase,
-    input.teamApiId,
-    input.teamLabel,
-    {
-      teamName: input.teamName ?? input.teamLabel,
-      entityType: "national",
-    }
-  );
-  if (!squad?.starters.length) return [];
-  return squad.starters.map((player) => player.name);
+  const rows = await loadSofifaPlayersForTeam(input.supabase, input.teamApiId);
+  const starters = rows
+    .filter((row) => row.is_starter === true)
+    .sort((a, b) => (a.squad_order ?? 999) - (b.squad_order ?? 999))
+    .slice(0, 11);
+  if (starters.length < 11) return [];
+  return starters.map((row) => formatPlayerDisplayNameIfNeeded(row.name));
 }

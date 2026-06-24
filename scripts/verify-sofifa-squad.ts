@@ -1,5 +1,7 @@
 import fs from "fs";
 import path from "path";
+import { readFileSync } from "fs";
+import { extractSofifaStartingXi, parseSofifaSquadHtml } from "../src/lib/data/parse-sofifa-squad-html";
 import { loadSofifaWcSquadForComparison } from "../src/lib/data/load-sofifa-wc-squad-for-comparison";
 import { loadSofifaPlayersForTeam } from "../src/lib/data/load-sofifa-wc-squad-for-comparison";
 import { sofifaOverallToScore } from "../src/lib/data/compute-player-performance-score";
@@ -59,6 +61,25 @@ async function main() {
     console.log(`roster=${roster.length} duplicates=${[...new Set(dup)].join(", ") || "none"} FWD starters=${fwds}`);
 
     const rows = await loadSofifaPlayersForTeam(supabase, teamId);
+    const dbXi = rows
+      .filter((r) => r.is_starter === true)
+      .sort((a, b) => (a.squad_order ?? 999) - (b.squad_order ?? 999))
+      .slice(0, 11)
+      .map((r) => r.name);
+    console.log(`DB Squad-table XI: ${dbXi.join(", ")}`);
+
+    const htmlPath = path.join(
+      process.cwd(),
+      "data/world-cup-2026/WC Squads - SoFIFA",
+      `${label} - FC 26 - Jun 10, 2026 _ SoFIFA.html`
+    );
+    if (fs.existsSync(htmlPath)) {
+      const parsed = parseSofifaSquadHtml(readFileSync(htmlPath, "utf-8"), path.basename(htmlPath));
+      const htmlXi = extractSofifaStartingXi(parsed.players).map((p) => p.fullName);
+      console.log(`HTML Squad-table XI: ${htmlXi.join(", ")}`);
+      const mismatch = dbXi.length !== htmlXi.length || dbXi.some((n, i) => n !== htmlXi[i]);
+      if (mismatch) console.log("WARNING: DB XI does not match HTML Squad-table XI — re-run import-sofifa-squads-local");
+    }
     const vini = rows.find((row) => row.name.includes("Vini"));
     if (vini) {
       const raw = sofifaOverallToScore(Number(vini.sofifa_overall));

@@ -21,8 +21,10 @@ import {
 } from "@/lib/world-cup/swap-hub-prediction-orientation";
 import { loadEnrichedFormForTeam } from "@/lib/world-cup/load-enriched-international-form";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
-import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
 import { computeWcEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
+import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
+import { saveWcModelSquadPrediction } from "@/lib/world-cup/save-wc-model-squad-prediction";
+import { resolveWcModelStartingXi } from "@/lib/world-cup/resolve-wc-model-starting-xi";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
 import type { PredictRequest, PredictionLineupSource, PredictionResult } from "@/lib/types/prediction";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -189,7 +191,7 @@ export async function runWcGrahamPredictForRequest(input: {
   if (shouldRefreshHubPrediction(phase)) {
     await wcDb(supabase).from("world_cup_predictions").upsert({
       match_id: resolved.matchId,
-      ...baseHubRow,
+      ...hubRow,
       computed_at: new Date().toISOString(),
     });
   }
@@ -269,6 +271,8 @@ export async function runWcGrahamPredictForRequest(input: {
     entityType: "national",
     homeXg: displayHomeXg,
     awayXg: displayAwayXg,
+    homeTeamExpectedSot: displayHomeXg * 4.2,
+    awayTeamExpectedSot: displayAwayXg * 4.2,
     teamComparison: displayAnalyticsContext.teamComparison,
     customLineups: request.customLineups,
     homeFormMatches: orientToRequest ? awayFormMatches : homeFormMatches,
@@ -283,6 +287,34 @@ export async function runWcGrahamPredictForRequest(input: {
     if (result.analytics) {
       result.analytics.playerProps = playerProps;
     }
+  }
+
+  if (lineupSource === "model_xi") {
+    const [homeXi, awayXi] = await Promise.all([
+      resolveWcModelStartingXi({
+        supabase,
+        teamApiId: homeTeamApiId,
+        teamName: homeName,
+      }),
+      resolveWcModelStartingXi({
+        supabase,
+        teamApiId: awayTeamApiId,
+        teamName: awayName,
+      }),
+    ]);
+    await saveWcModelSquadPrediction({
+      supabase,
+      matchId: resolved.matchId,
+      homeTeamApiId,
+      awayTeamApiId,
+      hubRow,
+      result,
+      playerProps,
+      homeXi,
+      awayXi,
+    }).catch((err) => {
+      console.warn("Failed to save model squad prediction:", err);
+    });
   }
 
   return result;

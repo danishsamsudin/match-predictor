@@ -228,7 +228,7 @@ export function computeMarketAnalytics(
     totalGoalsMap.set(total, (totalGoalsMap.get(total) ?? 0) + cell.probability);
   }
 
-  const overUnderLines = [1.5, 2.5, 3.5];
+  const overUnderLines = [0.5, 1.5, 2.5, 3.5];
   const overUnder: OverUnderLine[] = overUnderLines.map((line) => {
     let over = 0;
     for (const cell of matrix) {

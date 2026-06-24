@@ -65,6 +65,7 @@ export type WorldCupHubPayload = {
       ingest_source_away?: string | null;
       ingest_source_home_goals?: number | null;
       ingest_source_away_goals?: number | null;
+      model_squad_prediction?: Record<string, unknown> | null;
     }
   >;
   upcoming: Array<
@@ -561,7 +562,7 @@ export async function buildWorldCupHubPayload(
     };
   };
 
-  const [teamsRes, matchesRes, discRes, predRes, forecastRes, ingestsRes] = await Promise.all([
+  const [teamsRes, matchesRes, discRes, predRes, forecastRes, ingestsRes, modelSquadRes] = await Promise.all([
     supabase.from("teams").select("id, name"),
     supabase
       .from("matches")
@@ -576,6 +577,9 @@ export async function buildWorldCupHubPayload(
     wcClient
       .from("world_cup_post_match_ingests")
       .select("match_id, parsed, narrative_features, ingested_at"),
+    wcClient
+      .from("world_cup_model_squad_predictions")
+      .select("match_id, computed_at, team_prediction, player_props, snapshot, model_xi_meta"),
   ]);
 
   const teamNames = new Map((teamsRes.data ?? []).map((t) => [t.id, t.name]));
@@ -615,12 +619,21 @@ export async function buildWorldCupHubPayload(
     ((ingestsRes.data ?? []) as Array<{ match_id: string }>).map((r) => r.match_id)
   );
   const summaryByMatchId = latestIngestSummariesByMatch(ingestsRes.data ?? []);
+  const modelSquadByMatchId = new Map(
+    ((modelSquadRes.data ?? []) as Array<{ match_id: string }>).map((row) => [
+      String(row.match_id),
+      row,
+    ])
+  );
 
   const recent = matches
     .filter((m) => isMatchFinishedRow(m, ingestedMatchIds))
     .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
     .slice(0, 12)
-    .map((m) => alignRecentMatchForDisplay(m, summaryByMatchId.get(m.id)));
+    .map((m) => ({
+      ...alignRecentMatchForDisplay(m, summaryByMatchId.get(m.id)),
+      model_squad_prediction: modelSquadByMatchId.get(m.id) ?? null,
+    }));
 
   const upcoming = matches
     .filter((m) => !isMatchFinishedRow(m, ingestedMatchIds))

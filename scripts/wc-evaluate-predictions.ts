@@ -5,6 +5,8 @@
  */
 import type { HubPredictionRow } from "../src/lib/world-cup/hub-main-predict";
 import { evaluateHubPredictionAgainstResult } from "../src/lib/world-cup/wc-prediction-eval";
+import { countFinishedGroupMatches } from "../src/lib/world-cup/motivation";
+import { tagWcMatchSegments } from "../src/lib/world-cup/wc-match-segments";
 import { loadWcCalibrationConfig } from "../src/lib/world-cup/wc-calibration-config";
 import { tryCreateServiceClient } from "../src/lib/supabase";
 
@@ -31,7 +33,7 @@ async function main() {
 
   const { data: matches, error: matchErr } = await supabase
     .from("matches")
-    .select("id, home_goals, away_goals, home_team_id, away_team_id, date")
+    .select("id, home_goals, away_goals, home_team_id, away_team_id, date, time, group_code, round, competition, venue_city, status")
     .eq("status", "finished")
     .or("competition.ilike.FIFA World Cup 2026%,competition.eq.World Cup");
 
@@ -69,6 +71,30 @@ async function main() {
       m.away_goals
     );
 
+    const segments = tagWcMatchSegments({
+      match: {
+        id: String(m.id),
+        date: m.date,
+        time: m.time,
+        group_code: m.group_code,
+        status: m.status,
+        home_team_id: m.home_team_id,
+        away_team_id: m.away_team_id,
+        home_goals: m.home_goals,
+        away_goals: m.away_goals,
+        round: m.round,
+        competition: m.competition,
+        venue_city: m.venue_city,
+      },
+      snapshot: hubPred.snapshot,
+      finishedGroupMatchesForHome: m.home_team_id
+        ? countFinishedGroupMatches(String(m.home_team_id), matches ?? [])
+        : 0,
+      finishedGroupMatchesForAway: m.away_team_id
+        ? countFinishedGroupMatches(String(m.away_team_id), matches ?? [])
+        : 0,
+    });
+
     const { error } = await supabase.from("world_cup_prediction_evaluations").upsert(
       {
         match_id: String(m.id),
@@ -76,7 +102,7 @@ async function main() {
         calibration_version: calibration.modelVersion,
         actual_score_home: m.home_goals,
         actual_score_away: m.away_goals,
-        market_scores: scores,
+        market_scores: { ...scores, segments },
         computed_at: new Date().toISOString(),
       },
       { onConflict: "match_id" }

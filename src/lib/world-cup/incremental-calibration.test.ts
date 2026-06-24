@@ -52,4 +52,21 @@ describe("incremental-calibration", () => {
     expect(calibrationGridImproved(0.4098, 0.4116)).toBe(true);
     expect(calibrationGridImproved(0.4116, 0.4116)).toBe(false);
   });
+
+  it("wc form and lineup scalar keys have defaults for grid expansion", async () => {
+    const { getDefaultWcCalibrationConstants } = await import(
+      "@/lib/world-cup/wc-calibration-config"
+    );
+    const defaults = getDefaultWcCalibrationConstants();
+    for (const key of [
+      "wcAttackFormWeight",
+      "wcDefenseFormWeight",
+      "wcFinishingRegressionWeight",
+      "wcLineupAttackBlend",
+      "wcLineupDefenseBlend",
+      "wcLowEventRhoBoost",
+    ] as const) {
+      expect(defaults[key]).toBeGreaterThan(0);
+    }
+  });
 });

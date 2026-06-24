@@ -45,6 +45,11 @@ OPTA_FEATURE_KEYS = [
     "physicality_index",
     "wide_play_index",
     "lineup_impact_diff",
+    "rotation_index_diff",
+    "low_block_index_diff",
+    "motivation_sigma_diff",
+    "host_motivation_boost",
+    "stakes_index",
 ]
 
 PROCESS_FEATURE_KEYS = [

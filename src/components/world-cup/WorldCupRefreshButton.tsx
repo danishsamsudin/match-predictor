@@ -11,6 +11,21 @@ function formatCountdown(seconds: number): string {
   return `${m}m ${s.toString().padStart(2, "0")}s`;
 }
 
+/** Fixed locale so SSR and browser render the same timestamp string. */
+function formatSnapshotTimestamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
 export function WorldCupRefreshButton({ initialUpdatedAt }: { initialUpdatedAt?: string }) {
   const router = useRouter();
   const [meta, setMeta] = useState<HubSnapshotMeta | null>(null);
@@ -136,7 +151,7 @@ export function WorldCupRefreshButton({ initialUpdatedAt }: { initialUpdatedAt?:
       </button>
       <p className="text-xs text-slate-500">
         Last model update:{" "}
-        {displayUpdatedAt ? new Date(displayUpdatedAt).toLocaleString() : "—"} · Shared
+        {displayUpdatedAt ? formatSnapshotTimestamp(displayUpdatedAt) : "—"} · Shared
         snapshot for all visitors · Manual refresh limited to once every 10 minutes · Not
         betting advice.
       </p>

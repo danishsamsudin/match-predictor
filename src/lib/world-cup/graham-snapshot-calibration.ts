@@ -129,6 +129,11 @@ export function recomputeXgFromSnapshot(
   awayXg *= snapNumOr(snapshot, 1, "delta_final_away");
   awayXg *= snapNumOr(snapshot, 1, "sigma_away");
 
+  homeXg *= snapNumOr(snapshot, 1, "lineup_home_xg_mult");
+  awayXg *= snapNumOr(snapshot, 1, "lineup_away_xg_mult");
+  awayXg *= snapNumOr(snapshot, 1, "lineup_home_defense_mult");
+  homeXg *= snapNumOr(snapshot, 1, "lineup_away_defense_mult");
+
   homeXg = Math.round(homeXg * 100) / 100;
   awayXg = Math.round(awayXg * 100) / 100;
 

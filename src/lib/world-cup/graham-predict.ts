@@ -1,5 +1,4 @@
 import { ensureFifaRankingsLoaded } from "@/lib/data/fifa-rankings-store";
-import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { GRAHAM_1X2_TEMPERATURE, GRAHAM_MODEL_VERSION } from "@/lib/world-cup/graham-model-config";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
@@ -17,6 +16,14 @@ import {
   resolveSquadTalentSnapshot,
 } from "@/lib/world-cup/national-squad-talent";
 import type { MotivationParams } from "@/lib/world-cup/motivation";
+import {
+  buildMotivationFeatureSnapshot,
+  encodeStakesIndex,
+  isMatchday3Fixture,
+  resolveHostMotivationBoost,
+  resolveHostNationXgBoost,
+} from "@/lib/world-cup/motivation";
+import { computeLowBlockIndicesForFixture } from "@/lib/world-cup/wc-low-block-index";
 import { resolveInternationalScoreCorrelation } from "@/lib/world-cup/international-strength";
 import {
   attenuateRhoForExpectedGoalGap,
@@ -34,19 +41,6 @@ import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 function gammaAltitude(venueAltitude: number): number {
   if (venueAltitude <= 1500) return 1;
   return 0.96;
-}
-
-function resolveHostNationXgBoost(matchCity: string | null, homeName: string): number {
-  const city = (matchCity ?? "").toLowerCase();
-  const home = normalizeNationalTeamName(homeName).toLowerCase();
-  if (home.includes("mexico") && city.includes("mexico")) return 1.05;
-  if (home.includes("united states") && (city.includes("usa") || city.includes("york") || city.includes("angeles"))) {
-    return 1.04;
-  }
-  if (home.includes("canada") && (city.includes("toronto") || city.includes("vancouver"))) {
-    return 1.04;
-  }
-  return 1;
 }
 
 function temper1x2Probs(
@@ -140,9 +134,18 @@ export async function runGrahamWorldCupPredict(input: {
   const gammaHome = gammaAltitude(altitude);
   const gammaAway = gammaAltitude(altitude);
   const hostBoost = resolveHostNationXgBoost(match.venue_city ?? venue?.city ?? null, homeName);
+  const hostMotivation = resolveHostMotivationBoost(match.venue_city ?? venue?.city ?? null, homeName);
+  const stakesIndex = encodeStakesIndex({
+    isKnockout: !match.group_code,
+    isMatchday3:
+      isMatchday3Fixture(homeId, finishedMatches) ||
+      isMatchday3Fixture(awayId, finishedMatches),
+  });
+
+  const effectiveSigmaHome = motivation.sigmaHome * hostMotivation;
 
   let homeXg =
-    baseline.homeXg * gammaHome * deltaHome * motivation.sigmaHome * hostBoost;
+    baseline.homeXg * gammaHome * deltaHome * effectiveSigmaHome * hostBoost;
   let awayXg = baseline.awayXg * gammaAway * deltaAway * motivation.sigmaAway;
 
   const rhoBase =
@@ -156,6 +159,20 @@ export async function runGrahamWorldCupPredict(input: {
   const rhoLowEventBoost = lowEvent ? calibration.wcLowEventRhoBoost : 0;
   const rho = attenuateRhoForExpectedGoalGap(rhoBase + rhoLowEventBoost, homeXg, awayXg);
   const mutualDraw = motivation.scenario.includes("mutual_draw");
+
+  const [lowBlock] = await Promise.all([
+    computeLowBlockIndicesForFixture({
+      supabase,
+      homeTeamApiId: homeTeamId,
+      awayTeamApiId: awayTeamId,
+    }),
+  ]);
+
+  const motivationFeatures = buildMotivationFeatureSnapshot({
+    motivation: { ...motivation, hostMotivationHome: hostMotivation, stakesIndex },
+    hostMotivationHome: hostMotivation,
+    stakesIndex,
+  });
 
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
   const tempered = temper1x2Probs(outcomes.homeWin, outcomes.draw, outcomes.awayWin);
@@ -184,9 +201,13 @@ export async function runGrahamWorldCupPredict(input: {
       host_nation_boost: hostBoost,
       delta_final_home: deltaHome,
       delta_final_away: deltaAway,
-      sigma_home: motivation.sigmaHome,
+      sigma_home: effectiveSigmaHome,
       sigma_away: motivation.sigmaAway,
+      host_motivation_home: hostMotivation,
+      stakes_index: stakesIndex,
       scenario: motivation.scenario,
+      motivation_features: motivationFeatures,
+      expected_total_xg: homeXg + awayXg,
       grid_renormalized: grid.renormalized,
       top_scorelines: outcomes.topScorelines,
       home_form_match_count: homeForm.length,
@@ -194,6 +215,11 @@ export async function runGrahamWorldCupPredict(input: {
       home_talent_eur: homeTalent.squadValueEur,
       away_talent_eur: awayTalent.squadValueEur,
       ...baseline.snapshot,
+      opta_features: {
+        ...((baseline.snapshot.opta_features as Record<string, unknown>) ?? {}),
+        ...lowBlock,
+        ...motivationFeatures,
+      },
     },
   };
 

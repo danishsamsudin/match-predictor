@@ -1,5 +1,8 @@
 import { getLatestFifaRankingForTeamId } from "@/lib/data/fifa-rankings-store";
-import { WORLD_CUP_2026_TEAMS } from "@/lib/data/world-cup-2026-teams";
+import {
+  normalizeNationalTeamName,
+  WORLD_CUP_2026_TEAMS,
+} from "@/lib/data/world-cup-2026-teams";
 import {
   getFifaRankingPoints,
   resolveNationalTeamForStrength,
@@ -7,6 +10,7 @@ import {
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
 import { GRAHAM_XG_ELO_BASE_K } from "@/lib/world-cup/graham-model-config";
 import { internationalMatchTierWeight } from "@/lib/world-cup/international-strength";
+import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
 
 export const XG_ELO_DEFAULT_RATING = 1500;
 const ELO_SCALE = 400;
@@ -31,6 +35,29 @@ function matchXgTotals(m: InternationalFormMatch): { homeXg: number; awayXg: num
   };
 }
 
+/**
+ * Map a form row side to a stable numeric Elo key (API id, or name hash for non-WC opponents).
+ * FBref/Supabase rows often use UUID team ids — raw Number(uuid) is NaN and would skip updates.
+ */
+export function resolveEloParticipantId(
+  teamId: string | null | undefined,
+  teamName: string | null | undefined
+): number | null {
+  const apiId = resolveApiTeamId(teamId ?? "", teamName ?? "");
+  if (apiId > 0) return apiId;
+
+  const label = teamName?.trim() || teamId?.trim();
+  if (!label) return null;
+
+  const key = normalizeNationalTeamName(label);
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (Math.imul(31, hash) + key.charCodeAt(i)) | 0;
+  }
+  const pseudo = -Math.abs(hash || 1);
+  return pseudo === 0 ? -1 : pseudo;
+}
+
 /** Shared chronological xG-Elo pass; callers supply init and per-match K. */
 export function applyXgEloMatchUpdates(
   matches: InternationalFormMatch[],
@@ -51,18 +78,18 @@ export function applyXgEloMatchUpdates(
     .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
 
   for (const m of chronological) {
-    const homeId = Number(m.home_team_id);
-    const awayId = Number(m.away_team_id);
-    if (!Number.isFinite(homeId) || !Number.isFinite(awayId)) continue;
+    const homeId = resolveEloParticipantId(m.home_team_id, m.home_team_name);
+    const awayId = resolveEloParticipantId(m.away_team_id, m.away_team_name);
+    if (homeId == null || awayId == null) continue;
 
     const k = options.matchK(m);
     if (k <= 0) continue;
 
     if (!ratings.has(homeId)) {
-      ratings.set(homeId, options.initialRating(homeId, m.home_team_name));
+      ratings.set(homeId, options.initialRating(homeId, m.home_team_name ?? undefined));
     }
     if (!ratings.has(awayId)) {
-      ratings.set(awayId, options.initialRating(awayId, m.away_team_name));
+      ratings.set(awayId, options.initialRating(awayId, m.away_team_name ?? undefined));
     }
 
     const homeR = ratings.get(homeId)!;

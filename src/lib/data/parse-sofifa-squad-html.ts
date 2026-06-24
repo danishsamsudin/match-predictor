@@ -20,6 +20,8 @@ export interface SofifaSquadPlayer {
   contractYears: string | null;
   nationality: string | null;
   isStarter: boolean;
+  /** 0-based row index in the Squad table tbody. */
+  squadOrder: number;
 }
 
 export interface SofifaTeamRatings {
@@ -166,7 +168,8 @@ function parsePlayerRow(rowHtml: string, trAttrs = ""): SofifaSquadPlayer | null
     rowHtml.match(/<img title="([^"]+)" alt=""[^>]*class="flag"[^>]*width="21"/)?.[1] ??
     null;
 
-  const isStarter = /\bstarting\b/.test(trAttrs);
+  const isBenchSub = squadRole === "SUB";
+  const isStarter = squadRole != null && !isBenchSub;
 
   return {
     sofifaPlayerId,
@@ -184,7 +187,31 @@ function parsePlayerRow(rowHtml: string, trAttrs = ""): SofifaSquadPlayer | null
     contractYears,
     nationality,
     isStarter,
+    squadOrder: 0,
   };
+}
+
+/** True when Team & Contract squad role is a tactical slot (not bench SUB). */
+export function isSofifaSquadTableStarter(squadRole: string | null | undefined): boolean {
+  return squadRole != null && squadRole !== "SUB";
+}
+
+/** First 11 non-SUB players in Squad table order (canonical Model XI rule). */
+export function extractSofifaStartingXi(
+  players: SofifaSquadPlayer[]
+): SofifaSquadPlayer[] {
+  const starters: SofifaSquadPlayer[] = [];
+  for (const player of players) {
+    if (!isSofifaSquadTableStarter(player.squadRole)) continue;
+    starters.push(player);
+    if (starters.length >= 11) break;
+  }
+  return starters;
+}
+
+function parseSquadTableTbody(html: string): string | null {
+  const squadSection = html.match(/<h5>\s*Squad\s*<\/h5>[\s\S]*?<tbody>([\s\S]*?)<\/tbody>/i);
+  return squadSection?.[1] ?? html.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] ?? null;
 }
 
 export function parseSofifaSquadHtml(html: string, filename = ""): SofifaSquadImport {
@@ -196,12 +223,15 @@ export function parseSofifaSquadHtml(html: string, filename = ""): SofifaSquadIm
       ?.replace(/-/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase()) ?? null;
 
-  const tbody = html.match(/<tbody>([\s\S]*?)<\/tbody>/);
+  const tbody = parseSquadTableTbody(html);
   const players: SofifaSquadPlayer[] = [];
-  if (tbody?.[1]) {
-    for (const row of tbody[1].matchAll(/<tr([^>]*)>([\s\S]*?)<\/tr>/g)) {
+  if (tbody) {
+    let squadOrder = 0;
+    for (const row of tbody.matchAll(/<tr([^>]*)>([\s\S]*?)<\/tr>/g)) {
       const player = parsePlayerRow(row[2], row[1]);
-      if (player) players.push(player);
+      if (!player) continue;
+      players.push({ ...player, squadOrder });
+      squadOrder += 1;
     }
   }
 

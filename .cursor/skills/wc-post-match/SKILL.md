@@ -59,14 +59,13 @@ npm run wc:sync
 
 ## Reporting back to the user
 
-After running, summarize:
+After running, the pipeline prints a **WC POST-MATCH SUMMARY** at the end (also saved under `data/reports/wc-post-match-*.md`) covering:
 
-- Articles and player-stats fixtures ingested (counts, any skips)
-- Parsed score and xG vs what was in the DB before
-- Composite coverage per team; player xG sum drift warnings
-- Evaluation metrics (composite loss, Brier 1X2) per match
-- Whether calibration changed `muXg`, `strengthExponent`, or WC form weights
-- Any parser warnings
+- Articles and player-stats fixtures ingested this run (counts, scores, xG, warnings)
+- Calibration / ML constant changes with plain-English explanations
+- Implications for upcoming hub predictions
+- Published prediction performance on the last **8** finished matches (walk-forward holdout)
+- Post-mortem for match(es) ingested in this run
 
 ## Parser failures
 

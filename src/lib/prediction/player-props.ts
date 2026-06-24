@@ -20,6 +20,16 @@ const MIN_SUM_BASE = 0.1;
 
 export type PlayerPropMarket = "anytime_scorer" | "goal_or_assist";
 
+export type SotPropLine = {
+  rank: number;
+  playerName: string;
+  position: string;
+  line: 0.5 | 1.5 | 2.5;
+  expectedSot: number;
+  probabilityPct: number;
+  fairDecimalOdds: number;
+};
+
 export type PlayerPropLine = {
   rank: number;
   playerName: string;
@@ -39,6 +49,7 @@ export type TeamPlayerPropsSide = {
   teamExpectedGoals: number;
   anytimeScorer: PlayerPropLine[];
   goalOrAssist: PlayerPropLine[];
+  shotsOnTarget: SotPropLine[];
 };
 
 export type PlayerPropsPayload = {
@@ -126,6 +137,31 @@ export function zipProbZero(lambda: number, structuralZeroProb = 0.12): number {
   const safeLambda = Math.max(0, lambda);
   const poissonZero = Math.exp(-safeLambda);
   return structuralZeroProb + (1 - structuralZeroProb) * poissonZero;
+}
+
+function poissonCdfAtMost(k: number, lambda: number): number {
+  const safeLambda = Math.max(0, lambda);
+  let sum = 0;
+  let term = Math.exp(-safeLambda);
+  sum += term;
+  for (let i = 1; i <= k; i++) {
+    term *= safeLambda / i;
+    sum += term;
+  }
+  return sum;
+}
+
+/** P(shots on target > line) for half-lines 0.5 / 1.5 / 2.5. */
+export function sotProbOverLine(line: 0.5 | 1.5 | 2.5, lambda: number): number {
+  const threshold = Math.floor(line);
+  return 1 - poissonCdfAtMost(threshold, Math.max(0, lambda));
+}
+
+function per90Sot(stats: Record<string, string | number | null>): number | null {
+  return (
+    per90(stats, ["SoT/90", "SOT/90", "Shots on target/90"]) ??
+    per90(stats, ["SoT", "SOT", "Shots on target", "Shots on Target"])
+  );
 }
 
 function structuralZeroForGoals(player: SquadPlayer): number {
@@ -368,10 +404,53 @@ function rankTopN(
   return sorted.slice(0, n).map((candidate, index) => toPropLine(candidate, index + 1, market));
 }
 
+const SOT_LINES: Array<0.5 | 1.5 | 2.5> = [0.5, 1.5, 2.5];
+
+function buildSotPropsForTeam(input: {
+  squad: TeamSquadSnapshot;
+  teamExpectedSot: number;
+}): SotPropLine[] {
+  const players = [...input.squad.starters, ...input.squad.substitutes].slice(0, 18);
+  const raw: Array<{ player: SquadPlayer; lambda: number }> = [];
+
+  for (const player of players) {
+    const stats = detailStatsToRecord(player.detailStats);
+    const sotPer90 = per90Sot(stats) ?? performanceToNpxGProxy(player.performanceScore) * 2.2;
+    raw.push({ player, lambda: Math.max(0.05, sotPer90) });
+  }
+
+  const sum = raw.reduce((s, r) => s + r.lambda, 0) || 1;
+  const scale = (input.teamExpectedSot * 0.9) / sum;
+
+  const lines: SotPropLine[] = [];
+  const ranked = [...raw]
+    .map((r) => ({ ...r, lambda: r.lambda * scale }))
+    .sort((a, b) => b.lambda - a.lambda)
+    .slice(0, TOP_N);
+
+  for (const [idx, entry] of ranked.entries()) {
+    for (const line of SOT_LINES) {
+      const prob = sotProbOverLine(line, entry.lambda);
+      lines.push({
+        rank: idx + 1,
+        playerName: entry.player.name,
+        position: entry.player.position,
+        line,
+        expectedSot: Math.round(entry.lambda * 1000) / 1000,
+        probabilityPct: Math.round(prob * 1000) / 10,
+        fairDecimalOdds: prob > 0 ? Math.round((1 / prob) * 100) / 100 : 999,
+      });
+    }
+  }
+
+  return lines;
+}
+
 export function computeTeamPlayerProps(input: {
   teamName: string;
   teamId: number;
   teamExpectedGoals: number;
+  teamExpectedSot?: number;
   squad: TeamSquadSnapshot;
   opponentProfile: ShotProfile | null;
   leagueSsi?: number;
@@ -391,6 +470,10 @@ export function computeTeamPlayerProps(input: {
     teamExpectedGoals: input.teamExpectedGoals,
     anytimeScorer: rankTopN(candidates, "anytime_scorer"),
     goalOrAssist: rankTopN(candidates, "goal_or_assist"),
+    shotsOnTarget: buildSotPropsForTeam({
+      squad: input.squad,
+      teamExpectedSot: input.teamExpectedSot ?? input.teamExpectedGoals * 4.2,
+    }),
   };
 }
 
@@ -402,6 +485,8 @@ export function computePlayerPropsPayload(input: {
   awayTeamId: number;
   homeXg: number;
   awayXg: number;
+  homeTeamExpectedSot?: number;
+  awayTeamExpectedSot?: number;
   homeSquad: TeamSquadSnapshot;
   awaySquad: TeamSquadSnapshot;
   homeOpponentProfile?: ShotProfile | null;
@@ -428,6 +513,7 @@ export function computePlayerPropsPayload(input: {
     teamName: input.homeTeamName,
     teamId: input.homeTeamId,
     teamExpectedGoals: input.homeXg,
+    teamExpectedSot: input.homeTeamExpectedSot,
     squad: input.homeSquad,
     opponentProfile: input.awayOpponentProfile ?? null,
     leagueSsi: homeLeagueSsi,
@@ -438,6 +524,7 @@ export function computePlayerPropsPayload(input: {
     teamName: input.awayTeamName,
     teamId: input.awayTeamId,
     teamExpectedGoals: input.awayXg,
+    teamExpectedSot: input.awayTeamExpectedSot,
     squad: input.awaySquad,
     opponentProfile: input.homeOpponentProfile ?? null,
     leagueSsi: awayLeagueSsi,
