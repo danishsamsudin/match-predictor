@@ -28,6 +28,9 @@ import {
 import { buildClubMetricsBySofascoreId } from "@/lib/data/build-club-metrics-for-lineup";
 import { normalizeText } from "@/lib/soccerdata/normalize";
 import { projectWcModelXiFromLastStartersWithDetails } from "@/lib/world-cup/resolve-wc-lineup-player-stats";
+import {
+  isPlayerNameSuspended,
+} from "@/lib/world-cup/wc-tournament-discipline";
 import type { Database } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -103,11 +106,12 @@ function validateXiNames(
 
 function sofifaRowsToResolution(
   rows: SofifaDbPlayerRow[],
-  officialKeys: Set<string>
+  officialKeys: Set<string>,
+  excludedPlayerNames: Set<string> = new Set()
 ): WcModelXiResolution | null {
-  const starters = rows
-    .filter((row) => row.is_starter === true)
-    .sort((a, b) => (a.squad_order ?? 999) - (b.squad_order ?? 999))
+  const pool = [...rows].sort((a, b) => (a.squad_order ?? 999) - (b.squad_order ?? 999));
+  const starters = pool
+    .filter((row) => !isPlayerNameSuspended(row.name, excludedPlayerNames))
     .slice(0, 11);
 
   if (starters.length < 11) return null;
@@ -259,24 +263,111 @@ function emptyResolution(warnings: string[]): WcModelXiResolution {
   };
 }
 
+function applySuspensionExclusionsToXi(
+  resolution: WcModelXiResolution,
+  excludedPlayerNames: Set<string>,
+  refillPool: Array<{ name: string; squadRole: string | null; squadOrder: number }>,
+  officialKeys: Set<string>
+): WcModelXiResolution {
+  if (!excludedPlayerNames.size) return resolution;
+
+  const kept: Array<{ name: string; squadRole: string | null; squadOrder: number }> = [];
+  for (let i = 0; i < resolution.playerNames.length; i++) {
+    const name = resolution.playerNames[i]!;
+    if (!isPlayerNameSuspended(name, excludedPlayerNames)) {
+      kept.push({
+        name,
+        squadRole: resolution.playerDetails[i]?.squadRole ?? null,
+        squadOrder: resolution.playerDetails[i]?.squadOrder ?? i,
+      });
+    }
+  }
+
+  const used = new Set(kept.map((p) => normalizeText(p.name)));
+  const sortedPool = [...refillPool].sort((a, b) => a.squadOrder - b.squadOrder);
+  for (const candidate of sortedPool) {
+    if (kept.length >= 11) break;
+    if (isPlayerNameSuspended(candidate.name, excludedPlayerNames)) continue;
+    const key = normalizeText(candidate.name);
+    if (used.has(key)) continue;
+    kept.push(candidate);
+    used.add(key);
+  }
+
+  if (kept.length < 11) {
+    return {
+      ...resolution,
+      warnings: [
+        ...resolution.warnings,
+        `Only ${kept.length}/11 available after ${excludedPlayerNames.size} suspension(s).`,
+      ],
+    };
+  }
+
+  const playerNames = kept.map((p) => p.name);
+  const playerDetails = kept.map((p, idx) => ({
+    name: p.name,
+    squadRole: p.squadRole,
+    squadOrder: p.squadOrder ?? idx,
+  }));
+  const validation = validateXiNames(playerNames, officialKeys, playerDetails);
+  const suspendedList = [...excludedPlayerNames].join(", ");
+
+  return {
+    ...resolution,
+    playerNames,
+    playerDetails,
+    warnings: [
+      ...resolution.warnings,
+      `Excluded suspended player(s): ${suspendedList}.`,
+      ...validation.warnings,
+    ],
+    validation: {
+      onOfficialSquad: validation.onOfficialSquad,
+      hasGoalkeeper: validation.hasGoalkeeper,
+      usedSubRule: resolution.validation.usedSubRule,
+    },
+  };
+}
+
 /** Resolve Model Squad XI: SoFIFA Squad table → matchday XI → last WC Opta starters. */
 export async function resolveWcModelStartingXi(input: {
   supabase: ServiceClient;
   teamApiId: number;
   teamName?: string;
+  excludedPlayerNames?: Set<string>;
 }): Promise<WcModelXiResolution> {
   const teamLabel = resolveWc2026TeamLabel(input.teamName, input.teamApiId);
   const teamName = input.teamName ?? teamLabel ?? String(input.teamApiId);
   const warnings: string[] = [];
+  const excluded = input.excludedPlayerNames ?? new Set<string>();
 
   const official = teamLabel ? getOfficialWcTeamSquad(teamLabel) : null;
   const officialKeys = buildOfficialSquadNameKeys(official?.players ?? []);
+  const officialRefillPool =
+    official?.players.map((p, idx) => ({
+      name: formatPlayerDisplayNameIfNeeded(p.name),
+      squadRole: p.position ?? null,
+      squadOrder: idx,
+    })) ?? [];
 
   if (teamLabel) {
     const sofifaRows = await loadSofifaPlayersForTeam(input.supabase, input.teamApiId);
+    const sofifaRefillPool = sofifaRows.map((row, idx) => ({
+      name: formatPlayerDisplayNameIfNeeded(row.name),
+      squadRole: row.field_position ?? row.position,
+      squadOrder: row.squad_order ?? idx,
+    }));
     if (sofifaRows.length) {
-      const fromSofifa = sofifaRowsToResolution(sofifaRows, officialKeys);
-      if (fromSofifa) return fromSofifa;
+      const fromSofifa = sofifaRowsToResolution(sofifaRows, officialKeys, excluded);
+      if (fromSofifa) {
+        return applySuspensionExclusionsToXi(
+          fromSofifa,
+          excluded,
+          sofifaRefillPool.length ? sofifaRefillPool : officialRefillPool,
+          officialKeys
+        );
+      }
 
       const starters = sofifaRows
         .filter((row) => row.is_starter === true)
@@ -302,7 +393,12 @@ export async function resolveWcModelStartingXi(input: {
       officialKeys,
     });
     if (fromMatchday) {
-      return { ...fromMatchday, warnings: [...warnings, ...fromMatchday.warnings] };
+      return applySuspensionExclusionsToXi(
+        { ...fromMatchday, warnings: [...warnings, ...fromMatchday.warnings] },
+        excluded,
+        officialRefillPool,
+        officialKeys
+      );
     }
     warnings.push("Matchday XI unavailable or failed validation");
   }
@@ -322,7 +418,7 @@ export async function resolveWcModelStartingXi(input: {
     }));
     const validation = validateXiNames(playerNames, officialKeys, playerDetails);
     if (validation.ok || officialKeys.size === 0) {
-      return {
+      const resolution: WcModelXiResolution = {
         playerNames,
         playerDetails,
         source: "last_wc_match",
@@ -334,6 +430,19 @@ export async function resolveWcModelStartingXi(input: {
           usedSubRule: false,
         },
       };
+      return applySuspensionExclusionsToXi(
+        resolution,
+        excluded,
+        [
+          ...lastDetails.map((d, idx) => ({
+            name: d.name,
+            squadRole: d.position,
+            squadOrder: d.squadOrder ?? idx,
+          })),
+          ...officialRefillPool,
+        ],
+        officialKeys
+      );
     }
     warnings.push(...validation.warnings, "Last WC match XI failed validation");
   } else {

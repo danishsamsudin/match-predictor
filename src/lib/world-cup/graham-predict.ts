@@ -232,6 +232,8 @@ export async function runGrahamWorldCupPredict(input: {
       homeTeamName: homeName,
       awayTeamName: awayName,
       calibration,
+      finishedMatches,
+      upcomingMatchDate: match.date,
     });
   }
 

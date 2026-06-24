@@ -176,6 +176,8 @@ export async function runWcGrahamPredictForRequest(input: {
       homeTeamName: homeName,
       awayTeamName: awayName,
       calibration,
+      finishedMatches,
+      upcomingMatchDate: match.date,
     });
     lineupNotes = ["Model XI — SoFIFA starting eleven from uploaded squad HTML."];
   }
