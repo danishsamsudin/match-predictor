@@ -10,6 +10,14 @@ import { NationalTeamFlag } from "@/components/world-cup/NationalTeamFlag";
 import type { PlayerPropsPayload } from "@/lib/prediction/player-props";
 import type { WcMatchSummary } from "@/lib/world-cup/match-summary";
 
+function shotsOnTargetFromSummary(summary: WcMatchSummary | null): {
+  home: number | null;
+  away: number | null;
+} {
+  const sot = summary?.stats.find((s) => s.key === "sot");
+  return { home: sot?.home ?? null, away: sot?.away ?? null };
+}
+
 export type RecentResultMatch = {
   matchId: string;
   homeName: string;
@@ -36,6 +44,7 @@ export function RecentResultsSection({ matches }: { matches: RecentResultMatch[]
       {matches.map((m) => {
         const isExpanded = expandedId === m.matchId;
         const hasSummary = m.summary != null;
+        const sot = shotsOnTargetFromSummary(m.summary);
         const scoreLabel =
           m.homeGoals != null && m.awayGoals != null
             ? `${m.homeGoals}-${m.awayGoals}`
@@ -92,8 +101,8 @@ export function RecentResultsSection({ matches }: { matches: RecentResultMatch[]
                       actual: {
                         homeGoals: m.homeGoals,
                         awayGoals: m.awayGoals,
-                        homeSot: m.summary?.home?.shotsOnTarget ?? null,
-                        awaySot: m.summary?.away?.shotsOnTarget ?? null,
+                        homeSot: sot.home,
+                        awaySot: sot.away,
                       },
                     }}
                   />
