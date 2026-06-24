@@ -247,3 +247,61 @@ export async function loadWcSuspendedPlayerNamesForTeam(input: {
     rules: input.rules,
   });
 }
+
+export type WcSuspensionXgPenalty = {
+  attackMultiplier: number;
+  defenseExposureMultiplier: number;
+  suspendedStarterCount: number;
+  notes: string[];
+};
+
+/** xG penalty when suspended players were in the team's last WC starting XI. */
+export function computeWcSuspensionXgPenalty(input: {
+  suspendedNames: ReadonlySet<string>;
+  lastMatchStarterNames: readonly string[];
+  disciplineHistory: WcPlayerMatchDiscipline[];
+}): WcSuspensionXgPenalty {
+  if (!input.suspendedNames.size || !input.lastMatchStarterNames.length) {
+    return {
+      attackMultiplier: 1,
+      defenseExposureMultiplier: 1,
+      suspendedStarterCount: 0,
+      notes: [],
+    };
+  }
+
+  const RED_ATTACK = 0.92;
+  const RED_DEFENSE = 1.05;
+  const YELLOW_ATTACK = 0.96;
+  const YELLOW_DEFENSE = 1.03;
+
+  let attackMultiplier = 1;
+  let defenseExposureMultiplier = 1;
+  let suspendedStarterCount = 0;
+  const notes: string[] = [];
+
+  for (const starter of input.lastMatchStarterNames) {
+    if (!isPlayerNameSuspended(starter, input.suspendedNames)) continue;
+
+    const playerHistory = input.disciplineHistory.filter((row) =>
+      wcPlayerNamesMatch(row.playerName, starter)
+    );
+    const fromRed = playerHistory.some((row) => row.reds > 0);
+    const attack = fromRed ? RED_ATTACK : YELLOW_ATTACK;
+    const defense = fromRed ? RED_DEFENSE : YELLOW_DEFENSE;
+
+    attackMultiplier *= attack;
+    defenseExposureMultiplier *= defense;
+    suspendedStarterCount += 1;
+    notes.push(
+      `Suspended last-match starter ${starter} (${fromRed ? "red" : "yellow"}) — attack ×${attack}, defense exposure ×${defense}.`
+    );
+  }
+
+  return {
+    attackMultiplier,
+    defenseExposureMultiplier,
+    suspendedStarterCount,
+    notes,
+  };
+}

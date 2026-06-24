@@ -2,6 +2,7 @@ import { applyLineupImpactToHubPrediction } from "@/lib/world-cup/apply-wc-lineu
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import { INTERNATIONAL_BASE_GOALS } from "@/lib/world-cup/international-strength";
 import {
+  projectWcModelXiFromLastStartersWithDetails,
   resolveWcLineupPlayerStats,
   unresolvedWcLineupPlayerNames,
   type WcLineupPlayerStatsMap,
@@ -10,8 +11,11 @@ import { resolveWcModelStartingXi } from "@/lib/world-cup/resolve-wc-model-start
 import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
 import { computeRotationIndicesForFixture } from "@/lib/world-cup/wc-rotation-intensity";
 import {
+  computeWcSuspensionXgPenalty,
   isPlayerNameSuspended,
+  loadWcDisciplineHistoryForTeam,
   loadWcSuspendedPlayerNamesForTeam,
+  priorFinishedWcMatchesForTeam,
 } from "@/lib/world-cup/wc-tournament-discipline";
 import type { WcCalibrationConstants } from "@/lib/world-cup/wc-calibration-config";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
@@ -154,7 +158,7 @@ export async function applyWcModelXiToHubPrediction(input: {
   const baseHomeXg = snapshotNumber(snapshot, "home_xg", "lambda");
   const baseAwayXg = snapshotNumber(snapshot, "away_xg", "mu");
 
-  const lineup = computeWcLineupPlayerXgImpact({
+  let lineup = computeWcLineupPlayerXgImpact({
     homePlayers,
     awayPlayers,
     baseHomeXg,
@@ -163,6 +167,71 @@ export async function applyWcModelXiToHubPrediction(input: {
     calibration: input.calibration,
     mode: "model_xi",
   });
+
+  if (homeSuspended.size || awaySuspended.size) {
+    const homePrior = priorFinishedWcMatchesForTeam(
+      finishedMatches,
+      input.homeTeamApiId,
+      beforeDate
+    );
+    const awayPrior = priorFinishedWcMatchesForTeam(
+      finishedMatches,
+      input.awayTeamApiId,
+      beforeDate
+    );
+
+    const [homeLastStarters, awayLastStarters, homeDiscHistory, awayDiscHistory] =
+      await Promise.all([
+        projectWcModelXiFromLastStartersWithDetails({
+          supabase: input.supabase,
+          teamApiId: input.homeTeamApiId,
+        }),
+        projectWcModelXiFromLastStartersWithDetails({
+          supabase: input.supabase,
+          teamApiId: input.awayTeamApiId,
+        }),
+        homeSuspended.size
+          ? loadWcDisciplineHistoryForTeam(input.supabase, input.homeTeamApiId, homePrior)
+          : Promise.resolve([]),
+        awaySuspended.size
+          ? loadWcDisciplineHistoryForTeam(input.supabase, input.awayTeamApiId, awayPrior)
+          : Promise.resolve([]),
+      ]);
+
+    const homePenalty = computeWcSuspensionXgPenalty({
+      suspendedNames: homeSuspended,
+      lastMatchStarterNames: homeLastStarters.map((p) => p.name),
+      disciplineHistory: homeDiscHistory,
+    });
+    const awayPenalty = computeWcSuspensionXgPenalty({
+      suspendedNames: awaySuspended,
+      lastMatchStarterNames: awayLastStarters.map((p) => p.name),
+      disciplineHistory: awayDiscHistory,
+    });
+
+    if (homePenalty.suspendedStarterCount || awayPenalty.suspendedStarterCount) {
+      lineup = {
+        ...lineup,
+        homeXgMultiplier: lineup.homeXgMultiplier * homePenalty.attackMultiplier,
+        awayXgMultiplier: lineup.awayXgMultiplier * awayPenalty.attackMultiplier,
+        homeDefenseMultiplier:
+          (lineup.homeDefenseMultiplier ?? 1) * homePenalty.defenseExposureMultiplier,
+        awayDefenseMultiplier:
+          (lineup.awayDefenseMultiplier ?? 1) * awayPenalty.defenseExposureMultiplier,
+        notes: [...lineup.notes, ...homePenalty.notes, ...awayPenalty.notes],
+      };
+      opta.suspension_xg_penalty_home = {
+        attack: homePenalty.attackMultiplier,
+        defense: homePenalty.defenseExposureMultiplier,
+        starters: homePenalty.suspendedStarterCount,
+      };
+      opta.suspension_xg_penalty_away = {
+        attack: awayPenalty.attackMultiplier,
+        defense: awayPenalty.defenseExposureMultiplier,
+        starters: awayPenalty.suspendedStarterCount,
+      };
+    }
+  }
 
   const adjusted = applyLineupImpactToHubPrediction(input.hubRow, lineup);
   return {

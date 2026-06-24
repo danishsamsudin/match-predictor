@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeWcSuspendedPlayerNames,
+  computeWcSuspensionXgPenalty,
   isPlayerNameSuspended,
   wcPlayerNamesMatch,
   type WcPlayerMatchDiscipline,
@@ -72,5 +73,24 @@ describe("wc-tournament-discipline", () => {
       rules: DEFAULT_TOURNAMENT_DISCIPLINE_RULES,
     });
     expect(suspended.has("Akram Afif")).toBe(true);
+  });
+
+  it("applies xG penalty for suspended last-match starters", () => {
+    const penalty = computeWcSuspensionXgPenalty({
+      suspendedNames: new Set(["Assim Madibo", "Homam El Amin"]),
+      lastMatchStarterNames: [
+        "Boualem Khoukhi",
+        "Assim Madibo",
+        "Homam El Amin",
+        "Akram Afif",
+      ],
+      disciplineHistory: [
+        cardRow("m2", "2026-06-20", "Assim Madibo", 0, 1),
+        cardRow("m2", "2026-06-20", "Homam El Amin", 0, 1),
+      ],
+    });
+    expect(penalty.suspendedStarterCount).toBe(2);
+    expect(penalty.attackMultiplier).toBeCloseTo(0.92 * 0.92, 5);
+    expect(penalty.defenseExposureMultiplier).toBeCloseTo(1.05 * 1.05, 5);
   });
 });
