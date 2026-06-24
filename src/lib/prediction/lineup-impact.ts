@@ -1,5 +1,7 @@
 import type { FixtureLineup, LineupPlayer, TopScorer } from "@/lib/types/football";
 import type { LineupImpactResult } from "@/lib/types/prediction";
+import type { SportApiEvent, SportApiIncidentsResponse } from "@/lib/types/sportapi";
+import { countTeamCardsInTournament } from "@/lib/data/lineup-suspensions";
 
 const STARTER_FORM_THRESHOLD = 6.5;
 const BENCH_FORM_THRESHOLD = 6.3;
@@ -11,6 +13,16 @@ const LAV_DEFENSE_MAX = 1.2;
 
 const ATTACK_POSITIONS = new Set(["F", "M"]);
 const DEFENSE_POSITIONS = new Set(["D", "G"]);
+
+/** ~3 yellows + 0.3 reds per match international prior for discipline risk normalization. */
+const DISCIPLINE_RISK_PRIOR_PER_MATCH = 3.9;
+
+export const EMPTY_LINEUP_SUSPENSION_METRICS = {
+  homeSuspensionLavImpact: 0,
+  awaySuspensionLavImpact: 0,
+  homeDisciplineRiskIndex: 0,
+  awayDisciplineRiskIndex: 0,
+} as const;
 
 /** Neutral default — unrated players must not drag LAV toward zero. */
 export function resolvePlayerPerformanceScore(raw: number | null | undefined): number {
@@ -26,6 +38,12 @@ export function ratingToPerformanceScore(avgRating: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+export function positionGroup(pos: string): "attack" | "defense" | null {
+  if (ATTACK_POSITIONS.has(pos)) return "attack";
+  if (DEFENSE_POSITIONS.has(pos)) return "defense";
+  return null;
 }
 
 function getStarterIds(lineup: FixtureLineup | undefined): Set<number> {
@@ -96,6 +114,79 @@ function computeLavMultipliers(lineup: FixtureLineup | undefined): {
   return { attackMult, defenseMult };
 }
 
+function replacementAverageForGroup(
+  lineup: FixtureLineup | undefined,
+  group: "attack" | "defense",
+  suspendedPlayerIds: Set<number>
+): number {
+  if (!lineup?.substitutes?.length) return LAV_BASELINE_SCORE;
+  const positions = group === "attack" ? ATTACK_POSITIONS : DEFENSE_POSITIONS;
+  const pool = lineup.substitutes.filter(
+    (p) => positions.has(p.player.pos) && !suspendedPlayerIds.has(p.player.id)
+  );
+  if (!pool.length) return LAV_BASELINE_SCORE;
+  return pool.reduce((sum, p) => sum + playerScore(p), 0) / pool.length;
+}
+
+export function computeSuspensionLavDelta(
+  lineup: FixtureLineup | undefined,
+  suspendedPlayerIds: Set<number>
+): {
+  totalImpact: number;
+  attackDelta: number;
+  defenseDelta: number;
+  notes: string[];
+} {
+  if (!lineup || suspendedPlayerIds.size === 0) {
+    return { totalImpact: 0, attackDelta: 0, defenseDelta: 0, notes: [] };
+  }
+
+  const squad = [...lineup.startXI, ...(lineup.substitutes ?? [])];
+  let totalImpact = 0;
+  let attackDelta = 0;
+  let defenseDelta = 0;
+  const notes: string[] = [];
+  let suspendedCount = 0;
+
+  for (const slot of squad) {
+    if (!suspendedPlayerIds.has(slot.player.id)) continue;
+    const group = positionGroup(slot.player.pos);
+    if (!group) continue;
+
+    const suspendedScore = playerScore(slot);
+    const replacementAvg = replacementAverageForGroup(lineup, group, suspendedPlayerIds);
+    const lavDelta = Math.max(0, suspendedScore - replacementAvg);
+    totalImpact += lavDelta;
+    suspendedCount += 1;
+    if (group === "attack") attackDelta += lavDelta;
+    else defenseDelta += lavDelta;
+  }
+
+  if (suspendedCount > 0) {
+    notes.push(
+      `Suspension LAV impact +${totalImpact.toFixed(1)} (${suspendedCount} player${suspendedCount === 1 ? "" : "s"}).`
+    );
+  }
+
+  return { totalImpact, attackDelta, defenseDelta, notes };
+}
+
+export function computeDisciplineRiskIndex(
+  teamId: number,
+  teamName: string | undefined,
+  allTournamentEvents: SportApiEvent[],
+  incidentsByEventId: ReadonlyMap<number, SportApiIncidentsResponse>
+): number {
+  const { yellows, reds, matchesPlayed } = countTeamCardsInTournament({
+    teamId,
+    teamName,
+    allTournamentEvents,
+    incidentsByEventId,
+  });
+  const rawPerMatch = (yellows + reds * 3) / Math.max(1, matchesPlayed);
+  return clamp(rawPerMatch / DISCIPLINE_RISK_PRIOR_PER_MATCH, 0, 1);
+}
+
 export function applySquadFormDecay(
   lineup: FixtureLineup | undefined,
   multiplier: number
@@ -131,11 +222,19 @@ export function applySquadFormDecay(
   };
 }
 
+export type ComputeLineupImpactOptions = {
+  homeSuspendedPlayerIds?: Set<number>;
+  awaySuspendedPlayerIds?: Set<number>;
+  allTournamentEvents?: SportApiEvent[];
+  incidentsByEventId?: ReadonlyMap<number, SportApiIncidentsResponse>;
+};
+
 export function computeLineupImpact(
   lineups: FixtureLineup[],
   topScorers: TopScorer[],
   homeTeamId: number,
-  awayTeamId: number
+  awayTeamId: number,
+  options?: ComputeLineupImpactOptions
 ): LineupImpactResult {
   const homeLineup = lineups.find((l) => l.team.id === homeTeamId);
   const awayLineup = lineups.find((l) => l.team.id === awayTeamId);
@@ -150,6 +249,30 @@ export function computeLineupImpact(
   let homeDefenseMultiplier = homeLav.defenseMult;
   let awayDefenseMultiplier = awayLav.defenseMult;
   const notes: string[] = [];
+
+  const homeSuspended = options?.homeSuspendedPlayerIds ?? new Set<number>();
+  const awaySuspended = options?.awaySuspendedPlayerIds ?? new Set<number>();
+
+  const homeSuspension = computeSuspensionLavDelta(homeLineup, homeSuspended);
+  const awaySuspension = computeSuspensionLavDelta(awayLineup, awaySuspended);
+  notes.push(...homeSuspension.notes, ...awaySuspension.notes);
+
+  let homeDisciplineRiskIndex = 0;
+  let awayDisciplineRiskIndex = 0;
+  if (options?.allTournamentEvents?.length && options.incidentsByEventId) {
+    homeDisciplineRiskIndex = computeDisciplineRiskIndex(
+      homeTeamId,
+      homeLineup?.team.name,
+      options.allTournamentEvents,
+      options.incidentsByEventId
+    );
+    awayDisciplineRiskIndex = computeDisciplineRiskIndex(
+      awayTeamId,
+      awayLineup?.team.name,
+      options.allTournamentEvents,
+      options.incidentsByEventId
+    );
+  }
 
   if (homeLav.attackMult !== 1 || homeLav.defenseMult !== 1) {
     notes.push(
@@ -207,5 +330,13 @@ export function computeLineupImpact(
     homeDefenseMultiplier,
     awayDefenseMultiplier,
     notes,
+    homeSuspensionLavImpact: homeSuspension.totalImpact,
+    awaySuspensionLavImpact: awaySuspension.totalImpact,
+    homeDisciplineRiskIndex,
+    awayDisciplineRiskIndex,
+    homeAttackLavDelta: homeSuspension.attackDelta,
+    homeDefenseLavDelta: homeSuspension.defenseDelta,
+    awayAttackLavDelta: awaySuspension.attackDelta,
+    awayDefenseLavDelta: awaySuspension.defenseDelta,
   };
 }

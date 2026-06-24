@@ -1,4 +1,5 @@
 import type { LineupImpactResult } from "@/lib/types/prediction";
+import { EMPTY_LINEUP_SUSPENSION_METRICS } from "@/lib/prediction/lineup-impact";
 import type {
   WcLineupPlayerStatsMap,
   WcResolvedLineupPlayer,
@@ -121,5 +122,6 @@ export function computeWcLineupPlayerXgImpact(input: {
     homeDefenseMultiplier: homeDef,
     awayDefenseMultiplier: awayDef,
     notes: [label, ...home.notes, ...away.notes],
+    ...EMPTY_LINEUP_SUSPENSION_METRICS,
   };
 }

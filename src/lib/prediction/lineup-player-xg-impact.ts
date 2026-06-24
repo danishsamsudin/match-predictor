@@ -3,7 +3,7 @@ import {
   computeReliabilityFactor,
   statsLookPer90,
 } from "@/lib/data/compute-player-performance-score";
-import { LAV_BASELINE_SCORE } from "@/lib/prediction/lineup-impact";
+import { LAV_BASELINE_SCORE, EMPTY_LINEUP_SUSPENSION_METRICS } from "@/lib/prediction/lineup-impact";
 import type {
   LineupPlayerStatsMap,
   ResolvedLineupPlayer,
@@ -250,5 +250,6 @@ export function computeLineupPlayerXgImpact(input: {
       ...home.notes,
       ...away.notes,
     ],
+    ...EMPTY_LINEUP_SUSPENSION_METRICS,
   };
 }

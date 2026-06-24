@@ -160,6 +160,22 @@ export interface LineupImpactResult {
   /** Opponent xG multiplier when away defense is weak (LAV). */
   awayDefenseMultiplier?: number;
   notes: string[];
+  /** Sum of per-player LAV drop-offs from suspensions (home). */
+  homeSuspensionLavImpact: number;
+  /** Sum of per-player LAV drop-offs from suspensions (away). */
+  awaySuspensionLavImpact: number;
+  /** Normalized 0–1 tournament card-load risk (home). */
+  homeDisciplineRiskIndex: number;
+  /** Normalized 0–1 tournament card-load risk (away). */
+  awayDisciplineRiskIndex: number;
+  /** Attack-position suspension LAV delta (home). */
+  homeAttackLavDelta?: number;
+  /** Defense-position suspension LAV delta (home). */
+  homeDefenseLavDelta?: number;
+  /** Attack-position suspension LAV delta (away). */
+  awayAttackLavDelta?: number;
+  /** Defense-position suspension LAV delta (away). */
+  awayDefenseLavDelta?: number;
 }
 
 export interface WeatherImpactResult {

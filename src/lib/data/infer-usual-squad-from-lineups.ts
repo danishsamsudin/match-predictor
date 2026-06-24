@@ -168,10 +168,13 @@ export type PickLineupStartersOptions = {
   clubRatingById?: Map<number, number>;
   /** Official roster position (e.g. FIFA GK) overrides misclassified lineup roles. */
   rosterPositionById?: Map<number, string | null>;
-  /** Apply competition red-card suspension from prior synced match. */
+  /** Apply competition suspension (reds + yellow accumulation) from prior synced matches. */
   supabase?: ServiceClient | null;
   teamId?: number;
   teamName?: string;
+  /** All prior finished matches in the tournament (caller-filtered). */
+  allTournamentEvents?: SportApiEvent[];
+  /** @deprecated Use allTournamentEvents */
   recentEvents?: SportApiEvent[];
 };
 
@@ -185,6 +188,7 @@ export async function pickLineupStartersFromAppearances(
 
   if (options?.supabase && options.teamId != null) {
     const events =
+      options.allTournamentEvents ??
       options.recentEvents ??
       (await loadRecentFormEventsForTeam(
         options.supabase,

@@ -37,6 +37,8 @@ describe("computeLineupImpact LAV", () => {
     const neutral = lineup(1, Array(11).fill(LAV_BASELINE_SCORE));
     const result = computeLineupImpact([neutral, lineup(2, Array(11).fill(80))], [], 1, 2);
     expect(result.homeXgMultiplier).toBeCloseTo(1, 2);
+    expect(result.homeSuspensionLavImpact).toBe(0);
+    expect(result.homeDisciplineRiskIndex).toBe(0);
   });
 
   it("boosts opponent xG when defense LAV is weak", () => {
@@ -46,5 +48,27 @@ describe("computeLineupImpact LAV", () => {
     const strong = lineup(2, Array(11).fill(70));
     const result = computeLineupImpact([weakDefense, strong], [], 1, 2);
     expect(result.homeDefenseMultiplier).toBeGreaterThan(1);
+  });
+
+  it("computes suspension LAV delta from bench replacement quality", () => {
+    const home = lineup(1, [65, 65, 65, 65, 65, 65, 65, 65, 90, 65, 65]);
+    home.substitutes = [
+      {
+        player: {
+          id: 99,
+          name: "Sub",
+          number: 12,
+          pos: "F",
+          grid: null,
+          performanceScore: 55,
+        },
+      },
+    ];
+    const away = lineup(2, Array(11).fill(70));
+    const result = computeLineupImpact([home, away], [], 1, 2, {
+      homeSuspendedPlayerIds: new Set([108]),
+    });
+    expect(result.homeSuspensionLavImpact).toBeGreaterThan(0);
+    expect(result.homeAttackLavDelta).toBeGreaterThan(0);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_LINEUP_SUSPENSION_METRICS } from "@/lib/prediction/lineup-impact";
 import { applyLineupImpactToHubPrediction } from "./apply-wc-lineup-impact";
 import type { HubPredictionRow } from "./hub-main-predict";
 
@@ -33,6 +34,7 @@ describe("applyLineupImpactToHubPrediction", () => {
       homeDefenseMultiplier: 1,
       awayDefenseMultiplier: 1,
       notes: [],
+      ...EMPTY_LINEUP_SUSPENSION_METRICS,
     });
 
     expect(adjusted.snapshot.home_xg).toBeGreaterThan(base.snapshot.home_xg as number);
@@ -48,6 +50,7 @@ describe("applyLineupImpactToHubPrediction", () => {
       homeDefenseMultiplier: 1.15,
       awayDefenseMultiplier: 1,
       notes: [],
+      ...EMPTY_LINEUP_SUSPENSION_METRICS,
     });
 
     expect(adjusted.snapshot.away_xg).toBeGreaterThan(base.snapshot.away_xg as number);
@@ -62,6 +65,7 @@ describe("applyLineupImpactToHubPrediction", () => {
       homeDefenseMultiplier: 1,
       awayDefenseMultiplier: 1,
       notes: [],
+      ...EMPTY_LINEUP_SUSPENSION_METRICS,
     });
 
     expect(adjusted.snapshot.home_xg).toBe(base.snapshot.home_xg);

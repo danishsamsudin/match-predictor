@@ -31,6 +31,8 @@ export function validateManualCustomLineups(
   return null;
 }
 
+import { EMPTY_LINEUP_SUSPENSION_METRICS } from "@/lib/prediction/lineup-impact";
+
 export function neutralLineupImpact(note: string) {
   return {
     homeXgMultiplier: 1,
@@ -38,5 +40,6 @@ export function neutralLineupImpact(note: string) {
     homeDefenseMultiplier: 1,
     awayDefenseMultiplier: 1,
     notes: [note],
+    ...EMPTY_LINEUP_SUSPENSION_METRICS,
   };
 }
