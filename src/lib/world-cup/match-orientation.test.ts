@@ -141,6 +141,21 @@ describe("match orientation", () => {
     expect(aligned.awayGoals).toBe(1);
   });
 
+  it("swaps goal columns when orienting to official fixture without Opta scores", () => {
+    const aligned = alignRecentMatchDisplay({
+      date: "2026-06-25",
+      homeTeamName: "Côte d'Ivoire",
+      awayTeamName: "Curaçao",
+      homeGoals: 2,
+      awayGoals: 0,
+      summary: null,
+    });
+    expect(aligned.homeTeamName).toBe("Curaçao");
+    expect(aligned.awayTeamName).toBe("Côte d'Ivoire");
+    expect(aligned.homeGoals).toBe(0);
+    expect(aligned.awayGoals).toBe(2);
+  });
+
   it("swaps Opta parsed match fields", () => {
     const swapped = swapOptaParsedMatch({
       homeTeamName: "Germany",

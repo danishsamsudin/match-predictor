@@ -33,6 +33,7 @@ import {
 } from "@/lib/world-cup/run-tournament-forecast";
 import {
   computeAllGroupStandings,
+  canonicalizeMatchResultForStandings,
   type WcMatchRow,
 } from "@/lib/world-cup/standings";
 
@@ -159,6 +160,34 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
       status: patch.status,
     };
     if (patch.group_code) updatePayload.group_code = patch.group_code;
+
+    const canonical = canonicalizeMatchResultForStandings(
+      {
+        ...m,
+        status: patch.status ?? m.status,
+        group_code: patch.group_code ?? m.group_code,
+      },
+      teamNames
+    );
+    if (
+      canonical &&
+      m.home_team_id &&
+      m.away_team_id &&
+      (canonical.homeTeamId !== m.home_team_id ||
+        canonical.awayTeamId !== m.away_team_id ||
+        canonical.homeGoals !== m.home_goals ||
+        canonical.awayGoals !== m.away_goals)
+    ) {
+      updatePayload.home_team_id = canonical.homeTeamId;
+      updatePayload.away_team_id = canonical.awayTeamId;
+      updatePayload.home_goals = canonical.homeGoals;
+      updatePayload.away_goals = canonical.awayGoals;
+      m.home_team_id = canonical.homeTeamId;
+      m.away_team_id = canonical.awayTeamId;
+      m.home_goals = canonical.homeGoals;
+      m.away_goals = canonical.awayGoals;
+    }
+
     try {
       Object.assign(updatePayload, {
         venue: patch.venue,

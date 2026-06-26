@@ -16,7 +16,6 @@ import {
 import { enrichMatchEnvironment } from "@/lib/world-cup/enrich-matches";
 import {
   buildTeamIdToGroupMap,
-  loadGroupDraw,
   resolveGroupCode,
 } from "@/lib/world-cup/group-draw";
 import { loadHubSnapshotPayload } from "@/lib/world-cup/hub-snapshot";
@@ -39,10 +38,7 @@ import {
   type TournamentForecastPayload,
 } from "@/lib/world-cup/tournament-forecast-payload";
 import {
-  buildKnockoutProjection,
-  buildThirdPlaceCandidates,
-  computeAllGroupStandings,
-  computeThirdPlaceWildcards,
+  computeStandingsProjection,
   type WcMatchRow,
 } from "@/lib/world-cup/standings";
 
@@ -453,6 +449,61 @@ export async function mergeLiveMatchScoresIntoPayload(
   };
 }
 
+/** Recompute group tables from live DB rows (fixes stale snapshot standings). */
+export async function refreshHubStandingsFromDb(
+  payload: WorldCupHubPayload
+): Promise<WorldCupHubPayload> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return payload;
+
+  const wcClient = supabase as unknown as {
+    from: (table: string) => {
+      select: (cols: string) => Promise<{
+        data: Array<Record<string, unknown>> | null;
+        error: { message: string } | null;
+      }>;
+    };
+  };
+
+  const [teamsRes, matchesRes, discRes] = await Promise.all([
+    supabase.from("teams").select("id, name"),
+    supabase
+      .from("matches")
+      .select(
+        "id, date, time, venue, venue_city, venue_altitude_meters, competition, round, group_code, status, home_team_id, away_team_id, home_goals, away_goals"
+      )
+      .or(WORLD_CUP_FINALS_COMPETITION_OR)
+      .order("date", { ascending: true }),
+    wcClient.from("world_cup_team_discipline").select("team_id, total_fair_play_points"),
+  ]);
+
+  const teamNames = new Map((teamsRes.data ?? []).map((t) => [t.id, t.name]));
+  const teamToGroup = buildTeamIdToGroupMap(teamNames);
+  const rawMatches: HubMatchRow[] = (matchesRes.data ?? []).map((r) =>
+    mapMatch(r, teamNames, teamToGroup)
+  );
+  const scoped = filterWorldCup2026GroupStageMatches(rawMatches, teamToGroup);
+  const matches = enrichMatchesForHub(scoped, teamNames, teamToGroup);
+  const fairPlay = new Map(
+    ((discRes.data ?? []) as Array<{ team_id: string; total_fair_play_points: number }>).map(
+      (d) => [d.team_id, d.total_fair_play_points]
+    )
+  );
+
+  const { groupMatrix, thirdPlaceRanking, knockoutProjection } = computeStandingsProjection(
+    matches,
+    teamNames,
+    fairPlay
+  );
+
+  return {
+    ...payload,
+    groupMatrix,
+    thirdPlaceRanking,
+    knockoutProjection,
+  };
+}
+
 /** Re-align cached recent rows when ingest source home/away differs from fixture DB. */
 function realignRecentResultsInPayload(
   payload: WorldCupHubPayload
@@ -515,7 +566,8 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   if (!snapshot) return null;
 
   const withLiveScores = await mergeLiveMatchScoresIntoPayload(snapshot);
-  const repartitioned = repartitionRecentAndUpcoming(withLiveScores);
+  const withStandings = await refreshHubStandingsFromDb(withLiveScores);
+  const repartitioned = repartitionRecentAndUpcoming(withStandings);
   const realigned = await realignRecentResultsFromIngests(repartitioned);
 
   const supabase = tryCreateServiceClient();
@@ -603,17 +655,8 @@ export async function buildWorldCupHubPayload(
     ])
   );
 
-  const groupMatrix = computeAllGroupStandings(matches, teamNames);
-  const thirdCandidates = buildThirdPlaceCandidates(groupMatrix, fairPlay);
-  const thirdPlaceRanking = computeThirdPlaceWildcards(thirdCandidates);
-
-  const md3Finished = loadGroupDraw();
-  const allMd3Done = Object.keys(md3Finished).every((code) => {
-    const groupMatches = matches.filter((m) => m.group_code === code);
-    return groupMatches.filter((m) => m.status === "scheduled").length === 0;
-  });
-
-  const knockoutProjection = buildKnockoutProjection(thirdPlaceRanking, allMd3Done);
+  const standings = computeStandingsProjection(matches, teamNames, fairPlay);
+  const { groupMatrix, thirdPlaceRanking, knockoutProjection } = standings;
 
   const ingestedMatchIds = new Set(
     ((ingestsRes.data ?? []) as Array<{ match_id: string }>).map((r) => r.match_id)

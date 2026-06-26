@@ -166,6 +166,22 @@ export function alignRecentMatchDisplay(input: RecentMatchDisplayAlignInput): {
   } else if (summary) {
     homeGoals = summary.homeGoals;
     awayGoals = summary.awayGoals;
+  } else if (
+    namesNeedHomeAwaySwap(
+      displayHome,
+      displayAway,
+      input.homeTeamName,
+      input.awayTeamName
+    )
+  ) {
+    ({ homeGoals, awayGoals } = alignGoalsToFixture(
+      homeGoals,
+      awayGoals,
+      displayHome,
+      displayAway,
+      input.homeTeamName,
+      input.awayTeamName
+    ));
   }
 
   return {

@@ -5,6 +5,9 @@ import {
 } from "@/lib/world-cup/knockout-allocation";
 import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import { loadGroupDraw } from "@/lib/world-cup/group-draw";
+import {
+  alignRecentMatchDisplay,
+} from "@/lib/world-cup/match-orientation";
 
 export interface GroupStandingRow {
   teamId: string;
@@ -120,6 +123,74 @@ function applyResult(
   if (!away.teamName && names.has(awayId)) away.teamName = names.get(awayId)!;
 }
 
+export type CanonicalMatchResult = {
+  homeTeamId: string;
+  awayTeamId: string;
+  homeGoals: number;
+  awayGoals: number;
+};
+
+/**
+ * Map a finished match to official schedule home/away before applying standings.
+ * FBref schedule rows sometimes store reversed home/away while goals stay with DB columns.
+ */
+export function canonicalizeMatchResultForStandings(
+  m: WcMatchRow & {
+    ingest_source_home?: string | null;
+    ingest_source_away?: string | null;
+    ingest_source_home_goals?: number | null;
+    ingest_source_away_goals?: number | null;
+  },
+  teamNameById: Map<string, string>
+): CanonicalMatchResult | null {
+  if (m.home_goals == null || m.away_goals == null) return null;
+  if (!m.home_team_id || !m.away_team_id) return null;
+
+  const dbHomeName = m.home_team_name ?? teamNameById.get(m.home_team_id) ?? "";
+  const dbAwayName = m.away_team_name ?? teamNameById.get(m.away_team_id) ?? "";
+  if (!dbHomeName.trim() || !dbAwayName.trim()) {
+    return {
+      homeTeamId: m.home_team_id,
+      awayTeamId: m.away_team_id,
+      homeGoals: m.home_goals,
+      awayGoals: m.away_goals,
+    };
+  }
+
+  const aligned = alignRecentMatchDisplay({
+    date: m.date,
+    homeTeamName: dbHomeName,
+    awayTeamName: dbAwayName,
+    homeGoals: m.home_goals,
+    awayGoals: m.away_goals,
+    summary: null,
+    ingestSourceHome: m.ingest_source_home,
+    ingestSourceAway: m.ingest_source_away,
+    ingestSourceHomeGoals: m.ingest_source_home_goals,
+    ingestSourceAwayGoals: m.ingest_source_away_goals,
+  });
+
+  if (aligned.homeGoals == null || aligned.awayGoals == null) return null;
+
+  const homeTeamId = resolveTeamIdByName(aligned.homeTeamName, teamNameById);
+  const awayTeamId = resolveTeamIdByName(aligned.awayTeamName, teamNameById);
+  if (!homeTeamId || !awayTeamId) {
+    return {
+      homeTeamId: m.home_team_id,
+      awayTeamId: m.away_team_id,
+      homeGoals: aligned.homeGoals,
+      awayGoals: aligned.awayGoals,
+    };
+  }
+
+  return {
+    homeTeamId,
+    awayTeamId,
+    homeGoals: aligned.homeGoals,
+    awayGoals: aligned.awayGoals,
+  };
+}
+
 export function computeGroupStandings(
   groupCode: string,
   teamIds: { teamId: string; teamName: string }[],
@@ -155,12 +226,14 @@ export function computeGroupStandings(
   );
 
   for (const m of groupMatches) {
+    const canonical = canonicalizeMatchResultForStandings(m, names);
+    if (!canonical) continue;
     applyResult(
       table,
-      m.home_team_id!,
-      m.away_team_id!,
-      m.home_goals!,
-      m.away_goals!,
+      canonical.homeTeamId,
+      canonical.awayTeamId,
+      canonical.homeGoals,
+      canonical.awayGoals,
       names
     );
   }
@@ -231,13 +304,22 @@ function resolveDrawTeamId(
   drawName: string,
   teamNameById: Map<string, string>
 ): { teamId: string; teamName: string } {
-  const key = normalizeNationalTeamName(drawName);
-  for (const [id, name] of teamNameById) {
-    if (normalizeNationalTeamName(name) === key) {
-      return { teamId: id, teamName: name };
-    }
+  const teamId = resolveTeamIdByName(drawName, teamNameById);
+  if (teamId) {
+    return { teamId, teamName: teamNameById.get(teamId) ?? drawName };
   }
   return { teamId: `name:${drawName}`, teamName: drawName };
+}
+
+function resolveTeamIdByName(
+  name: string,
+  teamNameById: Map<string, string>
+): string | null {
+  const key = normalizeNationalTeamName(name);
+  for (const [id, teamName] of teamNameById) {
+    if (normalizeNationalTeamName(teamName) === key) return id;
+  }
+  return null;
 }
 
 export function computeAllGroupStandings(
@@ -251,4 +333,25 @@ export function computeAllGroupStandings(
     result[code] = computeGroupStandings(code, teamIds, matches);
   }
   return result;
+}
+
+export function computeStandingsProjection(
+  matches: WcMatchRow[],
+  teamNameById: Map<string, string>,
+  fairPlayByTeam: Map<string, number>
+): {
+  groupMatrix: Record<string, GroupStandingRow[]>;
+  thirdPlaceRanking: ReturnType<typeof computeThirdPlaceWildcards>;
+  knockoutProjection: KnockoutProjection;
+} {
+  const groupMatrix = computeAllGroupStandings(matches, teamNameById);
+  const thirdCandidates = buildThirdPlaceCandidates(groupMatrix, fairPlayByTeam);
+  const thirdPlaceRanking = computeThirdPlaceWildcards(thirdCandidates);
+  const md3Draw = loadGroupDraw();
+  const allMd3Done = Object.keys(md3Draw).every((code) => {
+    const groupMatches = matches.filter((m) => m.group_code === code);
+    return groupMatches.filter((m) => m.status === "scheduled").length === 0;
+  });
+  const knockoutProjection = buildKnockoutProjection(thirdPlaceRanking, allMd3Done);
+  return { groupMatrix, thirdPlaceRanking, knockoutProjection };
 }
