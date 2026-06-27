@@ -340,6 +340,8 @@ export function pullInternationalXgTowardFifaAnchor(
     homeName?: string;
     awayName?: string;
     mu?: number;
+    /** Weaken FIFA pull when rotation / low-stakes (0–1, default 1). */
+    anchorPullScale?: number;
   }
 ): { homeXg: number; awayXg: number; fifaRatingDelta: number } {
   const mu = input.mu ?? INTERNATIONAL_BASE_GOALS;
@@ -355,7 +357,8 @@ export function pullInternationalXgTowardFifaAnchor(
     return { homeXg, awayXg, fifaRatingDelta: elo.ratingDelta };
   }
 
-  const pull = Math.min(0.72, (gap - 90) / 180);
+  const pullScale = Math.max(0, Math.min(1, input.anchorPullScale ?? 1));
+  const pull = Math.min(0.72, (gap - 90) / 180) * pullScale;
   return {
     homeXg: clampInternationalBaselineXg(homeXg * (1 - pull) + elo.homeXg * pull),
     awayXg: clampInternationalBaselineXg(awayXg * (1 - pull) + elo.awayXg * pull),

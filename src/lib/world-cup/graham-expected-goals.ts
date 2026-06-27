@@ -56,6 +56,7 @@ export interface GrahamExpectedGoalsInput {
     wide_play_index?: number;
     referee_strictness?: number;
   };
+  fifaAnchorPullScale?: number;
 }
 
 export interface GrahamExpectedGoalsResult {
@@ -206,7 +207,6 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
     weights.tournament * deltaTournament +
     weights.recentXgForm * (deltaRecentForm * 100) +
     weights.fifa * deltaFifa +
-    weights.momentum * deltaMomentum +
     optaDelta +
     processDelta;
 
@@ -240,6 +240,7 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
     homeName: input.homeName,
     awayName: input.awayName,
     mu,
+    anchorPullScale: input.fifaAnchorPullScale ?? 1,
   });
   homeXg = anchored.homeXg;
   awayXg = anchored.awayXg;
@@ -297,6 +298,10 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
       wc_form_away_matches: input.wcForm?.away.matchCount ?? 0,
       wc_attack_nudge_home: input.wcForm?.home.attackNudge ?? 1,
       wc_attack_nudge_away: input.wcForm?.away.attackNudge ?? 1,
+      home_avg_chance_index: input.wcForm?.home.avgChanceIndex ?? 1.5,
+      away_avg_chance_index: input.wcForm?.away.avgChanceIndex ?? 1.5,
+      home_avg_defensive_solidity: input.wcForm?.home.avgDefensiveSolidity ?? 1.5,
+      away_avg_defensive_solidity: input.wcForm?.away.avgDefensiveSolidity ?? 1.5,
       finishing_regression_home: input.wcForm?.home.finishingRegression ?? 0,
       finishing_regression_away: input.wcForm?.away.finishingRegression ?? 0,
       process_features: processFeatures,

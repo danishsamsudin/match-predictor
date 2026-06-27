@@ -84,7 +84,9 @@ function buildFeaturesFromHistory(input: {
   priorMatches: InternationalFormMatch[];
   homeTalentLog?: number;
   awayTalentLog?: number;
+  asOfMs?: number;
 }): Record<string, unknown> {
+  const asOfMs = input.asOfMs ?? Date.now();
   const teamIds = [input.homeTeamId, input.awayTeamId];
   const teamNames = new Map<number, string>([
     [input.homeTeamId, String(input.homeTeamId)],
@@ -101,12 +103,12 @@ function buildFeaturesFromHistory(input: {
   const homeRates = computeGrahamProcessRatesFromMatches(
     String(input.homeTeamId),
     homeForm,
-    Date.now()
+    asOfMs
   );
   const awayRates = computeGrahamProcessRatesFromMatches(
     String(input.awayTeamId),
     awayForm,
-    Date.now()
+    asOfMs
   );
 
   const mu = GRAHAM_MU_XG;
@@ -136,7 +138,8 @@ function buildFeaturesFromHistory(input: {
     String(input.homeTeamId),
     String(input.awayTeamId),
     homeForm,
-    awayForm
+    awayForm,
+    asOfMs
   );
 
   return {
@@ -250,7 +253,7 @@ async function main() {
         actual_fouls: fouls || null,
         actual_corners: corners || null,
         source: "wc_prediction_snapshot",
-        feature_as_of: new Date().toISOString(),
+        feature_as_of: match.date ? `${String(match.date).slice(0, 10)}T12:00:00.000Z` : new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "match_id" }
@@ -299,6 +302,7 @@ async function main() {
       homeTeamId: metricsRow.home_team_id,
       awayTeamId: metricsRow.away_team_id,
       priorMatches: priorEnriched,
+      asOfMs: new Date(String(metricsRow.match_date).slice(0, 10)).getTime(),
     });
 
     const matchId = `intl-${metricsRow.event_id}`;
@@ -319,7 +323,7 @@ async function main() {
         actual_fouls: null,
         actual_corners: null,
         source: "backfill",
-        feature_as_of: new Date().toISOString(),
+        feature_as_of: `${String(metricsRow.match_date).slice(0, 10)}T12:00:00.000Z`,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "match_id" }

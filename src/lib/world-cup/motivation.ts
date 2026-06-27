@@ -2,6 +2,11 @@ import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import type { GroupStandingRow, WcMatchRow } from "@/lib/world-cup/standings";
 import { OFFICIAL_WC_2026_SQUADS } from "@/lib/data/world-cup-2026-official-squads";
 
+export {
+  resolveHostMotivationBoost,
+  resolveHostNationXgBoost,
+} from "@/lib/world-cup/host-nation-lookup";
+
 export interface MotivationParams {
   sigmaHome: number;
   sigmaAway: number;
@@ -20,29 +25,42 @@ export interface MotivationParams {
 
 const ROTATION_MIN = 0.92;
 const ROTATION_MAX = 0.95;
+const ROTATION_PENALTY = 0.12;
+const LINEUP_XG_GAP_PENALTY = 0.25;
 
-/** xG multiplier when a co-host plays in a home-nation venue. */
-export function resolveHostNationXgBoost(matchCity: string | null, homeName: string): number {
-  const city = (matchCity ?? "").toLowerCase();
-  const home = normalizeNationalTeamName(homeName).toLowerCase();
-  if (home.includes("mexico") && city.includes("mexico")) return 1.05;
-  if (
-    home.includes("united states") &&
-    (city.includes("usa") || city.includes("york") || city.includes("angeles"))
-  ) {
-    return 1.04;
-  }
-  if (home.includes("canada") && (city.includes("toronto") || city.includes("vancouver"))) {
-    return 1.04;
-  }
-  return 1;
-}
+/** Apply continuous rotation / weakened-lineup penalties to motivation σ. */
+export function applyRotationAndLineupSigma(input: {
+  sigmaHome: number;
+  sigmaAway: number;
+  rotationIndexHome?: number;
+  rotationIndexAway?: number;
+  lineupHomeXgMult?: number;
+  lineupAwayXgMult?: number;
+  scenario: string;
+}): { sigmaHome: number; sigmaAway: number; scenario: string } {
+  let { sigmaHome, sigmaAway, scenario } = input;
+  const rotH = input.rotationIndexHome ?? 0;
+  const rotA = input.rotationIndexAway ?? 0;
 
-/** Motivation sigma boost for co-hosts (separate ML feature from xG host boost). */
-export function resolveHostMotivationBoost(matchCity: string | null, homeName: string): number {
-  const xgBoost = resolveHostNationXgBoost(matchCity, homeName);
-  if (xgBoost <= 1) return 1;
-  return xgBoost >= 1.05 ? 1.05 : 1.03;
+  if (rotH > 0.2) {
+    sigmaHome = Math.max(ROTATION_MIN, sigmaHome - ROTATION_PENALTY * rotH);
+    if (!scenario.includes("rotation")) scenario = `${scenario}_rotation`.replace(/^standard_/, "");
+  }
+  if (rotA > 0.2) {
+    sigmaAway = Math.max(ROTATION_MIN, sigmaAway - ROTATION_PENALTY * rotA);
+    if (!scenario.includes("rotation")) scenario = `${scenario}_rotation`.replace(/^standard_/, "");
+  }
+
+  const homeGap = 1 - (input.lineupHomeXgMult ?? 1);
+  const awayGap = 1 - (input.lineupAwayXgMult ?? 1);
+  if (homeGap > 0.08) {
+    sigmaHome = Math.max(ROTATION_MIN, sigmaHome - LINEUP_XG_GAP_PENALTY * homeGap);
+  }
+  if (awayGap > 0.08) {
+    sigmaAway = Math.max(ROTATION_MIN, sigmaAway - LINEUP_XG_GAP_PENALTY * awayGap);
+  }
+
+  return { sigmaHome, sigmaAway, scenario };
 }
 
 export function encodeStakesIndex(input: {

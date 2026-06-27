@@ -46,6 +46,8 @@ export interface WcMatchRow {
   venue_altitude_meters?: number | null;
   rest_hours_home?: number | null;
   rest_hours_away?: number | null;
+  prior_home_tz?: string | null;
+  prior_away_tz?: string | null;
   group_code: string | null;
   status: string | null;
   home_team_id: string | null;

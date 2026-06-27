@@ -1,5 +1,5 @@
 /**
- * Post-match WC pipeline: ingest Opta articles + player stats → form → ratings → evaluate → calibrate → ml-train → sync.
+ * Post-match WC pipeline: ingest Opta articles + player stats → form → ratings → sync → evaluate → calibrate → ml-train → report.
  *
  * Usage:
  *   npx tsx scripts/wc-post-match.ts
@@ -83,12 +83,12 @@ function main() {
   run("npm", ["run", "wc:recompute-wc-form"]);
   run("npm", ["run", "statsbomb:import"]);
   run("npm", ["run", "xg-elo:recompute"]);
+  run("npx", ["tsx", "scripts/wc-sync-cli.ts"]);
   run("npx", ["tsx", "scripts/wc-evaluate-predictions.ts"]);
   run("npx", ["tsx", "scripts/wc-evaluate-player-props.ts"]);
   run("npx", ["tsx", "scripts/wc-calibrate-graham.ts"]);
   run("npx", ["tsx", "scripts/ml-backfill-training-examples.ts"]);
   run("npm", ["run", "wc:ml-train"]);
-  run("npx", ["tsx", "scripts/wc-sync-cli.ts"]);
   run("npx", ["tsx", "scripts/wc-post-match-report.ts"]);
 
   console.log("\nPost-match pipeline complete.");

@@ -20,6 +20,7 @@ import {
   swapWcAnalyticsContext,
 } from "@/lib/world-cup/swap-hub-prediction-orientation";
 import { loadEnrichedFormForTeam } from "@/lib/world-cup/load-enriched-international-form";
+import { loadIngestSourceByMatchId, ingestSourceForMatch } from "@/lib/world-cup/load-ingest-source-by-match";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { computeWcEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
 import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
@@ -45,37 +46,40 @@ async function loadFinishedWcMatches(
 
   const { data: rows } = await supabase
     .from("matches")
-    .select(
-      "*, ingest_source_home, ingest_source_away, ingest_source_home_goals, ingest_source_away_goals"
-    )
+    .select("*")
     .eq("status", "finished")
     .or("competition.ilike.FIFA World Cup 2026%,competition.eq.World Cup");
 
-  return (rows ?? []).map((row) => ({
-    id: String(row.id),
-    date: row.date,
-    time: row.time,
-    group_code: row.group_code,
-    status: row.status,
-    home_team_id: row.home_team_id,
-    away_team_id: row.away_team_id,
-    home_goals: row.home_goals,
-    away_goals: row.away_goals,
-    home_team_name: row.home_team_id
-      ? teamNames.get(String(row.home_team_id))
-      : undefined,
-    away_team_name: row.away_team_id
-      ? teamNames.get(String(row.away_team_id))
-      : undefined,
-    venue_city: row.venue_city ?? row.venue,
-    venue: row.venue,
-    competition: row.competition,
-    round: row.round,
-    ingest_source_home: row.ingest_source_home,
-    ingest_source_away: row.ingest_source_away,
-    ingest_source_home_goals: row.ingest_source_home_goals,
-    ingest_source_away_goals: row.ingest_source_away_goals,
-  }));
+  const ingestByMatch = await loadIngestSourceByMatchId(
+    supabase,
+    (rows ?? []).map((row) => String(row.id))
+  );
+
+  return (rows ?? []).map((row) => {
+    const ingest = ingestSourceForMatch(ingestByMatch, String(row.id));
+    return {
+      id: String(row.id),
+      date: row.date,
+      time: row.time,
+      group_code: row.group_code,
+      status: row.status,
+      home_team_id: row.home_team_id,
+      away_team_id: row.away_team_id,
+      home_goals: row.home_goals,
+      away_goals: row.away_goals,
+      home_team_name: row.home_team_id
+        ? teamNames.get(String(row.home_team_id))
+        : undefined,
+      away_team_name: row.away_team_id
+        ? teamNames.get(String(row.away_team_id))
+        : undefined,
+      venue_city: row.venue_city ?? row.venue,
+      venue: row.venue,
+      competition: row.competition,
+      round: row.round,
+      ...ingest,
+    };
+  });
 }
 
 export async function runWcGrahamPredictForRequest(input: {

@@ -104,9 +104,14 @@ export function timezoneOffsetHours(iana: string): number {
 
 export function computeJetLagTheta(originTz: string, destTz: string): number {
   const deltaTz = timezoneOffsetHours(destTz) - timezoneOffsetHours(originTz);
-  if (deltaTz > 0) return 1 - (deltaTz * 1.5) / 100;
-  if (deltaTz < 0) return 1 - (Math.abs(deltaTz) * 0.5) / 100;
-  return 1;
+  if (deltaTz === 0) return 1;
+
+  const abs = Math.abs(deltaTz);
+  const eastward = deltaTz > 0;
+  const basePenalty = eastward
+    ? 0.012 * abs + 0.004 * Math.max(0, abs - 6)
+    : 0.006 * abs;
+  return Math.max(0.82, 1 - basePenalty);
 }
 
 export function computeRestDelta(restHours: number | null | undefined): number {
@@ -123,5 +128,8 @@ export function computeFinalDelta(
   const rest = computeRestDelta(restHours);
   const theta =
     originTz && destTz ? computeJetLagTheta(originTz, destTz) : 1;
-  return Math.min(1, Math.max(0.82, rest * theta));
+  const restAmplifier = rest < 0.95 ? 1 + (0.95 - rest) * 0.4 : 1;
+  const jetPenalty = 1 - theta;
+  const combined = rest * (1 - jetPenalty * restAmplifier);
+  return Math.min(1, Math.max(0.82, combined));
 }

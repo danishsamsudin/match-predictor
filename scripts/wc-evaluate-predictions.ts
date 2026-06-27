@@ -4,10 +4,12 @@
  * Usage: npx tsx scripts/wc-evaluate-predictions.ts
  */
 import type { HubPredictionRow } from "../src/lib/world-cup/hub-main-predict";
-import { evaluateHubPredictionAgainstResult } from "../src/lib/world-cup/wc-prediction-eval";
-import { countFinishedGroupMatches } from "../src/lib/world-cup/motivation";
-import { tagWcMatchSegments } from "../src/lib/world-cup/wc-match-segments";
+import { alignFinishedMatchForDisplay } from "../src/lib/world-cup/align-finished-match-for-display";
+import { orientHubPredictionToMatch } from "../src/lib/world-cup/orient-hub-prediction-to-match";
+import { countPreKickoffGroupMatches, tagWcMatchSegments } from "../src/lib/world-cup/wc-match-segments";
+import { scoreLockedPrediction } from "../src/lib/world-cup/wc-prediction-eval";
 import { loadWcCalibrationConfig } from "../src/lib/world-cup/wc-calibration-config";
+import { ingestSourceForMatch, loadIngestSourceByMatchId } from "../src/lib/world-cup/load-ingest-source-by-match";
 import { tryCreateServiceClient } from "../src/lib/supabase";
 
 function loadEnvLocal() {
@@ -33,11 +35,26 @@ async function main() {
 
   const { data: matches, error: matchErr } = await supabase
     .from("matches")
-    .select("id, home_goals, away_goals, home_team_id, away_team_id, date, time, group_code, round, competition, venue_city, status")
+    .select(
+      "id, home_goals, away_goals, home_team_id, away_team_id, date, time, group_code, round, competition, venue_city, status"
+    )
     .eq("status", "finished")
     .or("competition.ilike.FIFA World Cup 2026%,competition.eq.World Cup");
 
   if (matchErr) throw new Error(matchErr.message);
+
+  const ingestByMatch = await loadIngestSourceByMatchId(
+    supabase,
+    (matches ?? []).map((m) => String(m.id))
+  );
+
+  const teamIds = [
+    ...new Set(
+      (matches ?? []).flatMap((m) => [m.home_team_id, m.away_team_id].filter(Boolean) as string[])
+    ),
+  ];
+  const { data: teams } = await supabase.from("teams").select("id, name").in("id", teamIds);
+  const teamNames = new Map((teams ?? []).map((t) => [String(t.id), String(t.name)]));
 
   const { data: preds, error: predErr } = await supabase
     .from("world_cup_predictions")
@@ -53,23 +70,40 @@ async function main() {
     const predRow = predByMatch.get(String(m.id));
     if (!predRow) continue;
 
-    const hubPred: HubPredictionRow = {
-      home_win_pct: Number(predRow.home_win_pct),
-      draw_pct: Number(predRow.draw_pct),
-      away_win_pct: Number(predRow.away_win_pct),
-      predicted_score_home: Number(predRow.predicted_score_home),
-      predicted_score_away: Number(predRow.predicted_score_away),
-      under_2_5_pct: Number(predRow.under_2_5_pct),
-      over_2_5_pct: Number(predRow.over_2_5_pct),
-      model_version: String(predRow.model_version),
-      snapshot: (predRow.snapshot as Record<string, unknown>) ?? {},
-    };
-
-    const scores = evaluateHubPredictionAgainstResult(
-      hubPred,
-      m.home_goals,
-      m.away_goals
+    const ingest = ingestSourceForMatch(ingestByMatch, String(m.id));
+    const display = alignFinishedMatchForDisplay(
+      {
+        id: String(m.id),
+        date: m.date,
+        home_team_id: m.home_team_id,
+        away_team_id: m.away_team_id,
+        home_goals: m.home_goals,
+        away_goals: m.away_goals,
+        ...ingest,
+      },
+      teamNames
     );
+    if (!display) continue;
+
+    const hubPred: HubPredictionRow = orientHubPredictionToMatch(
+      {
+        home_win_pct: Number(predRow.home_win_pct),
+        draw_pct: Number(predRow.draw_pct),
+        away_win_pct: Number(predRow.away_win_pct),
+        predicted_score_home: Number(predRow.predicted_score_home),
+        predicted_score_away: Number(predRow.predicted_score_away),
+        under_2_5_pct: Number(predRow.under_2_5_pct),
+        over_2_5_pct: Number(predRow.over_2_5_pct),
+        model_version: String(predRow.model_version),
+        snapshot: (predRow.snapshot as Record<string, unknown>) ?? {},
+      },
+      display.homeTeamId,
+      display.awayTeamId,
+      display.homeTeamName,
+      display.awayTeamName
+    );
+
+    const scores = scoreLockedPrediction(hubPred, display.homeGoals, display.awayGoals);
 
     const segments = tagWcMatchSegments({
       match: {
@@ -78,21 +112,26 @@ async function main() {
         time: m.time,
         group_code: m.group_code,
         status: m.status,
-        home_team_id: m.home_team_id,
-        away_team_id: m.away_team_id,
-        home_goals: m.home_goals,
-        away_goals: m.away_goals,
+        home_team_id: display.homeTeamId,
+        away_team_id: display.awayTeamId,
+        home_goals: display.homeGoals,
+        away_goals: display.awayGoals,
         round: m.round,
         competition: m.competition,
         venue_city: m.venue_city,
+        venue_altitude_meters: (m as { venue_altitude_meters?: number }).venue_altitude_meters,
       },
       snapshot: hubPred.snapshot,
-      finishedGroupMatchesForHome: m.home_team_id
-        ? countFinishedGroupMatches(String(m.home_team_id), matches ?? [])
-        : 0,
-      finishedGroupMatchesForAway: m.away_team_id
-        ? countFinishedGroupMatches(String(m.away_team_id), matches ?? [])
-        : 0,
+      finishedGroupMatchesForHome: countPreKickoffGroupMatches(
+        display.homeTeamId,
+        matches ?? [],
+        String(m.id)
+      ),
+      finishedGroupMatchesForAway: countPreKickoffGroupMatches(
+        display.awayTeamId,
+        matches ?? [],
+        String(m.id)
+      ),
     });
 
     const { error } = await supabase.from("world_cup_prediction_evaluations").upsert(
@@ -100,8 +139,8 @@ async function main() {
         match_id: String(m.id),
         model_version: hubPred.model_version,
         calibration_version: calibration.modelVersion,
-        actual_score_home: m.home_goals,
-        actual_score_away: m.away_goals,
+        actual_score_home: display.homeGoals,
+        actual_score_away: display.awayGoals,
         market_scores: { ...scores, segments },
         computed_at: new Date().toISOString(),
       },
@@ -112,7 +151,7 @@ async function main() {
     evaluated += 1;
 
     console.log(
-      `Match ${m.id}: ${m.home_goals}-${m.away_goals} | composite=${scores.compositeLoss.toFixed(4)} brier1x2=${scores.brier1x2.toFixed(4)}`
+      `Match ${m.id}: ${display.homeGoals}-${display.awayGoals} | composite=${scores.compositeLoss.toFixed(4)} brier1x2=${scores.brier1x2.toFixed(4)}`
     );
   }
 

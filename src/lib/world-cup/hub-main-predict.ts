@@ -81,8 +81,8 @@ export async function runHubMainPredict(
     awayName,
     finishedMatches: options?.finishedMatches ?? [],
     motivation,
-    priorHomeVenueTz: null,
-    priorAwayVenueTz: null,
+    priorHomeVenueTz: match.prior_home_tz ?? null,
+    priorAwayVenueTz: match.prior_away_tz ?? null,
     applyModelXi: options?.applyModelXi,
   });
 }

@@ -113,9 +113,20 @@ export async function resolveSquadTalentSnapshot(
   let source: string;
 
   if (transfermarkt != null && scoutlyst != null) {
-    squadValueEur =
-      transfermarkt * GRAHAM_TALENT_TM_WEIGHT + scoutlyst * GRAHAM_TALENT_SCOUTLYST_WEIGHT;
-    source = "transfermarkt+scoutlyst";
+    const supabase = tryCreateServiceClient();
+    const scoutCoverage = supabase
+      ? (
+          await supabase
+            .from("scoutlyst_player_snapshots")
+            .select("id")
+            .eq("reference_team_id", resolvedId)
+            .limit(30)
+        ).data?.length ?? 0
+      : 0;
+    const tmWeight = scoutCoverage >= 25 ? 0.4 : GRAHAM_TALENT_TM_WEIGHT;
+    const scWeight = scoutCoverage >= 25 ? 0.6 : GRAHAM_TALENT_SCOUTLYST_WEIGHT;
+    squadValueEur = transfermarkt * tmWeight + scoutlyst * scWeight;
+    source = scoutCoverage >= 25 ? "transfermarkt+scoutlyst_weighted" : "transfermarkt+scoutlyst";
   } else if (transfermarkt != null) {
     squadValueEur = transfermarkt;
     source = "transfermarkt";

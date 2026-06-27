@@ -209,6 +209,9 @@ def fetch_training_rows(supabase: Client) -> pd.DataFrame:
         feat["actual_total_goals"] = feat["actual_home_goals"] + feat["actual_away_goals"]
         feat["actual_goal_diff"] = feat["actual_home_goals"] - feat["actual_away_goals"]
         feat["is_knockout"] = 1.0 if r.get("is_knockout") else 0.0
+        home_xg = nested_get(features, "home_xg", nested_get(features, "lambda", 1.25))
+        away_xg = nested_get(features, "away_xg", nested_get(features, "mu", 1.25))
+        feat["expected_total_xg"] = nested_get(features, "expected_total_xg", home_xg + away_xg)
         feat["actual_yellow"] = r.get("actual_yellow")
         feat["actual_fouls"] = r.get("actual_fouls")
         feat["actual_corners"] = r.get("actual_corners")
@@ -267,7 +270,7 @@ def coefs_to_delta_weights(coefs: np.ndarray, feature_names: list[str]) -> dict[
     raw = {k: 0.0 for k in DELTA_WEIGHT_KEYS}
     for name, coef in zip(feature_names, coefs):
         if name in mapping:
-            raw[mapping[name]] = abs(float(coef))
+            raw[mapping[name]] = max(0.0, float(coef))
     return normalize_delta_weights(raw)
 
 
@@ -350,10 +353,10 @@ def train_event_poisson(
     if len(subset) < 10:
         return defaults
 
-    feature_cols = ["actual_total_goals", "is_knockout", "opta_physicality_index", "opta_referee_strictness"]
+    feature_cols = ["expected_total_xg", "is_knockout", "opta_physicality_index", "opta_referee_strictness"]
     for col in feature_cols:
         if col not in subset.columns:
-            subset[col] = 0.0
+            subset[col] = 0.0 if col != "expected_total_xg" else 2.5
     X = subset[feature_cols].fillna(0.0).values
     y = subset[target_col].astype(float).values
 
@@ -533,7 +536,7 @@ def main() -> None:
         print("Dry run — not saving.")
         return
 
-    version = f"wc-ml-v{total}-md{total}"
+    version = f"wc-ml-v{total}-md{total}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
     candidate["modelVersion"] = version
 
     metrics = {

@@ -17,7 +17,7 @@ import {
   normalizeDeltaWeights,
   type WcCalibrationConstants,
 } from "@/lib/world-cup/wc-calibration-config";
-import { evaluateHubPredictionAgainstResult } from "@/lib/world-cup/wc-prediction-eval";
+import { scoreLockedPrediction } from "@/lib/world-cup/wc-prediction-eval";
 
 function snapNum(snapshot: Record<string, unknown>, ...keys: string[]): number {
   for (const key of keys) {
@@ -103,19 +103,19 @@ export function recomputeXgFromSnapshot(
   const finishingHome = snapNum(snapshot, "finishing_regression_home");
   const finishingAway = snapNum(snapshot, "finishing_regression_away");
   const regressed = applyFinishingRegressionToXg(homeXg, awayXg, {
-    attackNudge: 1,
+    attackNudge: snapNumOr(snapshot, 1, "wc_attack_nudge_home"),
     defenseNudge: 1,
     finishingRegression: finishingHome,
     matchCount: snapNum(snapshot, "wc_form_home_matches"),
-    avgChanceIndex: 1.5,
-    avgDefensiveSolidity: 1.5,
+    avgChanceIndex: snapNumOr(snapshot, 1.5, "home_avg_chance_index"),
+    avgDefensiveSolidity: snapNumOr(snapshot, 1.5, "home_avg_defensive_solidity"),
   }, {
-    attackNudge: 1,
+    attackNudge: snapNumOr(snapshot, 1, "wc_attack_nudge_away"),
     defenseNudge: 1,
     finishingRegression: finishingAway,
     matchCount: snapNum(snapshot, "wc_form_away_matches"),
-    avgChanceIndex: 1.5,
-    avgDefensiveSolidity: 1.5,
+    avgChanceIndex: snapNumOr(snapshot, 1.5, "away_avg_chance_index"),
+    avgDefensiveSolidity: snapNumOr(snapshot, 1.5, "away_avg_defensive_solidity"),
   });
   homeXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.homeXg);
   awayXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.awayXg);
@@ -194,7 +194,7 @@ export function evaluateSnapshotWithCalibration(
   modelVersion: string
 ) {
   const pred = recomputeHubPredictionFromSnapshot(snapshot, calibration, modelVersion);
-  return evaluateHubPredictionAgainstResult(pred, actualHome, actualAway);
+  return scoreLockedPrediction(pred, actualHome, actualAway, { usePublished1x2: true });
 }
 
 export function avgCompositeLossForSnapshots(

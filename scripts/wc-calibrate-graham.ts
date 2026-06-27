@@ -1,5 +1,5 @@
 /**
- * Tune Graham WC constants from prediction evaluations (real backtest on snapshots).
+ * Tune Graham WC constants from prediction evaluations (walk-forward on oriented snapshots).
  *
  * Usage: npx tsx scripts/wc-calibrate-graham.ts
  */
@@ -7,6 +7,11 @@ import {
   avgBrier1x2ForSnapshots,
   avgCompositeLossForSnapshots,
 } from "../src/lib/world-cup/graham-snapshot-calibration";
+import {
+  loadOrientedCalibrationEvalRows,
+  splitTrainHoldout,
+} from "../src/lib/world-cup/load-calibration-eval-rows";
+import { ML_WALK_FORWARD_HOLDOUT } from "../src/lib/world-cup/ml-guardrails";
 import {
   clearWcCalibrationCache,
   getDefaultWcCalibrationConstants,
@@ -32,7 +37,7 @@ function loadEnvLocal() {
   }
 }
 
-function clampDelta(value: number, base: number, maxPct = 0.1): number {
+function clampDelta(value: number, base: number, maxPct = 0.05): number {
   const lo = base * (1 - maxPct);
   const hi = base * (1 + maxPct);
   return Math.max(lo, Math.min(hi, value));
@@ -49,6 +54,14 @@ function scaleDeltaWeights(
   });
 }
 
+function toEvalShape(rows: ReturnType<typeof splitTrainHoldout>["train"]) {
+  return rows.map((r) => ({
+    snapshot: r.snapshot,
+    actualHome: r.actualHome,
+    actualAway: r.actualAway,
+  }));
+}
+
 async function main() {
   loadEnvLocal();
   const supabase = tryCreateServiceClient();
@@ -57,56 +70,34 @@ async function main() {
   const current = await loadWcCalibrationConfig();
   const defaults = getDefaultWcCalibrationConstants();
 
-  const { data: matches, error: matchErr } = await supabase
-    .from("matches")
-    .select("id, home_goals, away_goals")
-    .eq("status", "finished")
-    .or("competition.ilike.FIFA World Cup 2026%,competition.eq.World Cup");
+  const allRows = await loadOrientedCalibrationEvalRows(supabase);
+  const { train, holdout } = splitTrainHoldout(allRows, ML_WALK_FORWARD_HOLDOUT);
 
-  if (matchErr) throw new Error(matchErr.message);
-
-  const { data: preds, error: predErr } = await supabase
-    .from("world_cup_predictions")
-    .select("match_id, snapshot, model_version");
-
-  if (predErr) throw new Error(predErr.message);
-
-  const predByMatch = new Map((preds ?? []).map((p) => [String(p.match_id), p]));
-  const evalRows: Array<{
-    snapshot: Record<string, unknown>;
-    actualHome: number;
-    actualAway: number;
-  }> = [];
-
-  for (const m of matches ?? []) {
-    if (m.home_goals == null || m.away_goals == null) continue;
-    const pred = predByMatch.get(String(m.id));
-    if (!pred?.snapshot) continue;
-    evalRows.push({
-      snapshot: pred.snapshot as Record<string, unknown>,
-      actualHome: m.home_goals,
-      actualAway: m.away_goals,
-    });
-  }
-
-  if (!evalRows.length) {
+  if (!train.length) {
     console.log("No locked predictions with results — skipping calibration.");
     return;
   }
 
-  if (evalRows.length < 2) {
-    console.log("Fewer than 2 evaluations — need more finished matches.");
+  if (train.length < 2) {
+    console.log("Fewer than 2 training evaluations — need more finished matches.");
     return;
   }
 
-  const baselineLoss = avgCompositeLossForSnapshots(
-    evalRows,
+  const trainEval = toEvalShape(train);
+  const holdoutEval = toEvalShape(holdout);
+
+  const baselineTrainComposite = avgCompositeLossForSnapshots(
+    trainEval,
     current,
     current.modelVersion
   );
-  const baselineBrier = avgBrier1x2ForSnapshots(evalRows, current, current.modelVersion);
-  const useBrierBlend = evalRows.length >= 5;
+  const baselineTrainBrier = avgBrier1x2ForSnapshots(trainEval, current, current.modelVersion);
+  const baselineHoldoutComposite =
+    holdoutEval.length > 0
+      ? avgCompositeLossForSnapshots(holdoutEval, current, current.modelVersion)
+      : null;
 
+  const useBrierBlend = trainEval.length >= 5;
   const scoreTrial = (composite: number, brier: number) =>
     useBrierBlend ? composite * 0.65 + brier * 0.35 : composite;
 
@@ -124,15 +115,16 @@ async function main() {
         : {}),
     },
   };
-  let bestLoss = scoreTrial(baselineLoss, baselineBrier);
+  let bestTrainScore = scoreTrial(baselineTrainComposite, baselineTrainBrier);
 
+  const maxPct = train.length < 80 ? 0.05 : 0.1;
   const muCandidates = [current.muXg * 0.95, current.muXg, current.muXg * 1.05];
   const expCandidates = [
     current.strengthExponent * 0.95,
     current.strengthExponent,
     current.strengthExponent * 1.05,
   ];
-  const weightScales = [0.92, 1, 1.08];
+  const weightScales = [0.96, 1, 1.04];
   const weightKeys: (keyof GrahamDeltaWeights)[] = [
     "xgElo",
     "talent",
@@ -154,9 +146,9 @@ async function main() {
           for (const scale of weightScales) {
             const trial: WcCalibrationConstants = {
               ...current,
-              muXg: clampDelta(muXg, defaults.muXg, 0.1),
-              strengthExponent: clampDelta(strengthExponent, defaults.strengthExponent, 0.1),
-              momentumGamma: clampDelta(momentumGamma, defaults.momentumGamma, 0.1),
+              muXg: clampDelta(muXg, defaults.muXg, maxPct),
+              strengthExponent: clampDelta(strengthExponent, defaults.strengthExponent, maxPct),
+              momentumGamma: clampDelta(momentumGamma, defaults.momentumGamma, maxPct),
               deltaWeights: scaleDeltaWeights(current.deltaWeights, weightKey, scale),
               optaFeatureWeights: { ...current.optaFeatureWeights },
               eventModelCoeffs: {
@@ -168,19 +160,15 @@ async function main() {
                   : {}),
               },
             };
-            const trialLoss = avgCompositeLossForSnapshots(
-              evalRows,
+            const trialComposite = avgCompositeLossForSnapshots(
+              trainEval,
               trial,
               trial.modelVersion
             );
-            const trialBrier = avgBrier1x2ForSnapshots(
-              evalRows,
-              trial,
-              trial.modelVersion
-            );
-            const trialScore = scoreTrial(trialLoss, trialBrier);
-            if (trialScore < bestLoss) {
-              bestLoss = trialScore;
+            const trialBrier = avgBrier1x2ForSnapshots(trainEval, trial, trial.modelVersion);
+            const trialScore = scoreTrial(trialComposite, trialBrier);
+            if (trialScore < bestTrainScore) {
+              bestTrainScore = trialScore;
               best = trial;
             }
           }
@@ -197,14 +185,14 @@ async function main() {
     "wcLineupDefenseBlend",
     "wcLowEventRhoBoost",
   ] as const;
-  const wcScales = [0.9, 1, 1.1];
+  const wcScales = [0.95, 1, 1.05];
 
   for (const key of wcScalarKeys) {
     for (const scale of wcScales) {
       const baseVal = current[key];
       const trial: WcCalibrationConstants = {
         ...best,
-        [key]: clampDelta(baseVal * scale, defaults[key], 0.1),
+        [key]: clampDelta(baseVal * scale, defaults[key], maxPct),
         deltaWeights: { ...best.deltaWeights },
         optaFeatureWeights: { ...best.optaFeatureWeights },
         processFeatureWeights: { ...(best.processFeatureWeights ?? {}) },
@@ -215,25 +203,46 @@ async function main() {
           ...(best.eventModelCoeffs.red ? { red: { ...best.eventModelCoeffs.red } } : {}),
         },
       };
-      const trialLoss = avgCompositeLossForSnapshots(evalRows, trial, trial.modelVersion);
-      const trialBrier = avgBrier1x2ForSnapshots(evalRows, trial, trial.modelVersion);
-      const trialScore = scoreTrial(trialLoss, trialBrier);
-      if (trialScore < bestLoss) {
-        bestLoss = trialScore;
+      const trialComposite = avgCompositeLossForSnapshots(trainEval, trial, trial.modelVersion);
+      const trialBrier = avgBrier1x2ForSnapshots(trainEval, trial, trial.modelVersion);
+      const trialScore = scoreTrial(trialComposite, trialBrier);
+      if (trialScore < bestTrainScore) {
+        bestTrainScore = trialScore;
         best = trial;
       }
     }
   }
 
-  const improved = calibrationGridImproved(bestLoss, scoreTrial(baselineLoss, baselineBrier));
-  if (!improved) {
+  const baselineTrainScore = scoreTrial(baselineTrainComposite, baselineTrainBrier);
+  const trainImproved = calibrationGridImproved(bestTrainScore, baselineTrainScore);
+
+  const bestTrainComposite = avgCompositeLossForSnapshots(trainEval, best, best.modelVersion);
+  const bestTrainBrier = avgBrier1x2ForSnapshots(trainEval, best, best.modelVersion);
+  const bestHoldoutComposite =
+    holdoutEval.length > 0
+      ? avgCompositeLossForSnapshots(holdoutEval, best, best.modelVersion)
+      : null;
+
+  const holdoutImproved =
+    baselineHoldoutComposite == null ||
+    bestHoldoutComposite == null ||
+    bestHoldoutComposite + 1e-6 < baselineHoldoutComposite;
+
+  if (!trainImproved) {
     console.log(
-      `No improvement (baseline composite ${baselineLoss.toFixed(4)}, brier ${baselineBrier.toFixed(4)}, best ${bestLoss.toFixed(4)}) — keeping ${current.modelVersion}.`
+      `No training improvement (baseline composite ${baselineTrainComposite.toFixed(4)}, brier ${baselineTrainBrier.toFixed(4)}, best blend ${bestTrainScore.toFixed(4)}) — keeping ${current.modelVersion}.`
     );
     return;
   }
 
-  const md = evalRows.length;
+  if (holdoutEval.length > 0 && !holdoutImproved) {
+    console.log(
+      `Training improved but holdout worsened (${baselineHoldoutComposite!.toFixed(4)} → ${bestHoldoutComposite!.toFixed(4)}) — not deploying.`
+    );
+    return;
+  }
+
+  const md = allRows.length;
   const version = `wc-graham-v1.${md}-md${md}`;
 
   const { data: existing } = await supabase
@@ -273,11 +282,17 @@ async function main() {
     version,
     constants,
     metrics: {
-      baseline_composite: baselineLoss,
-      baseline_brier_1x2: baselineBrier,
-      candidate_composite: bestLoss,
-      evaluation_count: evalRows.length,
-      method: useBrierBlend ? "snapshot_backtest_composite_brier" : "snapshot_backtest",
+      baseline_composite: baselineTrainComposite,
+      baseline_brier_1x2: baselineTrainBrier,
+      candidate_composite: bestTrainComposite,
+      candidate_brier_1x2: bestTrainBrier,
+      candidate_blend_score: bestTrainScore,
+      holdout_composite: bestHoldoutComposite,
+      holdout_baseline_composite: baselineHoldoutComposite,
+      train_count: train.length,
+      holdout_count: holdout.length,
+      evaluation_count: allRows.length,
+      method: useBrierBlend ? "walkforward_oriented_composite_brier" : "walkforward_oriented",
     },
   });
 
@@ -285,7 +300,17 @@ async function main() {
   clearWcCalibrationCache();
 
   console.log(`Calibration saved: ${version}`);
-  console.log(`  composite: ${baselineLoss.toFixed(4)} → ${bestLoss.toFixed(4)}`);
+  console.log(
+    `  train composite: ${baselineTrainComposite.toFixed(4)} → ${bestTrainComposite.toFixed(4)}`
+  );
+  console.log(
+    `  train blend score: ${baselineTrainScore.toFixed(4)} → ${bestTrainScore.toFixed(4)}`
+  );
+  if (bestHoldoutComposite != null && baselineHoldoutComposite != null) {
+    console.log(
+      `  holdout composite: ${baselineHoldoutComposite.toFixed(4)} → ${bestHoldoutComposite.toFixed(4)}`
+    );
+  }
   console.log(`  muXg: ${current.muXg.toFixed(3)} → ${best.muXg.toFixed(3)}`);
   console.log(
     `  strengthExponent: ${current.strengthExponent.toFixed(5)} → ${best.strengthExponent.toFixed(5)}`

@@ -1,5 +1,9 @@
 import { ensureFifaRankingsLoaded } from "@/lib/data/fifa-rankings-store";
 import { tryCreateServiceClient } from "@/lib/supabase";
+import {
+  computeAltitudeAcclimationScore,
+  computeAltitudeGammas,
+} from "@/lib/world-cup/graham-altitude-acclimatization";
 import { GRAHAM_1X2_TEMPERATURE, GRAHAM_MODEL_VERSION } from "@/lib/world-cup/graham-model-config";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { loadWcInTournamentFormNudges } from "@/lib/world-cup/graham-wc-in-tournament-form";
@@ -20,9 +24,12 @@ import {
   buildMotivationFeatureSnapshot,
   encodeStakesIndex,
   isMatchday3Fixture,
+  applyRotationAndLineupSigma,
   resolveHostMotivationBoost,
   resolveHostNationXgBoost,
 } from "@/lib/world-cup/motivation";
+import { computeRotationIndicesForFixture } from "@/lib/world-cup/wc-rotation-intensity";
+import { resolveWcModelStartingXi } from "@/lib/world-cup/resolve-wc-model-starting-xi";
 import { computeLowBlockIndicesForFixture } from "@/lib/world-cup/wc-low-block-index";
 import { resolveInternationalScoreCorrelation } from "@/lib/world-cup/international-strength";
 import {
@@ -37,11 +44,6 @@ import {
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
-
-function gammaAltitude(venueAltitude: number): number {
-  if (venueAltitude <= 1500) return 1;
-  return 0.96;
-}
 
 function temper1x2Probs(
   homeWin: number,
@@ -102,6 +104,23 @@ export async function runGrahamWorldCupPredict(input: {
     loadWcInTournamentFormNudges(supabase, awayTeamId, calibration),
   ]);
 
+  const [homeProjectedXi, awayProjectedXi] = await Promise.all([
+    resolveWcModelStartingXi({ supabase, teamApiId: homeTeamId, teamName: homeName }),
+    resolveWcModelStartingXi({ supabase, teamApiId: awayTeamId, teamName: awayName }),
+  ]);
+
+  const rotation = await computeRotationIndicesForFixture({
+    supabase,
+    homeTeamApiId: homeTeamId,
+    awayTeamApiId: awayTeamId,
+    homeProjectedXi: homeProjectedXi.playerNames,
+    awayProjectedXi: awayProjectedXi.playerNames,
+  });
+
+  const maxRotation = Math.max(rotation.rotation_index_home, rotation.rotation_index_away);
+  const fifaAnchorPullScale =
+    motivation.scenario.includes("rotation") || maxRotation > 0.3 ? 0.5 : 1;
+
   const baseline = resolveGrahamExpectedGoals({
     homeTeamId,
     awayTeamId,
@@ -123,16 +142,35 @@ export async function runGrahamWorldCupPredict(input: {
       wide_play_index: (homeStyle?.widePlayIndex ?? 1) - (awayStyle?.widePlayIndex ?? 1),
       referee_strictness: 0,
     },
+    fifaAnchorPullScale,
   });
 
   const venue = resolveStadiumVenue(match.venue_city ?? null);
   const altitude = match.venue_altitude_meters ?? venue?.altitude_meters ?? 0;
   const destTz = venue?.timezone ?? "America/New_York";
 
-  const deltaHome = computeFinalDelta(match.rest_hours_home, input.priorHomeVenueTz, destTz);
-  const deltaAway = computeFinalDelta(match.rest_hours_away, input.priorAwayVenueTz, destTz);
-  const gammaHome = gammaAltitude(altitude);
-  const gammaAway = gammaAltitude(altitude);
+  const deltaHome = computeFinalDelta(
+    match.rest_hours_home ?? input.match.rest_hours_home,
+    input.priorHomeVenueTz ?? match.prior_home_tz ?? null,
+    destTz
+  );
+  const deltaAway = computeFinalDelta(
+    match.rest_hours_away ?? input.match.rest_hours_away,
+    input.priorAwayVenueTz ?? match.prior_away_tz ?? null,
+    destTz
+  );
+
+  const matchDateMs = match.date ? new Date(match.date).getTime() : Date.now();
+  const homeAcclim = computeAltitudeAcclimationScore(homeForm, matchDateMs);
+  const awayAcclim = computeAltitudeAcclimationScore(awayForm, matchDateMs);
+  const pressingDiff =
+    (homeProcessProfile.pressingIntensity ?? 1) - (awayProcessProfile.pressingIntensity ?? 1);
+  const { gammaHome, gammaAway } = computeAltitudeGammas({
+    venueAltitudeM: altitude,
+    homeAcclimScore: homeAcclim,
+    awayAcclimScore: awayAcclim,
+    pressingIntensityDiff: pressingDiff,
+  });
   const hostBoost = resolveHostNationXgBoost(match.venue_city ?? venue?.city ?? null, homeName);
   const hostMotivation = resolveHostMotivationBoost(match.venue_city ?? venue?.city ?? null, homeName);
   const stakesIndex = encodeStakesIndex({
@@ -142,11 +180,19 @@ export async function runGrahamWorldCupPredict(input: {
       isMatchday3Fixture(awayId, finishedMatches),
   });
 
-  const effectiveSigmaHome = motivation.sigmaHome * hostMotivation;
+  const adjustedMotivation = applyRotationAndLineupSigma({
+    sigmaHome: motivation.sigmaHome,
+    sigmaAway: motivation.sigmaAway,
+    rotationIndexHome: rotation.rotation_index_home,
+    rotationIndexAway: rotation.rotation_index_away,
+    scenario: motivation.scenario,
+  });
+
+  const effectiveSigmaHome = adjustedMotivation.sigmaHome * hostMotivation;
 
   let homeXg =
     baseline.homeXg * gammaHome * deltaHome * effectiveSigmaHome * hostBoost;
-  let awayXg = baseline.awayXg * gammaAway * deltaAway * motivation.sigmaAway;
+  let awayXg = baseline.awayXg * gammaAway * deltaAway * adjustedMotivation.sigmaAway;
 
   const rhoBase =
     resolveInternationalScoreCorrelation(homeXg, awayXg, baseline.snapshot.delta_fifa as number) +
@@ -202,10 +248,13 @@ export async function runGrahamWorldCupPredict(input: {
       delta_final_home: deltaHome,
       delta_final_away: deltaAway,
       sigma_home: effectiveSigmaHome,
-      sigma_away: motivation.sigmaAway,
+      sigma_away: adjustedMotivation.sigmaAway,
+      rotation_index_home: rotation.rotation_index_home,
+      rotation_index_away: rotation.rotation_index_away,
+      rotation_index_diff: rotation.rotation_index_diff,
       host_motivation_home: hostMotivation,
       stakes_index: stakesIndex,
-      scenario: motivation.scenario,
+      scenario: adjustedMotivation.scenario,
       motivation_features: motivationFeatures,
       expected_total_xg: homeXg + awayXg,
       grid_renormalized: grid.renormalized,
@@ -218,6 +267,7 @@ export async function runGrahamWorldCupPredict(input: {
       opta_features: {
         ...((baseline.snapshot.opta_features as Record<string, unknown>) ?? {}),
         ...lowBlock,
+        ...rotation,
         ...motivationFeatures,
       },
     },

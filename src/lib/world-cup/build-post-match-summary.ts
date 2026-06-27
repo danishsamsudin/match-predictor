@@ -1,9 +1,15 @@
 import path from "node:path";
+import { alignFinishedMatchForDisplay } from "@/lib/world-cup/align-finished-match-for-display";
 import {
   avgBrier1x2ForSnapshots,
   avgCompositeLossForSnapshots,
 } from "@/lib/world-cup/graham-snapshot-calibration";
+import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import { ML_WALK_FORWARD_HOLDOUT } from "@/lib/world-cup/ml-guardrails";
+import {
+  formatPredictedScoreline,
+  orientHubPredictionToMatch,
+} from "@/lib/world-cup/orient-hub-prediction-to-match";
 import {
   buildImplicationsParagraph,
   diffCalibrationConstants,
@@ -15,6 +21,9 @@ import {
   loadWcCalibrationConfig,
   type WcCalibrationConstants,
 } from "@/lib/world-cup/wc-calibration-config";
+import { recomputeXgFromSnapshot } from "@/lib/world-cup/graham-snapshot-calibration";
+import { ingestSourceForMatch, loadIngestSourceByMatchId } from "@/lib/world-cup/load-ingest-source-by-match";
+import { scoreLockedPrediction } from "@/lib/world-cup/wc-prediction-eval";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface MatchLabel {
@@ -234,7 +243,15 @@ function sectionChanges(
       const parts: string[] = [`\`${row.version}\``];
       if (typeof m.baseline_composite === "number" && typeof m.candidate_composite === "number") {
         parts.push(
-          `composite ${Number(m.baseline_composite).toFixed(4)} → ${Number(m.candidate_composite).toFixed(4)}`
+          `train composite ${Number(m.baseline_composite).toFixed(4)} → ${Number(m.candidate_composite).toFixed(4)}`
+        );
+      }
+      if (typeof m.candidate_blend_score === "number" && typeof m.baseline_composite === "number") {
+        parts.push(`blend score → ${Number(m.candidate_blend_score).toFixed(4)}`);
+      }
+      if (typeof m.holdout_composite === "number" && typeof m.holdout_baseline_composite === "number") {
+        parts.push(
+          `holdout ${Number(m.holdout_baseline_composite).toFixed(4)} → ${Number(m.holdout_composite).toFixed(4)}`
         );
       }
       if (typeof m.candidate_loss === "number" && typeof m.baseline_loss === "number") {
@@ -320,10 +337,17 @@ async function loadHoldoutRows(
   const recent = finished.slice(-limit);
   if (!recent.length) return [];
 
+  const ingestByMatch = await loadIngestSourceByMatchId(
+    supabase,
+    recent.map((m) => String(m.id))
+  );
+
   const matchIds = recent.map((m) => String(m.id));
   const { data: preds } = await supabase
     .from("world_cup_predictions")
-    .select("match_id, predicted_score_home, predicted_score_away, home_win_pct, draw_pct, away_win_pct, snapshot")
+    .select(
+      "match_id, predicted_score_home, predicted_score_away, home_win_pct, draw_pct, away_win_pct, under_2_5_pct, over_2_5_pct, model_version, snapshot"
+    )
     .in("match_id", matchIds);
 
   const predByMatch = new Map((preds ?? []).map((p) => [String(p.match_id), p]));
@@ -331,12 +355,6 @@ async function loadHoldoutRows(
     supabase,
     recent.flatMap((m) => [m.home_team_id, m.away_team_id].filter(Boolean) as string[])
   );
-
-  const { data: evals } = await supabase
-    .from("world_cup_prediction_evaluations")
-    .select("match_id, market_scores")
-    .in("match_id", matchIds);
-  const evalByMatch = new Map((evals ?? []).map((e) => [String(e.match_id), e]));
 
   const rows: Array<{
     match: MatchLabel;
@@ -353,33 +371,66 @@ async function loadHoldoutRows(
   }> = [];
 
   for (const m of recent) {
-    const pred = predByMatch.get(String(m.id));
-    if (!pred?.snapshot) continue;
-    const evalRow = evalByMatch.get(String(m.id));
-    const scores = (evalRow?.market_scores as Record<string, number> | null) ?? {};
-    const lbl = matchLabel(
+    const predRow = predByMatch.get(String(m.id));
+    if (!predRow?.snapshot) continue;
+
+    const ingest = ingestSourceForMatch(ingestByMatch, String(m.id));
+    const display = alignFinishedMatchForDisplay(
       {
         id: String(m.id),
+        date: m.date,
         home_team_id: m.home_team_id,
         away_team_id: m.away_team_id,
-        date: m.date,
         home_goals: m.home_goals!,
         away_goals: m.away_goals!,
+        ...ingest,
       },
       names
     );
+    if (!display) continue;
+
+    const rawPred: HubPredictionRow = {
+      home_win_pct: Number(predRow.home_win_pct),
+      draw_pct: Number(predRow.draw_pct),
+      away_win_pct: Number(predRow.away_win_pct),
+      predicted_score_home: Number(predRow.predicted_score_home),
+      predicted_score_away: Number(predRow.predicted_score_away),
+      under_2_5_pct: Number(predRow.under_2_5_pct ?? 0),
+      over_2_5_pct: Number(predRow.over_2_5_pct ?? 0),
+      model_version: String(predRow.model_version ?? ""),
+      snapshot: predRow.snapshot as Record<string, unknown>,
+    };
+    const oriented = orientHubPredictionToMatch(
+      rawPred,
+      display.homeTeamId,
+      display.awayTeamId,
+      display.homeTeamName,
+      display.awayTeamName
+    );
+    const scores = scoreLockedPrediction(
+      oriented,
+      display.homeGoals,
+      display.awayGoals
+    );
+
     rows.push({
-      match: lbl,
-      snapshot: pred.snapshot as Record<string, unknown>,
-      actualHome: m.home_goals!,
-      actualAway: m.away_goals!,
-      predictedHome: Number(pred.predicted_score_home),
-      predictedAway: Number(pred.predicted_score_away),
-      homeWinPct: probFraction(Number(pred.home_win_pct)),
-      drawPct: probFraction(Number(pred.draw_pct)),
-      awayWinPct: probFraction(Number(pred.away_win_pct)),
-      compositeLoss: Number(scores.compositeLoss ?? NaN),
-      brier1x2: Number(scores.brier1x2 ?? NaN),
+      match: {
+        id: String(m.id),
+        label: display.label,
+        date: m.date,
+        homeGoals: display.homeGoals,
+        awayGoals: display.awayGoals,
+      },
+      snapshot: oriented.snapshot,
+      actualHome: display.homeGoals,
+      actualAway: display.awayGoals,
+      predictedHome: oriented.predicted_score_home,
+      predictedAway: oriented.predicted_score_away,
+      homeWinPct: probFraction(oriented.home_win_pct),
+      drawPct: probFraction(oriented.draw_pct),
+      awayWinPct: probFraction(oriented.away_win_pct),
+      compositeLoss: scores.compositeLoss,
+      brier1x2: scores.brier1x2,
     });
   }
 
@@ -459,7 +510,7 @@ async function sectionModelPerformance(
     const pick = `${formatPct(r.homeWinPct)} / ${formatPct(r.drawPct)} / ${formatPct(r.awayWinPct)}`;
     const mark = r.correct1x2 ? "[hit]" : "[miss]";
     lines.push(
-      `- ${mark} **${r.label}** (${r.date}) — actual **${r.actualHome}-${r.actualAway}**, predicted **${r.predictedHome.toFixed(1)}-${r.predictedAway.toFixed(1)}**, 1X2 ${pick} (favoured ${r.favoredOutcome}) | composite ${Number.isFinite(r.compositeLoss) ? r.compositeLoss.toFixed(3) : "—"}`
+      `- ${mark} **${r.label}** (${r.date}) — actual **${r.actualHome}-${r.actualAway}**, predicted **${formatPredictedScoreline(r.predictedHome, r.predictedAway)}**, 1X2 ${pick} (favoured ${r.favoredOutcome}) | composite ${Number.isFinite(r.compositeLoss) ? r.compositeLoss.toFixed(3) : "—"}`
     );
   }
   lines.push("");
@@ -529,8 +580,10 @@ async function sectionTonightMatches(
 
   const { data: matches } = await supabase
     .from("matches")
-    .select("id, home_team_id, away_team_id, date")
+    .select("id, home_team_id, away_team_id, date, home_goals, away_goals")
     .in("id", matchIds);
+
+  const ingestByMatch = await loadIngestSourceByMatchId(supabase, matchIds);
 
   const names = await loadTeamNames(
     supabase,
@@ -540,7 +593,9 @@ async function sectionTonightMatches(
 
   const { data: preds } = await supabase
     .from("world_cup_predictions")
-    .select("match_id, predicted_score_home, predicted_score_away, home_win_pct, draw_pct, away_win_pct")
+    .select(
+      "match_id, predicted_score_home, predicted_score_away, home_win_pct, draw_pct, away_win_pct, under_2_5_pct, over_2_5_pct, model_version, snapshot"
+    )
     .in("match_id", matchIds);
   const predByMatch = new Map((preds ?? []).map((p) => [String(p.match_id), p]));
 
@@ -548,39 +603,66 @@ async function sectionTonightMatches(
 
   for (const ev of evals ?? []) {
     const m = matchById.get(String(ev.match_id));
-    const pred = predByMatch.get(String(ev.match_id));
-    if (!m || !pred) continue;
-    const lbl = matchLabel(
+    const predRow = predByMatch.get(String(ev.match_id));
+    if (!m || !predRow) continue;
+
+    const ingest = ingestSourceForMatch(ingestByMatch, String(m.id));
+    const display = alignFinishedMatchForDisplay(
       {
         id: String(m.id),
+        date: m.date,
         home_team_id: m.home_team_id,
         away_team_id: m.away_team_id,
-        date: m.date,
-        home_goals: ev.actual_score_home,
-        away_goals: ev.actual_score_away,
+        home_goals: m.home_goals ?? ev.actual_score_home,
+        away_goals: m.away_goals ?? ev.actual_score_away,
+        ...ingest,
       },
       names
     );
-    const scores = (ev.market_scores as Record<string, unknown> | null) ?? {};
-    const favored = favoredOutcome(
-      probFraction(Number(pred.home_win_pct)),
-      probFraction(Number(pred.draw_pct)),
-      probFraction(Number(pred.away_win_pct))
+    if (!display) continue;
+
+    const rawPred: HubPredictionRow = {
+      home_win_pct: Number(predRow.home_win_pct),
+      draw_pct: Number(predRow.draw_pct),
+      away_win_pct: Number(predRow.away_win_pct),
+      predicted_score_home: Number(predRow.predicted_score_home),
+      predicted_score_away: Number(predRow.predicted_score_away),
+      under_2_5_pct: Number(predRow.under_2_5_pct ?? 0),
+      over_2_5_pct: Number(predRow.over_2_5_pct ?? 0),
+      model_version: String(predRow.model_version ?? ""),
+      snapshot: (predRow.snapshot as Record<string, unknown>) ?? {},
+    };
+    const oriented = orientHubPredictionToMatch(
+      rawPred,
+      display.homeTeamId,
+      display.awayTeamId,
+      display.homeTeamName,
+      display.awayTeamName
     );
-    const actual = outcomeFromScore(ev.actual_score_home, ev.actual_score_away);
+    const scores = scoreLockedPrediction(
+      oriented,
+      display.homeGoals,
+      display.awayGoals
+    );
+    const favored = favoredOutcome(
+      probFraction(oriented.home_win_pct),
+      probFraction(oriented.draw_pct),
+      probFraction(oriented.away_win_pct)
+    );
+    const actual = outcomeFromScore(display.homeGoals, display.awayGoals);
     const hit = favored === actual;
 
-    lines.push(`### ${lbl.label}`);
+    lines.push(`### ${display.label}`);
     lines.push(
-      `- **Result:** ${ev.actual_score_home}-${ev.actual_score_away} | **We predicted:** ${Number(pred.predicted_score_home).toFixed(1)}-${Number(pred.predicted_score_away).toFixed(1)}`
+      `- **Result:** ${display.homeGoals}-${display.awayGoals} | **We predicted:** ${formatPredictedScoreline(oriented.predicted_score_home, oriented.predicted_score_away)}`
     );
     lines.push(
-      `- **1X2:** favoured ${favored} (${formatPct(Number(pred.home_win_pct))} / ${formatPct(Number(pred.draw_pct))} / ${formatPct(Number(pred.away_win_pct))}) — ${hit ? "**correct**" : `**miss** (was ${actual})`}`
+      `- **1X2:** favoured ${favored} (${formatPct(oriented.home_win_pct)} / ${formatPct(oriented.draw_pct)} / ${formatPct(oriented.away_win_pct)}) — ${hit ? "**correct**" : `**miss** (was ${actual})`}`
     );
-    if (typeof scores.compositeLoss === "number") {
-      lines.push(`- **Composite loss:** ${scores.compositeLoss.toFixed(4)}`);
-    }
-    const segments = scores.segments as Record<string, boolean> | undefined;
+    lines.push(`- **Composite loss:** ${scores.compositeLoss.toFixed(4)}`);
+    const segments = (ev.market_scores as Record<string, unknown> | null)?.segments as
+      | Record<string, boolean>
+      | undefined;
     if (segments) {
       const tags = [
         segments.is_low_block ? "low-block game" : null,
@@ -588,6 +670,93 @@ async function sectionTonightMatches(
         segments.is_host_nation_home ? "host nation at home" : null,
       ].filter(Boolean);
       if (tags.length) lines.push(`- **Context tags:** ${tags.join(", ")}`);
+    }
+    lines.push("");
+  }
+
+  return lines;
+}
+
+async function sectionMonitoring(
+  supabase: SupabaseClient,
+  manifest: PostMatchRunManifest
+): Promise<string[]> {
+  const holdoutData = await loadHoldoutRows(supabase, ML_WALK_FORWARD_HOLDOUT);
+  if (!holdoutData.length) return [];
+
+  const segments: Record<string, { n: number; hits: number; composite: number; brier: number }> =
+    {};
+
+  for (const row of holdoutData) {
+    const evalRow = await supabase
+      .from("world_cup_prediction_evaluations")
+      .select("market_scores")
+      .eq("match_id", row.match.id)
+      .maybeSingle();
+    const seg = (
+      (evalRow.data?.market_scores as Record<string, unknown> | null)?.segments as
+        | Record<string, boolean>
+        | undefined
+    ) ?? {};
+
+    const keys = [
+      seg.is_matchday_3 ? "MD3" : null,
+      seg.is_high_rotation ? "rotation" : null,
+      seg.is_low_block ? "low-block" : null,
+      seg.is_high_altitude ? "altitude" : null,
+      "all",
+    ].filter(Boolean) as string[];
+
+    for (const key of keys) {
+      if (!segments[key]) segments[key] = { n: 0, hits: 0, composite: 0, brier: 0 };
+      const bucket = segments[key]!;
+      bucket.n += 1;
+      bucket.composite += row.compositeLoss;
+      bucket.brier += row.brier1x2;
+      const favored = favoredOutcome(row.homeWinPct, row.drawPct, row.awayWinPct);
+      const actual = outcomeFromScore(row.actualHome, row.actualAway);
+      if (favored === actual) bucket.hits += 1;
+    }
+  }
+
+  const lines: string[] = ["## Segment performance (holdout)", ""];
+  for (const [key, stats] of Object.entries(segments).sort(([a], [b]) => a.localeCompare(b))) {
+    if (key === "all") continue;
+    lines.push(
+      `- **${key}:** ${stats.hits}/${stats.n} 1X2 | avg composite ${(stats.composite / stats.n).toFixed(4)} | avg Brier ${(stats.brier / stats.n).toFixed(4)}`
+    );
+  }
+  const all = segments.all;
+  if (all) {
+    lines.push(
+      `- **all holdout:** ${all.hits}/${all.n} 1X2 | avg composite ${(all.composite / all.n).toFixed(4)}`
+    );
+  }
+  lines.push("");
+
+  const calibrationAfter = await loadWcCalibrationConfig();
+  const orientationFlags: string[] = [];
+  for (const row of holdoutData) {
+    const { homeXg, awayXg } = recomputeXgFromSnapshot(
+      row.snapshot,
+      calibrationAfter
+    );
+    const storedHome = Number(row.snapshot.home_xg ?? row.snapshot.lambda ?? 0);
+    const storedAway = Number(row.snapshot.away_xg ?? row.snapshot.mu ?? 0);
+    const drift = Math.max(Math.abs(homeXg - storedHome), Math.abs(awayXg - storedAway));
+    if (drift > 0.05) {
+      orientationFlags.push(
+        `${row.match.label}: recompute drift ${drift.toFixed(3)} (stored ${storedHome.toFixed(2)}-${storedAway.toFixed(2)} vs ${homeXg.toFixed(2)}-${awayXg.toFixed(2)})`
+      );
+    }
+  }
+
+  lines.push("## Orientation / snapshot audit", "");
+  if (!orientationFlags.length) {
+    lines.push("_All holdout snapshots recompute within 0.05 xG of stored values._", "");
+  } else {
+    for (const flag of orientationFlags) {
+      lines.push(`- ${flag}`);
     }
     lines.push("");
   }
@@ -631,6 +800,7 @@ export async function buildPostMatchSummary(
     ...sectionMeanings(paramChanges),
     ...sectionImplications(paramChanges),
     ...(await sectionModelPerformance(supabase, manifest, calibrationAfter)),
+    ...(await sectionMonitoring(supabase, manifest)),
     ...(await sectionTonightMatches(supabase, manifest)),
     "---",
     "",

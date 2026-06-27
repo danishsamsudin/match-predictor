@@ -151,6 +151,10 @@ function enrichMatchesForHub(
       venue_label: venueLabel,
       venue_altitude_meters:
         patch.venue_altitude_meters ?? m.venue_altitude_meters ?? null,
+      rest_hours_home: patch.rest_hours_home ?? m.rest_hours_home ?? null,
+      rest_hours_away: patch.rest_hours_away ?? m.rest_hours_away ?? null,
+      prior_home_tz: patch.prior_home_tz ?? m.prior_home_tz ?? null,
+      prior_away_tz: patch.prior_away_tz ?? m.prior_away_tz ?? null,
       group_code: patch.group_code ?? m.group_code,
       status: patch.status ?? m.status,
     };
