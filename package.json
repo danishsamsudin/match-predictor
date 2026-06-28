@@ -32,6 +32,7 @@
     "wc:matrix": "npx tsx scripts/import-fifa-third-place-matrix.ts",
     "wc:groups": "npx tsx scripts/seed-world-cup-groups-json.ts",
     "wc:venues": "npx tsx scripts/seed-world-cup-fixture-venues.ts",
+    "wc:r32": "npx tsx scripts/seed-world-cup-r32-fixtures.ts",
     "wc:sync": "npx tsx scripts/wc-sync-cli.ts",
     "wc:sync:http": "bash scripts/wc-sync.sh",
     "wc:ingest-opta": "npx tsx scripts/wc-ingest-opta-html.ts",

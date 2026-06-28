@@ -28,7 +28,7 @@
       "date": "2026-06-29",
       "kickoff_time": "19:00",
       "stadium": "Estadio BBVA",
-      "city": "Guadalajara",
+      "city": "Monterrey",
       "home": { "type": "standing", "rank": 1, "group": "F" },
       "away": { "type": "standing", "rank": 2, "group": "C" }
     },
@@ -156,7 +156,7 @@
       "match_number": 88,
       "round": "R32",
       "date": "2026-07-03",
-      "kickoff_time": "12:00",
+      "kickoff_time": "13:00",
       "stadium": "AT&T Stadium",
       "city": "Dallas",
       "home": { "type": "standing", "rank": 2, "group": "D" },

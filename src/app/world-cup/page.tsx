@@ -10,6 +10,7 @@ import type { UpcomingMatchCardProps } from "@/components/world-cup/MatchValueFl
 import { WorldCupSectionHelp } from "@/components/world-cup/WorldCupSectionHelp";
 import { WorldCupRefreshButton } from "@/components/world-cup/WorldCupRefreshButton";
 import { loadWorldCupHubPayload } from "@/lib/world-cup/hub-load";
+import { isR32HubMatchId } from "@/lib/world-cup/r32-hub-fixtures";
 
 /** Hub page — always align recent scores from committed Opta HTML (avoid stale ISR snapshot). */
 export const dynamic = "force-dynamic";
@@ -232,6 +233,7 @@ export default async function WorldCupHubPage() {
               homeName: m.home_team_name,
               awayName: m.away_team_name,
               groupCode: m.group_code,
+              roundLabel: isR32HubMatchId(m.id) ? "Round of 32" : null,
               venueCity: m.venue_city ?? null,
               venueStadium: m.venue_label ?? m.venue ?? null,
               venueAltitude: m.venue_altitude_meters ?? null,

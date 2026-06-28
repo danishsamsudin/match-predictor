@@ -28,6 +28,77 @@ function readDateTimePart(
   return Number(parts.find((p) => p.type === type)?.value ?? "0");
 }
 
+function readDateTimeParts(
+  parts: Intl.DateTimeFormatPart[]
+): { year: number; month: number; day: number; hour: number; minute: number } {
+  return {
+    year: readDateTimePart(parts, "year"),
+    month: readDateTimePart(parts, "month"),
+    day: readDateTimePart(parts, "day"),
+    hour: readDateTimePart(parts, "hour") % 24,
+    minute: readDateTimePart(parts, "minute"),
+  };
+}
+
+/** Convert FIFA schedule wall clock (CEST/CET) to venue-local date and kickoff time. */
+export function cestWallClockToVenueLocal(input: {
+  cestDate: string;
+  cestTime: string;
+  venueCity: string;
+}): { date: string; time: string } | null {
+  const cestDate = input.cestDate.trim().slice(0, 10);
+  const clock = parseClock(input.cestTime);
+  if (!cestDate || !/^\d{4}-\d{2}-\d{2}$/.test(cestDate) || !clock) return null;
+
+  const venue = resolveStadiumVenue(input.venueCity ?? null);
+  const destTz = venue?.timezone ?? "America/New_York";
+  const cestTz = "Europe/Berlin";
+  const [y, mo, d] = cestDate.split("-").map(Number);
+
+  let guess = Date.UTC(y, mo - 1, d, clock.hour - 2, clock.minute, 0, 0);
+  for (let i = 0; i < 12; i++) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: cestTz,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false,
+    }).formatToParts(new Date(guess));
+    const { year, month, day, hour, minute } = readDateTimeParts(parts);
+    const diffMin =
+      (y - year) * 525600 +
+      (mo - month) * 43200 +
+      (d - day) * 1440 +
+      (clock.hour - hour) * 60 +
+      (clock.minute - minute);
+    if (diffMin === 0) break;
+    guess += diffMin * 60 * 1000;
+  }
+
+  const localParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: destTz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(guess));
+  const year = readDateTimePart(localParts, "year");
+  const month = String(readDateTimePart(localParts, "month")).padStart(2, "0");
+  const day = String(readDateTimePart(localParts, "day")).padStart(2, "0");
+  const hour = String(readDateTimePart(localParts, "hour") % 24).padStart(2, "0");
+  const minute = String(readDateTimePart(localParts, "minute")).padStart(2, "0");
+
+  return {
+    date: `${year}-${month}-${day}`,
+    time: `${hour}:${minute}`,
+  };
+}
+
 /** UTC epoch ms for wall-clock kickoff in the host city's IANA timezone. */
 export function resolveWcKickoffUtcMs(input: {
   date?: string | null | undefined;

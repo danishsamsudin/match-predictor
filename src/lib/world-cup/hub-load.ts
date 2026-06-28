@@ -24,6 +24,11 @@ import { resolveFixtureScheduleMeta } from "@/lib/world-cup/fixture-venues";
 import { parseHubPrediction, swapHubCardPrediction } from "@/lib/world-cup/hub-prediction";
 import { resolveMatchPhase } from "@/lib/world-cup/match-kickoff";
 import { compareByKickoffAsc } from "@/lib/world-cup/sort-matches";
+import {
+  buildR32HubMatchRows,
+  isKnockoutSlotPlaceholder,
+  isR32HubMatchId,
+} from "@/lib/world-cup/r32-hub-fixtures";
 import { filterWorldCup2026GroupStageMatches } from "@/lib/world-cup/tournament-fixtures";
 import type { GoldenBootPredictionPayload } from "@/lib/world-cup/golden-boot-prediction";
 import {
@@ -346,6 +351,98 @@ function alignUpcomingMatchForDisplay<
   };
 }
 
+function enrichR32UpcomingRows(
+  teamNames: Map<string, string>,
+  predByMatch: Map<string, Record<string, unknown>>,
+  existingUpcoming: WorldCupHubPayload["upcoming"]
+): WorldCupHubPayload["upcoming"] {
+  const withoutSyntheticR32 = existingUpcoming.filter((m) => !isR32HubMatchId(m.id));
+  const r32Rows = buildR32HubMatchRows(teamNames);
+
+  const enriched = r32Rows.map((m) => {
+    const homeFifa = isKnockoutSlotPlaceholder(m.home_team_name)
+      ? null
+      : getLatestFifaRankingForTeam(m.home_team_name ?? "");
+    const awayFifa = isKnockoutSlotPlaceholder(m.away_team_name)
+      ? null
+      : getLatestFifaRankingForTeam(m.away_team_name ?? "");
+    const rawPred = predByMatch.get(m.id) ?? null;
+    const matchPhase = resolveMatchPhase({
+      status: m.status,
+      homeGoals: m.home_goals,
+      awayGoals: m.away_goals,
+      date: m.date,
+      time: m.time,
+      venueCity: m.venue_city,
+    });
+    const cardPrediction = parseHubPrediction(rawPred, matchPhase);
+    const canPredict =
+      m.home_team_id &&
+      m.away_team_id &&
+      !isKnockoutSlotPlaceholder(m.home_team_name) &&
+      !isKnockoutSlotPlaceholder(m.away_team_name);
+
+    return alignUpcomingMatchForDisplay({
+      ...m,
+      prediction: null,
+      home_fifa_rank: homeFifa?.rank ?? null,
+      home_fifa_points: homeFifa?.points ?? null,
+      away_fifa_rank: awayFifa?.rank ?? null,
+      away_fifa_points: awayFifa?.points ?? null,
+      match_phase: matchPhase,
+      prediction_locked: matchPhase !== "pre",
+      card_prediction: canPredict ? cardPrediction : null,
+      predicted_score_home: canPredict ? (cardPrediction?.predicted_score_home ?? null) : null,
+      predicted_score_away: canPredict ? (cardPrediction?.predicted_score_away ?? null) : null,
+    });
+  });
+
+  return [...withoutSyntheticR32, ...enriched].sort(compareByKickoffAsc);
+}
+
+function mergeR32IntoHubPayload(
+  payload: WorldCupHubPayload,
+  predByMatch: Map<string, Record<string, unknown>>
+): WorldCupHubPayload {
+  const teamNames = new Map<string, string>();
+  for (const group of Object.values(payload.groupMatrix)) {
+    for (const row of group) {
+      teamNames.set(row.teamId, row.teamName);
+    }
+  }
+  for (const m of [...payload.recent, ...payload.upcoming]) {
+    if (m.home_team_id && m.home_team_name) teamNames.set(m.home_team_id, m.home_team_name);
+    if (m.away_team_id && m.away_team_name) teamNames.set(m.away_team_id, m.away_team_name);
+  }
+
+  return {
+    ...payload,
+    upcoming: enrichR32UpcomingRows(teamNames, predByMatch, payload.upcoming),
+  };
+}
+
+async function fetchR32PredictionsByMatch(): Promise<Map<string, Record<string, unknown>>> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return new Map();
+
+  const wcClient = supabase as unknown as {
+    from: (table: string) => {
+      select: (cols: string) => Promise<{
+        data: Array<Record<string, unknown>> | null;
+        error: { message: string } | null;
+      }>;
+    };
+  };
+
+  const { data } = await wcClient.from("world_cup_predictions").select(PREDICTION_COLUMNS);
+  const out = new Map<string, Record<string, unknown>>();
+  for (const row of data ?? []) {
+    const matchId = row.match_id as string;
+    if (isR32HubMatchId(matchId)) out.set(matchId, row);
+  }
+  return out;
+}
+
 function repartitionRecentAndUpcoming(payload: WorldCupHubPayload): WorldCupHubPayload {
   const recentById = new Map(payload.recent.map((m) => [m.id, m]));
   const stillUpcoming: WorldCupHubPayload["upcoming"] = [];
@@ -575,7 +672,9 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   const withLiveScores = await mergeLiveMatchScoresIntoPayload(snapshot);
   const withStandings = await refreshHubStandingsFromDb(withLiveScores);
   const repartitioned = repartitionRecentAndUpcoming(withStandings);
-  const realigned = await realignRecentResultsFromIngests(repartitioned);
+  const r32PredByMatch = await fetchR32PredictionsByMatch();
+  const withR32 = mergeR32IntoHubPayload(repartitioned, r32PredByMatch);
+  const realigned = await realignRecentResultsFromIngests(withR32);
 
   const supabase = tryCreateServiceClient();
   const teamNames = new Map<string, string>();
@@ -799,14 +898,17 @@ export async function buildWorldCupHubPayload(
       .sort()
       .reverse()[0] ?? new Date().toISOString();
 
-  return {
-    updatedAt,
-    groupMatrix,
-    thirdPlaceRanking,
-    knockoutProjection,
-    tournamentForecast,
-    goldenBootPredictions,
-    recent,
-    upcoming: upcomingEnriched,
-  };
+  return mergeR32IntoHubPayload(
+    {
+      updatedAt,
+      groupMatrix,
+      thirdPlaceRanking,
+      knockoutProjection,
+      tournamentForecast,
+      goldenBootPredictions,
+      recent,
+      upcoming: upcomingEnriched,
+    },
+    predByMatch
+  );
 }

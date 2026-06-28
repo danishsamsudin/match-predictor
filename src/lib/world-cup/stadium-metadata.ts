@@ -42,6 +42,22 @@ const VENUE_NAME_TO_CITY: Record<string, string> = {
   "estadio banorte": "Mexico City",
   "estadio bbva": "Monterrey",
   "estadio bbva bancomer": "Monterrey",
+  "los angeles stadium": "Los Angeles",
+  "houston stadium": "Houston",
+  "boston stadium": "Boston",
+  "monterrey stadium": "Monterrey",
+  "dallas stadium": "Dallas",
+  "new york new jersey stadium": "New York",
+  "mexico city stadium": "Mexico City",
+  "atlanta stadium": "Atlanta",
+  "seattle stadium": "Seattle",
+  "san francisco bay area stadium": "San Francisco",
+  "toronto stadium": "Toronto",
+  "bc place vancouver": "Vancouver",
+  "miami stadium": "Miami",
+  "kansas city stadium": "Kansas City",
+  "new jersey": "New York",
+  "san francisco bay area": "San Francisco",
 };
 
 function normalizeVenueLookupKey(label: string): string {

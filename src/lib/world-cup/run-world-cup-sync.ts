@@ -24,6 +24,10 @@ import { runHubMainPredict } from "@/lib/world-cup/hub-main-predict";
 import { WORLD_CUP_FINALS_COMPETITION_OR } from "@/lib/world-cup/match-query";
 import { filterWorldCup2026GroupStageMatches } from "@/lib/world-cup/tournament-fixtures";
 import {
+  buildR32HubMatchRows,
+  isKnockoutSlotPlaceholder,
+} from "@/lib/world-cup/r32-hub-fixtures";
+import {
   resolveMatchPhase,
   shouldRefreshHubPrediction,
 } from "@/lib/world-cup/match-kickoff";
@@ -149,6 +153,16 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
   );
   let matches = filterWorldCup2026GroupStageMatches(mapped, teamToGroup) as WcMatchWithMeta[];
 
+  const { data: teamsForR32 } = await client.from("teams").select("id, name");
+  const r32TeamNames = new Map((teamsForR32 ?? []).map((t) => [t.id, t.name]));
+  const r32Rows = buildR32HubMatchRows(r32TeamNames).filter(
+    (m) =>
+      m.home_team_id &&
+      m.away_team_id &&
+      !isKnockoutSlotPlaceholder(m.home_team_name) &&
+      !isKnockoutSlotPlaceholder(m.away_team_name)
+  ) as WcMatchWithMeta[];
+  matches = [...matches, ...r32Rows];
   let matchesEnriched = 0;
   for (const m of matches) {
     const patch = enrichMatchEnvironment(m, matches, teamNames, {

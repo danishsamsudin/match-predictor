@@ -6,6 +6,7 @@ import { NationalTeamFlag } from "@/components/world-cup/NationalTeamFlag";
 import type { HubCardPrediction } from "@/lib/world-cup/hub-prediction";
 import type { MatchPhase } from "@/lib/world-cup/match-kickoff";
 import { buildNationalPredictorUrl } from "@/lib/world-cup/predictor-prefill";
+import { isKnockoutSlotPlaceholder } from "@/lib/world-cup/r32-hub-fixtures";
 import { formatWcVenueKickoff } from "@/lib/world-cup/match-kickoff";
 import { buildGuardedScoreMatrix } from "@/lib/world-cup/score-grid";
 import {
@@ -27,6 +28,7 @@ export type UpcomingMatchCardProps = {
   homeName: string;
   awayName: string;
   groupCode: string | null;
+  roundLabel?: string | null;
   venueCity: string | null;
   venueStadium?: string | null;
   venueAltitude: number | null;
@@ -48,6 +50,7 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
     homeName,
     awayName,
     groupCode,
+    roundLabel,
     venueCity,
     venueStadium,
     venueAltitude,
@@ -224,6 +227,8 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
             </span>
             {groupCode ? (
               <span className="wc-card-badge">Group {groupCode}</span>
+            ) : roundLabel ? (
+              <span className="wc-card-badge">{roundLabel}</span>
             ) : (
               <span />
             )}
@@ -590,11 +595,24 @@ function TeamColumn({
   fifaRank: number | null;
   fifaPoints: number | null;
 }) {
+  const placeholder = isKnockoutSlotPlaceholder(name);
   return (
     <div className={`wc-team-col ${side === "home" ? "wc-team-col-home" : "wc-team-col-away"}`}>
-      <NationalTeamFlag teamName={name} side={side} />
-      <p className="wc-team-name" title={name}>
-        {name}
+      {placeholder ? (
+        <div
+          className={`wc-team-flag-fallback ${side === "home" ? "wc-team-flag-fallback-home" : "wc-team-flag-fallback-away"} wc-team-flag border border-dashed border-slate-300/80 text-slate-400 dark:border-slate-600/80`}
+          aria-hidden
+        >
+          ?
+        </div>
+      ) : (
+        <NationalTeamFlag teamName={name} side={side} />
+      )}
+      <p
+        className={`wc-team-name ${placeholder ? "text-slate-400 italic" : ""}`}
+        title={name}
+      >
+        {placeholder ? name : name}
       </p>
       {fifaRank != null && (
         <p className="wc-team-fifa">
