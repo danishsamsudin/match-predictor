@@ -64,3 +64,30 @@ export function getSyncCronHourUtc(): number {
 export function getSyncCronSecret(): string | undefined {
   return process.env.SYNC_CRON_SECRET?.trim() || undefined;
 }
+
+/** Leagues included in the daily league prediction snapshot job (defaults to sync leagues). */
+export function getSnapshotLeagueIds(): number[] {
+  const raw = process.env.SNAPSHOT_LEAGUE_IDS;
+  if (raw?.trim().toLowerCase() === "all") {
+    return getAllSyncLeagueIds();
+  }
+  if (raw?.trim()) {
+    return raw
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n));
+  }
+  return getSyncLeagueIds();
+}
+
+/** Parallel league predictions per batch in the daily snapshot cron. */
+export function getSnapshotBatchSize(): number {
+  const n = Number(process.env.SNAPSHOT_BATCH_SIZE ?? "4");
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 8) : 4;
+}
+
+/** Max fixtures processed per league snapshot run (safety cap for serverless timeout). */
+export function getSnapshotMaxMatchesPerRun(): number {
+  const n = Number(process.env.SNAPSHOT_MAX_MATCHES_PER_RUN ?? "80");
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 200) : 80;
+}

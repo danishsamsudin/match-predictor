@@ -13,6 +13,7 @@ export interface WcInTournamentFormNudges {
   matchCount: number;
   avgChanceIndex: number;
   avgDefensiveSolidity: number;
+  avgDisciplineLoad: number;
 }
 
 const NEUTRAL: WcInTournamentFormNudges = {
@@ -22,6 +23,7 @@ const NEUTRAL: WcInTournamentFormNudges = {
   matchCount: 0,
   avgChanceIndex: 1.5,
   avgDefensiveSolidity: 1.5,
+  avgDisciplineLoad: 0,
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -62,6 +64,7 @@ export function computeWcFormNudgesFromComposites(
   const defense = opponentAdjustedCompositeMean(composites, "defensiveSolidity");
   const finishing = opponentAdjustedCompositeMean(composites, "finishingDelta");
   const territory = opponentAdjustedCompositeMean(composites, "territoryIndex");
+  const discipline = opponentAdjustedCompositeMean(composites, "disciplineLoad");
 
   const attackSignal = chance * 0.12 + (territory - 0.5) * 0.25;
   const defenseSignal = defense * 0.1;
@@ -75,6 +78,7 @@ export function computeWcFormNudgesFromComposites(
     matchCount: composites.length,
     avgChanceIndex: chance,
     avgDefensiveSolidity: defense,
+    avgDisciplineLoad: discipline,
   };
 }
 

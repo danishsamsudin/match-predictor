@@ -30,13 +30,7 @@ import {
   isR32HubMatchId,
 } from "@/lib/world-cup/r32-hub-fixtures";
 import { filterWorldCup2026GroupStageMatches } from "@/lib/world-cup/tournament-fixtures";
-import type { GoldenBootPredictionPayload } from "@/lib/world-cup/golden-boot-prediction";
-import {
-  applyLiveGoldenBootGoals,
-  freezeGoldenBootPredictions,
-} from "@/lib/world-cup/golden-boot-live";
 import { buildCompletePredictionsMap } from "@/lib/world-cup/run-tournament-forecast";
-import { runGoldenBootForecast } from "@/lib/world-cup/run-golden-boot-forecast";
 import { runDeterministicTournamentForecast } from "@/lib/world-cup/tournament-simulation";
 import {
   toTournamentForecastPayload,
@@ -61,7 +55,6 @@ export type WorldCupHubPayload = {
   thirdPlaceRanking: ReturnType<typeof computeThirdPlaceWildcards>;
   knockoutProjection: ReturnType<typeof buildKnockoutProjection>;
   tournamentForecast: TournamentForecastPayload | null;
-  goldenBootPredictions: GoldenBootPredictionPayload | null;
   recent: Array<
     HubMatchRow & {
       match_summary: WcMatchSummary | null;
@@ -674,24 +667,7 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   const repartitioned = repartitionRecentAndUpcoming(withStandings);
   const r32PredByMatch = await fetchR32PredictionsByMatch();
   const withR32 = mergeR32IntoHubPayload(repartitioned, r32PredByMatch);
-  const realigned = await realignRecentResultsFromIngests(withR32);
-
-  const supabase = tryCreateServiceClient();
-  const teamNames = new Map<string, string>();
-  for (const group of Object.values(realigned.groupMatrix)) {
-    for (const row of group) {
-      teamNames.set(row.teamId, row.teamName);
-    }
-  }
-  const goldenBootPredictions = await applyLiveGoldenBootGoals(
-    supabase,
-    teamNames,
-    realigned.goldenBootPredictions
-  );
-
-  return goldenBootPredictions
-    ? { ...realigned, goldenBootPredictions }
-    : realigned;
+  return realignRecentResultsFromIngests(withR32);
 }
 
 /**
@@ -868,32 +844,9 @@ export async function buildWorldCupHubPayload(
     }
   }
 
-  let goldenBootPredictions: GoldenBootPredictionPayload | null = null;
-  try {
-    const previousSnapshot = await loadHubSnapshotPayload();
-    const freshGoldenBoot = await runGoldenBootForecast({
-      client: supabase,
-      forecast: tournamentForecast,
-      groupMatches: matches,
-      predictionsByMatchId,
-      teamNames,
-    });
-    goldenBootPredictions = freezeGoldenBootPredictions(
-      previousSnapshot?.goldenBootPredictions,
-      freshGoldenBoot
-    );
-    goldenBootPredictions = await applyLiveGoldenBootGoals(
-      supabase,
-      teamNames,
-      goldenBootPredictions
-    );
-  } catch (err) {
-    console.warn("Golden Boot forecast failed:", err);
-  }
-
   const forecastAt = forecastRow?.computed_at as string | undefined;
   const updatedAt =
-    [latestPred, forecastAt, tournamentForecast?.computedAt, goldenBootPredictions?.computedAt]
+    [latestPred, forecastAt, tournamentForecast?.computedAt]
       .filter(Boolean)
       .sort()
       .reverse()[0] ?? new Date().toISOString();
@@ -905,7 +858,6 @@ export async function buildWorldCupHubPayload(
       thirdPlaceRanking,
       knockoutProjection,
       tournamentForecast,
-      goldenBootPredictions,
       recent,
       upcoming: upcomingEnriched,
     },

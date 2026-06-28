@@ -98,6 +98,11 @@ export async function computePlayerPropsForMatch(input: {
   homeDbTeamId?: string;
   awayDbTeamId?: string;
   modelVersion?: string;
+  homeSetPieceGoalShare?: number;
+  awaySetPieceGoalShare?: number;
+  homeSetPieceMult?: number;
+  awaySetPieceMult?: number;
+  setPieceRateThreshold?: number;
 }): Promise<PlayerPropsPayload | null> {
   let comparison = input.teamComparison;
 
@@ -153,6 +158,11 @@ export async function computePlayerPropsForMatch(input: {
     awayOpponentProfile,
     homePenaltyTaker: resolvePenaltyTaker(input.homeTeamName, input.entityType),
     awayPenaltyTaker: resolvePenaltyTaker(input.awayTeamName, input.entityType),
+    homeSetPieceGoalShare: input.homeSetPieceGoalShare,
+    awaySetPieceGoalShare: input.awaySetPieceGoalShare,
+    homeSetPieceMult: input.homeSetPieceMult,
+    awaySetPieceMult: input.awaySetPieceMult,
+    setPieceRateThreshold: input.setPieceRateThreshold,
   });
 
   if (

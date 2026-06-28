@@ -108,6 +108,54 @@ export const PARAM_EXPLANATIONS: Record<string, ParamExplanation> = {
     ifIncreased: "0-0 and 1-1 draws get more weight in cautious matchups.",
     ifDecreased: "Draw probability stays closer to the pure Poisson/Dixon-Coles baseline.",
   },
+  setPieceXgMultiplier: {
+    label: "Set-piece xG multiplier",
+    whatItIs:
+      "How much teams with high set-piece goal share get a multiplicative lift, scaled by opponent vulnerability.",
+    ifIncreased: "Set-piece-heavy sides project more goals; overs rise in aerial matchups.",
+    ifDecreased: "Set-piece threat is discounted; totals lean on open-play xG.",
+  },
+  setPieceDefLeakWeight: {
+    label: "Set-piece defensive leak weight",
+    whatItIs: "How much an opponent's set-piece weakness amplifies the attacking team's set-piece bump.",
+    ifIncreased: "Attacking set-piece teams gain more vs leaky defences.",
+    ifDecreased: "Set-piece bumps depend mostly on the attacker's own share, not the opponent.",
+  },
+  goalOverdispersionK: {
+    label: "Goal overdispersion (NB k)",
+    whatItIs:
+      "Widens the score distribution tails beyond Poisson — captures chaotic high-scoring games without shifting means much.",
+    ifIncreased: "Over 3.5 and extreme scorelines gain probability mass.",
+    ifDecreased: "Score grid stays closer to independent Poisson.",
+  },
+  talentDecayPerMatch: {
+    label: "Talent weight decay per WC match",
+    whatItIs:
+      "How quickly squad market-value weight fades as in-tournament xG evidence accumulates.",
+    ifIncreased: "Paper quality matters less after each group game.",
+    ifDecreased: "Transfermarkt/Scoutlyst priors stay influential longer.",
+  },
+  md3MutualRotationPenaltyScale: {
+    label: "MD3 mutual rotation discount",
+    whatItIs:
+      "When both teams rotate on matchday 3, how much we soften the attack penalty (open games still possible).",
+    ifIncreased: "Mutual rotation reduces the σ penalty less — more conservative totals.",
+    ifDecreased: "Both sides rotating keeps expected goals closer to full-strength baselines.",
+  },
+  redCardMatchBaseProb: {
+    label: "In-match red-card mixture",
+    whatItIs:
+      "Baseline probability of a red-card scenario blended into the score grid to fatten handicap/O-U tails.",
+    ifIncreased: "More weight on lopsided post-red scorelines.",
+    ifDecreased: "Score grid assumes normal XI for full match.",
+  },
+  xgCapSoftness: {
+    label: "Soft xG cap",
+    whatItIs:
+      "Smooth asymptote near the 5.0 xG ceiling instead of a hard clamp — helps extreme mismatches.",
+    ifIncreased: "Heavy favourites can project slightly above the old hard cap before tapering.",
+    ifDecreased: "xG hits the hard ceiling sooner.",
+  },
 };
 
 export interface ParamChange {
@@ -127,6 +175,13 @@ const SCALAR_KEYS = [
   "wcLineupAttackBlend",
   "wcLineupDefenseBlend",
   "wcLowEventRhoBoost",
+  "setPieceXgMultiplier",
+  "setPieceDefLeakWeight",
+  "goalOverdispersionK",
+  "talentDecayPerMatch",
+  "md3MutualRotationPenaltyScale",
+  "redCardMatchBaseProb",
+  "xgCapSoftness",
 ] as const;
 
 const DELTA_WEIGHT_KEYS = [

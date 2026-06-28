@@ -37,17 +37,35 @@ export function applyRotationAndLineupSigma(input: {
   lineupHomeXgMult?: number;
   lineupAwayXgMult?: number;
   scenario: string;
-}): { sigmaHome: number; sigmaAway: number; scenario: string } {
+  stakesIndex?: number;
+  md3MutualRotationPenaltyScale?: number;
+}): {
+  sigmaHome: number;
+  sigmaAway: number;
+  scenario: string;
+  rotationPenaltyScale: number;
+} {
   let { sigmaHome, sigmaAway, scenario } = input;
   const rotH = input.rotationIndexHome ?? 0;
   const rotA = input.rotationIndexAway ?? 0;
+  const stakesIndex = input.stakesIndex ?? 1;
+  const md3Scale = input.md3MutualRotationPenaltyScale ?? 0.5;
+  const mutualMd3Rotation =
+    stakesIndex >= 1.5 && rotH > 0.2 && rotA > 0.2;
+  const rotationPenaltyScale = mutualMd3Rotation ? md3Scale : 1;
 
   if (rotH > 0.2) {
-    sigmaHome = Math.max(ROTATION_MIN, sigmaHome - ROTATION_PENALTY * rotH);
+    sigmaHome = Math.max(
+      ROTATION_MIN,
+      sigmaHome - ROTATION_PENALTY * rotH * rotationPenaltyScale
+    );
     if (!scenario.includes("rotation")) scenario = `${scenario}_rotation`.replace(/^standard_/, "");
   }
   if (rotA > 0.2) {
-    sigmaAway = Math.max(ROTATION_MIN, sigmaAway - ROTATION_PENALTY * rotA);
+    sigmaAway = Math.max(
+      ROTATION_MIN,
+      sigmaAway - ROTATION_PENALTY * rotA * rotationPenaltyScale
+    );
     if (!scenario.includes("rotation")) scenario = `${scenario}_rotation`.replace(/^standard_/, "");
   }
 
@@ -60,7 +78,7 @@ export function applyRotationAndLineupSigma(input: {
     sigmaAway = Math.max(ROTATION_MIN, sigmaAway - LINEUP_XG_GAP_PENALTY * awayGap);
   }
 
-  return { sigmaHome, sigmaAway, scenario };
+  return { sigmaHome, sigmaAway, scenario, rotationPenaltyScale };
 }
 
 export function encodeStakesIndex(input: {

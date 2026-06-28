@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { PageHero } from "@/components/match-predictor/PageHero";
-import { GoldenBootPanel } from "@/components/world-cup/GoldenBootPanel";
 import { GroupMatrixGrid } from "@/components/world-cup/GroupMatrixGrid";
 import { KnockoutProjectionPanel } from "@/components/world-cup/KnockoutProjectionPanel";
 import { RecentResultsSection, type RecentResultMatch } from "@/components/world-cup/RecentResultsSection";
@@ -11,9 +10,6 @@ import { WorldCupSectionHelp } from "@/components/world-cup/WorldCupSectionHelp"
 import { WorldCupRefreshButton } from "@/components/world-cup/WorldCupRefreshButton";
 import { loadWorldCupHubPayload } from "@/lib/world-cup/hub-load";
 import { isR32HubMatchId } from "@/lib/world-cup/r32-hub-fixtures";
-
-/** Hub page — always align recent scores from committed Opta HTML (avoid stale ISR snapshot). */
-export const dynamic = "force-dynamic";
 
 /** Hub page ISR — aligns with HUB_PAGE_REVALIDATE_SECONDS in hub-snapshot.ts */
 export const revalidate = 3600;
@@ -126,28 +122,6 @@ export default async function WorldCupHubPage() {
             </tbody>
           </table>
         </div>
-      </section>
-
-      <section className="mb-10">
-        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
-          Golden Boot predictions
-        </h2>
-        <WorldCupSectionHelp title="Top scorer model">
-          <p>
-            Pre-tournament model forecast for the leading goal scorers. The predicted top 10 is
-            locked in row order so you can compare projections to reality after the final.
-          </p>
-          <p>
-            <strong>Scored</strong> updates from Opta match player stats after each game.{" "}
-            <strong>Live</strong> is the player&apos;s current tournament rank by actual goals.
-            The live leader is highlighted without reordering this table.
-          </p>
-          <p>
-            Top three predicted rows are highlighted gold, silver, and bronze. Expand the breakdown
-            below for per-player factor scores.
-          </p>
-        </WorldCupSectionHelp>
-        <GoldenBootPanel predictions={payload.goldenBootPredictions} />
       </section>
 
       <section className="mb-10">

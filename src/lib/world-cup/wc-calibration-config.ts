@@ -32,8 +32,23 @@ export interface WcCalibrationConstants {
   xgEloBaseK: number;
   momentumGamma: number;
   momentumClamp: number;
+  /** @deprecated Legacy additive bump; use setPieceXgMultiplier. Kept for DB replay compat. */
   setPieceXgBump: number;
+  /** Multiplicative set-piece uplift per excess share above threshold. */
+  setPieceXgMultiplier: number;
   setPieceRateThreshold: number;
+  setPieceDefLeakWeight: number;
+  /** NB dispersion k (0 = Poisson). Higher widens goal totals. */
+  goalOverdispersionK: number;
+  talentDecayPerMatch: number;
+  talentDecayMatchCap: number;
+  talentWeightFloor: number;
+  md3MutualRotationPenaltyScale: number;
+  redCardMatchBaseProb: number;
+  redCardAttackPenalty: number;
+  redCardOpponentBoost: number;
+  /** Soft asymptote for λ cap (0 = hard clamp at 5.0). */
+  xgCapSoftness: number;
   deltaWeights: GrahamDeltaWeights;
   modelVersion: string;
   /** Per-team set-piece goal share from Opta ingests (api team id → 0–1). */
@@ -96,7 +111,18 @@ const DEFAULTS: WcCalibrationConstants = {
   momentumGamma: GRAHAM_MOMENTUM_GAMMA,
   momentumClamp: GRAHAM_MOMENTUM_CLAMP,
   setPieceXgBump: 0.15,
+  setPieceXgMultiplier: 0.12,
   setPieceRateThreshold: 0.4,
+  setPieceDefLeakWeight: 0.35,
+  goalOverdispersionK: 0,
+  talentDecayPerMatch: 0.04,
+  talentDecayMatchCap: 5,
+  talentWeightFloor: 0.35,
+  md3MutualRotationPenaltyScale: 0.5,
+  redCardMatchBaseProb: 0.04,
+  redCardAttackPenalty: 0.72,
+  redCardOpponentBoost: 1.18,
+  xgCapSoftness: 0.12,
   deltaWeights: { ...GRAHAM_DELTA_WEIGHTS },
   modelVersion: GRAHAM_MODEL_VERSION,
   teamSetPieceRates: {},
@@ -185,9 +211,36 @@ function mergeConstants(raw: Record<string, unknown> | null): WcCalibrationConst
     momentumGamma: Number(raw.momentumGamma ?? DEFAULTS.momentumGamma),
     momentumClamp: Number(raw.momentumClamp ?? DEFAULTS.momentumClamp),
     setPieceXgBump: Number(raw.setPieceXgBump ?? DEFAULTS.setPieceXgBump),
+    setPieceXgMultiplier: Number(
+      raw.setPieceXgMultiplier ?? raw.setPieceXgBump ?? DEFAULTS.setPieceXgMultiplier
+    ),
     setPieceRateThreshold: Number(
       raw.setPieceRateThreshold ?? DEFAULTS.setPieceRateThreshold
     ),
+    setPieceDefLeakWeight: Number(
+      raw.setPieceDefLeakWeight ?? DEFAULTS.setPieceDefLeakWeight
+    ),
+    goalOverdispersionK: Number(raw.goalOverdispersionK ?? DEFAULTS.goalOverdispersionK),
+    talentDecayPerMatch: Number(
+      raw.talentDecayPerMatch ?? DEFAULTS.talentDecayPerMatch
+    ),
+    talentDecayMatchCap: Number(
+      raw.talentDecayMatchCap ?? DEFAULTS.talentDecayMatchCap
+    ),
+    talentWeightFloor: Number(raw.talentWeightFloor ?? DEFAULTS.talentWeightFloor),
+    md3MutualRotationPenaltyScale: Number(
+      raw.md3MutualRotationPenaltyScale ?? DEFAULTS.md3MutualRotationPenaltyScale
+    ),
+    redCardMatchBaseProb: Number(
+      raw.redCardMatchBaseProb ?? DEFAULTS.redCardMatchBaseProb
+    ),
+    redCardAttackPenalty: Number(
+      raw.redCardAttackPenalty ?? DEFAULTS.redCardAttackPenalty
+    ),
+    redCardOpponentBoost: Number(
+      raw.redCardOpponentBoost ?? DEFAULTS.redCardOpponentBoost
+    ),
+    xgCapSoftness: Number(raw.xgCapSoftness ?? DEFAULTS.xgCapSoftness),
     deltaWeights: {
       xgElo: Number(weights?.xgElo ?? GRAHAM_DELTA_WEIGHTS.xgElo),
       talent: Number(weights?.talent ?? GRAHAM_DELTA_WEIGHTS.talent),

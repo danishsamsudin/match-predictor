@@ -2,16 +2,20 @@ import {
   GRAHAM_1X2_TEMPERATURE,
   GRAHAM_DELTA_S_CAP,
 } from "@/lib/world-cup/graham-model-config";
+import { applySetPieceXgAdjustment } from "@/lib/world-cup/graham-set-piece-adjustment";
+import { applyTalentWeightDecay } from "@/lib/world-cup/graham-talent-decay";
+import { applyFinishingRegressionToXg } from "@/lib/world-cup/graham-wc-in-tournament-form";
+import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import {
   clampInternationalBaselineXg,
   INTERNATIONAL_XG_FLOOR,
 } from "@/lib/world-cup/international-strength";
-import { applyFinishingRegressionToXg } from "@/lib/world-cup/graham-wc-in-tournament-form";
-import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import {
   attenuateRhoForExpectedGoalGap,
   buildGuardedScoreMatrix,
   outcomesFromGuardedGrid,
+  resolveEffectiveOverdispersionK,
+  type ScoreGridOptions,
 } from "@/lib/world-cup/score-grid";
 import {
   normalizeDeltaWeights,
@@ -35,6 +39,28 @@ function snapNumOr(snapshot: Record<string, unknown>, fallback: number, ...keys:
   return fallback;
 }
 
+function snapshotGridOptions(
+  snapshot: Record<string, unknown>,
+  calibration: WcCalibrationConstants,
+  homeXg: number,
+  awayXg: number
+): ScoreGridOptions {
+  return {
+    goalOverdispersionK: resolveEffectiveOverdispersionK(
+      homeXg,
+      awayXg,
+      calibration.goalOverdispersionK,
+      snapNumOr(snapshot, 1.5, "home_avg_chance_index"),
+      snapNumOr(snapshot, 1.5, "away_avg_chance_index")
+    ),
+    redCardMatchBaseProb: calibration.redCardMatchBaseProb,
+    homeDisciplineLoad: snapNumOr(snapshot, 0, "home_discipline_load"),
+    awayDisciplineLoad: snapNumOr(snapshot, 0, "away_discipline_load"),
+    redCardAttackPenalty: calibration.redCardAttackPenalty,
+    redCardOpponentBoost: calibration.redCardOpponentBoost,
+  };
+}
+
 /**
  * Recompute final xG from a locked prediction snapshot and candidate calibration.
  * Uses frozen delta features from snapshot; only weights / mu / exponent / momentum change.
@@ -43,9 +69,18 @@ export function recomputeXgFromSnapshot(
   snapshot: Record<string, unknown>,
   calibration: WcCalibrationConstants
 ): { homeXg: number; awayXg: number; rho: number } {
-  const weights = normalizeDeltaWeights(calibration.deltaWeights);
+  const baseWeights = normalizeDeltaWeights(calibration.deltaWeights);
+  const homeWcMatches = snapNum(snapshot, "wc_form_home_matches");
+  const awayWcMatches = snapNum(snapshot, "wc_form_away_matches");
+  const { weights } = applyTalentWeightDecay(
+    baseWeights,
+    homeWcMatches,
+    awayWcMatches,
+    calibration
+  );
   const mu = calibration.muXg;
   const c = calibration.strengthExponent;
+  const xgSoftness = calibration.xgCapSoftness ?? 0;
 
   const deltaS =
     weights.xgElo * snapNum(snapshot, "delta_xg_elo") +
@@ -79,18 +114,47 @@ export function recomputeXgFromSnapshot(
     Math.min(GRAHAM_DELTA_S_CAP, deltaS + optaDelta + processDelta)
   );
 
-  let homeXg = clampInternationalBaselineXg(mu * Math.exp(c * totalDeltaS));
-  let awayXg = clampInternationalBaselineXg(mu * Math.exp(-c * totalDeltaS));
+  let homeXg = clampInternationalBaselineXg(
+    mu * Math.exp(c * totalDeltaS),
+    xgSoftness
+  );
+  let awayXg = clampInternationalBaselineXg(
+    mu * Math.exp(-c * totalDeltaS),
+    xgSoftness
+  );
 
+  const homeTeamId = snapNum(snapshot, "home_team_api_id");
   const awayTeamId = snapNum(snapshot, "away_team_api_id");
-  const awaySetPieceRate = calibration.teamSetPieceRates?.[String(awayTeamId)] ??
-    (typeof snapshot.away_set_piece_rate === "number" ? snapshot.away_set_piece_rate : null);
-  if (
-    awaySetPieceRate != null &&
-    awaySetPieceRate >= calibration.setPieceRateThreshold
-  ) {
-    awayXg = clampInternationalBaselineXg(awayXg + calibration.setPieceXgBump);
-  }
+  const homeSetShare =
+    typeof snapshot.home_set_piece_share === "number"
+      ? snapshot.home_set_piece_share
+      : 0;
+  const awaySetShare =
+    typeof snapshot.away_set_piece_share === "number"
+      ? snapshot.away_set_piece_share
+      : 0;
+
+  const setPieceAdj = applySetPieceXgAdjustment({
+    homeXg,
+    awayXg,
+    home: {
+      teamId: homeTeamId,
+      processSetPieceShare: homeSetShare,
+      optaSetPieceRate: calibration.teamSetPieceRates?.[String(homeTeamId)] ?? null,
+      opponentDefensiveSolidity: snapNumOr(snapshot, 1.5, "away_avg_defensive_solidity"),
+      opponentSetPieceShare: awaySetShare,
+    },
+    away: {
+      teamId: awayTeamId,
+      processSetPieceShare: awaySetShare,
+      optaSetPieceRate: calibration.teamSetPieceRates?.[String(awayTeamId)] ?? null,
+      opponentDefensiveSolidity: snapNumOr(snapshot, 1.5, "home_avg_defensive_solidity"),
+      opponentSetPieceShare: homeSetShare,
+    },
+    calibration,
+  });
+  homeXg = setPieceAdj.homeXg;
+  awayXg = setPieceAdj.awayXg;
 
   const momentum = snapNum(snapshot, "momentum_index");
   const mom = Math.max(
@@ -106,16 +170,18 @@ export function recomputeXgFromSnapshot(
     attackNudge: snapNumOr(snapshot, 1, "wc_attack_nudge_home"),
     defenseNudge: 1,
     finishingRegression: finishingHome,
-    matchCount: snapNum(snapshot, "wc_form_home_matches"),
+    matchCount: homeWcMatches,
     avgChanceIndex: snapNumOr(snapshot, 1.5, "home_avg_chance_index"),
     avgDefensiveSolidity: snapNumOr(snapshot, 1.5, "home_avg_defensive_solidity"),
+    avgDisciplineLoad: snapNumOr(snapshot, 0, "home_discipline_load"),
   }, {
     attackNudge: snapNumOr(snapshot, 1, "wc_attack_nudge_away"),
     defenseNudge: 1,
     finishingRegression: finishingAway,
-    matchCount: snapNum(snapshot, "wc_form_away_matches"),
+    matchCount: awayWcMatches,
     avgChanceIndex: snapNumOr(snapshot, 1.5, "away_avg_chance_index"),
     avgDefensiveSolidity: snapNumOr(snapshot, 1.5, "away_avg_defensive_solidity"),
+    avgDisciplineLoad: snapNumOr(snapshot, 0, "away_discipline_load"),
   });
   homeXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.homeXg);
   awayXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.awayXg);
@@ -156,12 +222,13 @@ export function recomputeHubPredictionFromSnapshot(
 ): HubPredictionRow {
   const { homeXg, awayXg, rho } = recomputeXgFromSnapshot(snapshot, calibration);
   const mutualDraw = String(snapshot.scenario ?? "").includes("mutual_draw");
-  const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
+  const gridOptions = snapshotGridOptions(snapshot, calibration, homeXg, awayXg);
+  const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw, gridOptions);
   const temperedH = Math.pow(outcomes.homeWin, GRAHAM_1X2_TEMPERATURE);
   const temperedD = Math.pow(outcomes.draw, GRAHAM_1X2_TEMPERATURE);
   const temperedA = Math.pow(outcomes.awayWin, GRAHAM_1X2_TEMPERATURE);
   const temperedSum = temperedH + temperedD + temperedA || 1;
-  const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw);
+  const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw, gridOptions);
 
   return {
     home_win_pct: Number((temperedH / temperedSum).toFixed(4)),
@@ -182,6 +249,8 @@ export function recomputeHubPredictionFromSnapshot(
       top_scorelines: outcomes.topScorelines,
       ml_recomputed: true,
       calibration_version: calibration.modelVersion,
+      goal_overdispersion_k: gridOptions.goalOverdispersionK,
+      red_card_match_prob: outcomes.pRedMatch,
     },
   };
 }

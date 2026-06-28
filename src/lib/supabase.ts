@@ -596,6 +596,96 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["world_cup_prediction_evaluations"]["Insert"]>;
         Relationships: [];
       };
+      prediction_snapshots: {
+        Row: {
+          id: string;
+          snapshot_date: string;
+          domain: string;
+          match_key: string;
+          competition: string | null;
+          league_id: number | null;
+          season: number | null;
+          match_kickoff_at: string;
+          home_team_id: string;
+          away_team_id: string;
+          home_team_name: string | null;
+          away_team_name: string | null;
+          venue_city: string | null;
+          home_win_pct: number;
+          draw_pct: number;
+          away_win_pct: number;
+          predicted_score_home: number | null;
+          predicted_score_away: number | null;
+          home_xg: number | null;
+          away_xg: number | null;
+          under_2_5_pct: number | null;
+          over_2_5_pct: number | null;
+          model_version: string;
+          entity_type: string;
+          source: string;
+          snapshot: Record<string, unknown>;
+          analytics_snapshot: Record<string, unknown> | null;
+          computed_at: string;
+        };
+        Insert: {
+          id?: string;
+          snapshot_date: string;
+          domain: string;
+          match_key: string;
+          competition?: string | null;
+          league_id?: number | null;
+          season?: number | null;
+          match_kickoff_at: string;
+          home_team_id: string;
+          away_team_id: string;
+          home_team_name?: string | null;
+          away_team_name?: string | null;
+          venue_city?: string | null;
+          home_win_pct: number;
+          draw_pct: number;
+          away_win_pct: number;
+          predicted_score_home?: number | null;
+          predicted_score_away?: number | null;
+          home_xg?: number | null;
+          away_xg?: number | null;
+          under_2_5_pct?: number | null;
+          over_2_5_pct?: number | null;
+          model_version: string;
+          entity_type?: string;
+          source?: string;
+          snapshot?: Record<string, unknown>;
+          analytics_snapshot?: Record<string, unknown> | null;
+          computed_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["prediction_snapshots"]["Insert"]>;
+        Relationships: [];
+      };
+      prediction_snapshot_runs: {
+        Row: {
+          id: string;
+          snapshot_date: string;
+          domain: string;
+          started_at: string;
+          finished_at: string | null;
+          status: string;
+          fixtures_attempted: number;
+          snapshots_written: number;
+          errors: Record<string, unknown> | string[];
+        };
+        Insert: {
+          id?: string;
+          snapshot_date: string;
+          domain: string;
+          started_at?: string;
+          finished_at?: string | null;
+          status?: string;
+          fixtures_attempted?: number;
+          snapshots_written?: number;
+          errors?: Record<string, unknown> | string[];
+        };
+        Update: Partial<Database["public"]["Tables"]["prediction_snapshot_runs"]["Insert"]>;
+        Relationships: [];
+      };
       ml_training_examples: {
         Row: {
           match_id: string;

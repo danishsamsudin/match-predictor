@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/player-availabilities?run=true",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/prediction-snapshots?run=true",
+      "schedule": "30 7 * * *"
     }
   ]
 }

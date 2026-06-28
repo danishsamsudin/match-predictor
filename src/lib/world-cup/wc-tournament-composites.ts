@@ -237,7 +237,7 @@ export function opponentAdjustedCompositeMean(
   composites: TeamMatchComposite[],
   field: keyof Pick<
     TeamMatchComposite,
-    "chanceIndex" | "defensiveSolidity" | "finishingDelta" | "territoryIndex"
+    "chanceIndex" | "defensiveSolidity" | "finishingDelta" | "territoryIndex" | "disciplineLoad"
   >
 ): number {
   if (!composites.length) return 0;

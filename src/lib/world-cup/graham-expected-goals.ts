@@ -29,8 +29,13 @@ import {
   type WcInTournamentFormNudges,
 } from "@/lib/world-cup/graham-wc-in-tournament-form";
 import {
+  applySetPieceXgAdjustment,
+} from "@/lib/world-cup/graham-set-piece-adjustment";
+import { applyTalentWeightDecay } from "@/lib/world-cup/graham-talent-decay";
+import {
   computeProcessFeatureDiffs,
   type ProcessFeatureSnapshot,
+  type TeamProcessProfile,
 } from "@/lib/world-cup/graham-process-features";
 
 export interface GrahamExpectedGoalsInput {
@@ -57,6 +62,8 @@ export interface GrahamExpectedGoalsInput {
     referee_strictness?: number;
   };
   fifaAnchorPullScale?: number;
+  homeProcessProfile?: TeamProcessProfile;
+  awayProcessProfile?: TeamProcessProfile;
 }
 
 export interface GrahamExpectedGoalsResult {
@@ -75,12 +82,32 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
   const cal = input.calibration;
   const mu = input.mu ?? cal?.muXg ?? GRAHAM_MU_XG;
   const strengthExponent = cal?.strengthExponent ?? GRAHAM_STRENGTH_EXPONENT;
-  const weights = normalizeDeltaWeights(cal?.deltaWeights ?? GRAHAM_DELTA_WEIGHTS);
+  const xgSoftness = cal?.xgCapSoftness ?? 0;
+  const baseWeights = normalizeDeltaWeights(cal?.deltaWeights ?? GRAHAM_DELTA_WEIGHTS);
+  const homeWcMatches = input.wcForm?.home.matchCount ?? 0;
+  const awayWcMatches = input.wcForm?.away.matchCount ?? 0;
+  const talentDecay = cal
+    ? applyTalentWeightDecay(baseWeights, homeWcMatches, awayWcMatches, cal)
+    : { weights: baseWeights, effectiveTalentWeight: baseWeights.talent };
+  const weights = talentDecay.weights;
   const homeIdStr = String(input.homeTeamId);
   const awayIdStr = String(input.awayTeamId);
 
-  const homeShrinkage = (input.wcForm?.home.matchCount ?? 0) >= 2 ? 2 : SHRINKAGE_K;
-  const awayShrinkage = (input.wcForm?.away.matchCount ?? 0) >= 2 ? 2 : SHRINKAGE_K;
+  const homeShrinkage = homeWcMatches >= 2 ? 2 : SHRINKAGE_K;
+  const awayShrinkage = awayWcMatches >= 2 ? 2 : SHRINKAGE_K;
+
+  const homeRateProfile = input.homeProcessProfile
+    ? {
+        finishingSkill: input.homeProcessProfile.finishingSkill,
+        chanceQuality: input.homeProcessProfile.chanceQuality,
+      }
+    : undefined;
+  const awayRateProfile = input.awayProcessProfile
+    ? {
+        finishingSkill: input.awayProcessProfile.finishingSkill,
+        chanceQuality: input.awayProcessProfile.chanceQuality,
+      }
+    : undefined;
 
   const homeRates = applyWcFormToProcessRates(
     computeGrahamProcessRatesFromMatches(
@@ -88,9 +115,10 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
       input.homeFormMatches,
       Date.now(),
       input.homeName,
-      homeShrinkage
+      homeShrinkage,
+      homeRateProfile
     ),
-    input.wcForm?.home ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 },
+    input.wcForm?.home ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5, avgDisciplineLoad: 0 },
     cal
   );
   const awayRates = applyWcFormToProcessRates(
@@ -99,9 +127,10 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
       input.awayFormMatches,
       Date.now(),
       input.awayName,
-      awayShrinkage
+      awayShrinkage,
+      awayRateProfile
     ),
-    input.wcForm?.away ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 },
+    input.wcForm?.away ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5, avgDisciplineLoad: 0 },
     cal
   );
 
@@ -212,24 +241,47 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
 
   const deltaS = Math.max(-GRAHAM_DELTA_S_CAP, Math.min(GRAHAM_DELTA_S_CAP, rawDeltaS));
 
-  let homeXg = clampInternationalBaselineXg(mu * Math.exp(strengthExponent * deltaS));
-  let awayXg = clampInternationalBaselineXg(mu * Math.exp(-strengthExponent * deltaS));
+  let homeXg = clampInternationalBaselineXg(mu * Math.exp(strengthExponent * deltaS), xgSoftness);
+  let awayXg = clampInternationalBaselineXg(mu * Math.exp(-strengthExponent * deltaS), xgSoftness);
 
-  const awaySetPieceRate = cal?.teamSetPieceRates?.[String(input.awayTeamId)];
-  if (
-    cal &&
-    awaySetPieceRate != null &&
-    awaySetPieceRate >= cal.setPieceRateThreshold
-  ) {
-    awayXg = clampInternationalBaselineXg(awayXg + cal.setPieceXgBump);
+  let setPieceMeta = {
+    homeMult: 1,
+    awayMult: 1,
+    homeSetShare: input.homeProcessProfile?.setPieceXgShare ?? 0,
+    awaySetShare: input.awayProcessProfile?.setPieceXgShare ?? 0,
+    homeDefLeak: 0,
+    awayDefLeak: 0,
+  };
+
+  if (cal) {
+    const setPieceAdj = applySetPieceXgAdjustment({
+      homeXg,
+      awayXg,
+      home: {
+        teamId: input.homeTeamId,
+        processSetPieceShare: input.homeProcessProfile?.setPieceXgShare,
+        opponentDefensiveSolidity: input.wcForm?.away.avgDefensiveSolidity,
+        opponentSetPieceShare: input.awayProcessProfile?.setPieceXgShare,
+      },
+      away: {
+        teamId: input.awayTeamId,
+        processSetPieceShare: input.awayProcessProfile?.setPieceXgShare,
+        opponentDefensiveSolidity: input.wcForm?.home.avgDefensiveSolidity,
+        opponentSetPieceShare: input.homeProcessProfile?.setPieceXgShare,
+      },
+      calibration: cal,
+    });
+    homeXg = setPieceAdj.homeXg;
+    awayXg = setPieceAdj.awayXg;
+    setPieceMeta = setPieceAdj;
   }
 
   const withMomentum = applyGrahamMomentumToXg(homeXg, awayXg, momentum);
   const regressed = applyFinishingRegressionToXg(
     withMomentum.homeXg,
     withMomentum.awayXg,
-    input.wcForm?.home ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 },
-    input.wcForm?.away ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5 }
+    input.wcForm?.home ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5, avgDisciplineLoad: 0 },
+    input.wcForm?.away ?? { attackNudge: 1, defenseNudge: 1, finishingRegression: 0, matchCount: 0, avgChanceIndex: 1.5, avgDefensiveSolidity: 1.5, avgDisciplineLoad: 0 }
   );
   homeXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.homeXg);
   awayXg = Math.max(INTERNATIONAL_XG_FLOOR, regressed.awayXg);
@@ -288,14 +340,9 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
       home_form_fallback: homeRates.sample.fallback,
       away_form_fallback: awayRates.sample.fallback,
       graham_weights: weights,
-      calibration_version: cal?.modelVersion ?? null,
-      away_set_piece_rate: awaySetPieceRate ?? null,
-      set_piece_xg_bump_applied:
-        awaySetPieceRate != null && cal && awaySetPieceRate >= cal.setPieceRateThreshold
-          ? cal.setPieceXgBump
-          : 0,
-      wc_form_home_matches: input.wcForm?.home.matchCount ?? 0,
-      wc_form_away_matches: input.wcForm?.away.matchCount ?? 0,
+      talent_weight_effective: talentDecay.effectiveTalentWeight,
+      wc_form_home_matches: homeWcMatches,
+      wc_form_away_matches: awayWcMatches,
       wc_attack_nudge_home: input.wcForm?.home.attackNudge ?? 1,
       wc_attack_nudge_away: input.wcForm?.away.attackNudge ?? 1,
       home_avg_chance_index: input.wcForm?.home.avgChanceIndex ?? 1.5,
@@ -310,6 +357,13 @@ export function resolveGrahamExpectedGoals(input: GrahamExpectedGoalsInput): Gra
       opta_delta_s: Math.round(optaDelta * 1000) / 1000,
       home_team_api_id: input.homeTeamId,
       away_team_api_id: input.awayTeamId,
+      home_set_piece_mult: setPieceMeta.homeMult,
+      away_set_piece_mult: setPieceMeta.awayMult,
+      home_set_piece_share: setPieceMeta.homeSetShare,
+      away_set_piece_share: setPieceMeta.awaySetShare,
+      home_set_piece_def_leak: setPieceMeta.homeDefLeak,
+      away_set_piece_def_leak: setPieceMeta.awayDefLeak,
+      calibration_version: cal?.modelVersion ?? null,
     },
   };
 }

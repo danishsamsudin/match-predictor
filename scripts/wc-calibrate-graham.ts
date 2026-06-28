@@ -213,6 +213,43 @@ async function main() {
     }
   }
 
+  const refinementScalarKeys = [
+    "setPieceXgMultiplier",
+    "setPieceDefLeakWeight",
+    "goalOverdispersionK",
+    "talentDecayPerMatch",
+    "md3MutualRotationPenaltyScale",
+    "redCardMatchBaseProb",
+    "xgCapSoftness",
+  ] as const;
+  const refinementScales = [0.9, 1, 1.1];
+
+  for (const key of refinementScalarKeys) {
+    for (const scale of refinementScales) {
+      const baseVal = best[key];
+      const trial: WcCalibrationConstants = {
+        ...best,
+        [key]: clampDelta(baseVal * scale, defaults[key], maxPct),
+        deltaWeights: { ...best.deltaWeights },
+        optaFeatureWeights: { ...best.optaFeatureWeights },
+        processFeatureWeights: { ...(best.processFeatureWeights ?? {}) },
+        eventModelCoeffs: {
+          yellow: { ...best.eventModelCoeffs.yellow },
+          fouls: { ...best.eventModelCoeffs.fouls },
+          corners: { ...best.eventModelCoeffs.corners },
+          ...(best.eventModelCoeffs.red ? { red: { ...best.eventModelCoeffs.red } } : {}),
+        },
+      };
+      const trialComposite = avgCompositeLossForSnapshots(trainEval, trial, trial.modelVersion);
+      const trialBrier = avgBrier1x2ForSnapshots(trainEval, trial, trial.modelVersion);
+      const trialScore = scoreTrial(trialComposite, trialBrier);
+      if (trialScore < bestTrainScore) {
+        bestTrainScore = trialScore;
+        best = trial;
+      }
+    }
+  }
+
   const baselineTrainScore = scoreTrial(baselineTrainComposite, baselineTrainBrier);
   const trainImproved = calibrationGridImproved(bestTrainScore, baselineTrainScore);
 
@@ -263,7 +300,18 @@ async function main() {
     momentumGamma: best.momentumGamma,
     momentumClamp: best.momentumClamp,
     setPieceXgBump: best.setPieceXgBump,
+    setPieceXgMultiplier: best.setPieceXgMultiplier,
     setPieceRateThreshold: best.setPieceRateThreshold,
+    setPieceDefLeakWeight: best.setPieceDefLeakWeight,
+    goalOverdispersionK: best.goalOverdispersionK,
+    talentDecayPerMatch: best.talentDecayPerMatch,
+    talentDecayMatchCap: best.talentDecayMatchCap,
+    talentWeightFloor: best.talentWeightFloor,
+    md3MutualRotationPenaltyScale: best.md3MutualRotationPenaltyScale,
+    redCardMatchBaseProb: best.redCardMatchBaseProb,
+    redCardAttackPenalty: best.redCardAttackPenalty,
+    redCardOpponentBoost: best.redCardOpponentBoost,
+    xgCapSoftness: best.xgCapSoftness,
     deltaWeights: best.deltaWeights,
     teamSetPieceRates: best.teamSetPieceRates,
     wcAttackFormWeight: best.wcAttackFormWeight,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { confederationStrengthModifier } from "@/lib/world-cup/confederation-strength";
 import {
+  clampInternationalBaselineXg,
   computeInternationalRatesFromMatches,
   internationalMatchTierWeight,
   pullInternationalXgTowardFifaAnchor,
@@ -158,6 +159,33 @@ describe("resolveInternationalScoreCorrelation", () => {
   });
 });
 
+describe("resolveInternationalScoreCorrelation", () => {
+  it("varies smoothly with total xG without jumps above 0.02", () => {
+    let prev = resolveInternationalScoreCorrelation(1.0, 1.0);
+    for (let total = 2.0; total <= 3.5; total += 0.05) {
+      const rho = resolveInternationalScoreCorrelation(total / 2, total / 2);
+      expect(Math.abs(rho - prev)).toBeLessThan(0.021);
+      prev = rho;
+    }
+  });
+
+  it("is less negative when total xG is high", () => {
+    const low = resolveInternationalScoreCorrelation(0.9, 0.8);
+    const high = resolveInternationalScoreCorrelation(1.6, 1.7);
+    expect(high).toBeGreaterThan(low);
+  });
+});
+
+describe("softClampXg", () => {
+  it("approaches cap without hard wall when softness is positive", () => {
+    const hard = clampInternationalBaselineXg(6.5, 0);
+    const soft = clampInternationalBaselineXg(6.5, 0.12);
+    expect(hard).toBe(5);
+    expect(soft).toBeGreaterThan(5);
+    expect(soft).toBeLessThan(6.5);
+  });
+});
+
 describe("confederationStrengthModifier", () => {
   it("deflates goals scored vs weak-confederation opponents in match history", () => {
     const matches = [
@@ -235,11 +263,10 @@ describe("mismatched international score grid", () => {
     expect(Math.abs(lopsided)).toBeLessThanOrEqual(Math.abs(balanced));
   });
 
-  it("uses draw-deflating ρ for Germany-class xG gaps (~0.7)", () => {
+  it("attenuates draw inflation as xG gap widens under continuous rho", () => {
     const base = resolveInternationalScoreCorrelation(1.12, 1.83);
     const rho = attenuateRhoForExpectedGoalGap(base, 1.12, 1.83);
-    expect(base).toBeGreaterThan(0);
-    expect(rho).toBeGreaterThan(0);
-    expect(rho).toBeLessThanOrEqual(base);
+    expect(Math.abs(rho)).toBeLessThanOrEqual(Math.abs(base) + 1e-9);
+    expect(base).toBeGreaterThan(resolveInternationalScoreCorrelation(1.0, 1.0));
   });
 });

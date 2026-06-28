@@ -9,6 +9,7 @@ import type { SportApiStandingsResponse } from "@/lib/types/sportapi";
 import type { TeamStatAverages, WeatherForecast } from "@/lib/types/prediction";
 import { UpstreamApiError } from "@/lib/types/prediction";
 import { tryCreateServiceClient } from "@/lib/supabase";
+import { utcDayBounds } from "@/lib/prediction/snapshot-types";
 
 function cityKey(city: string): string {
   return city.trim().toLowerCase();
@@ -147,6 +148,49 @@ export async function loadFixturesFromStore(leagueId: number): Promise<FixtureOp
     home: { id: row.home_team_id, name: row.home_team_name },
     away: { id: row.away_team_id, name: row.away_team_name },
   }));
+}
+
+/** Fixtures with kickoff on a UTC calendar day (for daily snapshot jobs). */
+export async function loadFixturesKickingOffOnUtcDate(
+  leagueId: number,
+  snapshotDateYmd: string
+): Promise<FixtureOption[]> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return [];
+
+  const { start, end } = utcDayBounds(snapshotDateYmd);
+
+  const { data, error } = await supabase
+    .from("synced_fixtures")
+    .select("*")
+    .eq("league_id", leagueId)
+    .gte("kickoff_at", start)
+    .lte("kickoff_at", end)
+    .order("kickoff_at");
+
+  if (error) throw new UpstreamApiError(`Failed to load fixtures from store: ${error.message}`);
+
+  return (data ?? []).map((row) => ({
+    id: row.event_id,
+    date: row.kickoff_at,
+    venueCity: row.venue_city,
+    league: { id: row.league_id, name: row.league_name, season: row.season },
+    home: { id: row.home_team_id, name: row.home_team_name },
+    away: { id: row.away_team_id, name: row.away_team_name },
+  }));
+}
+
+export async function loadSyncedBundleMatchIds(matchIds: number[]): Promise<Set<number>> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase || matchIds.length === 0) return new Set();
+
+  const { data, error } = await supabase
+    .from("synced_match_bundles")
+    .select("match_id")
+    .in("match_id", matchIds);
+
+  if (error) return new Set();
+  return new Set((data ?? []).map((r) => Number(r.match_id)));
 }
 
 export async function loadFootballBundleFromStore(

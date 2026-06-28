@@ -98,8 +98,30 @@ function clampAttackDefenseRate(rate: number): number {
   return Math.max(RATE_CLAMP_MIN, Math.min(RATE_CLAMP_MAX, rate));
 }
 
-export function clampInternationalBaselineXg(xg: number): number {
-  return Math.max(INTERNATIONAL_XG_FLOOR, Math.min(INTERNATIONAL_XG_CAP, xg));
+export function softClampXg(
+  xg: number,
+  floor = INTERNATIONAL_XG_FLOOR,
+  cap = INTERNATIONAL_XG_CAP,
+  softness = 0
+): number {
+  if (softness <= 0) {
+    return Math.max(floor, Math.min(cap, xg));
+  }
+  let result = xg;
+  if (result > cap) {
+    result = cap + softness * (1 - Math.exp(-(result - cap) / softness));
+  }
+  if (result < floor) {
+    result = floor - softness * (1 - Math.exp(-(floor - result) / softness));
+  }
+  return result;
+}
+
+export function clampInternationalBaselineXg(
+  xg: number,
+  softness = 0
+): number {
+  return softClampXg(xg, INTERNATIONAL_XG_FLOOR, INTERNATIONAL_XG_CAP, softness);
 }
 
 /**
@@ -305,9 +327,19 @@ export function resolveInternationalExpectedGoals(input: {
   };
 }
 
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  if (edge1 <= edge0) return x >= edge1 ? 1 : 0;
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
 /**
- * Dixon-Coles ρ for internationals. Balanced ties keep mild negative ρ (draw mass);
- * lopsided gaps (xG or FIFA) use positive ρ so 0-0 / 1-1 cells do not dominate the heatmap.
+ * Dixon-Coles ρ for internationals. Continuous in total xG and strength gap;
+ * negative ρ inflates low-score draws; gap term fades toward 0 for mismatches.
  */
 export function resolveInternationalScoreCorrelation(
   homeXg: number,
@@ -319,13 +351,10 @@ export function resolveInternationalScoreCorrelation(
     fifaRatingDelta != null ? Math.abs(fifaRatingDelta) / 280 : 0;
   const effectiveDiff = Math.max(xgDiff, impliedFromFifa);
 
-  if (effectiveDiff >= 1.25) return 0;
-  if (effectiveDiff >= 0.75) return -0.04;
-  if (effectiveDiff >= 0.28) return 0.02;
   const total = homeXg + awayXg;
-  if (total >= 3.1) return -0.08;
-  if (total >= 2.4) return -0.11;
-  return -0.14;
+  const rhoTotal = lerp(-0.14, -0.08, smoothstep(2.0, 3.2, total));
+  const rhoGap = lerp(0.02, 0, smoothstep(0.28, 1.25, effectiveDiff));
+  return rhoTotal + rhoGap;
 }
 
 /**

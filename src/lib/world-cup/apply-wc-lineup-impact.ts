@@ -1,6 +1,6 @@
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import { INTERNATIONAL_XG_FLOOR } from "@/lib/world-cup/international-strength";
-import { outcomesFromGuardedGrid } from "@/lib/world-cup/score-grid";
+import { outcomesFromGuardedGrid, resolveEffectiveOverdispersionK, type ScoreGridOptions } from "@/lib/world-cup/score-grid";
 import type { LineupImpactResult } from "@/lib/types/prediction";
 
 function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): number {
@@ -34,7 +34,29 @@ export function applyLineupImpactToHubPrediction(
   const lineupImpactAway = awayXg - baseAwayXg;
   const priorOpta = { ...((snap.opta_features as Record<string, unknown>) ?? {}) };
 
-  const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
+  const gridOptions: ScoreGridOptions = {
+    goalOverdispersionK:
+      typeof snap.goal_overdispersion_k === "number"
+        ? (snap.goal_overdispersion_k as number)
+        : resolveEffectiveOverdispersionK(
+            homeXg,
+            awayXg,
+            0,
+            typeof snap.home_avg_chance_index === "number"
+              ? (snap.home_avg_chance_index as number)
+              : 1.5,
+            typeof snap.away_avg_chance_index === "number"
+              ? (snap.away_avg_chance_index as number)
+              : 1.5
+          ),
+    redCardMatchBaseProb: 0.04,
+    homeDisciplineLoad:
+      typeof snap.home_discipline_load === "number" ? (snap.home_discipline_load as number) : 0,
+    awayDisciplineLoad:
+      typeof snap.away_discipline_load === "number" ? (snap.away_discipline_load as number) : 0,
+  };
+
+  const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw, gridOptions);
 
   return {
     ...hubRow,

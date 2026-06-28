@@ -10,6 +10,7 @@ import { playerNameLookupKeys } from "@/lib/data/resolve-squad-player-metrics";
 import { LAV_BASELINE_SCORE } from "@/lib/prediction/lineup-impact";
 import { normalizeText } from "@/lib/soccerdata/normalize";
 import type { ShotProfile } from "@/lib/world-cup/graham-shot-profiles";
+import { setPieceXgAllocation } from "@/lib/world-cup/graham-set-piece-adjustment";
 import type { SquadPlayer, TeamSquadSnapshot } from "@/lib/types/team-comparison";
 
 const TOP_N = 5;
@@ -291,12 +292,25 @@ function buildLikelyXi(squad: TeamSquadSnapshot): SquadPlayer[] {
     .sort((a, b) => (b.startSharePct ?? 0) - (a.startSharePct ?? 0));
 }
 
+function isSetPieceThreatProfile(player: SquadPlayer): boolean {
+  const role = resolveSquadPlayerLineupRole({
+    fieldPosition: player.fieldPosition,
+    position: player.position,
+  });
+  if (role === "D") return true;
+  const slot = (player.fieldPosition ?? player.position ?? "").toUpperCase();
+  return ["CB", "RCB", "LCB", "RB", "LB", "RWB", "LWB"].some((t) => slot.includes(t));
+}
+
 function buildCandidatesForTeam(input: {
   squad: TeamSquadSnapshot;
   teamExpectedGoals: number;
   opponentProfile: ShotProfile | null;
   leagueSsi: number;
   penaltyTakerName: string | null;
+  setPieceGoalShare?: number;
+  setPieceMult?: number;
+  setPieceRateThreshold?: number;
 }): PlayerPropCandidate[] {
   const xi = buildLikelyXi(input.squad);
   if (!xi.length) return [];
@@ -334,12 +348,29 @@ function buildCandidatesForTeam(input: {
 
   const teamGoalBudget = input.teamExpectedGoals * TEAM_GOAL_SHARE;
   const teamAssistBudget = input.teamExpectedGoals * TEAM_ASSIST_BUDGET_RATIO;
+  const setPiecePool = setPieceXgAllocation(
+    input.teamExpectedGoals,
+    input.setPieceGoalShare ?? 0,
+    input.setPieceMult ?? 1,
+    input.setPieceRateThreshold ?? 0.4
+  );
+  const openPlayBudget = Math.max(0.05, teamGoalBudget - setPiecePool);
+
+  const setPieceThreatIds = new Set(
+    rawEntries
+      .filter((e) => isSetPieceThreatProfile(e.player) || e.isPenaltyTaker)
+      .map((e) => e.player.sofascorePlayerId)
+  );
+  const setPieceWeightSum = rawEntries.reduce((sum, e) => {
+    if (!setPieceThreatIds.has(e.player.sofascorePlayerId)) return sum;
+    return sum + resolveExpectedMinutes(e.player) / 90;
+  }, 0);
 
   return rawEntries.map((entry) => {
     let normalizedGoalLambda =
       entry.baseGoalLambda *
       entry.tacticalMultiplier *
-      (teamGoalBudget / Math.max(sumBaseGoals, MIN_SUM_BASE));
+      (openPlayBudget / Math.max(sumBaseGoals, MIN_SUM_BASE));
     let normalizedAssistLambda =
       entry.baseAssistLambda *
       entry.tacticalMultiplier *
@@ -347,6 +378,15 @@ function buildCandidatesForTeam(input: {
 
     if (entry.isPenaltyTaker) {
       normalizedGoalLambda += PENALTY_TAKER_GOAL_BUMP;
+    }
+
+    if (
+      setPiecePool > 0 &&
+      setPieceWeightSum > 0 &&
+      setPieceThreatIds.has(entry.player.sofascorePlayerId)
+    ) {
+      const minutesShare = resolveExpectedMinutes(entry.player) / 90 / setPieceWeightSum;
+      normalizedGoalLambda += setPiecePool * minutesShare;
     }
 
     const piGoal = structuralZeroForGoals(entry.player);
@@ -455,6 +495,9 @@ export function computeTeamPlayerProps(input: {
   opponentProfile: ShotProfile | null;
   leagueSsi?: number;
   penaltyTakerName?: string | null;
+  setPieceGoalShare?: number;
+  setPieceMult?: number;
+  setPieceRateThreshold?: number;
 }): TeamPlayerPropsSide {
   const candidates = buildCandidatesForTeam({
     squad: input.squad,
@@ -462,6 +505,9 @@ export function computeTeamPlayerProps(input: {
     opponentProfile: input.opponentProfile,
     leagueSsi: input.leagueSsi ?? 0.1,
     penaltyTakerName: input.penaltyTakerName ?? null,
+    setPieceGoalShare: input.setPieceGoalShare,
+    setPieceMult: input.setPieceMult,
+    setPieceRateThreshold: input.setPieceRateThreshold,
   });
 
   return {
@@ -493,6 +539,11 @@ export function computePlayerPropsPayload(input: {
   awayOpponentProfile?: ShotProfile | null;
   homePenaltyTaker?: string | null;
   awayPenaltyTaker?: string | null;
+  homeSetPieceGoalShare?: number;
+  awaySetPieceGoalShare?: number;
+  homeSetPieceMult?: number;
+  awaySetPieceMult?: number;
+  setPieceRateThreshold?: number;
 }): PlayerPropsPayload {
   const warnings: string[] = [];
   const homeHasData =
@@ -518,6 +569,9 @@ export function computePlayerPropsPayload(input: {
     opponentProfile: input.awayOpponentProfile ?? null,
     leagueSsi: homeLeagueSsi,
     penaltyTakerName: input.homePenaltyTaker ?? null,
+    setPieceGoalShare: input.homeSetPieceGoalShare,
+    setPieceMult: input.homeSetPieceMult,
+    setPieceRateThreshold: input.setPieceRateThreshold,
   });
 
   const away = computeTeamPlayerProps({
@@ -529,6 +583,9 @@ export function computePlayerPropsPayload(input: {
     opponentProfile: input.homeOpponentProfile ?? null,
     leagueSsi: awayLeagueSsi,
     penaltyTakerName: input.awayPenaltyTaker ?? null,
+    setPieceGoalShare: input.awaySetPieceGoalShare,
+    setPieceMult: input.awaySetPieceMult,
+    setPieceRateThreshold: input.setPieceRateThreshold,
   });
 
   if (home.anytimeScorer.length === 0 && homeHasData) {

@@ -35,6 +35,7 @@
     "wc:r32": "npx tsx scripts/seed-world-cup-r32-fixtures.ts",
     "wc:sync": "npx tsx scripts/wc-sync-cli.ts",
     "wc:sync:http": "bash scripts/wc-sync.sh",
+    "snapshots:league": "npx tsx scripts/run-league-prediction-snapshots.ts",
     "wc:ingest-opta": "npx tsx scripts/wc-ingest-opta-html.ts",
     "wc:ingest-player-stats": "npx tsx scripts/wc-ingest-player-stats.ts",
     "wc:recompute-wc-form": "npx tsx scripts/wc-recompute-wc-form.ts",

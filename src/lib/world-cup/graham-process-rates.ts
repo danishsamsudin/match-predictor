@@ -30,8 +30,20 @@ export interface GrahamProcessRates {
   };
 }
 
-const SOT_TO_XG = 0.32;
+const SOT_TO_XG_DEFAULT = 0.32;
 const SHOT_TO_XG = 0.1;
+
+export interface GrahamProcessRateProfile {
+  finishingSkill?: number;
+  chanceQuality?: number;
+}
+
+function resolveSotToXg(profile?: GrahamProcessRateProfile): number {
+  if (profile == null) return SOT_TO_XG_DEFAULT;
+  const finishing = profile.finishingSkill ?? 0;
+  const quality = profile.chanceQuality ?? 0.12;
+  return Math.max(0.18, Math.min(0.42, 0.22 + 0.08 * finishing + 0.04 * quality));
+}
 
 function shrinkTowardMean(rate: number, effectiveN: number, shrinkageK = SHRINKAGE_K): number {
   const conf = effectiveN / (effectiveN + shrinkageK);
@@ -46,7 +58,8 @@ function resolveMatchXgForTeam(
   m: InternationalFormMatch,
   teamId: string,
   side: "for" | "against",
-  teamName?: string
+  teamName?: string,
+  sotToXg = SOT_TO_XG_DEFAULT
 ): { value: number; fallback: ProcessRateFallback } | null {
   if (!resolveInternationalFormTeamSide(m, teamId, teamName)) return null;
 
@@ -64,11 +77,11 @@ function resolveMatchXgForTeam(
   }
 
   if (side === "for") {
-    if (sotFor != null) return { value: sotFor * SOT_TO_XG, fallback: "shots" };
+    if (sotFor != null) return { value: sotFor * sotToXg, fallback: "shots" };
     if (shotsFor != null) return { value: shotsFor * SHOT_TO_XG, fallback: "shots" };
     if (gf != null) return { value: gf, fallback: "goals" };
   } else {
-    if (sotAgainst != null) return { value: sotAgainst * SOT_TO_XG, fallback: "shots" };
+    if (sotAgainst != null) return { value: sotAgainst * sotToXg, fallback: "shots" };
     const oppShots = pickInternationalFormSideValue(
       m,
       teamId,
@@ -90,8 +103,10 @@ export function computeGrahamProcessRatesFromMatches(
   finishedMatches: InternationalFormMatch[],
   referenceMs = Date.now(),
   teamName?: string,
-  shrinkageK = SHRINKAGE_K
+  shrinkageK = SHRINKAGE_K,
+  processProfile?: GrahamProcessRateProfile
 ): GrahamProcessRates {
+  const sotToXg = resolveSotToXg(processProfile);
   let xgf = 0;
   let xga = 0;
   let w = 0;
@@ -119,8 +134,8 @@ export function computeGrahamProcessRatesFromMatches(
       competition: m.competition,
     });
 
-    const forSide = resolveMatchXgForTeam(m, teamId, "for", teamName);
-    const againstSide = resolveMatchXgForTeam(m, teamId, "against", teamName);
+    const forSide = resolveMatchXgForTeam(m, teamId, "for", teamName, sotToXg);
+    const againstSide = resolveMatchXgForTeam(m, teamId, "against", teamName, sotToXg);
     if (!forSide || !againstSide) continue;
 
     fallbackCounts[forSide.fallback] += 1;

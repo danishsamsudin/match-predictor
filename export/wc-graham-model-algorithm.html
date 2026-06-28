@@ -388,8 +388,9 @@
     <div class="el5"><strong>Plain-language summary.</strong> After each WC game we summarize how teams played in five scores. Strong chance creation or defending nudges rates slightly; lucky finishing is gently regressed toward xG.</div>
 
     <h2 class="section page-break">7. Set-Piece Bump</h2>
-    <p>If away team set-piece goal share ≥ <strong>40%</strong> (<code>setPieceRateThreshold</code>):</p>
-    <div class="equation">$$\lambda_{\text{away}} \leftarrow \lambda_{\text{away}} + 0.15$$</div>
+    <p>If team set-piece share ≥ <strong>40%</strong> (<code>setPieceRateThreshold</code>), apply a <strong>multiplicative</strong> bump to <em>both</em> home and away λ:</p>
+    <div class="equation">$$\lambda \leftarrow \lambda \times \left(1 + w_{\text{sp}} \cdot \max(0,\; s - 0.4) \cdot (1 + w_{\text{def}} \cdot d_{\text{opp}})\right)$$</div>
+    <p>Defaults: <code>setPieceXgMultiplier = 0.12</code>, <code>setPieceDefLeakWeight = 0.35</code>. Opponent leak uses set-piece share and defensive solidity.</p>
     <p>Rates come from Opta article ingests per team.</p>
 
     <h2 class="section">8. Venue, Travel, and Group Motivation</h2>
@@ -438,18 +439,8 @@
     <div class="equation">$$P(h,a) \propto \text{Poisson}(h;\,\lambda_{\text{home}}) \cdot \text{Poisson}(a;\,\lambda_{\text{away}}) \cdot \tau_{h,a}(\rho)$$</div>
     <div class="equation">$$\rho_{\text{base}} = f\!\left(|\lambda_{\text{home}} - \lambda_{\text{away}}|,\; \lambda_{\text{home}} + \lambda_{\text{away}},\; |\Delta\text{FIFA}|\right) + \rho_{\text{motivation}}$$</div>
 
-    <h3 class="subsection">10.1 <span class="math-inline">$\rho$</span> rules</h3>
-    <table>
-      <thead><tr><th>Condition</th><th><span class="math-inline">$\rho$</span></th></tr></thead>
-      <tbody>
-        <tr><td>Effective gap ≥ 1.25</td><td><strong>+0.10</strong></td></tr>
-        <tr><td>Gap ≥ 0.75</td><td><strong>+0.06</strong></td></tr>
-        <tr><td>Gap ≥ 0.28</td><td><strong>+0.04</strong></td></tr>
-        <tr><td>Total xG ≥ 3.1</td><td><strong>−0.08</strong></td></tr>
-        <tr><td>Total xG ≥ 2.4</td><td><strong>−0.11</strong></td></tr>
-        <tr><td>Else</td><td><strong>−0.14</strong></td></tr>
-      </tbody>
-    </table>
+    <h3 class="subsection">10.1 <span class="math-inline">$\rho$</span> rules (continuous)</h3>
+    <p>Total-xG term smoothly interpolates from <strong>−0.14</strong> (low event) to <strong>−0.08</strong> (high event) between total λ ≈ 2.0–3.2. Gap term fades from <strong>+0.02</strong> to <strong>0</strong> as |λ<sub>home</sub> − λ<sub>away</sub>| widens. <span class="math-inline">$\rho$</span> still attenuates toward 0 when the xG gap exceeds ~1.35.</p>
     <p><span class="math-inline">$\rho$</span> attenuates toward 0 as the xG gap widens. Low-event WC boost: if both teams’ <code>avgChanceIndex &lt; 1.2</code>, then <span class="math-inline">$\rho \leftarrow \rho + 0.025$</span>.</p>
     <p><strong>Outputs:</strong> home win %, draw %, away win %, modal scoreline, over/under 2.5 %.</p>
     <div class="el5"><strong>Plain-language summary.</strong> Build every plausible scoreline and add extra draw probability when the game looks tight or both teams might settle for a point.</div>
@@ -468,7 +459,9 @@
         <tr><td><code>wcLineupAttackBlend</code></td><td>0.35</td><td>XI attack blend</td></tr>
         <tr><td><code>wcLineupDefenseBlend</code></td><td>0.35</td><td>XI defense blend</td></tr>
         <tr><td><code>wcLowEventRhoBoost</code></td><td>0.025</td><td>Extra draw mass (low chance)</td></tr>
-        <tr><td><code>setPieceXgBump</code></td><td>0.15</td><td>Set-piece team bump</td></tr>
+        <tr><td><code>setPieceXgMultiplier</code></td><td>0.12</td><td>Set-piece mult bump</td></tr>
+        <tr><td><code>goalOverdispersionK</code></td><td>0</td><td>NB tail width (0 = Poisson)</td></tr>
+        <tr><td><code>talentDecayPerMatch</code></td><td>0.04</td><td>Squad value fade per WC game</td></tr>
         <tr><td><code>setPieceRateThreshold</code></td><td>0.40</td><td>When bump applies</td></tr>
       </tbody>
     </table>

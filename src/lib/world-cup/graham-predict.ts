@@ -36,6 +36,8 @@ import {
   attenuateRhoForExpectedGoalGap,
   buildGuardedScoreMatrix,
   outcomesFromGuardedGrid,
+  resolveEffectiveOverdispersionK,
+  type ScoreGridOptions,
 } from "@/lib/world-cup/score-grid";
 import {
   computeFinalDelta,
@@ -121,6 +123,13 @@ export async function runGrahamWorldCupPredict(input: {
   const fifaAnchorPullScale =
     motivation.scenario.includes("rotation") || maxRotation > 0.3 ? 0.5 : 1;
 
+  const stakesIndex = encodeStakesIndex({
+    isKnockout: !match.group_code,
+    isMatchday3:
+      isMatchday3Fixture(homeId, finishedMatches) ||
+      isMatchday3Fixture(awayId, finishedMatches),
+  });
+
   const baseline = resolveGrahamExpectedGoals({
     homeTeamId,
     awayTeamId,
@@ -134,6 +143,8 @@ export async function runGrahamWorldCupPredict(input: {
     medianSquadValueEur: medianTalent,
     calibration,
     wcForm: { home: homeWcForm, away: awayWcForm },
+    homeProcessProfile: homeProcessProfile,
+    awayProcessProfile: awayProcessProfile,
     optaStyleExtras: {
       physicality_index:
         ((homeStyle?.physicalityIndex ?? homeProcessProfile.pressingIntensity) +
@@ -173,12 +184,6 @@ export async function runGrahamWorldCupPredict(input: {
   });
   const hostBoost = resolveHostNationXgBoost(match.venue_city ?? venue?.city ?? null, homeName);
   const hostMotivation = resolveHostMotivationBoost(match.venue_city ?? venue?.city ?? null, homeName);
-  const stakesIndex = encodeStakesIndex({
-    isKnockout: !match.group_code,
-    isMatchday3:
-      isMatchday3Fixture(homeId, finishedMatches) ||
-      isMatchday3Fixture(awayId, finishedMatches),
-  });
 
   const adjustedMotivation = applyRotationAndLineupSigma({
     sigmaHome: motivation.sigmaHome,
@@ -186,6 +191,8 @@ export async function runGrahamWorldCupPredict(input: {
     rotationIndexHome: rotation.rotation_index_home,
     rotationIndexAway: rotation.rotation_index_away,
     scenario: motivation.scenario,
+    stakesIndex,
+    md3MutualRotationPenaltyScale: calibration.md3MutualRotationPenaltyScale,
   });
 
   const effectiveSigmaHome = adjustedMotivation.sigmaHome * hostMotivation;
@@ -206,6 +213,21 @@ export async function runGrahamWorldCupPredict(input: {
   const rho = attenuateRhoForExpectedGoalGap(rhoBase + rhoLowEventBoost, homeXg, awayXg);
   const mutualDraw = motivation.scenario.includes("mutual_draw");
 
+  const gridOptions: ScoreGridOptions = {
+    goalOverdispersionK: resolveEffectiveOverdispersionK(
+      homeXg,
+      awayXg,
+      calibration.goalOverdispersionK,
+      homeWcForm.avgChanceIndex,
+      awayWcForm.avgChanceIndex
+    ),
+    redCardMatchBaseProb: calibration.redCardMatchBaseProb,
+    homeDisciplineLoad: homeWcForm.avgDisciplineLoad,
+    awayDisciplineLoad: awayWcForm.avgDisciplineLoad,
+    redCardAttackPenalty: calibration.redCardAttackPenalty,
+    redCardOpponentBoost: calibration.redCardOpponentBoost,
+  };
+
   const [lowBlock] = await Promise.all([
     computeLowBlockIndicesForFixture({
       supabase,
@@ -220,9 +242,9 @@ export async function runGrahamWorldCupPredict(input: {
     stakesIndex,
   });
 
-  const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
+  const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw, gridOptions);
   const tempered = temper1x2Probs(outcomes.homeWin, outcomes.draw, outcomes.awayWin);
-  const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw);
+  const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw, gridOptions);
 
   let hubRow: HubPredictionRow = {
     home_win_pct: Number(tempered.homeWin.toFixed(4)),
@@ -252,6 +274,11 @@ export async function runGrahamWorldCupPredict(input: {
       rotation_index_home: rotation.rotation_index_home,
       rotation_index_away: rotation.rotation_index_away,
       rotation_index_diff: rotation.rotation_index_diff,
+      rotation_penalty_scale: adjustedMotivation.rotationPenaltyScale,
+      goal_overdispersion_k: gridOptions.goalOverdispersionK,
+      red_card_match_prob: outcomes.pRedMatch,
+      home_discipline_load: homeWcForm.avgDisciplineLoad,
+      away_discipline_load: awayWcForm.avgDisciplineLoad,
       host_motivation_home: hostMotivation,
       stakes_index: stakesIndex,
       scenario: adjustedMotivation.scenario,

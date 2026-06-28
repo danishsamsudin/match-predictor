@@ -40,6 +40,7 @@ import {
   canonicalizeMatchResultForStandings,
   type WcMatchRow,
 } from "@/lib/world-cup/standings";
+import { persistWcHubPredictionSnapshot } from "@/lib/prediction/persist-prediction-snapshot";
 
 export type WorldCupSyncResult = {
   ok: boolean;
@@ -97,16 +98,20 @@ function mapMatchRow(
 
 async function upsertHubPrediction(
   client: SupabaseClient,
-  matchId: string,
+  match: WcMatchRow,
   pred: Awaited<ReturnType<typeof runHubMainPredict>>
 ): Promise<string | null> {
   if (!pred) return "No prediction result";
+  const computedAt = new Date().toISOString();
   const { error } = await wcDb(client).from("world_cup_predictions").upsert({
-    match_id: matchId,
+    match_id: match.id,
     ...pred,
-    computed_at: new Date().toISOString(),
+    computed_at: computedAt,
   });
-  return error?.message ?? null;
+  if (error) return error.message;
+
+  const snapErr = await persistWcHubPredictionSnapshot(client, match, pred, "wc_hub_sync");
+  return snapErr;
 }
 
 export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
@@ -244,7 +249,7 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
       batch.map(async (match) => {
         try {
           const pred = await runHubMainPredict(match, { finishedMatches: matches });
-          const err = await upsertHubPrediction(client, match.id, pred);
+          const err = await upsertHubPrediction(client, match, pred);
           return { match, pred, err };
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
