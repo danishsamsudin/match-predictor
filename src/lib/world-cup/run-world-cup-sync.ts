@@ -15,7 +15,7 @@ function wcDb(client: SupabaseClient) {
     };
   };
 }
-import { enrichMatchEnvironment } from "@/lib/world-cup/enrich-matches";
+import { enrichMatchEnvironment, deriveMatchStatus } from "@/lib/world-cup/enrich-matches";
 import {
   buildTeamIdToGroupMap,
   resolveGroupCode,
@@ -160,13 +160,35 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
 
   const { data: teamsForR32 } = await client.from("teams").select("id, name");
   const r32TeamNames = new Map((teamsForR32 ?? []).map((t) => [t.id, t.name]));
-  const r32Rows = buildR32HubMatchRows(r32TeamNames).filter(
-    (m) =>
-      m.home_team_id &&
-      m.away_team_id &&
-      !isKnockoutSlotPlaceholder(m.home_team_name) &&
-      !isKnockoutSlotPlaceholder(m.away_team_name)
-  ) as WcMatchWithMeta[];
+  const { data: r32DbRows } = await client
+    .from("matches")
+    .select("id, date, home_team_id, away_team_id, home_goals, away_goals, status")
+    .like("id", "wc2026-ko-%");
+  const r32DbById = new Map((r32DbRows ?? []).map((r) => [r.id as string, r]));
+
+  const r32Rows = buildR32HubMatchRows(r32TeamNames)
+    .map((m) => {
+      const db = r32DbById.get(m.id);
+      if (!db) return m;
+      return {
+        ...m,
+        home_goals: (db.home_goals as number | null) ?? m.home_goals,
+        away_goals: (db.away_goals as number | null) ?? m.away_goals,
+        status: deriveMatchStatus({
+          ...m,
+          home_goals: (db.home_goals as number | null) ?? m.home_goals,
+          away_goals: (db.away_goals as number | null) ?? m.away_goals,
+          status: (db.status as string | null) ?? m.status,
+        }),
+      };
+    })
+    .filter(
+      (m) =>
+        m.home_team_id &&
+        m.away_team_id &&
+        !isKnockoutSlotPlaceholder(m.home_team_name) &&
+        !isKnockoutSlotPlaceholder(m.away_team_name)
+    ) as WcMatchWithMeta[];
   matches = [...matches, ...r32Rows];
   let matchesEnriched = 0;
   for (const m of matches) {
@@ -176,7 +198,10 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
       round: m.round,
     });
     const updatePayload: Record<string, unknown> = {
-      status: patch.status,
+      status:
+        m.home_goals != null && m.away_goals != null
+          ? "finished"
+          : patch.status,
     };
     if (patch.group_code) updatePayload.group_code = patch.group_code;
 

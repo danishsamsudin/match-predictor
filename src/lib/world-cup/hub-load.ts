@@ -421,6 +421,65 @@ function mapLiveWcMatchRows(
   return { liveById, liveRows };
 }
 
+async function fetchIngestGoalPatches(): Promise<Map<string, LiveMatchPatch>> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return new Map();
+
+  const { data } = await supabase
+    .from("world_cup_post_match_ingests")
+    .select("match_id, parsed, ingested_at")
+    .order("ingested_at", { ascending: false });
+
+  const out = new Map<string, LiveMatchPatch>();
+  for (const row of data ?? []) {
+    const matchId = String(row.match_id);
+    if (out.has(matchId)) continue;
+    const parsed = row.parsed as Record<string, unknown> | null;
+    const homeGoals = typeof parsed?.homeGoals === "number" ? parsed.homeGoals : null;
+    const awayGoals = typeof parsed?.awayGoals === "number" ? parsed.awayGoals : null;
+    if (homeGoals == null || awayGoals == null) continue;
+    out.set(matchId, {
+      home_goals: homeGoals,
+      away_goals: awayGoals,
+      status: "finished",
+    });
+  }
+  return out;
+}
+
+function mergeLiveWithIngestPatches(
+  live: { liveById: Map<string, LiveMatchPatch>; liveRows: LiveWcMatchRow[] },
+  ingestById: Map<string, LiveMatchPatch>
+): { liveById: Map<string, LiveMatchPatch>; liveRows: LiveWcMatchRow[] } {
+  if (!ingestById.size) return live;
+
+  const liveById = new Map(live.liveById);
+  const liveRows = [...live.liveRows];
+
+  for (const [matchId, patch] of ingestById) {
+    const existing = liveById.get(matchId);
+    if (existing?.home_goals != null && existing?.away_goals != null) continue;
+    liveById.set(matchId, patch);
+    const row = liveRows.find((r) => r.id === matchId);
+    if (row) {
+      row.home_goals = patch.home_goals;
+      row.away_goals = patch.away_goals;
+      row.status = patch.status;
+    }
+  }
+
+  return { liveById, liveRows };
+}
+
+async function fetchLiveWcMatchContext(): Promise<{
+  liveById: Map<string, LiveMatchPatch>;
+  liveRows: LiveWcMatchRow[];
+}> {
+  const live = await fetchLiveWcMatchRows();
+  const ingestById = await fetchIngestGoalPatches();
+  return mergeLiveWithIngestPatches(live, ingestById);
+}
+
 async function fetchLiveWcMatchRows(): Promise<{
   liveById: Map<string, LiveMatchPatch>;
   liveRows: LiveWcMatchRow[];
@@ -727,7 +786,7 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   }
   if (!snapshot) return null;
 
-  const live = await fetchLiveWcMatchRows();
+  const live = await fetchLiveWcMatchContext();
   const withLiveScores = await mergeLiveMatchScoresIntoPayload(snapshot, live);
   const withStandings = await refreshHubStandingsFromDb(withLiveScores);
   const repartitioned = repartitionRecentAndUpcoming(withStandings);
@@ -919,6 +978,8 @@ export async function buildWorldCupHubPayload(
       .reverse()[0] ?? new Date().toISOString();
 
   const live = mapLiveWcMatchRows((matchesRes.data ?? []) as Array<Record<string, unknown>>);
+  const ingestById = await fetchIngestGoalPatches();
+  const liveWithIngest = mergeLiveWithIngestPatches(live, ingestById);
 
   return repartitionRecentAndUpcoming(
     mergeR32IntoHubPayload(
@@ -932,7 +993,7 @@ export async function buildWorldCupHubPayload(
         upcoming: upcomingEnriched,
       },
       predByMatch,
-      live
+      liveWithIngest
     )
   );
 }
