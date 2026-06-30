@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isDisplayableUpcomingMatch } from "@/lib/world-cup/hub-load";
 import { buildR32HubMatchRows } from "@/lib/world-cup/r32-hub-fixtures";
 
 /** Mirrors hub-load patch logic for R32 knockout rows. */
@@ -94,5 +95,29 @@ describe("R32 hub live score patch", () => {
     const patched = patchHubMatchFromLive(row, new Map(), liveRows);
     expect(patched.home_goals).toBe(1);
     expect(patched.away_goals).toBe(1);
+  });
+});
+
+describe("displayable upcoming filter", () => {
+  it("hides finished ties even when phase is live", () => {
+    expect(
+      isDisplayableUpcomingMatch({
+        match_phase: "live",
+        home_goals: 2,
+        away_goals: 1,
+        status: "scheduled",
+      })
+    ).toBe(false);
+  });
+
+  it("keeps pre-kickoff fixtures", () => {
+    expect(
+      isDisplayableUpcomingMatch({
+        match_phase: "pre",
+        home_goals: null,
+        away_goals: null,
+        status: "scheduled",
+      })
+    ).toBe(true);
   });
 });

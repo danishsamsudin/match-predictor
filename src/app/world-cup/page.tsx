@@ -11,8 +11,8 @@ import { WorldCupRefreshButton } from "@/components/world-cup/WorldCupRefreshBut
 import { loadWorldCupHubPayload } from "@/lib/world-cup/hub-load";
 import { isR32HubMatchId } from "@/lib/world-cup/r32-hub-fixtures";
 
-/** Hub page ISR — aligns with HUB_PAGE_REVALIDATE_SECONDS in hub-snapshot.ts */
-export const revalidate = 3600;
+/** Always render with fresh hub payload (knockout scores patch on each request). */
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "World Cup 2026 Hub",
