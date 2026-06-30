@@ -344,13 +344,109 @@ function alignUpcomingMatchForDisplay<
   };
 }
 
+type LiveWcMatchRow = {
+  id: string;
+  home_team_id: string | null;
+  away_team_id: string | null;
+  date: string | null;
+  home_goals: number | null;
+  away_goals: number | null;
+  status: string | null;
+};
+
+type LiveMatchPatch = {
+  home_goals: number | null;
+  away_goals: number | null;
+  status: string | null;
+};
+
+function patchHubMatchFromLive<T extends HubMatchRow>(
+  row: T,
+  liveById: Map<string, LiveMatchPatch>,
+  liveRows: LiveWcMatchRow[]
+): T {
+  const byId = liveById.get(row.id);
+  if (byId && (byId.home_goals != null || byId.status === "finished")) {
+    return {
+      ...row,
+      home_goals: byId.home_goals ?? row.home_goals,
+      away_goals: byId.away_goals ?? row.away_goals,
+      status: byId.status ?? row.status,
+    };
+  }
+
+  if (!row.home_team_id || !row.away_team_id || !row.date) return row;
+
+  const hit = liveRows.find(
+    (r) =>
+      r.date === row.date &&
+      r.home_goals != null &&
+      r.away_goals != null &&
+      ((r.home_team_id === row.home_team_id && r.away_team_id === row.away_team_id) ||
+        (r.home_team_id === row.away_team_id && r.away_team_id === row.home_team_id))
+  );
+  if (!hit) return row;
+
+  const swapped = hit.home_team_id !== row.home_team_id;
+  return {
+    ...row,
+    home_goals: swapped ? hit.away_goals : hit.home_goals,
+    away_goals: swapped ? hit.home_goals : hit.away_goals,
+    status: hit.status ?? "finished",
+  };
+}
+
+function mapLiveWcMatchRows(
+  data: Array<Record<string, unknown>>
+): { liveById: Map<string, LiveMatchPatch>; liveRows: LiveWcMatchRow[] } {
+  const liveRows: LiveWcMatchRow[] = data.map((r) => ({
+    id: r.id as string,
+    home_team_id: (r.home_team_id as string | null) ?? null,
+    away_team_id: (r.away_team_id as string | null) ?? null,
+    date: (r.date as string | null) ?? null,
+    home_goals: r.home_goals as number | null,
+    away_goals: r.away_goals as number | null,
+    status: r.status as string | null,
+  }));
+  const liveById = new Map(
+    liveRows.map((r) => [
+      r.id,
+      {
+        home_goals: r.home_goals,
+        away_goals: r.away_goals,
+        status: r.status,
+      } satisfies LiveMatchPatch,
+    ])
+  );
+  return { liveById, liveRows };
+}
+
+async function fetchLiveWcMatchRows(): Promise<{
+  liveById: Map<string, LiveMatchPatch>;
+  liveRows: LiveWcMatchRow[];
+}> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return { liveById: new Map(), liveRows: [] };
+
+  const { data } = await supabase
+    .from("matches")
+    .select("id, date, home_team_id, away_team_id, home_goals, away_goals, status")
+    .or(WORLD_CUP_FINALS_COMPETITION_OR);
+
+  if (!data?.length) return { liveById: new Map(), liveRows: [] };
+  return mapLiveWcMatchRows(data as Array<Record<string, unknown>>);
+}
+
 function enrichR32UpcomingRows(
   teamNames: Map<string, string>,
   predByMatch: Map<string, Record<string, unknown>>,
-  existingUpcoming: WorldCupHubPayload["upcoming"]
+  existingUpcoming: WorldCupHubPayload["upcoming"],
+  live: { liveById: Map<string, LiveMatchPatch>; liveRows: LiveWcMatchRow[] }
 ): WorldCupHubPayload["upcoming"] {
   const withoutSyntheticR32 = existingUpcoming.filter((m) => !isR32HubMatchId(m.id));
-  const r32Rows = buildR32HubMatchRows(teamNames);
+  const r32Rows = buildR32HubMatchRows(teamNames).map((m) =>
+    patchHubMatchFromLive(m, live.liveById, live.liveRows)
+  );
 
   const enriched = r32Rows.map((m) => {
     const homeFifa = isKnockoutSlotPlaceholder(m.home_team_name)
@@ -395,7 +491,8 @@ function enrichR32UpcomingRows(
 
 function mergeR32IntoHubPayload(
   payload: WorldCupHubPayload,
-  predByMatch: Map<string, Record<string, unknown>>
+  predByMatch: Map<string, Record<string, unknown>>,
+  live: { liveById: Map<string, LiveMatchPatch>; liveRows: LiveWcMatchRow[] }
 ): WorldCupHubPayload {
   const teamNames = new Map<string, string>();
   for (const group of Object.values(payload.groupMatrix)) {
@@ -410,7 +507,7 @@ function mergeR32IntoHubPayload(
 
   return {
     ...payload,
-    upcoming: enrichR32UpcomingRows(teamNames, predByMatch, payload.upcoming),
+    upcoming: enrichR32UpcomingRows(teamNames, predByMatch, payload.upcoming, live),
   };
 }
 
@@ -474,49 +571,17 @@ function repartitionRecentAndUpcoming(payload: WorldCupHubPayload): WorldCupHubP
   };
 }
 
-type LiveMatchPatch = {
-  home_goals: number | null;
-  away_goals: number | null;
-  status: string | null;
-};
-
 /** Patch snapshot goals/status from live `matches` rows (cheap read path). */
 export async function mergeLiveMatchScoresIntoPayload(
-  payload: WorldCupHubPayload
+  payload: WorldCupHubPayload,
+  live?: { liveById: Map<string, LiveMatchPatch>; liveRows: LiveWcMatchRow[] }
 ): Promise<WorldCupHubPayload> {
-  const supabase = tryCreateServiceClient();
-  if (!supabase) return payload;
+  const resolved = live ?? (await fetchLiveWcMatchRows());
+  const { liveById, liveRows } = resolved;
+  if (!liveById.size) return payload;
 
-  const { data } = await supabase
-    .from("matches")
-    .select("id, home_goals, away_goals, status")
-    .or(WORLD_CUP_FINALS_COMPETITION_OR);
-
-  if (!data?.length) return payload;
-
-  const liveById = new Map(
-    data.map((r) => [
-      r.id as string,
-      {
-        home_goals: r.home_goals as number | null,
-        away_goals: r.away_goals as number | null,
-        status: r.status as string | null,
-      } satisfies LiveMatchPatch,
-    ])
-  );
-
-  const patchRow = <T extends { id: string; home_goals: number | null; away_goals: number | null; status?: string | null }>(
-    row: T
-  ): T => {
-    const live = liveById.get(row.id);
-    if (!live) return row;
-    return {
-      ...row,
-      home_goals: live.home_goals ?? row.home_goals,
-      away_goals: live.away_goals ?? row.away_goals,
-      status: live.status ?? row.status,
-    };
-  };
+  const patchRow = <T extends HubMatchRow>(row: T): T =>
+    patchHubMatchFromLive(row, liveById, liveRows);
 
   return {
     ...payload,
@@ -662,12 +727,14 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   }
   if (!snapshot) return null;
 
-  const withLiveScores = await mergeLiveMatchScoresIntoPayload(snapshot);
+  const live = await fetchLiveWcMatchRows();
+  const withLiveScores = await mergeLiveMatchScoresIntoPayload(snapshot, live);
   const withStandings = await refreshHubStandingsFromDb(withLiveScores);
   const repartitioned = repartitionRecentAndUpcoming(withStandings);
   const r32PredByMatch = await fetchR32PredictionsByMatch();
-  const withR32 = mergeR32IntoHubPayload(repartitioned, r32PredByMatch);
-  return realignRecentResultsFromIngests(withR32);
+  const withR32 = mergeR32IntoHubPayload(repartitioned, r32PredByMatch, live);
+  const withKnockoutPartition = repartitionRecentAndUpcoming(withR32);
+  return realignRecentResultsFromIngests(withKnockoutPartition);
 }
 
 /**
@@ -851,16 +918,21 @@ export async function buildWorldCupHubPayload(
       .sort()
       .reverse()[0] ?? new Date().toISOString();
 
-  return mergeR32IntoHubPayload(
-    {
-      updatedAt,
-      groupMatrix,
-      thirdPlaceRanking,
-      knockoutProjection,
-      tournamentForecast,
-      recent,
-      upcoming: upcomingEnriched,
-    },
-    predByMatch
+  const live = mapLiveWcMatchRows((matchesRes.data ?? []) as Array<Record<string, unknown>>);
+
+  return repartitionRecentAndUpcoming(
+    mergeR32IntoHubPayload(
+      {
+        updatedAt,
+        groupMatrix,
+        thirdPlaceRanking,
+        knockoutProjection,
+        tournamentForecast,
+        recent,
+        upcoming: upcomingEnriched,
+      },
+      predByMatch,
+      live
+    )
   );
 }
