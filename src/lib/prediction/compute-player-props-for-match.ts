@@ -6,7 +6,9 @@ import {
   computePlayerPropsPayload,
   type PlayerPropsPayload,
 } from "@/lib/prediction/player-props";
+import { loadWcPlayerPropOverlays } from "@/lib/prediction/player-props-wc-opta";
 import { tryCreateServiceClient } from "@/lib/supabase";
+import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import {
   computeShotProfileFromMatches,
   type ShotProfile,
@@ -142,8 +144,16 @@ export async function computePlayerPropsForMatch(input: {
     input.homeFormMatches
   );
 
+  const supabase = tryCreateServiceClient();
+  const [wcOverlays, calibration] = await Promise.all([
+    input.entityType === "national" && supabase
+      ? loadWcPlayerPropOverlays(supabase, [input.homeTeamId, input.awayTeamId])
+      : Promise.resolve(undefined),
+    loadWcCalibrationConfig(),
+  ]);
+
   const payload = computePlayerPropsPayload({
-    modelVersion: input.modelVersion ?? "v2.1",
+    modelVersion: input.modelVersion ?? calibration.modelVersion ?? "v2.2",
     homeTeamName: input.homeTeamName,
     awayTeamName: input.awayTeamName,
     homeTeamId: input.homeTeamId,
@@ -163,6 +173,9 @@ export async function computePlayerPropsForMatch(input: {
     homeSetPieceMult: input.homeSetPieceMult,
     awaySetPieceMult: input.awaySetPieceMult,
     setPieceRateThreshold: input.setPieceRateThreshold,
+    wcOverlays,
+    mlCoeffs: calibration.playerPropModelCoeffs,
+    marketPropCoeffs: calibration.marketModels?.playerProps,
   });
 
   if (

@@ -86,7 +86,10 @@ function main() {
   run("npx", ["tsx", "scripts/wc-sync-cli.ts"]);
   run("npx", ["tsx", "scripts/wc-evaluate-predictions.ts"]);
   run("npx", ["tsx", "scripts/wc-evaluate-player-props.ts"]);
+  run("npx", ["tsx", "scripts/wc-evaluate-market-models.ts"]);
   run("npx", ["tsx", "scripts/wc-calibrate-graham.ts"]);
+  run("npx", ["tsx", "scripts/wc-calibrate-player-props.ts"]);
+  run("npx", ["tsx", "scripts/wc-calibrate-market-models.ts"]);
   run("npx", ["tsx", "scripts/ml-backfill-training-examples.ts"]);
   run("npm", ["run", "wc:ml-train"]);
   run("npx", ["tsx", "scripts/wc-post-match-report.ts"]);

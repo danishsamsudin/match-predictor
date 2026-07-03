@@ -132,6 +132,19 @@ DEFAULT_CONSTANTS: dict[str, Any] = {
             "refereeStrictnessSlope": 0.1,
         },
     },
+    "playerPropModelCoeffs": {
+        "intercept": -0.85,
+        "logLambdaSlope": 1.35,
+        "chanceIndexSlope": 0.42,
+        "penaltyTakerSlope": 0.28,
+        "starterSlope": 0.22,
+        "roleForwardSlope": 0.18,
+        "roleMidSlope": 0.08,
+        "teamXgSlope": 0.12,
+        "mlBlend": 0.62,
+        "structuralZeroScale": 0.55,
+        "wcGoalShare": 0.94,
+    },
 }
 
 
@@ -248,6 +261,11 @@ def load_deployed_constants(supabase: Client) -> dict[str, Any]:
         **DEFAULT_CONSTANTS["eventModelCoeffs"],
         **(constants.get("eventModelCoeffs") or {}),
     }
+    merged["playerPropModelCoeffs"] = {
+        **DEFAULT_CONSTANTS["playerPropModelCoeffs"],
+        **(constants.get("playerPropModelCoeffs") or {}),
+    }
+    merged["marketModels"] = constants.get("marketModels") or {}
     return merged
 
 
@@ -418,7 +436,9 @@ def ml_holdout_improvement_threshold(holdout_size: int) -> float:
     return max(0.0005, 0.004 / math.sqrt(holdout_size / 8.0))
 
 
-def build_incremental_candidate(deployed: dict[str, Any], raw_goal: dict[str, Any]) -> dict[str, Any]:
+def build_incremental_candidate(
+    deployed: dict[str, Any], raw_goal: dict[str, Any], train_df: pd.DataFrame | None = None
+) -> dict[str, Any]:
     """Small step from deployed toward the unconstrained ML fit."""
     deployed_dw = deployed.get("deltaWeights") or DEFAULT_CONSTANTS["deltaWeights"]
     raw_dw = raw_goal.get("deltaWeights") or deployed_dw
@@ -426,6 +446,20 @@ def build_incremental_candidate(deployed: dict[str, Any], raw_goal: dict[str, An
     raw_process = raw_goal.get("processFeatureWeights") or {}
     deployed_opta = deployed.get("optaFeatureWeights") or {}
     raw_opta = raw_goal.get("optaFeatureWeights") or {}
+
+    event_coeffs = dict(deployed.get("eventModelCoeffs") or DEFAULT_CONSTANTS["eventModelCoeffs"])
+    if train_df is not None and len(train_df) >= 10:
+        for kind, col, defaults_key in [
+            ("yellow", "actual_yellow", "yellow"),
+            ("fouls", "actual_fouls", "fouls"),
+            ("corners", "actual_corners", "corners"),
+        ]:
+            if col in train_df.columns:
+                event_coeffs[kind] = train_event_poisson(
+                    train_df,
+                    col,
+                    event_coeffs.get(defaults_key, DEFAULT_CONSTANTS["eventModelCoeffs"][defaults_key]),
+                )
 
     return {
         **deployed,
@@ -437,7 +471,8 @@ def build_incremental_candidate(deployed: dict[str, Any], raw_goal: dict[str, An
             float(deployed.get("strengthExponent", DEFAULT_CONSTANTS["strengthExponent"])),
             float(raw_goal.get("strengthExponent", deployed.get("strengthExponent", DEFAULT_CONSTANTS["strengthExponent"]))),
         ),
-        "eventModelCoeffs": deployed.get("eventModelCoeffs") or DEFAULT_CONSTANTS["eventModelCoeffs"],
+        "eventModelCoeffs": event_coeffs,
+        "marketModels": deployed.get("marketModels") or {},
     }
 
 
@@ -489,7 +524,7 @@ def main() -> None:
 
     train_df = df.iloc[:-ML_WALK_FORWARD_HOLDOUT] if len(df) > ML_WALK_FORWARD_HOLDOUT else df
     raw_goal_params, goal_metrics = train_goal_surrogate(train_df)
-    candidate = build_incremental_candidate(deployed, raw_goal_params)
+    candidate = build_incremental_candidate(deployed, raw_goal_params, train_df)
 
     ts_validation = validate_with_typescript([candidate, deployed])
     default_baseline_loss = None

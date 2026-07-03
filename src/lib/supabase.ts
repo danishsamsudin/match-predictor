@@ -699,6 +699,8 @@ export type Database = {
           actual_yellow: number | null;
           actual_fouls: number | null;
           actual_corners: number | null;
+          actual_red: number | null;
+          market_labels: Record<string, unknown>;
           source: string;
           feature_as_of: string | null;
           created_at: string;
@@ -716,12 +718,40 @@ export type Database = {
           actual_yellow?: number | null;
           actual_fouls?: number | null;
           actual_corners?: number | null;
+          actual_red?: number | null;
+          market_labels?: Record<string, unknown>;
           source?: string;
           feature_as_of?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["ml_training_examples"]["Insert"]>;
+        Relationships: [];
+      };
+      ml_market_evaluations: {
+        Row: {
+          id: string;
+          match_id: string;
+          market_id: string;
+          predicted: Record<string, unknown>;
+          actual: Record<string, unknown>;
+          loss_metric: string;
+          loss_value: number;
+          model_version: string;
+          computed_at: string;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          market_id: string;
+          predicted?: Record<string, unknown>;
+          actual?: Record<string, unknown>;
+          loss_metric: string;
+          loss_value: number;
+          model_version: string;
+          computed_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["ml_market_evaluations"]["Insert"]>;
         Relationships: [];
       };
       soccerdata_event_enrichments: {

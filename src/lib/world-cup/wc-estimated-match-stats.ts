@@ -25,6 +25,8 @@ import {
   type MlEventModelKind,
   type WcCalibrationConstants,
 } from "@/lib/world-cup/wc-calibration-config";
+import type { ExtendedEventCoeffs } from "@/lib/world-cup/market-models/types";
+import { resolveMarketModelsConfig } from "@/lib/world-cup/market-models/apply";
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
@@ -203,13 +205,131 @@ export function clampEstimatedMatchStats(stats: EstimatedMatchStats): EstimatedM
   };
 }
 
+function extendedEventRateEstimate(
+  homeXg: number,
+  awayXg: number,
+  coeffs: ExtendedEventCoeffs,
+  context: {
+    isKnockout: boolean;
+    physicality: number;
+    refereeStrictness: number;
+    homeTeamRate: number;
+    awayTeamRate: number;
+    styleClash: number;
+    widePlay: number;
+    pressing: number;
+  }
+): number {
+  const linear =
+    coeffs.intercept +
+    coeffs.totalXgSlope * (homeXg + awayXg) +
+    coeffs.knockoutSlope * (context.isKnockout ? 1 : 0) +
+    coeffs.physicalitySlope * context.physicality +
+    coeffs.refereeStrictnessSlope * context.refereeStrictness +
+    coeffs.homeTeamRateSlope * context.homeTeamRate +
+    coeffs.awayTeamRateSlope * context.awayTeamRate +
+    coeffs.styleClashSlope * context.styleClash +
+    coeffs.widePlaySlope * context.widePlay +
+    coeffs.pressingSlope * context.pressing;
+  return Math.max(0.01, Math.exp(linear));
+}
+
+function mlEventPriorFromMarketModels(
+  homeXg: number,
+  awayXg: number,
+  calibration: WcCalibrationConstants,
+  context: {
+    isKnockout: boolean;
+    physicality: number;
+    refereeStrictness: number;
+    homeTeamRates: WcTeamEventRates | null;
+    awayTeamRates: WcTeamEventRates | null;
+    homeStyle: WcTeamStyleProfile | null;
+    awayStyle: WcTeamStyleProfile | null;
+  },
+  tournamentRedFallback: number
+): EstimatedMatchStats {
+  const marketModels = resolveMarketModelsConfig(calibration);
+  const styleClash =
+    context.homeStyle && context.awayStyle
+      ? Math.abs(context.homeStyle.physicalityIndex - context.awayStyle.physicalityIndex)
+      : 0;
+  const widePlay =
+    ((context.homeStyle?.widePlayIndex ?? 1) + (context.awayStyle?.widePlayIndex ?? 1)) / 2;
+  const pressing =
+    ((context.homeStyle?.pressIntensityIndex ?? 1) +
+      (context.awayStyle?.pressIntensityIndex ?? 1)) /
+    2;
+  const shared = {
+    isKnockout: context.isKnockout,
+    physicality: context.physicality,
+    refereeStrictness: context.refereeStrictness,
+    styleClash,
+    widePlay,
+    pressing,
+  };
+
+  return {
+    corners: round1(
+      extendedEventRateEstimate(homeXg, awayXg, marketModels.eventStats.corners, {
+        ...shared,
+        homeTeamRate: context.homeTeamRates?.cornersPerGame ?? 5,
+        awayTeamRate: context.awayTeamRates?.cornersPerGame ?? 5,
+      })
+    ),
+    fouls: round1(
+      extendedEventRateEstimate(homeXg, awayXg, marketModels.eventStats.fouls, {
+        ...shared,
+        homeTeamRate: context.homeTeamRates?.foulsPerGame ?? 12,
+        awayTeamRate: context.awayTeamRates?.foulsPerGame ?? 12,
+      })
+    ),
+    yellowCards: round1(
+      extendedEventRateEstimate(homeXg, awayXg, marketModels.eventStats.yellow, {
+        ...shared,
+        homeTeamRate: context.homeTeamRates?.yellowPerGame ?? 1.8,
+        awayTeamRate: context.awayTeamRates?.yellowPerGame ?? 1.8,
+      })
+    ),
+    redCards: round1(
+      Math.max(
+        extendedEventRateEstimate(homeXg, awayXg, marketModels.eventStats.red, {
+          ...shared,
+          homeTeamRate: context.homeTeamRates?.redPerGame ?? 0.05,
+          awayTeamRate: context.awayTeamRates?.redPerGame ?? 0.05,
+        }),
+        tournamentRedFallback
+      )
+    ),
+  };
+}
+
 function mlEventPriorFromCoeffs(
   homeXg: number,
   awayXg: number,
   calibration: WcCalibrationConstants,
   context: { isKnockout: boolean; physicality: number; refereeStrictness: number },
-  tournamentRedFallback: number
+  tournamentRedFallback: number,
+  homeTeamRates: WcTeamEventRates | null,
+  awayTeamRates: WcTeamEventRates | null,
+  homeStyle: WcTeamStyleProfile | null,
+  awayStyle: WcTeamStyleProfile | null
 ): EstimatedMatchStats {
+  if (calibration.marketModels) {
+    return mlEventPriorFromMarketModels(
+      homeXg,
+      awayXg,
+      calibration,
+      {
+        ...context,
+        homeTeamRates,
+        awayTeamRates,
+        homeStyle,
+        awayStyle,
+      },
+      tournamentRedFallback
+    );
+  }
   const coeffs = calibration.eventModelCoeffs;
   const redCoeffs = coeffs.red ?? coeffs.yellow;
   return {
@@ -259,7 +379,11 @@ function blendEstimates(
   prior: EstimatedMatchStats,
   calibrationSampleCount: number
 ): EstimatedMatchStats {
-  const priorWeight = clamp(0.18 + calibrationSampleCount * 0.06, 0.18, 0.42);
+  const priorWeight = clamp(
+    calibrationSampleCount >= 10 ? 0.15 + calibrationSampleCount * 0.01 : 0.12 + calibrationSampleCount * 0.04,
+    0.12,
+    0.25
+  );
   const modelWeight = 1 - priorWeight;
 
   return {
@@ -349,7 +473,12 @@ export function computeWcEstimatedMatchStats(
     fifaRatingDelta,
   });
 
-  const prior = input.calibration?.eventModelCoeffs
+  const homeWcRates = calibration.teamRates.get(input.homeTeamApiId) ?? null;
+  const awayWcRates = calibration.teamRates.get(input.awayTeamApiId) ?? null;
+  const homeStyle = calibration.teamStyles.get(input.homeTeamApiId) ?? null;
+  const awayStyle = calibration.teamStyles.get(input.awayTeamApiId) ?? null;
+
+  const prior = input.calibration
     ? mlEventPriorFromCoeffs(
         input.homeXg,
         input.awayXg,
@@ -357,12 +486,14 @@ export function computeWcEstimatedMatchStats(
         {
           isKnockout: input.isKnockout ?? false,
           physicality:
-            ((calibration.teamStyles.get(input.homeTeamApiId)?.physicalityIndex ?? 1) +
-              (calibration.teamStyles.get(input.awayTeamApiId)?.physicalityIndex ?? 1)) /
-            2,
+            ((homeStyle?.physicalityIndex ?? 1) + (awayStyle?.physicalityIndex ?? 1)) / 2,
           refereeStrictness: input.refereeStrictness ?? 1,
         },
-        tournamentPriorFromXg(input.homeXg, input.awayXg, calibration).redCards
+        tournamentPriorFromXg(input.homeXg, input.awayXg, calibration).redCards,
+        homeWcRates,
+        awayWcRates,
+        homeStyle,
+        awayStyle
       )
     : tournamentPriorFromXg(input.homeXg, input.awayXg, calibration);
   const blended = blendEstimates(model, prior, calibration.sampleCount);

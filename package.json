@@ -41,6 +41,7 @@
     "wc:recompute-wc-form": "npx tsx scripts/wc-recompute-wc-form.ts",
     "wc:evaluate": "npx tsx scripts/wc-evaluate-predictions.ts",
     "wc:calibrate": "npx tsx scripts/wc-calibrate-graham.ts",
+    "wc:calibrate-player-props": "npx tsx scripts/wc-calibrate-player-props.ts",
     "wc:ml-train": "bash scripts/ml/run-train.sh",
     "ml:backfill": "npx tsx scripts/ml-backfill-training-examples.ts",
     "ml:validate": "npx tsx scripts/ml-validate-candidates.ts",

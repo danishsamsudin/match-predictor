@@ -239,6 +239,18 @@ async function main() {
       optaFeatures.referee_strictness = 0;
     }
 
+    const actualTotal = match.home_goals + match.away_goals;
+    const marketLabels = {
+      bttsYes: match.home_goals > 0 && match.away_goals > 0,
+      over25: actualTotal > 2.5,
+      over15: actualTotal > 1.5,
+      over35: actualTotal > 3.5,
+      margin: match.home_goals - match.away_goals,
+      actualScore: `${match.home_goals}-${match.away_goals}`,
+      homeXg: Number(snapshot.home_xg ?? snapshot.lambda ?? 0),
+      awayXg: Number(snapshot.away_xg ?? snapshot.mu ?? 0),
+    };
+
     const { error } = await supabase.from("ml_training_examples").upsert(
       {
         match_id: String(pred.match_id),
@@ -247,11 +259,13 @@ async function main() {
         is_knockout: Boolean(match.knockout),
         features: snapshot,
         opta_features: optaFeatures,
+        market_labels: marketLabels,
         actual_home_goals: match.home_goals,
         actual_away_goals: match.away_goals,
         actual_yellow: yellow || null,
         actual_fouls: fouls || null,
         actual_corners: corners || null,
+        actual_red: Number(parsed.red_cards ?? parsed.total_red ?? 0) || null,
         source: "wc_prediction_snapshot",
         feature_as_of: match.date ? `${String(match.date).slice(0, 10)}T12:00:00.000Z` : new Date().toISOString(),
         updated_at: new Date().toISOString(),

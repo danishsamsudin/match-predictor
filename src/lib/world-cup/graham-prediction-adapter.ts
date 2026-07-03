@@ -13,6 +13,8 @@ import type {
 import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
 import { clampEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
 import type { WcPredictionAnalyticsContext } from "@/lib/world-cup/build-wc-prediction-analytics-context";
+import { applyMarketModelCalibration } from "@/lib/world-cup/market-models/apply";
+import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 
 function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): number {
   for (const key of keys) {
@@ -26,7 +28,8 @@ export function buildAnalyticsFromHubPrediction(
   pred: HubPredictionRow,
   homeName: string,
   awayName: string,
-  context?: WcPredictionAnalyticsContext
+  context?: WcPredictionAnalyticsContext,
+  calibration?: Awaited<ReturnType<typeof loadWcCalibrationConfig>>
 ): PredictionAnalytics {
   const snap = pred.snapshot;
   const homeXg = snapshotNumber(snap, "home_xg", "lambda");
@@ -43,7 +46,7 @@ export function buildAnalyticsFromHubPrediction(
 
   const handicapMarkets = computeHandicapMarkets(matrix);
 
-  return computeMarketAnalytics(homeXg, awayXg, {
+  const base = computeMarketAnalytics(homeXg, awayXg, {
     h2hHomeWinRate: context?.h2hHomeWinRate ?? pred.home_win_pct,
     h2hDrawRate: context?.h2hDrawRate ?? pred.draw_pct,
     h2hAwayWinRate: context?.h2hAwayWinRate ?? pred.away_win_pct,
@@ -63,6 +66,13 @@ export function buildAnalyticsFromHubPrediction(
     correlation: rho,
     heatmapMaxGoals: grid.maxGoals,
   });
+
+  if (!calibration) return base;
+
+  return applyMarketModelCalibration(base, pred, calibration, {
+    homeFormScore: context?.homeFormScore,
+    awayFormScore: context?.awayFormScore,
+  });
 }
 
 export function grahamHubRowToPredictionResult(input: {
@@ -74,6 +84,7 @@ export function grahamHubRowToPredictionResult(input: {
   lineupSource?: PredictionLineupSource;
   lineupNotes?: string[];
   analyticsContext?: WcPredictionAnalyticsContext;
+  calibration?: Awaited<ReturnType<typeof loadWcCalibrationConfig>>;
 }): PredictionResult {
   const { pred, homeName, awayName } = input;
   const lineupSource = input.lineupSource ?? "model_xi";
@@ -88,7 +99,8 @@ export function grahamHubRowToPredictionResult(input: {
     pred,
     homeName,
     awayName,
-    input.analyticsContext
+    input.analyticsContext,
+    input.calibration
   );
 
   return {

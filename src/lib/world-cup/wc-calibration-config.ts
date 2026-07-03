@@ -1,4 +1,14 @@
 import {
+  DEFAULT_PLAYER_PROP_ML_COEFFS,
+  mergePlayerPropMlCoeffs,
+  type PlayerPropMlCoeffs,
+} from "@/lib/prediction/player-props-ml";
+import {
+  getDefaultMarketModelsConfig,
+  mergeMarketModelsConfig,
+} from "@/lib/world-cup/market-models/defaults";
+import type { MarketModelsConfig } from "@/lib/world-cup/market-models/types";
+import {
   GRAHAM_DELTA_WEIGHTS,
   GRAHAM_MODEL_VERSION,
   GRAHAM_MOMENTUM_CLAMP,
@@ -70,6 +80,10 @@ export interface WcCalibrationConstants {
     corners: MlEventModelCoeffs;
     red?: MlEventModelCoeffs;
   };
+  /** Logistic calibration for anytime goalscorer player props. */
+  playerPropModelCoeffs: PlayerPropMlCoeffs;
+  /** Per-market ML calibration heads (BTTS, O/U, xG, events, player props, etc.). */
+  marketModels: MarketModelsConfig;
 }
 
 export type MlEventModelKind = "yellow" | "fouls" | "corners" | "red";
@@ -164,6 +178,8 @@ const DEFAULTS: WcCalibrationConstants = {
       refereeStrictnessSlope: 0.1,
     },
   },
+  playerPropModelCoeffs: { ...DEFAULT_PLAYER_PROP_ML_COEFFS },
+  marketModels: getDefaultMarketModelsConfig(),
 };
 
 const DEFAULT_EVENT_COEFFS = DEFAULTS.eventModelCoeffs;
@@ -267,6 +283,21 @@ function mergeConstants(raw: Record<string, unknown> | null): WcCalibrationConst
     eventModelCoeffs: mergeEventModelCoeffs(
       raw.eventModelCoeffs as Record<string, Partial<MlEventModelCoeffs>> | undefined
     ),
+    playerPropModelCoeffs: mergePlayerPropMlCoeffs(
+      raw.playerPropModelCoeffs as Partial<PlayerPropMlCoeffs> | undefined
+    ),
+    marketModels: mergeMarketModelsConfig({
+      ...(raw.marketModels as Partial<MarketModelsConfig> | undefined),
+      playerProps: {
+        ...getDefaultMarketModelsConfig().playerProps,
+        ...((raw.marketModels as Partial<MarketModelsConfig> | undefined)?.playerProps),
+        anytime: mergePlayerPropMlCoeffs(
+          ((raw.marketModels as Partial<MarketModelsConfig> | undefined)?.playerProps
+            ?.anytime ??
+            raw.playerPropModelCoeffs) as Partial<PlayerPropMlCoeffs> | undefined
+        ),
+      },
+    }),
   };
 }
 
@@ -277,6 +308,8 @@ export function getDefaultWcCalibrationConstants(): WcCalibrationConstants {
     optaFeatureWeights: { ...DEFAULTS.optaFeatureWeights },
     processFeatureWeights: { ...DEFAULTS.processFeatureWeights },
     eventModelCoeffs: mergeEventModelCoeffs(undefined),
+    playerPropModelCoeffs: mergePlayerPropMlCoeffs(undefined),
+    marketModels: getDefaultMarketModelsConfig(),
     teamSetPieceRates: { ...DEFAULTS.teamSetPieceRates },
   };
 }

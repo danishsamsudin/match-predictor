@@ -41,6 +41,10 @@ export interface OverUnderLine {
   line: number;
   overPct: number;
   underPct: number;
+  /** Fair European (decimal) odds for the over side. */
+  overOdds?: number;
+  /** Fair European (decimal) odds for the under side. */
+  underOdds?: number;
 }
 
 export interface WinningMarginLine {
@@ -65,7 +69,12 @@ export interface PredictionAnalytics {
   topScores: ScoreCell[];
   scoreHeatmap: ScoreCell[];
   overUnder: OverUnderLine[];
-  btts: { yesPct: number; noPct: number };
+  btts: {
+    yesPct: number;
+    noPct: number;
+    yesOdds?: number;
+    noOdds?: number;
+  };
   totalGoalsDistribution: { goals: number; probability: number }[];
   h2h: { homeWinPct: number; drawPct: number; awayWinPct: number };
   formScores: { homePct: number; awayPct: number };

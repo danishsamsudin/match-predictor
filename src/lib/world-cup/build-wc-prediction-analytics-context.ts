@@ -1,8 +1,9 @@
 import type { TeamStatAverages } from "@/lib/types/prediction";
-import type { TeamComparisonSnapshot, TeamFormMatch } from "@/lib/types/team-comparison";
+import type { TeamComparisonSnapshot, TeamFormMatch, SquadPlayer } from "@/lib/types/team-comparison";
 import { buildNationalTeamStatAverages } from "@/lib/data/national-team-stats";
 import { getCanonicalTeamHomeVenue } from "@/lib/data/team-home-venues";
 import { loadPreferredFormationForTeam } from "@/lib/data/team-formations";
+import { resolveWcModelStartingXi } from "@/lib/world-cup/resolve-wc-model-starting-xi";
 import {
   computeInternationalRatesFromMatches,
   INTERNATIONAL_BASE_GOALS,
@@ -144,6 +145,46 @@ async function buildWcComparisonSide(input: {
     ? await loadPreferredFormationForTeam(input.supabase, input.teamApiId, input.teamName)
     : null;
 
+  let squad: TeamComparisonSnapshot["home"]["squad"] = { ...EMPTY_SQUAD };
+  let players: TeamComparisonSnapshot["home"]["players"] = [];
+
+  if (input.supabase) {
+    const modelXi = await resolveWcModelStartingXi({
+      supabase: input.supabase,
+      teamApiId: input.teamApiId,
+      teamName: input.teamName,
+    });
+    if (modelXi.playerNames.length) {
+      players = modelXi.playerNames.map((name, idx) => ({
+        name,
+        position: modelXi.playerDetails[idx]?.squadRole ?? null,
+        goals: null,
+        appearances: null,
+        rating: null,
+      }));
+      const starters: SquadPlayer[] = players.slice(0, 11).map((p, idx) => ({
+        sofascorePlayerId: idx,
+        scoutlystPlayerKey: null,
+        name: p.name,
+        position: p.position ?? "MID",
+        fieldPosition: modelXi.playerDetails[idx]?.squadRole ?? p.position,
+        performanceScore: null,
+        startSharePct: 100,
+        detailStats: [],
+        age: null,
+      }));
+      squad = {
+        starters,
+        substitutes: [],
+        hasLineupData: true,
+        hasScoutlystData: false,
+        squadSource: "lineups",
+        preferredFormation: preferredFormation,
+        snapshotDate: new Date().toISOString().slice(0, 10),
+      };
+    }
+  }
+
   return {
     teamId: input.teamApiId,
     teamName: input.teamName,
@@ -154,11 +195,11 @@ async function buildWcComparisonSide(input: {
       input.formScore,
       recentForm,
       venue,
-      preferredFormation
+      squad.preferredFormation ?? preferredFormation
     ),
     recentForm,
-    players: [],
-    squad: { ...EMPTY_SQUAD },
+    players,
+    squad,
     insights: null,
   };
 }

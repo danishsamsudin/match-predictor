@@ -1,6 +1,7 @@
 /** Poisson-based score grid and common betting market probabilities. */
 
 import { computeHandicapMarkets } from "@/lib/prediction/handicap-probabilities";
+import { probabilityToEuropeanOdds } from "@/lib/world-cup/market-models/odds";
 import { resolveInternationalScoreCorrelation } from "@/lib/world-cup/international-strength";
 import { attenuateRhoForExpectedGoalGap } from "@/lib/world-cup/score-grid";
 import type { FirstTeamToScorePct } from "@/lib/types/prediction";
@@ -238,6 +239,8 @@ export function computeMarketAnalytics(
       line,
       overPct: roundPct(over * 100),
       underPct: roundPct((1 - over) * 100),
+      overOdds: probabilityToEuropeanOdds(over),
+      underOdds: probabilityToEuropeanOdds(1 - over),
     };
   });
 
@@ -264,6 +267,8 @@ export function computeMarketAnalytics(
     btts: {
       yesPct: roundPct(bttsYes * 100),
       noPct: roundPct(bttsNo * 100),
+      yesOdds: probabilityToEuropeanOdds(bttsYes),
+      noOdds: probabilityToEuropeanOdds(bttsNo),
     },
     totalGoalsDistribution,
     h2h: {

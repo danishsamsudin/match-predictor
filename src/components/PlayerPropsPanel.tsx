@@ -7,11 +7,174 @@ import type {
   PlayerPropLine,
   PlayerPropMarket,
   PlayerPropsPayload,
+  SotPropLine,
   TeamPlayerPropsSide,
 } from "@/lib/prediction/player-props";
 
 const EDGE_HIGHLIGHT = 3;
 const STORAGE_PREFIX = "player-props-odds:";
+const SOT_MARKET_KEY = "sot_0.5" as const;
+
+function sotOddsStorageKey(matchKey: string, playerName: string): string {
+  return `${STORAGE_PREFIX}${matchKey}:${playerName}:${SOT_MARKET_KEY}`;
+}
+
+function TeamSotTable({
+  side,
+  teamLabel,
+  matchKey,
+  bookOdds,
+  onBookOddsChange,
+}: {
+  side: TeamPlayerPropsSide;
+  teamLabel: string;
+  matchKey: string;
+  bookOdds: Record<string, string>;
+  onBookOddsChange: (key: string, value: string) => void;
+}) {
+  const lines: SotPropLine[] = side.shotsOnTarget.filter((l) => l.line === 0.5);
+
+  if (!lines.length) {
+    return (
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        No {teamLabel} players with enough SoT data for this market.
+      </p>
+    );
+  }
+
+  return (
+    <div className="liquid-glass-pill overflow-x-auto rounded-2xl">
+      <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        {teamLabel}
+      </p>
+      <table className="mt-1 w-full min-w-[520px] text-sm">
+        <thead>
+          <tr className="text-left text-xs text-slate-500">
+            <th className="px-4 py-2">#</th>
+            <th className="py-2">Player</th>
+            <th className="py-2">Pos</th>
+            <th className="py-2">λ SoT</th>
+            <th className="py-2">Model %</th>
+            <th className="py-2">Fair</th>
+            <th className="py-2">Book</th>
+            <th className="py-2 pr-4">Edge</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((row) => {
+            const key = sotOddsStorageKey(matchKey, row.playerName);
+            const bookValue = bookOdds[key] ?? "";
+            const bookParsed = parseOddsInput(bookValue);
+            const edge = computeEdgePct(row.probabilityPct, bookParsed);
+
+            return (
+              <tr
+                key={`${side.teamId}-${row.playerName}-sot`}
+                className={rankRowClass(row.rank)}
+              >
+                <td className="px-4 py-2 font-semibold text-slate-700 dark:text-slate-200">
+                  {row.rank}
+                </td>
+                <td className="py-2 font-medium text-slate-900 dark:text-white">
+                  {row.playerName}
+                </td>
+                <td className="py-2 text-slate-600 dark:text-slate-300">{row.position}</td>
+                <td className="py-2 tabular-nums">{row.expectedSot.toFixed(2)}</td>
+                <td className="py-2 tabular-nums">{row.probabilityPct.toFixed(1)}%</td>
+                <td className="py-2 tabular-nums">{row.fairDecimalOdds.toFixed(2)}</td>
+                <td className="py-2">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={bookValue}
+                    onChange={(e) => onBookOddsChange(key, e.target.value)}
+                    placeholder="—"
+                    aria-label={`Book odds for ${row.playerName} SoT`}
+                    className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-800"
+                  />
+                </td>
+                <td
+                  className={`py-2 pr-4 tabular-nums font-semibold ${
+                    edge != null && Math.abs(edge) >= EDGE_HIGHLIGHT
+                      ? edge > 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                      : "text-slate-600 dark:text-slate-300"
+                  }`}
+                >
+                  {edge != null ? `${edge > 0 ? "+" : ""}${edge.toFixed(1)}%` : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SotMarketSection({
+  title,
+  description,
+  payload,
+  homeLabel,
+  awayLabel,
+  matchKey,
+}: {
+  title: string;
+  description: string;
+  payload: PlayerPropsPayload;
+  homeLabel: string;
+  awayLabel: string;
+  matchKey: string;
+}) {
+  const [bookOdds, setBookOdds] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const prefix = `${STORAGE_PREFIX}${matchKey}:`;
+    const loaded: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageKey = localStorage.key(i);
+      if (!storageKey?.startsWith(prefix) || !storageKey.endsWith(`:${SOT_MARKET_KEY}`)) continue;
+      const value = localStorage.getItem(storageKey);
+      if (value) loaded[storageKey] = value;
+    }
+    setBookOdds(loaded);
+  }, [matchKey]);
+
+  const handleBookOddsChange = useCallback((key: string, value: string) => {
+    setBookOdds((prev) => ({ ...prev, [key]: value }));
+    if (typeof window === "undefined") return;
+    if (value.trim()) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h4>
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TeamSotTable
+          side={payload.home}
+          teamLabel={homeLabel}
+          matchKey={matchKey}
+          bookOdds={bookOdds}
+          onBookOddsChange={handleBookOddsChange}
+        />
+        <TeamSotTable
+          side={payload.away}
+          teamLabel={awayLabel}
+          matchKey={matchKey}
+          bookOdds={bookOdds}
+          onBookOddsChange={handleBookOddsChange}
+        />
+      </div>
+    </div>
+  );
+}
 
 function parseOddsInput(value: string): number | null {
   const trimmed = value.trim();
@@ -323,32 +486,14 @@ export function PlayerPropsPanel({
           matchKey={matchKey}
         />
         {(payload.home.shotsOnTarget.length > 0 || payload.away.shotsOnTarget.length > 0) && (
-          <div className="space-y-3">
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Shots on target
-              </h4>
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                Top attackers — P(over 0.5 / 1.5 / 2.5 SoT) from team predicted SoT budget.
-              </p>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              {[payload.home, payload.away].map((side, idx) => (
-                <div key={idx}>
-                  <p className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-300">
-                    {idx === 0 ? homeLabel : awayLabel}
-                  </p>
-                  <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
-                    {side.shotsOnTarget.filter((l) => l.line === 0.5).slice(0, 5).map((line) => (
-                      <li key={`${line.playerName}-${line.line}`}>
-                        {line.playerName}: λ {line.expectedSot} · P(1+ SoT) {line.probabilityPct}%
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
+          <SotMarketSection
+            title="Shots on target"
+            description="Top 5 players most likely to record at least one shot on target (P over 0.5 SoT)."
+            payload={payload}
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
+            matchKey={matchKey}
+          />
         )}
       </div>
     </div>

@@ -13,6 +13,7 @@ import {
   computeTeamProcessProfile,
 } from "@/lib/world-cup/graham-process-features";
 import { loadWcOptaEventCalibration } from "@/lib/world-cup/wc-opta-event-calibration";
+import { resolveRefereeStrictness } from "@/lib/world-cup/market-models/features";
 import { loadEnrichedFormForTeam } from "@/lib/world-cup/load-enriched-international-form";
 import { canonicalInternationalFormMatchKey } from "@/lib/world-cup/international-form-team-side";
 import {
@@ -130,6 +131,19 @@ export async function runGrahamWorldCupPredict(input: {
       isMatchday3Fixture(awayId, finishedMatches),
   });
 
+  let refereeStrictness = 1;
+  const { data: ingestRow } = await supabase
+    .from("world_cup_post_match_ingests")
+    .select("parsed")
+    .eq("match_id", match.id)
+    .order("ingested_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const parsedReferee = (ingestRow?.parsed as { referee?: string } | null)?.referee;
+  if (parsedReferee) {
+    refereeStrictness = resolveRefereeStrictness(parsedReferee);
+  }
+
   const baseline = resolveGrahamExpectedGoals({
     homeTeamId,
     awayTeamId,
@@ -151,7 +165,7 @@ export async function runGrahamWorldCupPredict(input: {
           (awayStyle?.physicalityIndex ?? awayProcessProfile.pressingIntensity)) /
         2,
       wide_play_index: (homeStyle?.widePlayIndex ?? 1) - (awayStyle?.widePlayIndex ?? 1),
-      referee_strictness: 0,
+      referee_strictness: refereeStrictness,
     },
     fifaAnchorPullScale,
   });
@@ -284,6 +298,7 @@ export async function runGrahamWorldCupPredict(input: {
       scenario: adjustedMotivation.scenario,
       motivation_features: motivationFeatures,
       expected_total_xg: homeXg + awayXg,
+      referee_strictness: refereeStrictness,
       grid_renormalized: grid.renormalized,
       top_scorelines: outcomes.topScorelines,
       home_form_match_count: homeForm.length,

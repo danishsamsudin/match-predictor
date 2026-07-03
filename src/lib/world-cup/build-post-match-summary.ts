@@ -17,6 +17,8 @@ import {
   type ParamChange,
 } from "@/lib/world-cup/post-match-param-explanations";
 import type { PostMatchRunManifest } from "@/lib/world-cup/post-match-run-manifest";
+import { MARKET_MODEL_LABELS } from "@/lib/world-cup/market-models/registry";
+import type { MarketModelId } from "@/lib/world-cup/market-models/types";
 import {
   loadWcCalibrationConfig,
   type WcCalibrationConstants,
@@ -764,6 +766,59 @@ async function sectionMonitoring(
   return lines;
 }
 
+async function sectionMarketModelPerformance(
+  supabase: SupabaseClient
+): Promise<string[]> {
+  const { data: rows } = await supabase
+    .from("ml_market_evaluations")
+    .select("market_id, loss_metric, loss_value")
+    .order("computed_at", { ascending: false })
+    .limit(500);
+
+  if (!rows?.length) {
+    return ["## Per-market model performance", "", "_No market evaluations yet — run wc:postmatch._", ""];
+  }
+
+  const byMarket = new Map<
+    MarketModelId,
+    { count: number; sum: number; hits: number; metric: string }
+  >();
+  for (const row of rows) {
+    const id = String(row.market_id) as MarketModelId;
+    const bucket = byMarket.get(id) ?? {
+      count: 0,
+      sum: 0,
+      hits: 0,
+      metric: String(row.loss_metric),
+    };
+    bucket.count += 1;
+    bucket.sum += Number(row.loss_value);
+    if (id === "correct_score" && Number(row.loss_value) === 0) bucket.hits += 1;
+    byMarket.set(id, bucket);
+  }
+
+  const lines: string[] = [
+    "## Per-market model performance",
+    "",
+    "_Each betting surface now has its own evaluation metric after every post-match run._",
+    "",
+  ];
+
+  for (const [marketId, stats] of byMarket) {
+    const label = MARKET_MODEL_LABELS[marketId] ?? marketId;
+    const avg = stats.sum / stats.count;
+    const extra =
+      marketId === "correct_score"
+        ? ` | top-2 hit ${stats.hits}/${stats.count} (${((stats.hits / stats.count) * 100).toFixed(0)}%)`
+        : "";
+    lines.push(
+      `- **${label}:** n=${stats.count}, avg ${stats.metric}=${avg.toFixed(4)}${extra}`
+    );
+  }
+  lines.push("");
+  return lines;
+}
+
 export async function buildPostMatchSummary(
   supabase: SupabaseClient,
   manifest: PostMatchRunManifest
@@ -800,6 +855,7 @@ export async function buildPostMatchSummary(
     ...sectionMeanings(paramChanges),
     ...sectionImplications(paramChanges),
     ...(await sectionModelPerformance(supabase, manifest, calibrationAfter)),
+    ...(await sectionMarketModelPerformance(supabase)),
     ...(await sectionMonitoring(supabase, manifest)),
     ...(await sectionTonightMatches(supabase, manifest)),
     "---",

@@ -83,6 +83,26 @@ async function main() {
   for (const m of liveRec) {
     console.log(" ", m.id, m.home_team_name, m.home_goals, m.away_goals);
   }
+
+  const stuck = live?.upcoming.filter(
+    (m) =>
+      /brazil|germany|netherlands|south africa/i.test(
+        `${m.home_team_name} ${m.away_team_name}`
+      )
+  );
+  console.log("\nLIVE upcoming stuck candidates:", stuck?.length ?? 0);
+  for (const m of stuck ?? []) {
+    console.log(
+      " ",
+      m.id,
+      m.home_team_name,
+      "vs",
+      m.away_team_name,
+      m.home_goals,
+      m.away_goals,
+      m.match_phase
+    );
+  }
 }
 
 main().catch((e) => {

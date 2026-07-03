@@ -224,6 +224,7 @@ export async function runWcGrahamPredictForRequest(input: {
     isKnockout: /round of|quarter-?final|semi-?final|third place|final\b|knockout/i.test(
       `${match.round ?? ""} ${match.competition ?? ""}`
     ),
+    refereeStrictness: Number(hubRow.snapshot.referee_strictness ?? 1),
   });
 
   const analyticsContext = await buildWcPredictionAnalyticsContext({
@@ -265,6 +266,7 @@ export async function runWcGrahamPredictForRequest(input: {
     lineupSource,
     lineupNotes,
     analyticsContext: displayAnalyticsContext,
+    calibration,
   });
 
   const playerProps = await computePlayerPropsForMatch({

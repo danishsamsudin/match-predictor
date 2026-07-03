@@ -543,6 +543,20 @@ export function PredictionCharts({
                 <p className="text-xs font-semibold text-foreground">Over {line.line} goals</p>
                 <HorizontalBar label="Over" value={line.overPct} maxValue={ouMax} accent="primary" />
                 <HorizontalBar label="Under" value={line.underPct} maxValue={ouMax} accent="accent" />
+                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span>
+                    Over fair:{" "}
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {line.overOdds?.toFixed(2) ?? "—"}
+                    </span>
+                  </span>
+                  <span>
+                    Under fair:{" "}
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {line.underOdds?.toFixed(2) ?? "—"}
+                    </span>
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -613,12 +627,22 @@ export function PredictionCharts({
               <p className="mt-1 text-3xl font-bold tabular-nums text-primary">
                 {analytics.btts.yesPct}%
               </p>
+              {analytics.btts.yesOdds != null ? (
+                <p className="mt-1 text-xs tabular-nums text-primary-emphasis/80">
+                  Fair {analytics.btts.yesOdds.toFixed(2)}
+                </p>
+              ) : null}
             </div>
             <div className="rounded-2xl border border-accent/20 bg-accent/5 p-4 text-center">
               <p className="text-xs font-medium text-accent-emphasis">No</p>
               <p className="mt-1 text-3xl font-bold tabular-nums text-accent">
                 {analytics.btts.noPct}%
               </p>
+              {analytics.btts.noOdds != null ? (
+                <p className="mt-1 text-xs tabular-nums text-accent-emphasis/80">
+                  Fair {analytics.btts.noOdds.toFixed(2)}
+                </p>
+              ) : null}
             </div>
           </div>
         </ChartCardWithTip>

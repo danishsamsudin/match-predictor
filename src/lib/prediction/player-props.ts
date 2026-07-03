@@ -8,6 +8,24 @@ import {
 } from "@/lib/data/normalize-player-position";
 import { playerNameLookupKeys } from "@/lib/data/resolve-squad-player-metrics";
 import { LAV_BASELINE_SCORE } from "@/lib/prediction/lineup-impact";
+import {
+  applyPlayerPropMlCalibration,
+  applyPlayerPropSotCalibration,
+  buildPlayerPropMlFeatures,
+  DEFAULT_PLAYER_PROP_ML_COEFFS,
+  mergePlayerPropMlCoeffs,
+  mergePlayerPropSotCoeffs,
+  scaledStructuralZero,
+  scaledStructuralZeroForRole,
+  type PlayerPropMlCoeffs,
+} from "@/lib/prediction/player-props-ml";
+import type { PlayerPropSotCoeffs } from "@/lib/world-cup/market-models/types";
+import { getDefaultMarketModelsConfig } from "@/lib/world-cup/market-models/defaults";
+import {
+  resolveWcOverlayForPlayer,
+  wcExpectedMinutes,
+  type WcPlayerPropOverlay,
+} from "@/lib/prediction/player-props-wc-opta";
 import { normalizeText } from "@/lib/soccerdata/normalize";
 import type { ShotProfile } from "@/lib/world-cup/graham-shot-profiles";
 import { setPieceXgAllocation } from "@/lib/world-cup/graham-set-piece-adjustment";
@@ -18,6 +36,24 @@ const TEAM_GOAL_SHARE = 0.85;
 const TEAM_ASSIST_BUDGET_RATIO = 0.55;
 const PENALTY_TAKER_GOAL_BUMP = 0.15;
 const MIN_SUM_BASE = 0.1;
+
+export type PlayerPropMarketCoeffs = {
+  anytime: PlayerPropMlCoeffs;
+  goalAssist: PlayerPropMlCoeffs;
+  sot: PlayerPropSotCoeffs;
+};
+
+function resolveMarketPropCoeffs(
+  mlCoeffs?: PlayerPropMlCoeffs,
+  marketCoeffs?: Partial<PlayerPropMarketCoeffs>
+): PlayerPropMarketCoeffs {
+  const defaults = getDefaultMarketModelsConfig().playerProps;
+  return {
+    anytime: mergePlayerPropMlCoeffs(marketCoeffs?.anytime ?? mlCoeffs ?? defaults.anytime),
+    goalAssist: mergePlayerPropMlCoeffs(marketCoeffs?.goalAssist ?? defaults.goalAssist),
+    sot: mergePlayerPropSotCoeffs(marketCoeffs?.sot ?? defaults.sot),
+  };
+}
 
 export type PlayerPropMarket = "anytime_scorer" | "goal_or_assist";
 
@@ -71,6 +107,9 @@ type PlayerPropCandidate = {
   isPenaltyTaker: boolean;
   anytimeProb: number;
   goalOrAssistProb: number;
+  wcOverlay: WcPlayerPropOverlay | null;
+  isStarter: boolean;
+  role: "G" | "D" | "M" | "F";
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -189,12 +228,19 @@ function structuralZeroForAssists(player: SquadPlayer): number {
   return 0.2;
 }
 
-function resolveExpectedMinutes(player: SquadPlayer): number {
-  if (player.startSharePct != null) {
+function resolveExpectedMinutes(
+  player: SquadPlayer,
+  wcOverlay: WcPlayerPropOverlay | null
+): number {
+  const wcMinutes = wcExpectedMinutes(wcOverlay);
+  if (wcMinutes != null) return wcMinutes;
+
+  if (player.startSharePct != null && player.startSharePct > 0) {
     return clamp(player.startSharePct / 100, 0.35, 1) * 90;
   }
+  if (wcOverlay?.wasLastStarter) return 85;
   if (player.performanceScore != null && player.performanceScore >= 70) return 72;
-  return 45;
+  return 58;
 }
 
 function isPoacherProfile(xgPerShot: number): boolean {
@@ -248,25 +294,48 @@ export function playerNamesMatch(
 
 function resolveGoalRate90(
   stats: Record<string, string | number | null>,
-  player: SquadPlayer
+  player: SquadPlayer,
+  wcOverlay: WcPlayerPropOverlay | null
 ): number {
-  return (
+  const clubRate =
     per90(stats, ["npxG", "npxg"]) ??
     per90(stats, ["xG", "Expected goals", "xG/90"]) ??
     per90(stats, ["Gls", "Goals", "goals"]) ??
-    performanceToNpxGProxy(player.performanceScore)
-  );
+    performanceToNpxGProxy(player.performanceScore);
+
+  if (!wcOverlay || wcOverlay.wcWeight <= 0) return clubRate;
+
+  const blended =
+    clubRate * (1 - wcOverlay.wcWeight) + wcOverlay.goalRate90 * wcOverlay.wcWeight;
+  return Math.max(blended, wcOverlay.goalRate90 * 0.85);
 }
 
 function resolveAssistRate90(
   stats: Record<string, string | number | null>,
-  player: SquadPlayer
+  player: SquadPlayer,
+  wcOverlay: WcPlayerPropOverlay | null
 ): number {
-  return (
+  const clubRate =
     per90(stats, ["xA", "xAG", "Expected assists", "xA/90"]) ??
     per90(stats, ["Ast", "Assists", "assists"]) ??
-    performanceToXAProxy(player.performanceScore)
+    performanceToXAProxy(player.performanceScore);
+
+  if (!wcOverlay || wcOverlay.wcWeight <= 0) return clubRate;
+
+  return (
+    clubRate * (1 - wcOverlay.wcWeight) + wcOverlay.assistRate90 * wcOverlay.wcWeight
   );
+}
+
+function allocationWeight(
+  baseGoalLambda: number,
+  tacticalMultiplier: number,
+  wcOverlay: WcPlayerPropOverlay | null
+): number {
+  const core = baseGoalLambda * tacticalMultiplier;
+  if (!wcOverlay) return core;
+  const chanceBoost = wcOverlay.chanceIndexPer90 * 0.14;
+  return core + chanceBoost;
 }
 
 function buildLikelyXi(squad: TeamSquadSnapshot): SquadPlayer[] {
@@ -305,22 +374,52 @@ function isSetPieceThreatProfile(player: SquadPlayer): boolean {
 function buildCandidatesForTeam(input: {
   squad: TeamSquadSnapshot;
   teamExpectedGoals: number;
+  teamApiId: number;
   opponentProfile: ShotProfile | null;
   leagueSsi: number;
   penaltyTakerName: string | null;
   setPieceGoalShare?: number;
   setPieceMult?: number;
   setPieceRateThreshold?: number;
+  wcOverlays?: Map<string, WcPlayerPropOverlay>;
+  mlCoeffs?: PlayerPropMlCoeffs;
+  marketPropCoeffs?: Partial<PlayerPropMarketCoeffs>;
 }): PlayerPropCandidate[] {
   const xi = buildLikelyXi(input.squad);
   if (!xi.length) return [];
 
+  const propCoeffs = resolveMarketPropCoeffs(input.mlCoeffs, input.marketPropCoeffs);
+  const mlCoeffs = propCoeffs.anytime;
+  const goalAssistCoeffs = propCoeffs.goalAssist;
+  const hasWcOverlay = Boolean(
+    input.wcOverlays?.size &&
+      xi.some((player) =>
+        resolveWcOverlayForPlayer(player.name, input.teamApiId, input.wcOverlays)
+      )
+  );
+  const teamGoalShare = hasWcOverlay ? mlCoeffs.wcGoalShare : TEAM_GOAL_SHARE;
+
   const rawEntries = xi.map((player) => {
+    const wcOverlay = resolveWcOverlayForPlayer(
+      player.name,
+      input.teamApiId,
+      input.wcOverlays
+    );
     const stats = detailStatsToRecord(player.detailStats);
-    const expectedMinutes = resolveExpectedMinutes(player);
+    const expectedMinutes = resolveExpectedMinutes(player, wcOverlay);
     const minutesFactor = expectedMinutes / 90;
-    const baseGoalLambda = resolveGoalRate90(stats, player) * minutesFactor;
-    const baseAssistLambda = resolveAssistRate90(stats, player) * minutesFactor;
+    const role = resolveSquadPlayerLineupRole({
+      fieldPosition: player.fieldPosition,
+      position: player.position,
+    });
+    const isStarter =
+      (player.startSharePct ?? 0) >= 50 ||
+      Boolean(wcOverlay?.wasLastStarter) ||
+      minutesFactor >= 0.75;
+    const baseGoalLambda =
+      resolveGoalRate90(stats, player, wcOverlay) * minutesFactor;
+    const baseAssistLambda =
+      resolveAssistRate90(stats, player, wcOverlay) * minutesFactor;
     const tacticalMultiplier = computeTacticalMultiplier(
       player,
       input.opponentProfile,
@@ -334,11 +433,14 @@ function buildCandidatesForTeam(input: {
       baseAssistLambda,
       tacticalMultiplier,
       isPenaltyTaker,
+      wcOverlay,
+      isStarter,
+      role,
     };
   });
 
   const sumBaseGoals = rawEntries.reduce(
-    (sum, e) => sum + e.baseGoalLambda * e.tacticalMultiplier,
+    (sum, e) => sum + allocationWeight(e.baseGoalLambda, e.tacticalMultiplier, e.wcOverlay),
     0
   );
   const sumBaseAssists = rawEntries.reduce(
@@ -346,7 +448,7 @@ function buildCandidatesForTeam(input: {
     0
   );
 
-  const teamGoalBudget = input.teamExpectedGoals * TEAM_GOAL_SHARE;
+  const teamGoalBudget = input.teamExpectedGoals * teamGoalShare;
   const teamAssistBudget = input.teamExpectedGoals * TEAM_ASSIST_BUDGET_RATIO;
   const setPiecePool = setPieceXgAllocation(
     input.teamExpectedGoals,
@@ -363,14 +465,20 @@ function buildCandidatesForTeam(input: {
   );
   const setPieceWeightSum = rawEntries.reduce((sum, e) => {
     if (!setPieceThreatIds.has(e.player.sofascorePlayerId)) return sum;
-    return sum + resolveExpectedMinutes(e.player) / 90;
+    return (
+      sum +
+      resolveExpectedMinutes(e.player, e.wcOverlay) / 90
+    );
   }, 0);
 
   return rawEntries.map((entry) => {
+    const allocBase = allocationWeight(
+      entry.baseGoalLambda,
+      entry.tacticalMultiplier,
+      entry.wcOverlay
+    );
     let normalizedGoalLambda =
-      entry.baseGoalLambda *
-      entry.tacticalMultiplier *
-      (openPlayBudget / Math.max(sumBaseGoals, MIN_SUM_BASE));
+      allocBase * (openPlayBudget / Math.max(sumBaseGoals, MIN_SUM_BASE));
     let normalizedAssistLambda =
       entry.baseAssistLambda *
       entry.tacticalMultiplier *
@@ -385,16 +493,51 @@ function buildCandidatesForTeam(input: {
       setPieceWeightSum > 0 &&
       setPieceThreatIds.has(entry.player.sofascorePlayerId)
     ) {
-      const minutesShare = resolveExpectedMinutes(entry.player) / 90 / setPieceWeightSum;
+      const minutesShare =
+        resolveExpectedMinutes(entry.player, entry.wcOverlay) /
+        90 /
+        setPieceWeightSum;
       normalizedGoalLambda += setPiecePool * minutesShare;
     }
 
-    const piGoal = structuralZeroForGoals(entry.player);
-    const piAssist = structuralZeroForAssists(entry.player);
-    const anytimeProb = zipProbAtLeastOne(normalizedGoalLambda, piGoal);
-    const goalOrAssistProb =
-      1 -
-      zipProbZero(normalizedGoalLambda, piGoal) * zipProbZero(normalizedAssistLambda, piAssist);
+    const piGoal = scaledStructuralZeroForRole(
+      structuralZeroForGoals(entry.player),
+      mlCoeffs,
+      entry.role
+    );
+    const piAssist = scaledStructuralZeroForRole(
+      structuralZeroForAssists(entry.player),
+      goalAssistCoeffs,
+      entry.role
+    );
+    const baseAnytimeProb = zipProbAtLeastOne(normalizedGoalLambda, piGoal);
+    const mlFeatures = buildPlayerPropMlFeatures({
+      normalizedGoalLambda,
+      wcOverlay: entry.wcOverlay,
+      isPenaltyTaker: entry.isPenaltyTaker,
+      isStarter: entry.isStarter,
+      role: entry.role,
+      teamExpectedGoals: input.teamExpectedGoals,
+    });
+    const anytimeProb = applyPlayerPropMlCalibration(
+      baseAnytimeProb,
+      mlFeatures,
+      mlCoeffs
+    );
+    const goalOrAssistBase =
+      1 - zipProbZero(normalizedGoalLambda, piGoal) * zipProbZero(normalizedAssistLambda, piAssist);
+    const goalOrAssistMlFeatures = buildPlayerPropMlFeatures({
+      normalizedGoalLambda: normalizedGoalLambda + normalizedAssistLambda * 0.45,
+      wcOverlay: entry.wcOverlay,
+      isPenaltyTaker: entry.isPenaltyTaker,
+      isStarter: entry.isStarter,
+      role: entry.role,
+      teamExpectedGoals: input.teamExpectedGoals,
+    });
+    const goalOrAssistProb = Math.max(
+      applyPlayerPropMlCalibration(goalOrAssistBase, goalOrAssistMlFeatures, goalAssistCoeffs),
+      anytimeProb
+    );
 
     return {
       ...entry,
@@ -449,14 +592,32 @@ const SOT_LINES: Array<0.5 | 1.5 | 2.5> = [0.5, 1.5, 2.5];
 function buildSotPropsForTeam(input: {
   squad: TeamSquadSnapshot;
   teamExpectedSot: number;
+  sotCoeffs?: PlayerPropSotCoeffs;
 }): SotPropLine[] {
+  const sotCoeffs = mergePlayerPropSotCoeffs(input.sotCoeffs);
   const players = [...input.squad.starters, ...input.squad.substitutes].slice(0, 18);
-  const raw: Array<{ player: SquadPlayer; lambda: number }> = [];
+  const raw: Array<{
+    player: SquadPlayer;
+    lambda: number;
+    sotRate: number;
+    isStarter: boolean;
+    roleForward: boolean;
+  }> = [];
 
   for (const player of players) {
     const stats = detailStatsToRecord(player.detailStats);
     const sotPer90 = per90Sot(stats) ?? performanceToNpxGProxy(player.performanceScore) * 2.2;
-    raw.push({ player, lambda: Math.max(0.05, sotPer90) });
+    const role = resolveSquadPlayerLineupRole({
+      fieldPosition: player.fieldPosition,
+      position: player.position,
+    });
+    raw.push({
+      player,
+      lambda: Math.max(0.05, sotPer90),
+      sotRate: sotPer90,
+      isStarter: (player.startSharePct ?? 0) >= 50,
+      roleForward: role === "F",
+    });
   }
 
   const sum = raw.reduce((s, r) => s + r.lambda, 0) || 1;
@@ -470,7 +631,18 @@ function buildSotPropsForTeam(input: {
 
   for (const [idx, entry] of ranked.entries()) {
     for (const line of SOT_LINES) {
-      const prob = sotProbOverLine(line, entry.lambda);
+      const baseProb = sotProbOverLine(line, entry.lambda);
+      const prob = applyPlayerPropSotCalibration(
+        baseProb,
+        {
+          logLambda: Math.log(Math.max(entry.lambda, 0.05)),
+          sotRatePer90: entry.sotRate,
+          isStarter: entry.isStarter,
+          roleForward: entry.roleForward,
+          teamExpectedSot: input.teamExpectedSot,
+        },
+        sotCoeffs
+      );
       lines.push({
         rank: idx + 1,
         playerName: entry.player.name,
@@ -498,16 +670,24 @@ export function computeTeamPlayerProps(input: {
   setPieceGoalShare?: number;
   setPieceMult?: number;
   setPieceRateThreshold?: number;
+  wcOverlays?: Map<string, WcPlayerPropOverlay>;
+  mlCoeffs?: PlayerPropMlCoeffs;
+  marketPropCoeffs?: Partial<PlayerPropMarketCoeffs>;
 }): TeamPlayerPropsSide {
+  const propCoeffs = resolveMarketPropCoeffs(input.mlCoeffs, input.marketPropCoeffs);
   const candidates = buildCandidatesForTeam({
     squad: input.squad,
     teamExpectedGoals: input.teamExpectedGoals,
+    teamApiId: input.teamId,
     opponentProfile: input.opponentProfile,
     leagueSsi: input.leagueSsi ?? 0.1,
     penaltyTakerName: input.penaltyTakerName ?? null,
     setPieceGoalShare: input.setPieceGoalShare,
     setPieceMult: input.setPieceMult,
     setPieceRateThreshold: input.setPieceRateThreshold,
+    wcOverlays: input.wcOverlays,
+    mlCoeffs: propCoeffs.anytime,
+    marketPropCoeffs: propCoeffs,
   });
 
   return {
@@ -519,6 +699,7 @@ export function computeTeamPlayerProps(input: {
     shotsOnTarget: buildSotPropsForTeam({
       squad: input.squad,
       teamExpectedSot: input.teamExpectedSot ?? input.teamExpectedGoals * 4.2,
+      sotCoeffs: propCoeffs.sot,
     }),
   };
 }
@@ -544,6 +725,9 @@ export function computePlayerPropsPayload(input: {
   homeSetPieceMult?: number;
   awaySetPieceMult?: number;
   setPieceRateThreshold?: number;
+  wcOverlays?: Map<string, WcPlayerPropOverlay>;
+  mlCoeffs?: PlayerPropMlCoeffs;
+  marketPropCoeffs?: Partial<PlayerPropMarketCoeffs>;
 }): PlayerPropsPayload {
   const warnings: string[] = [];
   const homeHasData =
@@ -560,6 +744,8 @@ export function computePlayerPropsPayload(input: {
       : 0.1;
   const awayLeagueSsi = homeLeagueSsi;
 
+  const propCoeffs = resolveMarketPropCoeffs(input.mlCoeffs, input.marketPropCoeffs);
+
   const home = computeTeamPlayerProps({
     teamName: input.homeTeamName,
     teamId: input.homeTeamId,
@@ -572,6 +758,9 @@ export function computePlayerPropsPayload(input: {
     setPieceGoalShare: input.homeSetPieceGoalShare,
     setPieceMult: input.homeSetPieceMult,
     setPieceRateThreshold: input.setPieceRateThreshold,
+    wcOverlays: input.wcOverlays,
+    mlCoeffs: propCoeffs.anytime,
+    marketPropCoeffs: propCoeffs,
   });
 
   const away = computeTeamPlayerProps({
@@ -586,6 +775,9 @@ export function computePlayerPropsPayload(input: {
     setPieceGoalShare: input.awaySetPieceGoalShare,
     setPieceMult: input.awaySetPieceMult,
     setPieceRateThreshold: input.setPieceRateThreshold,
+    wcOverlays: input.wcOverlays,
+    mlCoeffs: propCoeffs.anytime,
+    marketPropCoeffs: propCoeffs,
   });
 
   if (home.anytimeScorer.length === 0 && homeHasData) {
@@ -607,14 +799,18 @@ export function computePlayerPropsPayload(input: {
 export function sumNormalizedGoalLambdas(
   squad: TeamSquadSnapshot,
   teamExpectedGoals: number,
-  opponentProfile: ShotProfile | null = null
+  opponentProfile: ShotProfile | null = null,
+  teamApiId = 0
 ): number {
   const candidates = buildCandidatesForTeam({
     squad,
     teamExpectedGoals,
+    teamApiId,
     opponentProfile,
     leagueSsi: 0.1,
     penaltyTakerName: null,
   });
   return candidates.reduce((sum, c) => sum + c.normalizedGoalLambda, 0);
 }
+
+export { DEFAULT_PLAYER_PROP_ML_COEFFS, type PlayerPropMlCoeffs };
