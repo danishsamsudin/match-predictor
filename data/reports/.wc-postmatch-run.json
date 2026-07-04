@@ -1,9 +1,10 @@
 {
-  "startedAt": "2026-07-03T11:34:41.044Z",
+  "startedAt": "2026-07-03T21:40:40.988Z",
   "articleFiles": [
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Algeria 3-3 Austria Stats_ Kalajdzic's Last-Gasp Equaliser Sees Both Sides Reach Last 32 _ Opta Analyst.html",
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Argentina 2-0 Austria Stats_ Lionel Messi Breaks World Cup Goal Record With Match-Winning Brace _ Opta Analyst.html",
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Argentina 3-0 Algeria Stats_ Messi Creates World Cup History with Sensational Hat-Trick _ Opta Analyst.html",
+    "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Australia 1-1 Egypt Stats (2-4 pens)_ Pharaohs Head Through to World Cup Last 16 After Close Game in Dallas _ Opta Analyst.html",
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Australia 2-0 Türkiye Stats_ Socceroos Organised in Defence, Clinical in Attack to Earn Three Points _ Opta Analyst.html",
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Austria 3-1 Jordan Stats_ World Cup Debutants Fall Short as Austria Get First World Cup Win Since 1990 _ Opta Analyst.html",
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Belgium 0-0 Iran Stats_ Ten-Man Red Devils Frustrated in Second Successive World Cup Draw _ Opta Analyst.html",
@@ -87,9 +88,9 @@
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/USA 2-0 Bosnia-Herzegovina Stats_ Tillman Free-Kick Seals Last-16 Spot After Balogun Red Card _ Opta Analyst.html",
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Uzbekistan 1-3 Colombia Stats_ Díaz Stars on Winning World Cup Return _ Opta Analyst.html"
   ],
-  "playerStatsFixtureCount": 84,
+  "playerStatsFixtureCount": 85,
   "calibrationBefore": {
-    "version": "wc-ml-v1000-md1000-20260702122009-props-125-props-135",
+    "version": "wc-market-v765-1783078900798",
     "constants": {
       "muXg": 1.300325777874857,
       "strengthExponent": 0.002723175,
@@ -117,7 +118,7 @@
         "fifa": 0.13478675070663987,
         "momentum": 0.05000499117588326
       },
-      "modelVersion": "wc-ml-v1000-md1000-20260702122009-props-125-props-135",
+      "modelVersion": "wc-market-v765-1783078900798",
       "teamSetPieceRates": {
         "4714": 0.5
       },
@@ -165,22 +166,22 @@
         }
       },
       "playerPropModelCoeffs": {
-        "intercept": -1.0354018743149145,
-        "logLambdaSlope": 1.0318555273832388,
+        "intercept": -0.9218233063894707,
+        "logLambdaSlope": 0.649294638079406,
         "chanceIndexSlope": 0.48268045225484335,
         "penaltyTakerSlope": 0.24,
         "starterSlope": 0.19459812568508553,
         "roleForwardSlope": 0.16,
-        "roleMidSlope": 0.0745981256850855,
-        "teamXgSlope": 0.0753073992091281,
+        "roleMidSlope": 0.07459812568508549,
+        "teamXgSlope": 0.21728060911593258,
         "mlBlend": 0.48,
         "structuralZeroScale": 0.62,
         "wcGoalShare": 0.92
       },
       "marketModels": {
         "btts": {
-          "intercept": 0,
-          "priorWeight": 0.72,
+          "intercept": -0.0031307294117647205,
+          "priorWeight": 0.7214791999058823,
           "totalXgSlope": 0.28,
           "homeAttackSlope": 0.22,
           "awayAttackSlope": 0.22,
@@ -189,7 +190,7 @@
           "lowBlockSlope": -0.12,
           "rhoSlope": 0.08,
           "knockoutSlope": -0.05,
-          "mlBlend": 0.45
+          "mlBlend": 0.45117402352941177
         },
         "overUnder": {
           "0.5": {
@@ -232,8 +233,8 @@
             "mlBlend": 0.45
           },
           "3.5": {
-            "intercept": 0,
-            "priorWeight": 0.72,
+            "intercept": -0.009430023529411774,
+            "priorWeight": 0.721398183317647,
             "totalXgSlope": 0.27,
             "homeAttackSlope": 0.22,
             "awayAttackSlope": 0.22,
@@ -242,11 +243,11 @@
             "lowBlockSlope": -0.12,
             "rhoSlope": 0.08,
             "knockoutSlope": -0.05,
-            "mlBlend": 0.45
+            "mlBlend": 0.45353625882352944
           }
         },
         "xgHome": {
-          "mlBlend": 0.22,
+          "mlBlend": 0.22240000000000001,
           "intercept": 0,
           "grahamPriorWeight": 0.78,
           "chanceIndexSlope": 0.12,
@@ -255,7 +256,7 @@
           "lineupImpactSlope": 0.1
         },
         "xgAway": {
-          "mlBlend": 0.22,
+          "mlBlend": 0.22240000000000001,
           "intercept": 0,
           "grahamPriorWeight": 0.78,
           "chanceIndexSlope": 0.12,
@@ -278,9 +279,9 @@
           "mlBlend": 0.35
         },
         "correctScore": {
-          "rhoAdjust": 0,
+          "rhoAdjust": -0.0006,
           "overdispersionKAdjust": 0,
-          "top2RerankWeight": 0.15
+          "top2RerankWeight": 0.1512
         },
         "winningMargin": {
           "intercept": 0,
@@ -537,14 +538,14 @@
         },
         "playerProps": {
           "anytime": {
-            "intercept": -1.0354018743149145,
-            "logLambdaSlope": 1.0318555273832388,
+            "intercept": -0.9218233063894707,
+            "logLambdaSlope": 0.649294638079406,
             "chanceIndexSlope": 0.48268045225484335,
             "penaltyTakerSlope": 0.24,
             "starterSlope": 0.19459812568508553,
             "roleForwardSlope": 0.16,
-            "roleMidSlope": 0.0745981256850855,
-            "teamXgSlope": 0.0753073992091281,
+            "roleMidSlope": 0.07459812568508549,
+            "teamXgSlope": 0.21728060911593258,
             "mlBlend": 0.48,
             "structuralZeroScale": 0.62,
             "wcGoalShare": 0.92

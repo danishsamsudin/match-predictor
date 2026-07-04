@@ -29,6 +29,7 @@ import {
   isKnockoutSlotPlaceholder,
   isR32HubMatchId,
 } from "@/lib/world-cup/r32-hub-fixtures";
+import { buildR16HubMatchRows } from "@/lib/world-cup/r16-hub-fixtures";
 import { filterWorldCup2026GroupStageMatches } from "@/lib/world-cup/tournament-fixtures";
 import { buildCompletePredictionsMap } from "@/lib/world-cup/run-tournament-forecast";
 import { runDeterministicTournamentForecast } from "@/lib/world-cup/tournament-simulation";
@@ -557,7 +558,7 @@ function filterDisplayUpcoming(
   return upcoming.filter(isDisplayableUpcomingMatch);
 }
 
-function enrichR32UpcomingRows(
+function enrichKnockoutUpcomingRows(
   teamNames: Map<string, string>,
   predByMatch: Map<string, Record<string, unknown>>,
   existingUpcoming: WorldCupHubPayload["upcoming"],
@@ -565,8 +566,8 @@ function enrichR32UpcomingRows(
   live: { liveById: Map<string, LiveMatchPatch>; liveRows: LiveWcMatchRow[] }
 ): WorldCupHubPayload["upcoming"] {
   const recentById = new Map(recent.map((m) => [m.id, m]));
-  const withoutSyntheticR32 = existingUpcoming.filter((m) => !isR32HubMatchId(m.id));
-  const r32Rows = buildR32HubMatchRows(teamNames)
+  const withoutSyntheticKnockout = existingUpcoming.filter((m) => !isR32HubMatchId(m.id));
+  const knockoutRows = [...buildR32HubMatchRows(teamNames), ...buildR16HubMatchRows(teamNames)]
     .filter((m) => !recentById.has(m.id))
     .map((m) =>
       patchHubMatchFromLive(
@@ -576,7 +577,7 @@ function enrichR32UpcomingRows(
       )
     );
 
-  const enriched = r32Rows.map((m) => {
+  const enriched = knockoutRows.map((m) => {
     const homeFifa = isKnockoutSlotPlaceholder(m.home_team_name)
       ? null
       : getLatestFifaRankingForTeam(m.home_team_name ?? "");
@@ -614,10 +615,10 @@ function enrichR32UpcomingRows(
     });
   });
 
-  return [...withoutSyntheticR32, ...enriched].sort(compareByKickoffAsc);
+  return [...withoutSyntheticKnockout, ...enriched].sort(compareByKickoffAsc);
 }
 
-function mergeR32IntoHubPayload(
+function mergeKnockoutIntoHubPayload(
   payload: WorldCupHubPayload,
   predByMatch: Map<string, Record<string, unknown>>,
   live: { liveById: Map<string, LiveMatchPatch>; liveRows: LiveWcMatchRow[] }
@@ -635,7 +636,7 @@ function mergeR32IntoHubPayload(
 
   return {
     ...payload,
-    upcoming: enrichR32UpcomingRows(
+    upcoming: enrichKnockoutUpcomingRows(
       teamNames,
       predByMatch,
       payload.upcoming,
@@ -645,7 +646,7 @@ function mergeR32IntoHubPayload(
   };
 }
 
-async function fetchR32PredictionsByMatch(): Promise<Map<string, Record<string, unknown>>> {
+async function fetchKnockoutPredictionsByMatch(): Promise<Map<string, Record<string, unknown>>> {
   const supabase = tryCreateServiceClient();
   if (!supabase) return new Map();
 
@@ -866,9 +867,9 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   const withLiveScores = await mergeLiveMatchScoresIntoPayload(snapshot, live);
   const withStandings = await refreshHubStandingsFromDb(withLiveScores);
   const repartitioned = repartitionRecentAndUpcoming(withStandings);
-  const r32PredByMatch = await fetchR32PredictionsByMatch();
-  const withR32 = mergeR32IntoHubPayload(repartitioned, r32PredByMatch, live);
-  const withKnockoutPartition = repartitionRecentAndUpcoming(withR32);
+  const r32PredByMatch = await fetchKnockoutPredictionsByMatch();
+  const withKnockout = mergeKnockoutIntoHubPayload(repartitioned, r32PredByMatch, live);
+  const withKnockoutPartition = repartitionRecentAndUpcoming(withKnockout);
   const realigned = await realignRecentResultsFromIngests(withKnockoutPartition);
   return {
     ...realigned,
@@ -1062,7 +1063,7 @@ export async function buildWorldCupHubPayload(
   const liveWithIngest = mergeLiveWithIngestPatches(live, ingestById);
 
   const built = repartitionRecentAndUpcoming(
-    mergeR32IntoHubPayload(
+    mergeKnockoutIntoHubPayload(
       {
         updatedAt,
         groupMatrix,

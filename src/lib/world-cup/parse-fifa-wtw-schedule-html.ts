@@ -18,6 +18,17 @@ export type FifaWtwParsedMatch = {
   venue_raw: string;
   home_team: string;
   away_team: string;
+  home_goals?: number | null;
+  away_goals?: number | null;
+  status?: string | null;
+};
+
+export type FifaKnockoutScheduleFallback = {
+  match_number: number;
+  date: string;
+  kickoff_time: string;
+  stadium: string;
+  city: string;
 };
 
 /** FIFA match-centre ids → official World Cup match numbers (73–88). */
@@ -38,6 +49,18 @@ const FIFA_R32_MATCH_NUMBERS: Record<string, number> = {
   "400021515": 88,
   "400021521": 86,
   "400021517": 87,
+};
+
+/** FIFA match-centre ids → official World Cup match numbers (89–96). */
+const FIFA_R16_MATCH_NUMBERS: Record<string, number> = {
+  "400021533": 89,
+  "400021530": 90,
+  "400021532": 91,
+  "400021531": 92,
+  "400021529": 93,
+  "400021534": 94,
+  "400021528": 95,
+  "400021535": 96,
 };
 
 const FIFA_GENERIC_STADIUM_TO_CANONICAL: Record<string, { stadium: string; city: string }> =
@@ -62,6 +85,7 @@ const FIFA_GENERIC_STADIUM_TO_CANONICAL: Record<string, { stadium: string; city:
       if (city === "Vancouver") entries.push(["bc place vancouver", { stadium, city }]);
       if (city === "Miami") entries.push(["miami stadium", { stadium, city }]);
       if (city === "Kansas City") entries.push(["kansas city stadium", { stadium, city }]);
+      if (city === "Philadelphia") entries.push(["philadelphia stadium", { stadium, city }]);
       return entries;
     })
   );
@@ -137,14 +161,36 @@ export function resolveFifaGenericStadium(
 type RawFifaRow = {
   fifa_match_id: string;
   cest_date: string | null;
-  cest_time: string;
+  cest_time: string | null;
   home_team: string;
   away_team: string;
   stadium: string;
   city: string;
+  home_goals: number | null;
+  away_goals: number | null;
+  status: string | null;
 };
 
-function extractRawFifaR32Rows(html: string): RawFifaRow[] {
+function parseScoreBlock(block: string): {
+  home_goals: number | null;
+  away_goals: number | null;
+  status: string | null;
+} {
+  const scores = [...block.matchAll(/match-row_score__wfcQP[^"]*">(\d+)/g)].map((m) =>
+    Number(m[1])
+  );
+  const statusRaw = block
+    .match(/match-row_status__kFtCL[^>]*>([\s\S]*?)<\/div>/)?.[1]
+    ?.replace(/<[^>]+>/g, "")
+    .trim();
+  const status = statusRaw?.toUpperCase() === "FT" ? "finished" : statusRaw ? "live" : null;
+  if (scores.length < 2) {
+    return { home_goals: null, away_goals: null, status };
+  }
+  return { home_goals: scores[0]!, away_goals: scores[1]!, status };
+}
+
+function extractRawFifaKnockoutRows(html: string, roundLabel: string): RawFifaRow[] {
   const rowRe =
     /<a href="(https:\/\/www\.fifa\.com\/en\/match-centre\/match\/[^"]+)">([\s\S]*?)<\/a>/g;
   const rows: RawFifaRow[] = [];
@@ -152,19 +198,20 @@ function extractRawFifaR32Rows(html: string): RawFifaRow[] {
   let match: RegExpExecArray | null;
   while ((match = rowRe.exec(html)) !== null) {
     const block = match[2];
-    if (!block.includes("Round of 32")) continue;
+    if (!block.includes(roundLabel)) continue;
 
     const fifaMatchId = match[1].split("/").pop() ?? "";
-    const cestTime = block.match(/match-row_matchTime__9QJXJ">([^<]+)</)?.[1]?.trim();
+    const cestTime = block.match(/match-row_matchTime__9QJXJ">([^<]+)</)?.[1]?.trim() ?? null;
     const teams = [...block.matchAll(/d-none d-md-block">([^<]+)</g)].map((m) => m[1].trim());
     const stadiumMatch = block.match(
       /match-row_stadiumCityLabels__zjXUq"><span>([^<]+)<\/span><span>\(([^)]+)\)<\/span>/
     );
-    if (!cestTime || teams.length < 2 || !stadiumMatch) continue;
+    if (teams.length < 2 || !stadiumMatch) continue;
 
     const before = html.slice(Math.max(0, match.index - 12000), match.index);
     const dateLabels = [...before.matchAll(/matches-container_title__ATLsl">([^<]+)</g)];
     const cestDate = parseDateLabel(dateLabels.at(-1)?.[1] ?? null);
+    const { home_goals, away_goals, status } = parseScoreBlock(block);
 
     rows.push({
       fifa_match_id: fifaMatchId,
@@ -174,51 +221,104 @@ function extractRawFifaR32Rows(html: string): RawFifaRow[] {
       away_team: teams[1]!,
       stadium: stadiumMatch[1]!.trim(),
       city: stadiumMatch[2]!.trim(),
+      home_goals,
+      away_goals,
+      status,
     });
   }
 
   return rows;
 }
 
-/** Parse FIFA “Game Schedule & Where to Watch” saved HTML for Round of 32 fixtures. */
-export function parseFifaWtwR32ScheduleHtml(html: string): FifaWtwParsedMatch[] {
+function parseKnockoutScheduleHtml(
+  html: string,
+  roundLabel: string,
+  idToMatchNumber: Record<string, number>,
+  options?: {
+    fallbackDateLabel?: string;
+    fallbacks?: FifaKnockoutScheduleFallback[];
+  }
+): FifaWtwParsedMatch[] {
+  const fallbackByNumber = new Map(
+    (options?.fallbacks ?? []).map((row) => [row.match_number, row])
+  );
   const parsed: FifaWtwParsedMatch[] = [];
 
-  for (const row of extractRawFifaR32Rows(html)) {
-    const matchNumber = FIFA_R32_MATCH_NUMBERS[row.fifa_match_id];
+  for (const row of extractRawFifaKnockoutRows(html, roundLabel)) {
+    const matchNumber = idToMatchNumber[row.fifa_match_id];
     if (!matchNumber) continue;
 
+    const fallback = fallbackByNumber.get(matchNumber);
     const venue = resolveFifaGenericStadium(row.stadium, row.city);
     const cestDate =
       row.cest_date ??
+      fallback?.date ??
       parseDateLabel(
         [...html.matchAll(/matches-container_title__ATLsl">([^<]+)</g)]
           .map((m) => m[1])
-          .find((label) => label.includes("28 June 2026")) ?? null
+          .find((label) =>
+            options?.fallbackDateLabel ? label.includes(options.fallbackDateLabel) : false
+          ) ?? null
       );
     if (!cestDate) continue;
 
-    const local = cestWallClockToVenueLocal({
-      cestDate,
-      cestTime: row.cest_time,
-      venueCity: venue.city,
-    });
-    if (!local) continue;
+    let date = fallback?.date ?? cestDate;
+    let kickoff_time = fallback?.kickoff_time ?? "";
+    let cest_time = row.cest_time ?? "";
+
+    if (row.cest_time) {
+      const local = cestWallClockToVenueLocal({
+        cestDate,
+        cestTime: row.cest_time,
+        venueCity: venue.city,
+      });
+      if (!local) continue;
+      date = local.date;
+      kickoff_time = local.time;
+      cest_time = row.cest_time;
+    } else if (!fallback?.kickoff_time) {
+      continue;
+    }
 
     parsed.push({
       fifa_match_id: row.fifa_match_id,
       match_number: matchNumber,
       cest_date: cestDate,
-      cest_time: row.cest_time,
-      date: local.date,
-      kickoff_time: local.time,
-      stadium: venue.stadium,
-      city: venue.city,
-      venue_raw: venue.venue_raw,
+      cest_time,
+      date,
+      kickoff_time,
+      stadium: fallback?.stadium ?? venue.stadium,
+      city: fallback?.city ?? venue.city,
+      venue_raw: `${fallback?.stadium ?? venue.stadium} (Neutral Site)`,
       home_team: canonicalWorldCupTeamName(row.home_team),
       away_team: canonicalWorldCupTeamName(row.away_team),
+      home_goals: row.home_goals,
+      away_goals: row.away_goals,
+      status: row.status,
     });
   }
 
   return parsed.sort((a, b) => a.match_number - b.match_number);
+}
+
+/** Parse FIFA “Game Schedule & Where to Watch” saved HTML for Round of 32 fixtures. */
+export function parseFifaWtwR32ScheduleHtml(
+  html: string,
+  fallbacks?: FifaKnockoutScheduleFallback[]
+): FifaWtwParsedMatch[] {
+  return parseKnockoutScheduleHtml(html, "Round of 32", FIFA_R32_MATCH_NUMBERS, {
+    fallbackDateLabel: "28 June 2026",
+    fallbacks,
+  });
+}
+
+/** Parse FIFA “Game Schedule & Where to Watch” saved HTML for Round of 16 fixtures. */
+export function parseFifaWtwR16ScheduleHtml(
+  html: string,
+  fallbacks?: FifaKnockoutScheduleFallback[]
+): FifaWtwParsedMatch[] {
+  return parseKnockoutScheduleHtml(html, "Round of 16", FIFA_R16_MATCH_NUMBERS, {
+    fallbackDateLabel: "4 July 2026",
+    fallbacks,
+  });
 }
