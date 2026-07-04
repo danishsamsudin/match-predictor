@@ -1,9 +1,7 @@
-import { computeMarketAnalytics } from "@/lib/prediction/market-probabilities";
 import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import type { WcPredictionAnalyticsContext } from "@/lib/world-cup/build-wc-prediction-analytics-context";
 import {
-  applyMarketModelCalibration,
   applyXgMarketBlend,
   resolveMarketModelsConfig,
 } from "@/lib/world-cup/market-models/apply";

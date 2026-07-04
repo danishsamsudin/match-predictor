@@ -1,4 +1,3 @@
-import { computeHandicapMarkets } from "@/lib/prediction/handicap-probabilities";
 import { computeMarketAnalytics } from "@/lib/prediction/market-probabilities";
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import {
@@ -38,13 +37,6 @@ export function buildAnalyticsFromHubPrediction(
   const mutualDraw = String(snap.scenario ?? "").includes("mutual_draw");
 
   const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw);
-  const matrix = grid.cells.map((c) => ({
-    home: c.home,
-    away: c.away,
-    probability: c.probability,
-  }));
-
-  const handicapMarkets = computeHandicapMarkets(matrix);
 
   const base = computeMarketAnalytics(homeXg, awayXg, {
     h2hHomeWinRate: context?.h2hHomeWinRate ?? pred.home_win_pct,

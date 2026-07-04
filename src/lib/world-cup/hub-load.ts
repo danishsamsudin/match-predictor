@@ -770,12 +770,18 @@ function repartitionRecentAndUpcoming(payload: WorldCupHubPayload): WorldCupHubP
     if (!stillUpcoming.some((u) => u.id === id)) {
       stillUpcoming.push({
         ...m,
+        home_team_name: m.home_team_name,
+        away_team_name: m.away_team_name,
         prediction: null,
+        home_fifa_rank: null,
+        home_fifa_points: null,
+        away_fifa_rank: null,
+        away_fifa_points: null,
         match_phase: "live",
         prediction_locked: true,
-        card_prediction: m.card_prediction ?? null,
-        predicted_score_home: m.predicted_score_home ?? m.card_prediction?.predicted_score_home ?? null,
-        predicted_score_away: m.predicted_score_away ?? m.card_prediction?.predicted_score_away ?? null,
+        card_prediction: null,
+        predicted_score_home: null,
+        predicted_score_away: null,
       });
     }
   }
