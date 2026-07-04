@@ -4,9 +4,11 @@ import { resolveStadiumVenue } from "@/lib/world-cup/stadium-metadata";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
 
 export function deriveMatchStatus(m: WcMatchRow): string {
-  if (m.status && m.status !== "scheduled") return m.status;
+  const status = m.status?.toLowerCase() ?? "";
+  if (status === "live" || status === "in_progress") return m.status!;
+  if (status === "finished") return "finished";
   if (m.home_goals != null && m.away_goals != null) return "finished";
-  return "scheduled";
+  return m.status ?? "scheduled";
 }
 
 export function enrichMatchEnvironment(

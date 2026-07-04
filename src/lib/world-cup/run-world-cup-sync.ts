@@ -42,6 +42,8 @@ import {
   type WcMatchRow,
 } from "@/lib/world-cup/standings";
 import { persistWcHubPredictionSnapshot } from "@/lib/prediction/persist-prediction-snapshot";
+import { enrichHubPredictionWithMarketModels } from "@/lib/world-cup/market-models/enrich-hub-prediction";
+import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 
 export type WorldCupSyncResult = {
   ok: boolean;
@@ -100,18 +102,29 @@ function mapMatchRow(
 async function upsertHubPrediction(
   client: SupabaseClient,
   match: WcMatchRow,
-  pred: Awaited<ReturnType<typeof runHubMainPredict>>
+  pred: Awaited<ReturnType<typeof runHubMainPredict>>,
+  calibration: Awaited<ReturnType<typeof loadWcCalibrationConfig>>
 ): Promise<string | null> {
   if (!pred) return "No prediction result";
+  const enriched = enrichHubPredictionWithMarketModels({
+    hubRow: pred,
+    calibration,
+    homeName: match.home_team_name,
+    awayName: match.away_team_name,
+    isKnockout: /round of|quarter-?final|semi-?final|third place|final\b|knockout/i.test(
+      `${match.round ?? ""} ${match.competition ?? ""}`
+    ),
+  });
+  const row = enriched.hubRow;
   const computedAt = new Date().toISOString();
   const { error } = await wcDb(client).from("world_cup_predictions").upsert({
     match_id: match.id,
-    ...pred,
+    ...row,
     computed_at: computedAt,
   });
   if (error) return error.message;
 
-  const snapErr = await persistWcHubPredictionSnapshot(client, match, pred, "wc_hub_sync");
+  const snapErr = await persistWcHubPredictionSnapshot(client, match, row, "wc_hub_sync");
   return snapErr;
 }
 
@@ -224,10 +237,10 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
       round: m.round,
     });
     const updatePayload: Record<string, unknown> = {
-      status:
-        m.home_goals != null && m.away_goals != null
-          ? "finished"
-          : patch.status,
+      status: deriveMatchStatus({
+        ...m,
+        status: m.status ?? patch.status ?? "scheduled",
+      }),
     };
     if (patch.group_code) updatePayload.group_code = patch.group_code;
 
@@ -281,6 +294,7 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
   computeAllGroupStandings(matches, teamNames);
 
   let predictionsUpserted = 0;
+  const calibration = await loadWcCalibrationConfig();
   const toPredict = matches.filter((m) => {
     if (m.status !== "scheduled" || !m.home_team_id || !m.away_team_id) return false;
     const phase = resolveMatchPhase({
@@ -300,7 +314,7 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
       batch.map(async (match) => {
         try {
           const pred = await runHubMainPredict(match, { finishedMatches: matches });
-          const err = await upsertHubPrediction(client, match, pred);
+          const err = await upsertHubPrediction(client, match, pred, calibration);
           return { match, pred, err };
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);

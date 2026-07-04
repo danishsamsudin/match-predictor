@@ -4,6 +4,8 @@ import { swapTeamComparisonSides } from "@/lib/prediction/align-player-props-ori
 
 const HOME_AWAY_SWAP_PAIRS: [string, string][] = [
   ["home_xg", "away_xg"],
+  ["display_home_xg", "display_away_xg"],
+  ["structural_home_xg", "structural_away_xg"],
   ["lambda", "mu"],
   ["gamma_home", "gamma_away"],
   ["home_xg_elo", "away_xg_elo"],

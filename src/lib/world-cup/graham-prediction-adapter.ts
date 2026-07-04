@@ -85,23 +85,26 @@ export function grahamHubRowToPredictionResult(input: {
   lineupNotes?: string[];
   analyticsContext?: WcPredictionAnalyticsContext;
   calibration?: Awaited<ReturnType<typeof loadWcCalibrationConfig>>;
+  analytics?: PredictionAnalytics;
 }): PredictionResult {
   const { pred, homeName, awayName } = input;
   const lineupSource = input.lineupSource ?? "model_xi";
   const lineupNotes = input.lineupNotes ?? [];
   const snap = pred.snapshot;
-  const homeXg = snapshotNumber(snap, "home_xg", "lambda");
-  const awayXg = snapshotNumber(snap, "away_xg", "mu");
+  const homeXg = snapshotNumber(snap, "display_home_xg", "home_xg", "lambda");
+  const awayXg = snapshotNumber(snap, "display_away_xg", "away_xg", "mu");
   const rho = snapshotNumber(snap, "rho");
   const mutualDraw = String(snap.scenario ?? "").includes("mutual_draw");
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
-  const analytics = buildAnalyticsFromHubPrediction(
-    pred,
-    homeName,
-    awayName,
-    input.analyticsContext,
-    input.calibration
-  );
+  const analytics =
+    input.analytics ??
+    buildAnalyticsFromHubPrediction(
+      pred,
+      homeName,
+      awayName,
+      input.analyticsContext,
+      input.calibration
+    );
 
   return {
     modelVersion: pred.model_version,

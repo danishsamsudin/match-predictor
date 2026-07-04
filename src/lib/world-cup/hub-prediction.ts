@@ -35,6 +35,22 @@ export function swapHubCardPrediction(pred: HubCardPrediction): HubCardPredictio
       snapshot.away_xg = homeXg;
     }
   }
+  if (snapshot.display_home_xg != null && snapshot.display_away_xg != null) {
+    const homeXg = Number(snapshot.display_home_xg);
+    const awayXg = Number(snapshot.display_away_xg);
+    if (Number.isFinite(homeXg) && Number.isFinite(awayXg)) {
+      snapshot.display_home_xg = awayXg;
+      snapshot.display_away_xg = homeXg;
+    }
+  }
+  if (snapshot.structural_home_xg != null && snapshot.structural_away_xg != null) {
+    const homeXg = Number(snapshot.structural_home_xg);
+    const awayXg = Number(snapshot.structural_away_xg);
+    if (Number.isFinite(homeXg) && Number.isFinite(awayXg)) {
+      snapshot.structural_home_xg = awayXg;
+      snapshot.structural_away_xg = homeXg;
+    }
+  }
 
   return {
     ...pred,

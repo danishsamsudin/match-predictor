@@ -166,8 +166,8 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
 
   const modelExtras = useMemo(() => {
     if (!snapshot) return null;
-    const lambda = Number(snapshot.lambda ?? snapshot.home_xg);
-    const mu = Number(snapshot.mu ?? snapshot.away_xg);
+    const lambda = Number(snapshot.display_home_xg ?? snapshot.lambda ?? snapshot.home_xg);
+    const mu = Number(snapshot.display_away_xg ?? snapshot.mu ?? snapshot.away_xg);
     if (!Number.isFinite(lambda) || !Number.isFinite(mu)) return null;
 
     const storedBtts = Number(snapshot.btts_pct);

@@ -4,6 +4,10 @@ import {
 } from "@/lib/data/world-cup-2026-teams";
 import { WORLD_CUP_FINALS_COMPETITION_OR } from "@/lib/world-cup/match-query";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
+import {
+  findKnockoutHubMatchForTeamPair,
+  teamsSwappedInInputVsKnockoutFixture,
+} from "@/lib/world-cup/resolve-knockout-hub-match";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -196,6 +200,23 @@ export async function resolveWcMatchFromPredictInput(
 
   const { data: teams } = await supabase.from("teams").select("id, name");
   const teamNames = new Map((teams ?? []).map((t) => [String(t.id), t.name as string]));
+
+  const wantHome = resolveApiTeamId(String(input.homeTeamId), input.homeName ?? "");
+  const wantAway = resolveApiTeamId(String(input.awayTeamId), input.awayName ?? "");
+
+  const knockout = findKnockoutHubMatchForTeamPair({
+    teamNames,
+    homeTeamApiId: wantHome,
+    awayTeamApiId: wantAway,
+    matchDate: input.matchDate,
+  });
+  if (knockout) {
+    return {
+      match: knockout,
+      matchId: knockout.id,
+      teamsSwappedInInput: teamsSwappedInInputVsKnockoutFixture(knockout, wantHome),
+    };
+  }
 
   for (const date of candidateWcMatchDates(input.matchDate)) {
     const resolved = await resolveWcMatchOnDate(supabase, input, date, teamNames);

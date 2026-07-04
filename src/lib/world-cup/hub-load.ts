@@ -22,7 +22,13 @@ import { loadHubSnapshotPayload } from "@/lib/world-cup/hub-snapshot";
 import { WORLD_CUP_FINALS_COMPETITION_OR } from "@/lib/world-cup/match-query";
 import { resolveFixtureScheduleMeta } from "@/lib/world-cup/fixture-venues";
 import { parseHubPrediction, swapHubCardPrediction } from "@/lib/world-cup/hub-prediction";
+import { enrichRawHubPredictionRow } from "@/lib/world-cup/market-models/enrich-hub-prediction";
+import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { resolveMatchPhase } from "@/lib/world-cup/match-kickoff";
+import {
+  buildPredictionTeamPairIndex,
+  resolveHubMatchPredictionRaw,
+} from "@/lib/world-cup/resolve-knockout-hub-match";
 import { compareByKickoffAsc } from "@/lib/world-cup/sort-matches";
 import {
   buildR32HubMatchRows,
@@ -162,8 +168,16 @@ function enrichMatchesForHub(
 
 function isMatchFinishedRow(m: HubMatchRow, ingestedMatchIds: Set<string>): boolean {
   if (ingestedMatchIds.has(m.id)) return true;
-  if (m.status === "finished") return true;
-  return m.home_goals != null && m.away_goals != null;
+  return (
+    resolveMatchPhase({
+      status: m.status,
+      homeGoals: m.home_goals,
+      awayGoals: m.away_goals,
+      date: m.date,
+      time: m.time,
+      venueCity: m.venue_city,
+    }) === "finished"
+  );
 }
 
 type IngestSummaryMeta = {
@@ -283,15 +297,49 @@ function alignRecentMatchForDisplay(
   };
 }
 
+function isHubMatchLive(m: {
+  status?: string | null;
+  home_goals: number | null;
+  away_goals: number | null;
+  match_phase?: "pre" | "live" | "finished";
+  date?: string | null;
+  time?: string | null;
+  venue_city?: string | null;
+}): boolean {
+  if (m.match_phase === "live") return true;
+  return (
+    resolveMatchPhase({
+      status: m.status,
+      homeGoals: m.home_goals,
+      awayGoals: m.away_goals,
+      date: m.date,
+      time: m.time,
+      venueCity: m.venue_city,
+    }) === "live"
+  );
+}
+
 function isUpcomingMatchFinished(m: {
   status?: string | null;
   home_goals: number | null;
   away_goals: number | null;
   match_phase?: "pre" | "live" | "finished";
+  date?: string | null;
+  time?: string | null;
+  venue_city?: string | null;
 }): boolean {
+  if (isHubMatchLive(m)) return false;
   if (m.match_phase === "finished") return true;
-  if (m.status === "finished") return true;
-  return m.home_goals != null && m.away_goals != null;
+  return (
+    resolveMatchPhase({
+      status: m.status,
+      homeGoals: m.home_goals,
+      awayGoals: m.away_goals,
+      date: m.date,
+      time: m.time,
+      venueCity: m.venue_city,
+    }) === "finished"
+  );
 }
 
 function alignUpcomingMatchForDisplay<
@@ -387,6 +435,11 @@ function patchHubMatchFromLive<T extends HubMatchRow>(
         (r.home_team_id === row.away_team_id && r.away_team_id === row.home_team_id))
   );
   if (!hit) return row;
+
+  // Synthetic knockout cards must not inherit an earlier group-stage result for the same pairing.
+  if (isR32HubMatchId(row.id) && hit.id !== row.id) {
+    return row;
+  }
 
   const swapped = hit.home_team_id !== row.home_team_id;
   return {
@@ -507,7 +560,7 @@ function patchHubMatchFromRecent<T extends HubMatchRow>(
     ...row,
     home_goals: recent.home_goals,
     away_goals: recent.away_goals,
-    status: "finished",
+    status: recent.status ?? "finished",
   };
 }
 
@@ -525,13 +578,13 @@ function mergeLiveWithRecentRows(
     liveById.set(m.id, {
       home_goals: m.home_goals,
       away_goals: m.away_goals,
-      status: "finished",
+      status: m.status ?? "finished",
     });
     const row = liveRows.find((r) => r.id === m.id);
     if (row) {
       row.home_goals = m.home_goals;
       row.away_goals = m.away_goals;
-      row.status = "finished";
+      row.status = m.status ?? "finished";
     }
   }
 
@@ -545,11 +598,19 @@ export function isDisplayableUpcomingMatch(m: {
   home_goals: number | null;
   away_goals: number | null;
   status?: string | null;
+  date?: string | null;
+  time?: string | null;
+  venue_city?: string | null;
 }): boolean {
-  if (m.match_phase === "finished") return false;
-  if (m.status === "finished") return false;
-  if (m.home_goals != null && m.away_goals != null) return false;
-  return true;
+  const phase = resolveMatchPhase({
+    status: m.status,
+    homeGoals: m.home_goals,
+    awayGoals: m.away_goals,
+    date: m.date,
+    time: m.time,
+    venueCity: m.venue_city,
+  });
+  return phase === "pre" || phase === "live";
 }
 
 function filterDisplayUpcoming(
@@ -565,6 +626,7 @@ function enrichKnockoutUpcomingRows(
   recent: WorldCupHubPayload["recent"],
   live: { liveById: Map<string, LiveMatchPatch>; liveRows: LiveWcMatchRow[] }
 ): WorldCupHubPayload["upcoming"] {
+  const pairIndex = buildPredictionTeamPairIndex(predByMatch);
   const recentById = new Map(recent.map((m) => [m.id, m]));
   const withoutSyntheticKnockout = existingUpcoming.filter((m) => !isR32HubMatchId(m.id));
   const knockoutRows = [...buildR32HubMatchRows(teamNames), ...buildR16HubMatchRows(teamNames)]
@@ -584,7 +646,7 @@ function enrichKnockoutUpcomingRows(
     const awayFifa = isKnockoutSlotPlaceholder(m.away_team_name)
       ? null
       : getLatestFifaRankingForTeam(m.away_team_name ?? "");
-    const rawPred = predByMatch.get(m.id) ?? null;
+    const rawPred = resolveHubMatchPredictionRaw(m, predByMatch, pairIndex);
     const matchPhase = resolveMatchPhase({
       status: m.status,
       homeGoals: m.home_goals,
@@ -646,7 +708,7 @@ function mergeKnockoutIntoHubPayload(
   };
 }
 
-async function fetchKnockoutPredictionsByMatch(): Promise<Map<string, Record<string, unknown>>> {
+async function fetchAllPredictionsByMatch(): Promise<Map<string, Record<string, unknown>>> {
   const supabase = tryCreateServiceClient();
   if (!supabase) return new Map();
 
@@ -659,39 +721,95 @@ async function fetchKnockoutPredictionsByMatch(): Promise<Map<string, Record<str
     };
   };
 
+  const calibration = await loadWcCalibrationConfig();
   const { data } = await wcClient.from("world_cup_predictions").select(PREDICTION_COLUMNS);
   const out = new Map<string, Record<string, unknown>>();
   for (const row of data ?? []) {
     const matchId = row.match_id as string;
-    if (isR32HubMatchId(matchId)) out.set(matchId, row);
+    out.set(matchId, enrichRawHubPredictionRow(row, calibration) ?? row);
   }
   return out;
 }
 
+function refreshUpcomingCardPredictions(
+  upcoming: WorldCupHubPayload["upcoming"],
+  predByMatch: Map<string, Record<string, unknown>>
+): WorldCupHubPayload["upcoming"] {
+  const pairIndex = buildPredictionTeamPairIndex(predByMatch);
+  return upcoming.map((m) => {
+    const rawPred = resolveHubMatchPredictionRaw(m, predByMatch, pairIndex);
+    if (!rawPred) return m;
+    const matchPhase =
+      m.match_phase ??
+      resolveMatchPhase({
+        status: m.status,
+        homeGoals: m.home_goals,
+        awayGoals: m.away_goals,
+        date: m.date,
+        time: m.time,
+        venueCity: m.venue_city,
+      });
+    const cardPrediction = parseHubPrediction(rawPred, matchPhase);
+    if (!cardPrediction) return m;
+    return {
+      ...m,
+      card_prediction: cardPrediction,
+      predicted_score_home: cardPrediction.predicted_score_home,
+      predicted_score_away: cardPrediction.predicted_score_away,
+    };
+  });
+}
+
 function repartitionRecentAndUpcoming(payload: WorldCupHubPayload): WorldCupHubPayload {
   const recentById = new Map(payload.recent.map((m) => [m.id, m]));
-  const stillUpcoming: WorldCupHubPayload["upcoming"] = [];
+  const stillUpcoming: WorldCupHubPayload["upcoming"] = [...payload.upcoming];
 
-  for (const m of payload.upcoming) {
+  for (const [id, m] of [...recentById.entries()]) {
+    if (!isHubMatchLive(m)) continue;
+    recentById.delete(id);
+    if (!stillUpcoming.some((u) => u.id === id)) {
+      stillUpcoming.push({
+        ...m,
+        prediction: null,
+        match_phase: "live",
+        prediction_locked: true,
+        card_prediction: m.card_prediction ?? null,
+        predicted_score_home: m.predicted_score_home ?? m.card_prediction?.predicted_score_home ?? null,
+        predicted_score_away: m.predicted_score_away ?? m.card_prediction?.predicted_score_away ?? null,
+      });
+    }
+  }
+
+  const upcomingPool = [...stillUpcoming];
+  stillUpcoming.length = 0;
+
+  for (const m of upcomingPool) {
     if (!isUpcomingMatchFinished(m)) {
       stillUpcoming.push(m);
       continue;
     }
 
+    const existing = recentById.get(m.id);
     const aligned = alignRecentMatchForDisplay(
       {
         ...m,
-        match_summary: null,
+        match_summary: existing?.match_summary ?? null,
       },
       undefined
     );
     recentById.set(m.id, {
+      ...(existing ?? {}),
       ...aligned,
-      match_summary: null,
-      ingest_source_home: aligned.ingest_source_home,
-      ingest_source_away: aligned.ingest_source_away,
-      ingest_source_home_goals: aligned.ingest_source_home_goals,
-      ingest_source_away_goals: aligned.ingest_source_away_goals,
+      match_summary: existing?.match_summary ?? aligned.match_summary ?? null,
+      model_squad_prediction: existing?.model_squad_prediction ?? null,
+      ingest_source_home:
+        existing?.ingest_source_home ?? aligned.ingest_source_home ?? null,
+      ingest_source_away:
+        existing?.ingest_source_away ?? aligned.ingest_source_away ?? null,
+      ingest_source_home_goals:
+        existing?.ingest_source_home_goals ?? aligned.ingest_source_home_goals ?? null,
+      ingest_source_away_goals:
+        existing?.ingest_source_away_goals ?? aligned.ingest_source_away_goals ?? null,
     });
   }
 
@@ -721,7 +839,7 @@ export async function mergeLiveMatchScoresIntoPayload(
   return {
     ...payload,
     recent: payload.recent.map((m) =>
-      alignRecentMatchForDisplay(m, ingestMetaFromRow(m))
+      alignRecentMatchForDisplay(patchRow(m), ingestMetaFromRow(m))
     ),
     upcoming: payload.upcoming.map((m) => {
       const patched = patchRow(m);
@@ -823,7 +941,7 @@ async function realignRecentResultsFromIngests(
   if (!supabase) return inlined;
 
   const needsFetch = inlined.recent.some(
-    (m) => m.match_summary && !m.ingest_source_home
+    (m) => !m.match_summary || (m.match_summary && !m.ingest_source_home)
   );
   if (!needsFetch) return inlined;
 
@@ -867,13 +985,18 @@ export async function loadWorldCupHubPayload(): Promise<WorldCupHubPayload | nul
   const withLiveScores = await mergeLiveMatchScoresIntoPayload(snapshot, live);
   const withStandings = await refreshHubStandingsFromDb(withLiveScores);
   const repartitioned = repartitionRecentAndUpcoming(withStandings);
-  const r32PredByMatch = await fetchKnockoutPredictionsByMatch();
+  const allPredByMatch = await fetchAllPredictionsByMatch();
+  const r32PredByMatch = new Map(
+    [...allPredByMatch].filter(([matchId]) => isR32HubMatchId(matchId))
+  );
   const withKnockout = mergeKnockoutIntoHubPayload(repartitioned, r32PredByMatch, live);
   const withKnockoutPartition = repartitionRecentAndUpcoming(withKnockout);
   const realigned = await realignRecentResultsFromIngests(withKnockoutPartition);
   return {
     ...realigned,
-    upcoming: filterDisplayUpcoming(realigned.upcoming),
+    upcoming: filterDisplayUpcoming(
+      refreshUpcomingCardPredictions(realigned.upcoming, allPredByMatch)
+    ),
   };
 }
 
@@ -937,10 +1060,11 @@ export async function buildWorldCupHubPayload(
     )
   );
 
+  const calibration = await loadWcCalibrationConfig();
   const predByMatch = new Map(
     ((predRes.data ?? []) as Array<Record<string, unknown>>).map((p) => [
       p.match_id as string,
-      p,
+      enrichRawHubPredictionRow(p, calibration) ?? p,
     ])
   );
 

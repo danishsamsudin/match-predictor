@@ -48,9 +48,8 @@ export function buildR16HubMatchRows(
 ): Array<WcMatchRow & { home_team_name: string; away_team_name: string }> {
   return loadR16Fixtures().map((fx) => {
     const venueMeta = resolveStadiumVenue(fx.city) ?? resolveStadiumVenue(fx.stadium);
-    const finished =
-      fx.status === "finished" ||
-      (fx.home_goals != null && fx.away_goals != null);
+    const isLive = fx.status === "live";
+    const finished = fx.status === "finished";
     return {
       id: r32MatchId(fx.match_number),
       date: fx.date,
@@ -58,7 +57,7 @@ export function buildR16HubMatchRows(
       competition: "FIFA World Cup 2026",
       round: "R16",
       group_code: null,
-      status: finished ? "finished" : "scheduled",
+      status: finished ? "finished" : isLive ? "live" : "scheduled",
       home_team_id: resolveTeamId(fx.home_team, teamNames),
       away_team_id: resolveTeamId(fx.away_team, teamNames),
       home_goals: fx.home_goals ?? null,

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { PageHero } from "@/components/match-predictor/PageHero";
 import { GroupMatrixGrid } from "@/components/world-cup/GroupMatrixGrid";
-import { KnockoutProjectionPanel } from "@/components/world-cup/KnockoutProjectionPanel";
 import { RecentResultsSection, type RecentResultMatch } from "@/components/world-cup/RecentResultsSection";
 import { TournamentForecastPanel } from "@/components/world-cup/TournamentForecastPanel";
 import { UpcomingFixturesSection } from "@/components/world-cup/UpcomingFixturesSection";
@@ -23,7 +22,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "World Cup 2026 Hub",
-  description: "Group tables, third-place matrix, and model predictions for FIFA World Cup 2026",
+  description: "Group tables and model predictions for FIFA World Cup 2026",
 };
 
 export default async function WorldCupHubPage() {
@@ -54,7 +53,7 @@ export default async function WorldCupHubPage() {
       <PageHero
         eyebrow="FIFA World Cup 2026 · 48 teams"
         title="World Cup bettor hub"
-        description="Group standings, best-third matrix, knockout routing, and model lines from the main national predictor (FIFA World Cup compare mode). Refreshes daily. Decimal odds by default."
+        description="Group standings and model lines from the main national predictor (FIFA World Cup compare mode). Refreshes daily. Decimal odds by default."
       />
       <WorldCupRefreshButton initialUpdatedAt={payload.updatedAt} />
 
@@ -81,58 +80,6 @@ export default async function WorldCupHubPage() {
 
       <section className="mb-10">
         <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
-          Best 8 third-placed teams
-        </h2>
-        <WorldCupSectionHelp title="Third-place ranking">
-          <p>
-            All twelve third-placed teams ranked together using FIFA tie-breakers: points, goal
-            difference, goals scored, then fair-play points. The top eight rows (green) would
-            advance to the Round of 32 today; the bottom four (amber) would be eliminated.
-          </p>
-          <p>
-            This table drives the knockout projection below - when the set of advancing groups
-            changes, FIFA&apos;s Annex C matrix picks a different Round of 32 draw.
-          </p>
-        </WorldCupSectionHelp>
-        <div className="liquid-glass-pill overflow-x-auto rounded-2xl">
-          <table className="w-full min-w-[480px] text-sm">
-            <thead>
-              <tr className="text-left text-slate-500">
-                <th className="px-4 py-2">Rank</th>
-                <th>Team</th>
-                <th>Grp</th>
-                <th>Pts</th>
-                <th>GD</th>
-                <th>GF</th>
-                <th>Fair play</th>
-                <th>R32</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payload.thirdPlaceRanking.map((row) => (
-                <tr
-                  key={row.teamId}
-                  className={row.will_advance ? "bg-emerald-500/5" : "bg-amber-500/5"}
-                >
-                  <td className="px-4 py-2 font-medium">{row.wildcard_rank}</td>
-                  <td className="py-2">{row.fbrefTeamName}</td>
-                  <td className="py-2">{row.groupCode}</td>
-                  <td className="py-2">{row.points}</td>
-                  <td className="py-2">{row.goalDifference}</td>
-                  <td className="py-2">{row.goalsFor}</td>
-                  <td className="py-2">{row.fairPlayPoints}</td>
-                  <td className="py-2 font-semibold">
-                    {row.will_advance ? "Yes" : "No"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="mb-10">
-        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
           Tournament forecast
         </h2>
         <WorldCupSectionHelp title="Model bracket vs live projection">
@@ -147,19 +94,8 @@ export default async function WorldCupHubPage() {
             pairing (venue, form, squad talent, altitude) — not a FIFA-rank shortcut. Later rounds
             use winners from earlier simulated ties.
           </p>
-          <p>
-            The Round of 32 projection below is different — it only reflects{" "}
-            <strong>current group tables</strong> (no simulated future group results).
-          </p>
         </WorldCupSectionHelp>
         <TournamentForecastPanel forecast={payload.tournamentForecast} />
-      </section>
-
-      <section className="mb-10">
-        <KnockoutProjectionPanel
-          knockoutProjection={payload.knockoutProjection}
-          groupMatrix={payload.groupMatrix}
-        />
       </section>
 
       {payload.recent.length > 0 && (

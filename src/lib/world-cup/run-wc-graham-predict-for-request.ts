@@ -3,7 +3,10 @@ import { computePlayerPropsForMatch } from "@/lib/prediction/compute-player-prop
 import { shouldOrientWcCompareToRequest } from "@/lib/prediction/align-player-props-orientation";
 import { resolveLineupPlayerStats } from "@/lib/prediction/resolve-lineup-player-stats";
 import { applyLineupImpactToHubPrediction } from "@/lib/world-cup/apply-wc-lineup-impact";
-import { grahamHubRowToPredictionResult } from "@/lib/world-cup/graham-prediction-adapter";
+import {
+  buildAnalyticsFromHubPrediction,
+  grahamHubRowToPredictionResult,
+} from "@/lib/world-cup/graham-prediction-adapter";
 import { runHubMainPredict } from "@/lib/world-cup/hub-main-predict";
 import { INTERNATIONAL_BASE_GOALS } from "@/lib/world-cup/international-strength";
 import { resolveMatchPhase, shouldRefreshHubPrediction } from "@/lib/world-cup/match-kickoff";
@@ -21,6 +24,7 @@ import {
 } from "@/lib/world-cup/swap-hub-prediction-orientation";
 import { loadEnrichedFormForTeam } from "@/lib/world-cup/load-enriched-international-form";
 import { loadIngestSourceByMatchId, ingestSourceForMatch } from "@/lib/world-cup/load-ingest-source-by-match";
+import { enrichHubPredictionWithMarketModels } from "@/lib/world-cup/market-models/enrich-hub-prediction";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import { computeWcEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
 import { computeWcLineupPlayerXgImpact } from "@/lib/world-cup/wc-lineup-player-xg-impact";
@@ -202,35 +206,22 @@ export async function runWcGrahamPredictForRequest(input: {
     });
   }
 
-  const homeXg = Number(hubRow.snapshot.home_xg ?? hubRow.snapshot.lambda ?? 1.2);
-  const awayXg = Number(hubRow.snapshot.away_xg ?? hubRow.snapshot.mu ?? 1.2);
+  const structuralHomeXg = Number(
+    hubRow.snapshot.home_xg ?? hubRow.snapshot.lambda ?? 1.2
+  );
+  const structuralAwayXg = Number(
+    hubRow.snapshot.away_xg ?? hubRow.snapshot.mu ?? 1.2
+  );
 
   const [homeFormMatches, awayFormMatches] = await Promise.all([
     loadEnrichedFormForTeam(supabase, match.home_team_id!, homeName, finishedMatches),
     loadEnrichedFormForTeam(supabase, match.away_team_id!, awayName, finishedMatches),
   ]);
 
-  const estimated = computeWcEstimatedMatchStats({
-    homeTeamApiId,
-    awayTeamApiId,
-    homeName,
-    awayName,
-    homeDbTeamId: match.home_team_id!,
-    awayDbTeamId: match.away_team_id!,
-    homeXg,
-    awayXg,
-    finishedMatches,
-    calibration,
-    isKnockout: /round of|quarter-?final|semi-?final|third place|final\b|knockout/i.test(
-      `${match.round ?? ""} ${match.competition ?? ""}`
-    ),
-    refereeStrictness: Number(hubRow.snapshot.referee_strictness ?? 1),
-  });
-
   const analyticsContext = await buildWcPredictionAnalyticsContext({
     snapshot: hubRow.snapshot,
-    homeXg,
-    awayXg,
+    homeXg: structuralHomeXg,
+    awayXg: structuralAwayXg,
     homeTeamApiId,
     awayTeamApiId,
     homeDbTeamId: match.home_team_id!,
@@ -242,6 +233,53 @@ export async function runWcGrahamPredictForRequest(input: {
     supabase,
   });
 
+  const isKnockout = /round of|quarter-?final|semi-?final|third place|final\b|knockout/i.test(
+    `${match.round ?? ""} ${match.competition ?? ""}`
+  );
+
+  let enriched = enrichHubPredictionWithMarketModels({
+    hubRow,
+    calibration,
+    homeName,
+    awayName,
+    analyticsContext,
+    isKnockout,
+  });
+
+  const estimated = computeWcEstimatedMatchStats({
+    homeTeamApiId,
+    awayTeamApiId,
+    homeName,
+    awayName,
+    homeDbTeamId: match.home_team_id!,
+    awayDbTeamId: match.away_team_id!,
+    homeXg: enriched.displayHomeXg,
+    awayXg: enriched.displayAwayXg,
+    finishedMatches,
+    calibration,
+    isKnockout,
+    refereeStrictness: Number(hubRow.snapshot.referee_strictness ?? 1),
+  });
+
+  enriched = enrichHubPredictionWithMarketModels({
+    hubRow: enriched.hubRow,
+    calibration,
+    homeName,
+    awayName,
+    analyticsContext,
+    estimated,
+    isKnockout,
+  });
+  hubRow = enriched.hubRow;
+
+  if (shouldRefreshHubPrediction(phase)) {
+    await wcDb(supabase).from("world_cup_predictions").upsert({
+      match_id: resolved.matchId,
+      ...hubRow,
+      computed_at: new Date().toISOString(),
+    });
+  }
+
   const orientToRequest = shouldOrientWcCompareToRequest(request, resolved);
   const displayHomeName = orientToRequest
     ? (request.homeTeamName ?? awayName)
@@ -249,14 +287,24 @@ export async function runWcGrahamPredictForRequest(input: {
   const displayAwayName = orientToRequest
     ? (request.awayTeamName ?? homeName)
     : awayName;
-  const displayHomeXg = orientToRequest ? awayXg : homeXg;
-  const displayAwayXg = orientToRequest ? homeXg : awayXg;
+  const displayHomeXg = orientToRequest ? enriched.displayAwayXg : enriched.displayHomeXg;
+  const displayAwayXg = orientToRequest ? enriched.displayHomeXg : enriched.displayAwayXg;
   const displayHubRow = orientToRequest ? swapHubPredictionRow(hubRow) : hubRow;
   const displayAnalyticsContext = orientToRequest
     ? swapWcAnalyticsContext(analyticsContext)
     : analyticsContext;
   const propsHomeTeamId = orientToRequest ? request.homeTeamId : homeTeamApiId;
   const propsAwayTeamId = orientToRequest ? request.awayTeamId : awayTeamApiId;
+
+  // Rebuild grid markets from display-oriented hub row so heatmap, margins, and
+  // stat comparison stay aligned when compare-mode home/away differs from the DB fixture.
+  const displayAnalytics = buildAnalyticsFromHubPrediction(
+    displayHubRow,
+    displayHomeName,
+    displayAwayName,
+    displayAnalyticsContext,
+    calibration
+  );
 
   const result = grahamHubRowToPredictionResult({
     pred: displayHubRow,
@@ -267,6 +315,7 @@ export async function runWcGrahamPredictForRequest(input: {
     lineupNotes,
     analyticsContext: displayAnalyticsContext,
     calibration,
+    analytics: displayAnalytics,
   });
 
   const playerProps = await computePlayerPropsForMatch({

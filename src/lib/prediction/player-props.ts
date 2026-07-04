@@ -592,6 +592,8 @@ const SOT_LINES: Array<0.5 | 1.5 | 2.5> = [0.5, 1.5, 2.5];
 function buildSotPropsForTeam(input: {
   squad: TeamSquadSnapshot;
   teamExpectedSot: number;
+  teamApiId?: number;
+  wcOverlays?: Map<string, WcPlayerPropOverlay>;
   sotCoeffs?: PlayerPropSotCoeffs;
 }): SotPropLine[] {
   const sotCoeffs = mergePlayerPropSotCoeffs(input.sotCoeffs);
@@ -605,12 +607,26 @@ function buildSotPropsForTeam(input: {
   }> = [];
 
   for (const player of players) {
-    const stats = detailStatsToRecord(player.detailStats);
-    const sotPer90 = per90Sot(stats) ?? performanceToNpxGProxy(player.performanceScore) * 2.2;
     const role = resolveSquadPlayerLineupRole({
       fieldPosition: player.fieldPosition,
       position: player.position,
     });
+    if (role === "G") continue;
+
+    const stats = detailStatsToRecord(player.detailStats);
+    const wcOverlay =
+      input.teamApiId != null && input.wcOverlays
+        ? resolveWcOverlayForPlayer(player.name, input.teamApiId, input.wcOverlays)
+        : null;
+    const clubSotPer90 =
+      per90Sot(stats) ?? performanceToNpxGProxy(player.performanceScore) * 2.2;
+    const wcSotPer90 = wcOverlay?.shotsOnTargetPer90 ?? 0;
+    const wcWeight = wcOverlay?.wcWeight ?? 0;
+    const sotPer90 =
+      wcSotPer90 > 0
+        ? clubSotPer90 * (1 - wcWeight) + wcSotPer90 * wcWeight
+        : clubSotPer90;
+
     raw.push({
       player,
       lambda: Math.max(0.05, sotPer90),
@@ -699,6 +715,8 @@ export function computeTeamPlayerProps(input: {
     shotsOnTarget: buildSotPropsForTeam({
       squad: input.squad,
       teamExpectedSot: input.teamExpectedSot ?? input.teamExpectedGoals * 4.2,
+      teamApiId: input.teamId,
+      wcOverlays: input.wcOverlays,
       sotCoeffs: propCoeffs.sot,
     }),
   };

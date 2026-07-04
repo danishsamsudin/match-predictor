@@ -1,4 +1,5 @@
 import { computeHandicapMarkets } from "@/lib/prediction/handicap-probabilities";
+import { computeMarketAnalytics } from "@/lib/prediction/market-probabilities";
 import type { OverUnderLine, PredictionAnalytics } from "@/lib/types/prediction";
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import { buildGuardedScoreMatrix } from "@/lib/world-cup/score-grid";
@@ -152,8 +153,24 @@ export function applyMarketModelCalibration(
     };
   });
 
+  const calibratedGridAnalytics = computeMarketAnalytics(homeXg, awayXg, {
+    h2hHomeWinRate: analytics.h2h.homeWinPct / 100,
+    h2hDrawRate: analytics.h2h.drawPct / 100,
+    h2hAwayWinRate: analytics.h2h.awayWinPct / 100,
+    homeFormScore: formHome,
+    awayFormScore: formAway,
+    momentumIndex: momentum,
+    modelImpact: analytics.modelImpact,
+    statComparison: analytics.statComparison,
+    correlation: rho + rhoAdj,
+    heatmapMaxGoals: grid.maxGoals,
+  });
+
   return {
     ...analytics,
+    topScores: calibratedGridAnalytics.topScores,
+    scoreHeatmap: calibratedGridAnalytics.scoreHeatmap,
+    totalGoalsDistribution: calibratedGridAnalytics.totalGoalsDistribution,
     overUnder,
     btts: {
       yesPct: Math.round(bttsYes * 1000) / 10,
@@ -163,7 +180,7 @@ export function applyMarketModelCalibration(
     },
     statComparison,
     handicapMarkets: {
-      ...handicapMarkets,
+      winningMargins: handicapMarkets.winningMargins,
       asianHandicap: ahLines,
     },
   };

@@ -253,8 +253,17 @@ export function isMatchFinished(input: {
   homeGoals?: number | null;
   awayGoals?: number | null;
 }): boolean {
-  if (input.homeGoals != null && input.awayGoals != null) return true;
-  return input.status === "finished";
+  const status = input.status?.toLowerCase() ?? "";
+  if (status === "live" || status === "in_progress") return false;
+  if (status === "finished") return true;
+  if (input.homeGoals != null && input.awayGoals != null) {
+    // Placeholder 0-0 on scheduled knockout rows is not a final result.
+    if (status === "scheduled" && input.homeGoals === 0 && input.awayGoals === 0) {
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 export function resolveMatchPhase(
@@ -272,7 +281,15 @@ export function resolveMatchPhase(
 
   const liveStatus = input.status === "live" || input.status === "in_progress";
   if (liveStatus) return "live";
-  if (input.homeGoals != null || input.awayGoals != null) return "live";
+
+  const status = input.status?.toLowerCase() ?? "";
+  const placeholderScore =
+    status === "scheduled" &&
+    input.homeGoals === 0 &&
+    input.awayGoals === 0;
+  if (!placeholderScore && (input.homeGoals != null || input.awayGoals != null)) {
+    return "live";
+  }
 
   const kickoffMs = resolveWcKickoffUtcMs(input);
   if (kickoffMs != null && now.getTime() >= kickoffMs) return "live";

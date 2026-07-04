@@ -48,6 +48,10 @@ function patchHubMatchFromLive<
   );
   if (!hit) return row;
 
+  if (row.id.startsWith("wc2026-ko-") && hit.id !== row.id) {
+    return row;
+  }
+
   const swapped = hit.home_team_id !== row.home_team_id;
   return {
     ...row,
@@ -65,7 +69,7 @@ describe("R32 hub live score patch", () => {
     ["py-id", "Paraguay"],
   ]);
 
-  it("patches synthetic R32 id from matches table", () => {
+  it("patches synthetic R32 id from matches table by id", () => {
     const [row] = buildR32HubMatchRows(teamNames).filter((m) => m.id === "wc2026-ko-73");
     const liveById = new Map([
       [
@@ -79,22 +83,31 @@ describe("R32 hub live score patch", () => {
     expect(patched.status).toBe("finished");
   });
 
-  it("falls back to team pair when ingest updated a non-synthetic row id", () => {
+  it("patches synthetic knockout row by id even when live row uses another uuid", () => {
+    const [row] = buildR32HubMatchRows(teamNames).filter((m) => m.id === "wc2026-ko-74");
+    const liveById = new Map([
+      ["wc2026-ko-74", { home_goals: 1, away_goals: 1, status: "finished" }],
+    ]);
+    const patched = patchHubMatchFromLive(row, liveById, []);
+    expect(patched.home_goals).toBe(1);
+    expect(patched.away_goals).toBe(1);
+  });
+
+  it("does not inherit group-stage scores for the same team pairing", () => {
     const [row] = buildR32HubMatchRows(teamNames).filter((m) => m.id === "wc2026-ko-74");
     const liveRows = [
       {
-        id: "fbref-uuid-74",
+        id: "group-stage-uuid",
         home_team_id: row.home_team_id,
         away_team_id: row.away_team_id,
         date: row.date,
-        home_goals: 1,
-        away_goals: 1,
+        home_goals: 0,
+        away_goals: 0,
         status: "finished",
       },
     ];
     const patched = patchHubMatchFromLive(row, new Map(), liveRows);
-    expect(patched.home_goals).toBe(1);
-    expect(patched.away_goals).toBe(1);
+    expect(patched.status).not.toBe("finished");
   });
 });
 

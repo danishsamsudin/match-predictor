@@ -20,6 +20,36 @@ describe("match kickoff phase", () => {
     ).toBe("finished");
   });
 
+  it("keeps live in-progress scores out of finished", () => {
+    expect(
+      resolveMatchPhase({
+        status: "live",
+        homeGoals: 0,
+        awayGoals: 0,
+        date: "2026-07-04",
+        time: "12:00",
+        venueCity: "Philadelphia",
+      })
+    ).toBe("live");
+  });
+
+  it("does not treat scheduled 0-0 placeholders as finished", () => {
+    const beforeKickoff = new Date("2026-07-04T10:00:00Z");
+    expect(
+      resolveMatchPhase(
+        {
+          status: "scheduled",
+          homeGoals: 0,
+          awayGoals: 0,
+          date: "2026-07-04",
+          time: "12:00",
+          venueCity: "Philadelphia",
+        },
+        beforeKickoff
+      )
+    ).toBe("pre");
+  });
+
   it("locks predictions after kickoff", () => {
     const pastKickoff = new Date("2026-07-01T12:00:00Z");
     expect(
