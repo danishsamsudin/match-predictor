@@ -9,7 +9,14 @@ import type { UpcomingMatchCardProps } from "@/components/world-cup/MatchValueFl
 import { WorldCupSectionHelp } from "@/components/world-cup/WorldCupSectionHelp";
 import { WorldCupRefreshButton } from "@/components/world-cup/WorldCupRefreshButton";
 import { loadWorldCupHubPayload } from "@/lib/world-cup/hub-load";
+import { isR16HubMatchId } from "@/lib/world-cup/r16-hub-fixtures";
 import { isR32HubMatchId } from "@/lib/world-cup/r32-hub-fixtures";
+
+function knockoutRoundLabel(matchId: string): string | null {
+  if (isR16HubMatchId(matchId)) return "Round of 16";
+  if (isR32HubMatchId(matchId)) return "Round of 32";
+  return null;
+}
 
 /** Always render with fresh hub payload (knockout scores patch on each request). */
 export const dynamic = "force-dynamic";
@@ -207,7 +214,7 @@ export default async function WorldCupHubPage() {
               homeName: m.home_team_name,
               awayName: m.away_team_name,
               groupCode: m.group_code,
-              roundLabel: isR32HubMatchId(m.id) ? "Round of 32" : null,
+              roundLabel: knockoutRoundLabel(m.id),
               venueCity: m.venue_city ?? null,
               venueStadium: m.venue_label ?? m.venue ?? null,
               venueAltitude: m.venue_altitude_meters ?? null,
