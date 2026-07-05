@@ -157,6 +157,7 @@ export function applyMarketModelCalibration(
     h2hHomeWinRate: analytics.h2h.homeWinPct / 100,
     h2hDrawRate: analytics.h2h.drawPct / 100,
     h2hAwayWinRate: analytics.h2h.awayWinPct / 100,
+    h2hHasData: analytics.h2h.hasData,
     homeFormScore: formHome,
     awayFormScore: formAway,
     momentumIndex: momentum,

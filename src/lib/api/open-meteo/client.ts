@@ -170,6 +170,7 @@ export function mapOpenMeteoToWeatherForecast(
     humidity: hourly.relative_humidity_2m[index] ?? 0,
     windKph: hourly.wind_speed_10m[index] ?? 0,
     precipMm: hourly.precipitation[index] ?? 0,
+    weatherCode,
     lat: location.latitude,
     lon: location.longitude,
   };

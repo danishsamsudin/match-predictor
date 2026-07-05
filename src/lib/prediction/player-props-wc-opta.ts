@@ -18,6 +18,8 @@ export type WcPlayerPropOverlay = {
   assistRate90: number;
   chanceIndexPer90: number;
   shotsOnTargetPer90: number;
+  /** Tournament sum of shots on target from ingested Opta match stats. */
+  shotsOnTargetTotal: number;
   goalsPer90: number;
   xgPer90: number;
   minutesTotal: number;
@@ -120,7 +122,7 @@ type MatchStatRow = {
   stats: Record<string, unknown>;
 };
 
-function aggregateMatchStats(rows: MatchStatRow[]): Map<
+export function aggregateWcPlayerMatchStats(rows: MatchStatRow[]): Map<
   string,
   {
     goals: number;
@@ -128,11 +130,23 @@ function aggregateMatchStats(rows: MatchStatRow[]): Map<
     xg: number;
     sot: number;
     minutes: number;
+    playerName: string;
+    teamApiId: number;
+    optaPlayerId: string;
   }
 > {
   const byPlayer = new Map<
     string,
-    { goals: number; assists: number; xg: number; sot: number; minutes: number }
+    {
+      goals: number;
+      assists: number;
+      xg: number;
+      sot: number;
+      minutes: number;
+      playerName: string;
+      teamApiId: number;
+      optaPlayerId: string;
+    }
   >();
 
   for (const row of rows) {
@@ -144,12 +158,16 @@ function aggregateMatchStats(rows: MatchStatRow[]): Map<
       xg: 0,
       sot: 0,
       minutes: 0,
+      playerName: String(row.player_name),
+      teamApiId: Number(row.team_api_id),
+      optaPlayerId: String(row.opta_player_id),
     };
     cur.goals += resolveStat(stats, ["goals", "G"]);
     cur.assists += resolveStat(stats, ["assists", "A"]);
     cur.xg += resolveStat(stats, ["expectedGoals", "xg", "expected_goals"]);
-    cur.sot += resolveStat(stats, ["shots_on_target", "SOnT", "shots_on_target"]);
+    cur.sot += resolveStat(stats, ["shots_on_target", "SOnT", "SOT"]);
     cur.minutes += Math.max(0, num(row.minutes));
+    if (row.player_name) cur.playerName = String(row.player_name);
     byPlayer.set(key, cur);
   }
 
@@ -176,8 +194,9 @@ export async function loadWcPlayerPropOverlays(
       .in("team_api_id", uniqueTeams),
   ]);
 
-  const agg = aggregateMatchStats((statsRes.data ?? []) as MatchStatRow[]);
+  const agg = aggregateWcPlayerMatchStats((statsRes.data ?? []) as MatchStatRow[]);
   const overlays = new Map<string, WcPlayerPropOverlay>();
+  const coveredKeys = new Set<string>();
 
   for (const row of (formRes.data ?? []) as TournamentFormRow[]) {
     const key = `${row.team_api_id}|${row.opta_player_id}`;
@@ -218,6 +237,7 @@ export async function loadWcPlayerPropOverlays(
       assistRate90,
       chanceIndexPer90: chanceIndexPer90 ?? 0,
       shotsOnTargetPer90,
+      shotsOnTargetTotal: matchAgg.sot,
       goalsPer90: (matchAgg.goals * 90) / minutesTotal,
       xgPer90: (matchAgg.xg * 90) / minutesTotal,
       minutesTotal,
@@ -227,6 +247,41 @@ export async function loadWcPlayerPropOverlays(
       wcWeight: computeWcWeight(minutesTotal, num(row.matches_played)),
     };
 
+    overlays.set(normalizeName(overlay.playerName), overlay);
+    coveredKeys.add(key);
+  }
+
+  for (const [key, matchAgg] of agg) {
+    if (coveredKeys.has(key) || matchAgg.sot <= 0) continue;
+    const minutesTotal = Math.max(matchAgg.minutes, 1);
+    const shotsOnTargetPer90 = (matchAgg.sot * 90) / minutesTotal;
+    const overlay: WcPlayerPropOverlay = {
+      optaPlayerId: matchAgg.optaPlayerId,
+      playerName: matchAgg.playerName,
+      teamApiId: matchAgg.teamApiId,
+      goalRate90: wcGoalRate90FromTournament({
+        goalsTotal: matchAgg.goals,
+        xgTotal: matchAgg.xg,
+        minutesTotal,
+        chanceIndexPer90: null,
+        shotsOnTargetPer90,
+      }),
+      assistRate90: wcAssistRate90FromTournament({
+        assistsTotal: matchAgg.assists,
+        minutesTotal,
+        chanceIndexPer90: null,
+      }),
+      chanceIndexPer90: 0,
+      shotsOnTargetPer90,
+      shotsOnTargetTotal: matchAgg.sot,
+      goalsPer90: (matchAgg.goals * 90) / minutesTotal,
+      xgPer90: (matchAgg.xg * 90) / minutesTotal,
+      minutesTotal,
+      matchesPlayed: 0,
+      wasLastStarter: false,
+      availabilityFactor: 1,
+      wcWeight: computeWcWeight(minutesTotal, 1),
+    };
     overlays.set(normalizeName(overlay.playerName), overlay);
   }
 

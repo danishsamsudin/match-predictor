@@ -197,6 +197,7 @@ export function computeMarketAnalytics(
     h2hHomeWinRate: number;
     h2hDrawRate: number;
     h2hAwayWinRate: number;
+    h2hHasData?: boolean;
     homeFormScore: number;
     awayFormScore: number;
     momentumIndex: number;
@@ -275,6 +276,7 @@ export function computeMarketAnalytics(
       homeWinPct: roundPct((opts.h2hHomeWinRate / h2hTotal) * 100),
       drawPct: roundPct((opts.h2hDrawRate / h2hTotal) * 100),
       awayWinPct: roundPct((opts.h2hAwayWinRate / h2hTotal) * 100),
+      hasData: opts.h2hHasData ?? true,
     },
     formScores: {
       homePct: roundPct(opts.homeFormScore * 100),

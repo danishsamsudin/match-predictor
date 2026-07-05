@@ -589,6 +589,74 @@ function rankTopN(
 
 const SOT_LINES: Array<0.5 | 1.5 | 2.5> = [0.5, 1.5, 2.5];
 
+function dedupeSquadPlayers(squad: TeamSquadSnapshot): SquadPlayer[] {
+  const roster = [...squad.starters, ...squad.substitutes];
+  const byId = new Map<number, SquadPlayer>();
+  for (const player of roster) {
+    const existing = byId.get(player.sofascorePlayerId);
+    if (!existing || (player.startSharePct ?? 0) > (existing.startSharePct ?? 0)) {
+      byId.set(player.sofascorePlayerId, player);
+    }
+  }
+  return [...byId.values()];
+}
+
+/** Goalkeepers are never eligible for shots-on-target player markets. */
+export function isGoalkeeperPlayer(player: SquadPlayer): boolean {
+  const role = resolveSquadPlayerLineupRole({
+    fieldPosition: player.fieldPosition,
+    position: player.position,
+  });
+  if (role === "G") return true;
+
+  const tokens = [
+    ...parseTacticalPositionTokens(player.fieldPosition),
+    ...parseTacticalPositionTokens(player.position),
+  ];
+  return tokens.some((token) => token === "GK" || token === "G" || token.includes("GOAL"));
+}
+
+function defaultSotPer90ForRole(role: "D" | "M" | "F"): number {
+  return { D: 0.06, M: 0.18, F: 0.42 }[role];
+}
+
+function resolvePlayerSotPer90(input: {
+  stats: Record<string, string | number | null>;
+  player: SquadPlayer;
+  wcOverlay: WcPlayerPropOverlay | null;
+  role: "D" | "M" | "F";
+}): number {
+  const clubSotPer90 = per90Sot(input.stats);
+  const wcSotPer90 = input.wcOverlay?.shotsOnTargetPer90 ?? 0;
+  const wcWeight = input.wcOverlay?.wcWeight ?? 0;
+
+  if (wcSotPer90 > 0 && wcWeight > 0) {
+    const blended =
+      (clubSotPer90 ?? wcSotPer90) * (1 - wcWeight) + wcSotPer90 * wcWeight;
+    return Math.max(blended, wcSotPer90 * 0.85);
+  }
+  if (wcSotPer90 > 0) return wcSotPer90;
+  if (clubSotPer90 != null && clubSotPer90 > 0) return clubSotPer90;
+  return defaultSotPer90ForRole(input.role);
+}
+
+function resolveSotRankingScore(input: {
+  stats: Record<string, string | number | null>;
+  wcOverlay: WcPlayerPropOverlay | null;
+  sotPer90: number;
+  expectedMinutes: number;
+}): number {
+  const wcTotal = input.wcOverlay?.shotsOnTargetTotal ?? 0;
+  if (wcTotal > 0) return wcTotal;
+
+  const clubMinutes = getMinutes(input.stats);
+  if (clubMinutes != null && clubMinutes > 0 && input.sotPer90 > 0) {
+    return input.sotPer90 * (clubMinutes / 90);
+  }
+
+  return input.sotPer90 * (input.expectedMinutes / 90);
+}
+
 function buildSotPropsForTeam(input: {
   squad: TeamSquadSnapshot;
   teamExpectedSot: number;
@@ -597,16 +665,18 @@ function buildSotPropsForTeam(input: {
   sotCoeffs?: PlayerPropSotCoeffs;
 }): SotPropLine[] {
   const sotCoeffs = mergePlayerPropSotCoeffs(input.sotCoeffs);
-  const players = [...input.squad.starters, ...input.squad.substitutes].slice(0, 18);
   const raw: Array<{
     player: SquadPlayer;
-    lambda: number;
-    sotRate: number;
+    sotPer90: number;
+    rankingScore: number;
+    expectedMinutes: number;
     isStarter: boolean;
     roleForward: boolean;
   }> = [];
 
-  for (const player of players) {
+  for (const player of dedupeSquadPlayers(input.squad)) {
+    if (isGoalkeeperPlayer(player)) continue;
+
     const role = resolveSquadPlayerLineupRole({
       fieldPosition: player.fieldPosition,
       position: player.position,
@@ -618,41 +688,60 @@ function buildSotPropsForTeam(input: {
       input.teamApiId != null && input.wcOverlays
         ? resolveWcOverlayForPlayer(player.name, input.teamApiId, input.wcOverlays)
         : null;
-    const clubSotPer90 =
-      per90Sot(stats) ?? performanceToNpxGProxy(player.performanceScore) * 2.2;
-    const wcSotPer90 = wcOverlay?.shotsOnTargetPer90 ?? 0;
-    const wcWeight = wcOverlay?.wcWeight ?? 0;
-    const sotPer90 =
-      wcSotPer90 > 0
-        ? clubSotPer90 * (1 - wcWeight) + wcSotPer90 * wcWeight
-        : clubSotPer90;
+    const expectedMinutes = resolveExpectedMinutes(player, wcOverlay);
+    const sotPer90 = resolvePlayerSotPer90({
+      stats,
+      player,
+      wcOverlay,
+      role,
+    });
+    const rankingScore = resolveSotRankingScore({
+      stats,
+      wcOverlay,
+      sotPer90,
+      expectedMinutes,
+    });
 
     raw.push({
       player,
-      lambda: Math.max(0.05, sotPer90),
-      sotRate: sotPer90,
-      isStarter: (player.startSharePct ?? 0) >= 50,
+      sotPer90,
+      rankingScore,
+      expectedMinutes,
+      isStarter:
+        (player.startSharePct ?? 0) >= 50 || Boolean(wcOverlay?.wasLastStarter),
       roleForward: role === "F",
     });
   }
 
-  const sum = raw.reduce((s, r) => s + r.lambda, 0) || 1;
-  const scale = (input.teamExpectedSot * 0.9) / sum;
-
-  const lines: SotPropLine[] = [];
   const ranked = [...raw]
-    .map((r) => ({ ...r, lambda: r.lambda * scale }))
-    .sort((a, b) => b.lambda - a.lambda)
+    .sort((a, b) => {
+      if (b.rankingScore !== a.rankingScore) return b.rankingScore - a.rankingScore;
+      return b.sotPer90 - a.sotPer90;
+    })
     .slice(0, TOP_N);
 
+  const rawLambdaSum =
+    ranked.reduce(
+      (sum, entry) => sum + entry.sotPer90 * (entry.expectedMinutes / 90),
+      0
+    ) || 1;
+  const lambdaScale = (input.teamExpectedSot * 0.9) / rawLambdaSum;
+
+  const lines: SotPropLine[] = [];
+
   for (const [idx, entry] of ranked.entries()) {
+    const lambda = Math.max(
+      0.02,
+      entry.sotPer90 * (entry.expectedMinutes / 90) * lambdaScale
+    );
+
     for (const line of SOT_LINES) {
-      const baseProb = sotProbOverLine(line, entry.lambda);
+      const baseProb = sotProbOverLine(line, lambda);
       const prob = applyPlayerPropSotCalibration(
         baseProb,
         {
-          logLambda: Math.log(Math.max(entry.lambda, 0.05)),
-          sotRatePer90: entry.sotRate,
+          logLambda: Math.log(lambda),
+          sotRatePer90: entry.sotPer90,
           isStarter: entry.isStarter,
           roleForward: entry.roleForward,
           teamExpectedSot: input.teamExpectedSot,
@@ -662,9 +751,9 @@ function buildSotPropsForTeam(input: {
       lines.push({
         rank: idx + 1,
         playerName: entry.player.name,
-        position: entry.player.position,
+        position: entry.player.fieldPosition ?? entry.player.position,
         line,
-        expectedSot: Math.round(entry.lambda * 1000) / 1000,
+        expectedSot: Math.round(lambda * 1000) / 1000,
         probabilityPct: Math.round(prob * 1000) / 10,
         fairDecimalOdds: prob > 0 ? Math.round((1 / prob) * 100) / 100 : 999,
       });

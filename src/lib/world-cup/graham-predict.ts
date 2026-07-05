@@ -45,6 +45,7 @@ import {
   resolveStadiumVenue,
 } from "@/lib/world-cup/stadium-metadata";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
+import { resolveWcWeatherImpact } from "@/lib/world-cup/wc-weather-impact";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 
@@ -211,9 +212,30 @@ export async function runGrahamWorldCupPredict(input: {
 
   const effectiveSigmaHome = adjustedMotivation.sigmaHome * hostMotivation;
 
+  const weatherImpact = await resolveWcWeatherImpact({
+    venueCity: match.venue_city ?? venue?.city ?? null,
+    matchDate: match.date,
+    homeForm,
+    awayForm,
+    homeTeamId: homeId,
+    awayTeamId: awayId,
+    homeName,
+    awayName,
+  });
+
   let homeXg =
-    baseline.homeXg * gammaHome * deltaHome * effectiveSigmaHome * hostBoost;
-  let awayXg = baseline.awayXg * gammaAway * deltaAway * adjustedMotivation.sigmaAway;
+    baseline.homeXg *
+    gammaHome *
+    deltaHome *
+    effectiveSigmaHome *
+    hostBoost *
+    weatherImpact.homeXgMultiplier;
+  let awayXg =
+    baseline.awayXg *
+    gammaAway *
+    deltaAway *
+    adjustedMotivation.sigmaAway *
+    weatherImpact.awayXgMultiplier;
 
   const rhoBase =
     resolveInternationalScoreCorrelation(homeXg, awayXg, baseline.snapshot.delta_fifa as number) +
@@ -280,9 +302,24 @@ export async function runGrahamWorldCupPredict(input: {
       rho_low_event_boost: rhoLowEventBoost,
       gamma_home: gammaHome,
       gamma_away: gammaAway,
+      home_acclim_score: homeAcclim,
+      away_acclim_score: awayAcclim,
+      venue_altitude_meters: altitude,
       host_nation_boost: hostBoost,
       delta_final_home: deltaHome,
       delta_final_away: deltaAway,
+      weather_home_xg_mult: weatherImpact.homeXgMultiplier,
+      weather_away_xg_mult: weatherImpact.awayXgMultiplier,
+      weather_fouls_mult: weatherImpact.foulsMultiplier,
+      weather_cards_mult: weatherImpact.cardsMultiplier,
+      weather_condition: weatherImpact.forecast.condition,
+      weather_code: weatherImpact.forecast.weatherCode,
+      weather_temp_c: weatherImpact.forecast.tempC,
+      weather_humidity: weatherImpact.forecast.humidity,
+      weather_wind_kph: weatherImpact.forecast.windKph,
+      weather_precip_mm: weatherImpact.forecast.precipMm,
+      lineup_home_xg_mult: 1,
+      lineup_away_xg_mult: 1,
       sigma_home: effectiveSigmaHome,
       sigma_away: adjustedMotivation.sigmaAway,
       rotation_index_home: rotation.rotation_index_home,

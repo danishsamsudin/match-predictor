@@ -76,13 +76,25 @@ export interface PredictionAnalytics {
     noOdds?: number;
   };
   totalGoalsDistribution: { goals: number; probability: number }[];
-  h2h: { homeWinPct: number; drawPct: number; awayWinPct: number };
+  h2h: {
+    homeWinPct: number;
+    drawPct: number;
+    awayWinPct: number;
+    /** True when rates come from recorded head-to-head meetings. */
+    hasData: boolean;
+  };
   formScores: { homePct: number; awayPct: number };
   momentumIndex: number;
   modelImpact: {
     label: string;
     homeMultiplier: number;
     awayMultiplier: number;
+    /** Kickoff forecast metadata for the weather factor row. */
+    forecast?: {
+      condition: string;
+      weatherCode?: number;
+      tempC?: number;
+    };
   }[];
   statComparison: { metric: string; home: number; away: number }[];
   /** BTTS / Over 2.5 rates from stored results (not the Poisson model). */
@@ -209,6 +221,8 @@ export interface WeatherForecast {
   humidity: number;
   windKph: number;
   precipMm: number;
+  /** Open-Meteo WMO weather code (for icon mapping). */
+  weatherCode?: number;
   lat?: number;
   lon?: number;
 }

@@ -5,6 +5,7 @@ import {
   listFbrefTeamsByIds,
 } from "@/lib/fbref/supabase-store";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
+import { resolveStadiumVenue } from "@/lib/world-cup/stadium-metadata";
 import type { tryCreateServiceClient } from "@/lib/supabase";
 import type { SportApiEvent } from "@/lib/types/sportapi";
 
@@ -30,6 +31,8 @@ export type InternationalFormMatch = {
   processPayload?: import("@/lib/world-cup/enrich-form-process-metrics").MatchProcessPayload | null;
   /** Source of merged process metrics row (opta_html, sofascore, statsbomb, …). */
   metricsSource?: string | null;
+  /** Stadium altitude for altitude-acclimation scoring (from venue metadata when known). */
+  venue_altitude_meters?: number | null;
 };
 
 import {
@@ -81,6 +84,13 @@ function competitionLabel(event: SportApiEvent): string {
   return event.tournament?.uniqueTournament?.name ?? event.tournament?.name ?? "";
 }
 
+function resolveFormMatchAltitude(event: SportApiEvent): number | null {
+  const stadium = event.venue?.stadium?.name;
+  const city = event.venue?.city?.name;
+  const venue = resolveStadiumVenue(stadium ?? city ?? null);
+  return venue?.altitude_meters ?? null;
+}
+
 function mapSyncedEventToForm(
   event: SportApiEvent,
   teamId: number
@@ -99,6 +109,7 @@ function mapSyncedEventToForm(
     home_team_name: event.homeTeam.name,
     away_team_name: event.awayTeam.name,
     event_id: event.id,
+    venue_altitude_meters: resolveFormMatchAltitude(event),
   };
 }
 

@@ -1,3 +1,4 @@
+import { resolveFormMomentumOutcomeDisplayRates } from "@/lib/prediction/form-momentum";
 import { computeMarketAnalytics } from "@/lib/prediction/market-probabilities";
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import {
@@ -13,6 +14,7 @@ import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats
 import { clampEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
 import type { WcPredictionAnalyticsContext } from "@/lib/world-cup/build-wc-prediction-analytics-context";
 import { applyMarketModelCalibration } from "@/lib/world-cup/market-models/apply";
+import { buildWcGrahamModelImpact } from "@/lib/world-cup/build-wc-model-impact";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 
 function snapshotNumber(snapshot: Record<string, unknown>, ...keys: string[]): number {
@@ -38,20 +40,25 @@ export function buildAnalyticsFromHubPrediction(
 
   const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw);
 
-  const base = computeMarketAnalytics(homeXg, awayXg, {
+  const formMomentumOutcomes = resolveFormMomentumOutcomeDisplayRates({
+    h2hHasData: context?.h2hHasData ?? false,
     h2hHomeWinRate: context?.h2hHomeWinRate ?? pred.home_win_pct,
     h2hDrawRate: context?.h2hDrawRate ?? pred.draw_pct,
     h2hAwayWinRate: context?.h2hAwayWinRate ?? pred.away_win_pct,
+    modelHomeWinRate: pred.home_win_pct,
+    modelDrawRate: pred.draw_pct,
+    modelAwayWinRate: pred.away_win_pct,
+  });
+
+  const base = computeMarketAnalytics(homeXg, awayXg, {
+    h2hHomeWinRate: formMomentumOutcomes.homeWinRate,
+    h2hDrawRate: formMomentumOutcomes.drawRate,
+    h2hAwayWinRate: formMomentumOutcomes.awayWinRate,
+    h2hHasData: context?.h2hHasData ?? false,
     homeFormScore: context?.homeFormScore ?? 0.5,
     awayFormScore: context?.awayFormScore ?? 0.5,
     momentumIndex: Number(snap.momentum_index ?? 0),
-    modelImpact: [
-      {
-        label: "Graham WC hub",
-        homeMultiplier: Number(snap.gamma_home ?? 1),
-        awayMultiplier: Number(snap.gamma_away ?? 1),
-      },
-    ],
+    modelImpact: buildWcGrahamModelImpact(snap),
     statComparison: context?.statComparison ?? [
       { metric: "Expected goals", home: homeXg, away: awayXg },
     ],
@@ -87,6 +94,8 @@ export function grahamHubRowToPredictionResult(input: {
   const awayXg = snapshotNumber(snap, "display_away_xg", "away_xg", "mu");
   const rho = snapshotNumber(snap, "rho");
   const mutualDraw = String(snap.scenario ?? "").includes("mutual_draw");
+  const weatherCondition =
+    typeof snap.weather_condition === "string" ? snap.weather_condition : null;
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw);
   const analytics =
     input.analytics ??
@@ -118,6 +127,7 @@ export function grahamHubRowToPredictionResult(input: {
       input.explanation ??
       [
         `Graham World Cup model (${pred.model_version}): λ=${homeXg.toFixed(2)}, μ=${awayXg.toFixed(2)}, ρ=${rho.toFixed(3)}. Most likely ${outcomes.predictedHome}–${outcomes.predictedAway}.`,
+        weatherCondition ? `Kickoff forecast: ${weatherCondition}.` : null,
         lineupNotes.length ? "" : null,
         lineupNotes.length ? "## Lineup Impact" : null,
         ...lineupNotes,

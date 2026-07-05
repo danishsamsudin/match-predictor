@@ -2,6 +2,7 @@ import {
   alignRecentMatchDisplay,
   namesNeedHomeAwaySwap,
 } from "@/lib/world-cup/match-orientation";
+import { resolveStadiumVenue } from "@/lib/world-cup/stadium-metadata";
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
 import { isTeamInInternationalFormMatch } from "@/lib/world-cup/international-form-team-side";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
@@ -40,6 +41,10 @@ export function wcMatchRowToInternationalForm(
     aligned.awayTeamName
   );
 
+  const venueMeta = resolveStadiumVenue(m.venue_city ?? m.venue ?? null);
+  const venueAltitude =
+    m.venue_altitude_meters ?? venueMeta?.altitude_meters ?? null;
+
   return {
     date: m.date,
     home_team_id: orientationSwapped ? m.away_team_id : m.home_team_id,
@@ -49,6 +54,7 @@ export function wcMatchRowToInternationalForm(
     competition: m.competition ?? "FIFA World Cup 2026",
     home_team_name: aligned.homeTeamName,
     away_team_name: aligned.awayTeamName,
+    venue_altitude_meters: venueAltitude,
   };
 }
 

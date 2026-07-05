@@ -21,7 +21,11 @@ import {
   normalizeTeamStatsToBenchmark,
 } from "@/lib/prediction/team-strength";
 import { computeBaseProbability, computeMomentumIndex } from "@/lib/prediction/base-probability";
-import { getMomentumWeights, clampMomentumIndex } from "@/lib/prediction/form-momentum";
+import {
+  getMomentumWeights,
+  clampMomentumIndex,
+  resolveFormMomentumOutcomeDisplayRates,
+} from "@/lib/prediction/form-momentum";
 import {
   resolveLeagueStrengthForTeam,
   resolveTeamStatsForFixture,
@@ -534,10 +538,21 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
         }
       : undefined;
 
-  const analytics = computeMarketAnalytics(homeXg, awayXg, {
+  const formMomentumOutcomes = resolveFormMomentumOutcomeDisplayRates({
+    h2hHasData: h2h.hasData,
     h2hHomeWinRate: h2h.homeWinRate,
     h2hDrawRate: h2h.drawRate,
     h2hAwayWinRate: h2h.awayWinRate,
+    modelHomeWinRate: probs.homeWin,
+    modelDrawRate: probs.draw,
+    modelAwayWinRate: probs.awayWin,
+  });
+
+  const analytics = computeMarketAnalytics(homeXg, awayXg, {
+    h2hHomeWinRate: formMomentumOutcomes.homeWinRate,
+    h2hDrawRate: formMomentumOutcomes.drawRate,
+    h2hAwayWinRate: formMomentumOutcomes.awayWinRate,
+    h2hHasData: h2h.hasData,
     homeFormScore,
     awayFormScore,
     momentumIndex,
@@ -552,6 +567,11 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
         label: "Weather",
         homeMultiplier: weatherImpact.homeXgMultiplier,
         awayMultiplier: weatherImpact.awayXgMultiplier,
+        forecast: {
+          condition: weather.condition,
+          weatherCode: weather.weatherCode,
+          tempC: weather.tempC,
+        },
       },
       {
         label: "Stadium & travel",

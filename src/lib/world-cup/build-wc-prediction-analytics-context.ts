@@ -210,6 +210,7 @@ export interface WcPredictionAnalyticsContext {
   h2hHomeWinRate: number;
   h2hDrawRate: number;
   h2hAwayWinRate: number;
+  h2hHasData: boolean;
   statComparison: PredictionAnalytics["statComparison"];
   teamComparison: TeamComparisonSnapshot;
 }
@@ -354,6 +355,7 @@ export async function buildWcPredictionAnalyticsContext(input: {
     h2hHomeWinRate: h2h.homeWinRate,
     h2hDrawRate: h2h.drawRate,
     h2hAwayWinRate: h2h.awayWinRate,
+    h2hHasData: h2h.hasData,
     statComparison,
     teamComparison,
   };

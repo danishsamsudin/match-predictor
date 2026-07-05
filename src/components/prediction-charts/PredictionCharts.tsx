@@ -12,6 +12,7 @@ import { formatCalendarDateLocal } from "@/lib/utils/kickoff-display";
 import { resolveTeamShortLabel } from "@/lib/utils/team-display-name";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { ChartCard, ChartCardWithTip } from "./ChartCard";
+import { WeatherForecastIcon } from "./WeatherForecastIcon";
 
 function maxProb(cells: { probability: number }[]): number {
   return Math.max(...cells.map((c) => c.probability), 0.1);
@@ -332,7 +333,25 @@ function ModelImpactChart({
         const awayDelta = (f.awayMultiplier - 1) * 100;
         return (
           <div key={f.label} className="space-y-2">
-            <p className="text-xs font-medium text-foreground">{f.label}</p>
+            <div className="flex items-center gap-2">
+              {f.label === "Weather" && f.forecast ? (
+                <WeatherForecastIcon
+                  weatherCode={f.forecast.weatherCode}
+                  condition={f.forecast.condition}
+                />
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-foreground">{f.label}</p>
+                {f.label === "Weather" && f.forecast ? (
+                  <p className="truncate text-[10px] text-muted" title={f.forecast.condition}>
+                    {f.forecast.condition}
+                    {typeof f.forecast.tempC === "number" && Number.isFinite(f.forecast.tempC)
+                      ? ` · ${Math.round(f.forecast.tempC)}°C`
+                      : ""}
+                  </p>
+                ) : null}
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-2 text-center sm:grid-cols-2 sm:gap-3">
               <ImpactPill label="Home xG shift" delta={homeDelta} accent="primary" />
               <ImpactPill label="Away xG shift" delta={awayDelta} accent="accent" />
@@ -713,7 +732,9 @@ export function PredictionCharts({
             <>
               <strong>Form score</strong> reflects recent results (recent games weighted more).{" "}
               <strong>Momentum index</strong> blends recent form (55%) and head-to-head history
-              (10%) into one number - positive favours the home side in our model.
+              (10%) into one number - positive favours the home side in our model. Outcome
+              percentages use head-to-head history when available; otherwise they show the model&apos;s
+              1X2 probabilities from the Poisson score grid.
             </>
           }
         >
@@ -737,7 +758,28 @@ export function PredictionCharts({
                 &gt;0 leans home · &lt;0 leans away · 0 is neutral
               </p>
             </div>
+            {analytics.h2h.hasData === false ? (
+              <div
+                className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-foreground/90 dark:border-amber-400/25 dark:bg-amber-400/10"
+                role="note"
+              >
+                <p className="font-medium text-amber-950 dark:text-amber-100">
+                  No head-to-head history
+                </p>
+                <p className="mt-1 text-muted">
+                  These teams have no recent meetings in our database, so win / draw / loss
+                  percentages cannot reflect past results. Instead we show our model&apos;s 1X2
+                  probabilities from the Poisson score grid — built from expected goals, recent
+                  form, team ratings, and the momentum index above.
+                </p>
+              </div>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-3">
+              <p className="col-span-full text-center text-[10px] font-medium uppercase tracking-wide text-muted">
+                {analytics.h2h.hasData !== false
+                  ? "Head-to-head outcome rates"
+                  : "Model 1X2 probabilities"}
+              </p>
               <MiniStat
                 label={`${homeShort} win`}
                 title={`${homeLabel} win`}
@@ -786,8 +828,8 @@ export function PredictionCharts({
           tipLabel="Model adjustments"
           tipBody={
             <>
-              How much lineup, weather, and stadium/travel factors shifted expected goals vs the
-              baseline. Shown as % change from neutral (1.0×).
+              How much altitude, host-nation, travel, weather, and lineup factors shifted expected
+              goals vs the baseline. Shown as % change from neutral (1.0×).
             </>
           }
           className="lg:col-span-2"

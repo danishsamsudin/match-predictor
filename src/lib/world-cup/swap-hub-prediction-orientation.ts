@@ -136,6 +136,7 @@ export function swapWcAnalyticsContext(
     h2hHomeWinRate: context.h2hAwayWinRate,
     h2hDrawRate: context.h2hDrawRate,
     h2hAwayWinRate: context.h2hHomeWinRate,
+    h2hHasData: context.h2hHasData,
     statComparison: context.statComparison.map((row) => ({
       ...row,
       home: row.away,

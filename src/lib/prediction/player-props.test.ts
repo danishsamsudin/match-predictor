@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { SquadPlayer, TeamSquadSnapshot } from "@/lib/types/team-comparison";
+import type { WcPlayerPropOverlay } from "@/lib/prediction/player-props-wc-opta";
 import {
   computePlayerPropsPayload,
   computeTacticalMultiplier,
+  isGoalkeeperPlayer,
   sumNormalizedGoalLambdas,
   zipProbAtLeastOne,
 } from "@/lib/prediction/player-props";
@@ -262,5 +264,145 @@ describe("computePlayerPropsPayload", () => {
     expect(finisher?.rank).toBe(1);
     expect(creator).toBeDefined();
     expect(creator!.probabilityPct).toBeGreaterThan(15);
+  });
+
+  it("excludes goalkeepers from shots on target market", () => {
+    const squad = makeSquad([
+      makePlayer({
+        name: "Ederson",
+        sofascorePlayerId: 1,
+        position: "GK",
+        fieldPosition: "SUB",
+        startSharePct: 100,
+        detailStats: [{ label: "Minutes", value: "2700" }],
+      }),
+      makePlayer({
+        name: "Vinicius",
+        sofascorePlayerId: 2,
+        fieldPosition: "LW",
+        detailStats: [
+          { label: "SoT", value: "45" },
+          { label: "Minutes", value: "2700" },
+        ],
+      }),
+      makePlayer({
+        name: "Raphinha",
+        sofascorePlayerId: 3,
+        fieldPosition: "RW",
+        detailStats: [
+          { label: "SoT", value: "38" },
+          { label: "Minutes", value: "2700" },
+        ],
+      }),
+      ...Array.from({ length: 5 }, (_, i) =>
+        makePlayer({
+          name: `Mid${i + 1}`,
+          sofascorePlayerId: 10 + i,
+          position: "MID",
+          fieldPosition: "CM",
+          startSharePct: 70 - i,
+          detailStats: [
+            { label: "SoT", value: String(12 - i) },
+            { label: "Minutes", value: "2700" },
+          ],
+        })
+      ),
+    ]);
+
+    const payload = computePlayerPropsPayload({
+      modelVersion: "test",
+      homeTeamName: "Brazil",
+      awayTeamName: "Norway",
+      homeTeamId: 1,
+      awayTeamId: 2,
+      homeXg: 1.8,
+      awayXg: 1.1,
+      homeSquad: squad,
+      awaySquad: makeSquad([]),
+    });
+
+    const sotNames = payload.home.shotsOnTarget
+      .filter((line) => line.line === 0.5)
+      .map((line) => line.playerName);
+    expect(sotNames).not.toContain("Ederson");
+    expect(isGoalkeeperPlayer(squad.starters[0]!)).toBe(true);
+  });
+
+  it("ranks shots on target by Opta tournament totals and differentiates fair odds", () => {
+    const wcOverlays = new Map<string, WcPlayerPropOverlay>();
+    const overlayFor = (
+      name: string,
+      sotTotal: number,
+      sotPer90: number
+    ): WcPlayerPropOverlay => ({
+      optaPlayerId: name,
+      playerName: name,
+      teamApiId: 1,
+      goalRate90: 0.2,
+      assistRate90: 0.1,
+      chanceIndexPer90: 0.5,
+      shotsOnTargetPer90: sotPer90,
+      shotsOnTargetTotal: sotTotal,
+      goalsPer90: 0.15,
+      xgPer90: 0.18,
+      minutesTotal: (sotTotal / sotPer90) * 90,
+      matchesPlayed: 3,
+      wasLastStarter: true,
+      availabilityFactor: 1,
+      wcWeight: 0.8,
+    });
+
+    wcOverlays.set("vinicius jr", overlayFor("Vinicius Jr", 12, 1.4));
+    wcOverlays.set("raphinha", overlayFor("Raphinha", 9, 1.1));
+    wcOverlays.set("rodrygo", overlayFor("Rodrygo", 6, 0.9));
+    wcOverlays.set("marquinhos", overlayFor("Marquinhos", 2, 0.2));
+    wcOverlays.set("wesley", overlayFor("Wesley", 1, 0.15));
+
+    const squad = makeSquad([
+      makePlayer({ name: "Vinicius Jr", sofascorePlayerId: 1, fieldPosition: "LW" }),
+      makePlayer({ name: "Raphinha", sofascorePlayerId: 2, fieldPosition: "RW" }),
+      makePlayer({ name: "Rodrygo", sofascorePlayerId: 3, fieldPosition: "ST" }),
+      makePlayer({
+        name: "Marquinhos",
+        sofascorePlayerId: 4,
+        position: "DEF",
+        fieldPosition: "RCB",
+      }),
+      makePlayer({
+        name: "Wesley",
+        sofascorePlayerId: 5,
+        position: "DEF",
+        fieldPosition: "RB",
+      }),
+      makePlayer({
+        name: "Ederson",
+        sofascorePlayerId: 6,
+        position: "GK",
+        fieldPosition: "GK",
+      }),
+    ]);
+
+    const payload = computePlayerPropsPayload({
+      modelVersion: "test",
+      homeTeamName: "Brazil",
+      awayTeamName: "Norway",
+      homeTeamId: 1,
+      awayTeamId: 2,
+      homeXg: 1.8,
+      awayXg: 1.1,
+      homeSquad: squad,
+      awaySquad: makeSquad([]),
+      wcOverlays,
+      homeTeamExpectedSot: 5.5,
+    });
+
+    const sotLines = payload.home.shotsOnTarget.filter((line) => line.line === 0.5);
+    expect(sotLines).toHaveLength(5);
+    expect(sotLines[0]?.playerName).toBe("Vinicius Jr");
+    expect(sotLines[1]?.playerName).toBe("Raphinha");
+    expect(sotLines.map((line) => line.playerName)).not.toContain("Ederson");
+    expect(sotLines[0]!.expectedSot).toBeGreaterThan(sotLines[4]!.expectedSot);
+    expect(sotLines[0]!.probabilityPct).toBeGreaterThan(sotLines[4]!.probabilityPct);
+    expect(sotLines[0]!.fairDecimalOdds).toBeLessThan(sotLines[4]!.fairDecimalOdds);
   });
 });

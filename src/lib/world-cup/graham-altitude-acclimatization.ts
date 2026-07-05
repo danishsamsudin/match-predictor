@@ -5,7 +5,7 @@ export const ALTITUDE_BETA = 0.00004;
 export const ALTITUDE_HOME_FAMILIARITY = 0.01;
 
 function matchAltitudeMeters(m: InternationalFormMatch): number {
-  const alt = (m as { venue_altitude_meters?: number | null }).venue_altitude_meters;
+  const alt = m.venue_altitude_meters;
   return typeof alt === "number" && Number.isFinite(alt) ? alt : 0;
 }
 

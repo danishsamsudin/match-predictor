@@ -293,3 +293,33 @@ export function computeMomentumIndex(
 /** @deprecated Use getMomentumWeights — club defaults exported as W1_FORM / W2_H2H. */
 export const W1_FORM = W1_FORM_CLUB;
 export const W2_H2H = W2_H2H_CLUB;
+
+/** Uniform fallback when no H2H meetings and no model rates are supplied. */
+export const NEUTRAL_H2H_OUTCOME_RATE = 1 / 3;
+
+/**
+ * Rates shown in the Form & momentum panel: historical H2H when available,
+ * otherwise model 1X2 probabilities (avoids flat 33/33/33 for thin H2H).
+ */
+export function resolveFormMomentumOutcomeDisplayRates(input: {
+  h2hHasData: boolean;
+  h2hHomeWinRate: number;
+  h2hDrawRate: number;
+  h2hAwayWinRate: number;
+  modelHomeWinRate: number;
+  modelDrawRate: number;
+  modelAwayWinRate: number;
+}): { homeWinRate: number; drawRate: number; awayWinRate: number } {
+  if (input.h2hHasData) {
+    return {
+      homeWinRate: input.h2hHomeWinRate,
+      drawRate: input.h2hDrawRate,
+      awayWinRate: input.h2hAwayWinRate,
+    };
+  }
+  return {
+    homeWinRate: input.modelHomeWinRate,
+    drawRate: input.modelDrawRate,
+    awayWinRate: input.modelAwayWinRate,
+  };
+}
