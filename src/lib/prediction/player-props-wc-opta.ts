@@ -20,6 +20,12 @@ export type WcPlayerPropOverlay = {
   shotsOnTargetPer90: number;
   /** Tournament sum of shots on target from ingested Opta match stats. */
   shotsOnTargetTotal: number;
+  /** Cumulative tournament goals from ingested Opta match stats. */
+  goalsTotal: number;
+  /** Cumulative tournament assists from ingested Opta match stats. */
+  assistsTotal: number;
+  /** Cumulative tournament xG from ingested Opta match stats. */
+  xgTotal: number;
   goalsPer90: number;
   xgPer90: number;
   minutesTotal: number;
@@ -238,6 +244,9 @@ export async function loadWcPlayerPropOverlays(
       chanceIndexPer90: chanceIndexPer90 ?? 0,
       shotsOnTargetPer90,
       shotsOnTargetTotal: matchAgg.sot,
+      goalsTotal: matchAgg.goals,
+      assistsTotal: matchAgg.assists,
+      xgTotal: matchAgg.xg,
       goalsPer90: (matchAgg.goals * 90) / minutesTotal,
       xgPer90: (matchAgg.xg * 90) / minutesTotal,
       minutesTotal,
@@ -252,7 +261,14 @@ export async function loadWcPlayerPropOverlays(
   }
 
   for (const [key, matchAgg] of agg) {
-    if (coveredKeys.has(key) || matchAgg.sot <= 0) continue;
+    if (coveredKeys.has(key)) continue;
+    const hasTournamentActivity =
+      matchAgg.goals > 0 ||
+      matchAgg.assists > 0 ||
+      matchAgg.xg > 0 ||
+      matchAgg.sot > 0 ||
+      matchAgg.minutes > 0;
+    if (!hasTournamentActivity) continue;
     const minutesTotal = Math.max(matchAgg.minutes, 1);
     const shotsOnTargetPer90 = (matchAgg.sot * 90) / minutesTotal;
     const overlay: WcPlayerPropOverlay = {
@@ -274,6 +290,9 @@ export async function loadWcPlayerPropOverlays(
       chanceIndexPer90: 0,
       shotsOnTargetPer90,
       shotsOnTargetTotal: matchAgg.sot,
+      goalsTotal: matchAgg.goals,
+      assistsTotal: matchAgg.assists,
+      xgTotal: matchAgg.xg,
       goalsPer90: (matchAgg.goals * 90) / minutesTotal,
       xgPer90: (matchAgg.xg * 90) / minutesTotal,
       minutesTotal,

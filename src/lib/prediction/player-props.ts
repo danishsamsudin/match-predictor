@@ -587,6 +587,86 @@ function rankTopN(
   return sorted.slice(0, n).map((candidate, index) => toPropLine(candidate, index + 1, market));
 }
 
+/** Threat score for players yet to score in the tournament (xG, SoT, chance creation). */
+function resolveNonScorerGoalThreat(candidate: PlayerPropCandidate): number {
+  const wc = candidate.wcOverlay;
+  if (wc && wc.minutesTotal > 0) {
+    return (
+      wc.xgTotal * 100 +
+      wc.shotsOnTargetTotal * 15 +
+      wc.chanceIndexPer90 * wc.minutesTotal * 0.08 +
+      wc.goalRate90 * 50
+    );
+  }
+  return candidate.normalizedGoalLambda * 100 + candidate.anytimeProb * 50;
+}
+
+function resolveGoalOrAssistContribution(candidate: PlayerPropCandidate): number {
+  const wc = candidate.wcOverlay;
+  if (!wc) return 0;
+  return wc.goalsTotal + wc.assistsTotal;
+}
+
+/**
+ * Rank goal markets using cumulative WC tournament data when available:
+ * actual scorers first (by goals), then high-threat non-scorers, then model fallback.
+ */
+function rankGoalMarketTopN(
+  candidates: PlayerPropCandidate[],
+  market: PlayerPropMarket,
+  n = TOP_N
+): PlayerPropLine[] {
+  const hasWcData = candidates.some(
+    (c) => c.wcOverlay != null && c.wcOverlay.minutesTotal > 0
+  );
+  if (!hasWcData) {
+    return rankTopN(candidates, market, n);
+  }
+
+  if (market === "anytime_scorer") {
+    const scorers = candidates.filter((c) => (c.wcOverlay?.goalsTotal ?? 0) > 0);
+    const rest = candidates.filter((c) => (c.wcOverlay?.goalsTotal ?? 0) <= 0);
+
+    scorers.sort((a, b) => {
+      const goalsDiff = b.wcOverlay!.goalsTotal - a.wcOverlay!.goalsTotal;
+      if (goalsDiff !== 0) return goalsDiff;
+      return b.wcOverlay!.xgTotal - a.wcOverlay!.xgTotal;
+    });
+
+    rest.sort((a, b) => resolveNonScorerGoalThreat(b) - resolveNonScorerGoalThreat(a));
+
+    return [...scorers, ...rest]
+      .slice(0, n)
+      .map((candidate, index) => toPropLine(candidate, index + 1, market));
+  }
+
+  const contributors = candidates.filter((c) => resolveGoalOrAssistContribution(c) > 0);
+  const rest = candidates.filter((c) => resolveGoalOrAssistContribution(c) <= 0);
+
+  contributors.sort((a, b) => {
+    const contribDiff =
+      resolveGoalOrAssistContribution(b) - resolveGoalOrAssistContribution(a);
+    if (contribDiff !== 0) return contribDiff;
+    return (b.wcOverlay?.goalsTotal ?? 0) - (a.wcOverlay?.goalsTotal ?? 0);
+  });
+
+  rest.sort((a, b) => {
+    const threatB =
+      resolveNonScorerGoalThreat(b) +
+      (b.wcOverlay?.assistRate90 ?? 0) * 30 +
+      b.normalizedAssistLambda * 50;
+    const threatA =
+      resolveNonScorerGoalThreat(a) +
+      (a.wcOverlay?.assistRate90 ?? 0) * 30 +
+      a.normalizedAssistLambda * 50;
+    return threatB - threatA;
+  });
+
+  return [...contributors, ...rest]
+    .slice(0, n)
+    .map((candidate, index) => toPropLine(candidate, index + 1, market));
+}
+
 const SOT_LINES: Array<0.5 | 1.5 | 2.5> = [0.5, 1.5, 2.5];
 
 function dedupeSquadPlayers(squad: TeamSquadSnapshot): SquadPlayer[] {
@@ -799,8 +879,8 @@ export function computeTeamPlayerProps(input: {
     teamName: input.teamName,
     teamId: input.teamId,
     teamExpectedGoals: input.teamExpectedGoals,
-    anytimeScorer: rankTopN(candidates, "anytime_scorer"),
-    goalOrAssist: rankTopN(candidates, "goal_or_assist"),
+    anytimeScorer: rankGoalMarketTopN(candidates, "anytime_scorer"),
+    goalOrAssist: rankGoalMarketTopN(candidates, "goal_or_assist"),
     shotsOnTarget: buildSotPropsForTeam({
       squad: input.squad,
       teamExpectedSot: input.teamExpectedSot ?? input.teamExpectedGoals * 4.2,

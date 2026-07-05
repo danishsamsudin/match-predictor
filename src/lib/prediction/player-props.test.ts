@@ -343,6 +343,9 @@ describe("computePlayerPropsPayload", () => {
       chanceIndexPer90: 0.5,
       shotsOnTargetPer90: sotPer90,
       shotsOnTargetTotal: sotTotal,
+      goalsTotal: 2,
+      assistsTotal: 1,
+      xgTotal: 2.4,
       goalsPer90: 0.15,
       xgPer90: 0.18,
       minutesTotal: (sotTotal / sotPer90) * 90,
@@ -404,5 +407,116 @@ describe("computePlayerPropsPayload", () => {
     expect(sotLines[0]!.expectedSot).toBeGreaterThan(sotLines[4]!.expectedSot);
     expect(sotLines[0]!.probabilityPct).toBeGreaterThan(sotLines[4]!.probabilityPct);
     expect(sotLines[0]!.fairDecimalOdds).toBeLessThan(sotLines[4]!.fairDecimalOdds);
+  });
+
+  it("ranks anytime scorers by WC tournament goals before model probability", () => {
+    const wcOverlays = new Map<string, WcPlayerPropOverlay>();
+    const overlayFor = (
+      name: string,
+      goalsTotal: number,
+      xgTotal: number,
+      goalRate90: number
+    ): WcPlayerPropOverlay => ({
+      optaPlayerId: name,
+      playerName: name,
+      teamApiId: 1,
+      goalRate90,
+      assistRate90: 0.05,
+      chanceIndexPer90: 0.4,
+      shotsOnTargetPer90: 0.8,
+      shotsOnTargetTotal: 4,
+      goalsTotal,
+      assistsTotal: 0,
+      xgTotal,
+      goalsPer90: goalRate90,
+      xgPer90: xgTotal * 0.3,
+      minutesTotal: 270,
+      matchesPlayed: 3,
+      wasLastStarter: true,
+      availabilityFactor: 1,
+      wcWeight: 0.85,
+    });
+
+    wcOverlays.set("richarlison", overlayFor("Richarlison", 3, 2.1, 0.55));
+    wcOverlays.set("vinicius jr", overlayFor("Vinicius Jr", 2, 3.8, 0.42));
+    wcOverlays.set("raphinha", overlayFor("Raphinha", 1, 1.2, 0.28));
+    wcOverlays.set("rodrygo", overlayFor("Rodrygo", 0, 2.9, 0.35));
+    wcOverlays.set("marquinhos", overlayFor("Marquinhos", 0, 0.3, 0.05));
+
+    const squad = makeSquad([
+      makePlayer({
+        name: "Vinicius Jr",
+        sofascorePlayerId: 1,
+        fieldPosition: "LW",
+        detailStats: [
+          { label: "xG", value: "22" },
+          { label: "Minutes", value: "2700" },
+        ],
+      }),
+      makePlayer({
+        name: "Richarlison",
+        sofascorePlayerId: 2,
+        fieldPosition: "ST",
+        detailStats: [
+          { label: "xG", value: "6" },
+          { label: "Minutes", value: "1800" },
+        ],
+      }),
+      makePlayer({
+        name: "Raphinha",
+        sofascorePlayerId: 3,
+        fieldPosition: "RW",
+        detailStats: [
+          { label: "xG", value: "14" },
+          { label: "Minutes", value: "2700" },
+        ],
+      }),
+      makePlayer({
+        name: "Rodrygo",
+        sofascorePlayerId: 4,
+        fieldPosition: "ST",
+        detailStats: [
+          { label: "xG", value: "4" },
+          { label: "Minutes", value: "900" },
+        ],
+      }),
+      makePlayer({
+        name: "Marquinhos",
+        sofascorePlayerId: 5,
+        position: "DEF",
+        fieldPosition: "RCB",
+        detailStats: [{ label: "Minutes", value: "2700" }],
+      }),
+      makePlayer({
+        name: "Casemiro",
+        sofascorePlayerId: 6,
+        position: "MID",
+        fieldPosition: "CDM",
+        detailStats: [
+          { label: "xG", value: "3" },
+          { label: "Minutes", value: "2700" },
+        ],
+      }),
+    ]);
+
+    const payload = computePlayerPropsPayload({
+      modelVersion: "test",
+      homeTeamName: "Brazil",
+      awayTeamName: "Norway",
+      homeTeamId: 1,
+      awayTeamId: 2,
+      homeXg: 1.8,
+      awayXg: 1.1,
+      homeSquad: squad,
+      awaySquad: makeSquad([]),
+      wcOverlays,
+    });
+
+    const names = payload.home.anytimeScorer.map((line) => line.playerName);
+    expect(names[0]).toBe("Richarlison");
+    expect(names[1]).toBe("Vinicius Jr");
+    expect(names[2]).toBe("Raphinha");
+    expect(names.slice(0, 3)).not.toContain("Marquinhos");
+    expect(names).toContain("Rodrygo");
   });
 });
