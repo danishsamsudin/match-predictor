@@ -10,8 +10,8 @@ import {
 } from "@/lib/world-cup/opta-widget-stats";
 export type { WcTeamStyleProfile, WcTournamentStyleBaselines } from "@/lib/world-cup/opta-widget-stats";
 import {
-  listWcOptaResultHtmlFiles,
-  WC_OPTA_RESULTS_DIR,
+  listWcOptaHtmlFixtureFiles,
+  WC_OPTA_HTML_FIXTURES_DIR,
 } from "@/lib/world-cup/wc-opta-results-dir";
 
 /** @deprecated Use WcTeamStyleProfile — kept for callers expecting event rates only. */
@@ -143,19 +143,12 @@ function linearRegression(
 }
 
 function listFixtureOptaHtmlFiles(): string[] {
-  const fixtureDir = path.join(process.cwd(), "src/lib/world-cup/__fixtures__/opta-html");
-  if (!fs.existsSync(fixtureDir)) return [];
-  return fs
-    .readdirSync(fixtureDir)
-    .filter((name) => name.endsWith(".html"))
-    .map((name) => path.join(fixtureDir, name));
+  return listWcOptaHtmlFixtureFiles(WC_OPTA_HTML_FIXTURES_DIR);
 }
 
+/** Runtime calibration uses committed test fixtures only; production relies on Supabase + priors. */
 function collectOptaHtmlPaths(): string[] {
-  const paths = new Set<string>();
-  for (const file of listWcOptaResultHtmlFiles()) paths.add(path.resolve(file));
-  for (const file of listFixtureOptaHtmlFiles()) paths.add(path.resolve(file));
-  return [...paths];
+  return listFixtureOptaHtmlFiles().map((file) => path.resolve(file));
 }
 
 function teamRatesFromAccum(teamApiId: number, acc: TeamAccum): WcTeamEventRates {
@@ -335,7 +328,7 @@ function accumulateTeamRates(
   teamAccum.set(parsed.awayTeamApiId, awayAcc);
 }
 
-/** Load tournament event calibration from committed Opta HTML (cached in-process). */
+/** Load tournament event calibration from committed test fixtures (cached in-process). */
 export function loadWcOptaEventCalibration(
   options?: { refresh?: boolean }
 ): WcTournamentEventCalibration {
@@ -371,5 +364,5 @@ export function clearWcOptaEventCalibrationCache(): void {
 }
 
 export function wcOptaResultsDirExists(): boolean {
-  return fs.existsSync(WC_OPTA_RESULTS_DIR);
+  return fs.existsSync(WC_OPTA_HTML_FIXTURES_DIR);
 }

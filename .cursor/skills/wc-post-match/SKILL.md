@@ -2,6 +2,8 @@
 
 Use after each FIFA World Cup 2026 match when the user saves Opta HTML to Downloads.
 
+**Note:** `WC-Opta-Results` and `WC-Opta-Player-Stats` are gitignored local ingest folders. Parsed data lives in Supabase after `wc:postmatch`; production does not read these HTML files.
+
 ## User workflow
 
 1. Save the **Opta Analyst stats article** as HTML (complete page with its `_files` folder).

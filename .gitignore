@@ -25,6 +25,12 @@
 /data/imports/scoutlyst/incoming/**/*.csv
 /data/imports/scoutlyst/archive/**/*.csv
 
+# Local Opta HTML saves (ingest input — parsed data lives in Supabase after wc:postmatch)
+/data/world-cup-2026/WC-Opta-Results/**
+/data/world-cup-2026/WC-Opta-Player-Stats/**
+!/data/world-cup-2026/WC-Opta-Results/.gitkeep
+!/data/world-cup-2026/WC-Opta-Player-Stats/.gitkeep
+
 # Local FBref / FIFA scrape exports (not committed)
 /data/imports/fbref/**/*.html
 /data/imports/fbref/**/*.htm

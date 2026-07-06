@@ -1,11 +1,14 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseOptaPlayerStatsFixture } from "@/lib/world-cup/opta-player-stats-parser";
-import { listWcPlayerStatsFixtures } from "@/lib/world-cup/wc-player-stats-dir";
+import {
+  listWcPlayerStatsFixtures,
+  WC_PLAYER_STATS_FIXTURES_ROOT,
+} from "@/lib/world-cup/wc-player-stats-dir";
 
 describe("parseOptaPlayerStatsFixture", () => {
-  it("parses Mexico vs South Africa from local Betting Showcase HTML", () => {
-    const fixtures = listWcPlayerStatsFixtures();
+  it("parses Mexico vs South Africa from committed Betting Showcase HTML", () => {
+    const fixtures = listWcPlayerStatsFixtures(WC_PLAYER_STATS_FIXTURES_ROOT);
     const mexico = fixtures.find(
       (f) =>
         f.homeName.includes("Mexico") &&
@@ -40,7 +43,7 @@ describe("parseOptaPlayerStatsFixture", () => {
   });
 
   it("merges stats across three page types", () => {
-    const fixtures = listWcPlayerStatsFixtures();
+    const fixtures = listWcPlayerStatsFixtures(WC_PLAYER_STATS_FIXTURES_ROOT);
     const complete = fixtures.filter(
       (f) => f.matchSummary && f.optaSummary && f.matchDetails
     );
@@ -56,12 +59,14 @@ describe("parseOptaPlayerStatsFixture", () => {
     expect(hasXg || hasSummaryStat).toBe(true);
   });
 
-  it("lists fixtures with resolved paths under data/", () => {
-    const fixtures = listWcPlayerStatsFixtures();
+  it("lists fixtures with resolved paths under __fixtures__/", () => {
+    const fixtures = listWcPlayerStatsFixtures(WC_PLAYER_STATS_FIXTURES_ROOT);
     expect(fixtures.length).toBeGreaterThanOrEqual(1);
     for (const f of fixtures) {
       if (f.matchSummary) {
-        expect(f.matchSummary).toContain(path.join("WC-Opta-Player-Stats", "Match Summary"));
+        expect(f.matchSummary).toContain(
+          path.join("__fixtures__", "opta-player-stats", "Match Summary")
+        );
       }
     }
   });

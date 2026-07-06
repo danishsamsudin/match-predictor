@@ -1,11 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
 
+/** Local Betting Showcase HTML saves for WC player-stats ingest (gitignored; not required at runtime). */
 export const WC_PLAYER_STATS_ROOT = path.join(
   process.cwd(),
   "data",
   "world-cup-2026",
   "WC-Opta-Player-Stats"
+);
+
+/** Committed parser test fixtures (Mexico vs South Africa sample). */
+export const WC_PLAYER_STATS_FIXTURES_ROOT = path.join(
+  process.cwd(),
+  "src",
+  "lib",
+  "world-cup",
+  "__fixtures__",
+  "opta-player-stats"
 );
 
 export const WC_PLAYER_STATS_SUBDIRS = {
@@ -75,8 +86,8 @@ function normalizeFixtureTeam(name: string): string {
     .trim();
 }
 
-function listHtmlInSubdir(subdir: string): string[] {
-  const dir = path.join(WC_PLAYER_STATS_ROOT, subdir);
+function listHtmlInSubdir(root: string, subdir: string): string[] {
+  const dir = path.join(root, subdir);
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir, { withFileTypes: true })
@@ -84,7 +95,9 @@ function listHtmlInSubdir(subdir: string): string[] {
     .map((e) => path.join(dir, e.name));
 }
 
-export function listWcPlayerStatsFixtures(): WcPlayerStatsFixtureFiles[] {
+export function listWcPlayerStatsFixtures(
+  root = WC_PLAYER_STATS_ROOT
+): WcPlayerStatsFixtureFiles[] {
   const byKey = new Map<string, WcPlayerStatsFixtureFiles>();
 
   const addFile = (kind: WcPlayerStatsPageKind, filePath: string) => {
@@ -109,7 +122,7 @@ export function listWcPlayerStatsFixtures(): WcPlayerStatsFixtureFiles[] {
   };
 
   for (const [kind, subdir] of Object.entries(WC_PLAYER_STATS_SUBDIRS)) {
-    for (const file of listHtmlInSubdir(subdir)) {
+    for (const file of listHtmlInSubdir(root, subdir)) {
       addFile(kind as WcPlayerStatsPageKind, file);
     }
   }
