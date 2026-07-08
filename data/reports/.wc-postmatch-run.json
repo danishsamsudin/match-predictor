@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-07-08T11:13:24.430Z",
+  "startedAt": "2026-07-08T11:47:01.999Z",
   "articleFiles": [
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Algeria 3-3 Austria Stats_ Kalajdzic's Last-Gasp Equaliser Sees Both Sides Reach Last 32 _ Opta Analyst.html",
     "/Users/danishsamsudin/match-predictor/data/world-cup-2026/WC-Opta-Results/Argentina 2-0 Austria Stats_ Lionel Messi Breaks World Cup Goal Record With Match-Winning Brace _ Opta Analyst.html",
@@ -100,7 +100,7 @@
   ],
   "playerStatsFixtureCount": 95,
   "calibrationBefore": {
-    "version": "wc-market-v846-1783509102697",
+    "version": "wc-market-v846-1783510284182",
     "constants": {
       "muXg": 1.300325777874857,
       "strengthExponent": 0.002723175,
@@ -128,7 +128,7 @@
         "fifa": 0.13478675070663987,
         "momentum": 0.05000499117588326
       },
-      "modelVersion": "wc-market-v846-1783509102697",
+      "modelVersion": "wc-market-v846-1783510284182",
       "teamSetPieceRates": {
         "4714": 0.5
       },
@@ -176,22 +176,22 @@
         }
       },
       "playerPropModelCoeffs": {
-        "intercept": -0.9415266332504171,
-        "logLambdaSlope": 0.6296112464114222,
+        "intercept": -0.9407517282647384,
+        "logLambdaSlope": 0.6314019044153746,
         "chanceIndexSlope": 0.48268045225484335,
         "penaltyTakerSlope": 0.24,
         "starterSlope": 0.19459812568508553,
         "roleForwardSlope": 0.16,
         "roleMidSlope": 0.07459812568508549,
-        "teamXgSlope": 0.19265145053974894,
+        "teamXgSlope": 0.1936200817718472,
         "mlBlend": 0.48,
         "structuralZeroScale": 0.62,
         "wcGoalShare": 0.92
       },
       "marketModels": {
         "btts": {
-          "intercept": -0.021504495142996544,
-          "priorWeight": 0.73192205065451,
+          "intercept": -0.023935133440868884,
+          "priorWeight": 0.7334159758459994,
           "totalXgSlope": 0.28,
           "homeAttackSlope": 0.22,
           "awayAttackSlope": 0.22,
@@ -200,7 +200,7 @@
           "lowBlockSlope": -0.12,
           "rhoSlope": 0.08,
           "knockoutSlope": -0.05,
-          "mlBlend": 0.4580641856786236
+          "mlBlend": 0.4589756750403257
         },
         "overUnder": {
           "0.5": {
@@ -243,8 +243,8 @@
             "mlBlend": 0.45
           },
           "3.5": {
-            "intercept": -0.0731738857627861,
-            "priorWeight": 0.7312793071060438,
+            "intercept": -0.08163478898859255,
+            "priorWeight": 0.7327017285899148,
             "totalXgSlope": 0.27,
             "homeAttackSlope": 0.22,
             "awayAttackSlope": 0.22,
@@ -253,11 +253,11 @@
             "lowBlockSlope": -0.12,
             "rhoSlope": 0.08,
             "knockoutSlope": -0.05,
-            "mlBlend": 0.4774402071610448
+            "mlBlend": 0.48061304587072223
           }
         },
         "xgHome": {
-          "mlBlend": 0.2392000000000001,
+          "mlBlend": 0.24160000000000012,
           "intercept": 0,
           "grahamPriorWeight": 0.78,
           "chanceIndexSlope": 0.12,
@@ -266,7 +266,7 @@
           "lineupImpactSlope": 0.1
         },
         "xgAway": {
-          "mlBlend": 0.2392000000000001,
+          "mlBlend": 0.24160000000000012,
           "intercept": 0,
           "grahamPriorWeight": 0.78,
           "chanceIndexSlope": 0.12,
@@ -289,9 +289,9 @@
           "mlBlend": 0.35
         },
         "correctScore": {
-          "rhoAdjust": -0.0048,
+          "rhoAdjust": -0.005399999999999999,
           "overdispersionKAdjust": 0,
-          "top2RerankWeight": 0.15960000000000005
+          "top2RerankWeight": 0.16080000000000005
         },
         "winningMargin": {
           "intercept": 0,
@@ -548,14 +548,14 @@
         },
         "playerProps": {
           "anytime": {
-            "intercept": -0.9415266332504171,
-            "logLambdaSlope": 0.6296112464114222,
+            "intercept": -0.9407517282647384,
+            "logLambdaSlope": 0.6314019044153746,
             "chanceIndexSlope": 0.48268045225484335,
             "penaltyTakerSlope": 0.24,
             "starterSlope": 0.19459812568508553,
             "roleForwardSlope": 0.16,
             "roleMidSlope": 0.07459812568508549,
-            "teamXgSlope": 0.19265145053974894,
+            "teamXgSlope": 0.1936200817718472,
             "mlBlend": 0.48,
             "structuralZeroScale": 0.62,
             "wcGoalShare": 0.92

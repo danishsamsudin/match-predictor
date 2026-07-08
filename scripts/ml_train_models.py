@@ -15,6 +15,7 @@ import math
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -72,6 +73,9 @@ DELTA_WEIGHT_KEYS = [
 ML_MIN_TRAINING_EXAMPLES = 30
 ML_MIN_NEW_EXAMPLES_SINCE_LAST_TRAIN = 5
 ML_WALK_FORWARD_HOLDOUT = 8
+SUPABASE_MAX_RETRIES = 6
+SUPABASE_BACKOFF_BASE_SEC = 2.0
+TRAINING_ROWS_PAGE_SIZE = 500
 
 # Incremental learning: move a small fraction toward the ML target each deploy.
 ML_DELTA_BLEND_STEP = 0.08
@@ -199,14 +203,78 @@ def extract_feature_row(features: dict[str, Any], opta: dict[str, Any] | None) -
     return row
 
 
-def fetch_training_rows(supabase: Client) -> pd.DataFrame:
-    res = (
-        supabase.table("ml_training_examples")
-        .select("*")
-        .order("match_date", desc=False)
-        .execute()
+def is_transient_supabase_error(exc: BaseException) -> bool:
+    try:
+        import httpx
+
+        if isinstance(
+            exc,
+            (
+                httpx.ConnectError,
+                httpx.ReadTimeout,
+                httpx.WriteTimeout,
+                httpx.ConnectTimeout,
+                httpx.RemoteProtocolError,
+            ),
+        ):
+            return True
+    except ImportError:
+        pass
+    msg = str(exc).lower()
+    return any(
+        token in msg
+        for token in (
+            "connection reset",
+            "timeout",
+            "temporarily unavailable",
+            "502",
+            "503",
+            "504",
+            "429",
+        )
     )
-    rows = res.data or []
+
+
+def execute_with_retry(fn: Any) -> Any:
+    last_error: BaseException | None = None
+    for attempt in range(SUPABASE_MAX_RETRIES):
+        try:
+            return fn()
+        except Exception as exc:
+            last_error = exc
+            if not is_transient_supabase_error(exc) or attempt >= SUPABASE_MAX_RETRIES - 1:
+                raise
+            wait = SUPABASE_BACKOFF_BASE_SEC * (2**attempt)
+            print(
+                f"Supabase request failed ({exc}); "
+                f"retry {attempt + 1}/{SUPABASE_MAX_RETRIES - 1} in {wait:.1f}s",
+                file=sys.stderr,
+            )
+            time.sleep(wait)
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Supabase request failed")
+
+
+def fetch_training_rows(supabase: Client) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        page_offset = offset
+        res = execute_with_retry(
+            lambda: supabase.table("ml_training_examples")
+            .select("*")
+            .order("match_date", desc=False)
+            .range(page_offset, page_offset + TRAINING_ROWS_PAGE_SIZE - 1)
+            .execute()
+        )
+        batch = res.data or []
+        if not batch:
+            break
+        rows.extend(batch)
+        if len(batch) < TRAINING_ROWS_PAGE_SIZE:
+            break
+        offset += TRAINING_ROWS_PAGE_SIZE
     records: list[dict[str, Any]] = []
     for r in rows:
         features = r.get("features") or {}
@@ -234,8 +302,8 @@ def fetch_training_rows(supabase: Client) -> pd.DataFrame:
 
 
 def load_deployed_constants(supabase: Client) -> dict[str, Any]:
-    res = (
-        supabase.table("world_cup_calibration_config")
+    res = execute_with_retry(
+        lambda: supabase.table("world_cup_calibration_config")
         .select("constants, version, metrics, created_at")
         .order("effective_from", desc=True)
         .limit(1)
@@ -590,8 +658,8 @@ def main() -> None:
         "method": "incremental_elasticnet_walkforward",
     }
 
-    existing = (
-        supabase.table("world_cup_calibration_config")
+    existing = execute_with_retry(
+        lambda: supabase.table("world_cup_calibration_config")
         .select("id")
         .eq("version", version)
         .execute()
@@ -600,14 +668,18 @@ def main() -> None:
         print(f"Version {version} already exists — skipping.")
         return
 
-    supabase.table("world_cup_calibration_config").insert(
-        {
-            "version": version,
-            "constants": candidate,
-            "metrics": metrics,
-            "effective_from": datetime.now(timezone.utc).isoformat(),
-        }
-    ).execute()
+    execute_with_retry(
+        lambda: supabase.table("world_cup_calibration_config")
+        .insert(
+            {
+                "version": version,
+                "constants": candidate,
+                "metrics": metrics,
+                "effective_from": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        .execute()
+    )
 
     print(f"Deployed calibration: {version}")
 
