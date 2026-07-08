@@ -8,10 +8,12 @@ import type { UpcomingMatchCardProps } from "@/components/world-cup/MatchValueFl
 import { WorldCupSectionHelp } from "@/components/world-cup/WorldCupSectionHelp";
 import { WorldCupRefreshButton } from "@/components/world-cup/WorldCupRefreshButton";
 import { loadWorldCupHubPayload } from "@/lib/world-cup/hub-load";
+import { isQfHubMatchId } from "@/lib/world-cup/qf-hub-fixtures";
 import { isR16HubMatchId } from "@/lib/world-cup/r16-hub-fixtures";
 import { isR32HubMatchId } from "@/lib/world-cup/r32-hub-fixtures";
 
 function knockoutRoundLabel(matchId: string): string | null {
+  if (isQfHubMatchId(matchId)) return "Quarter-finals";
   if (isR16HubMatchId(matchId)) return "Round of 16";
   if (isR32HubMatchId(matchId)) return "Round of 32";
   return null;

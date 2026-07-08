@@ -1,0 +1,87 @@
+import qfFixtureData from "../../../data/world-cup-2026/qf-fixtures.json";
+import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
+import { resolveStadiumVenue } from "@/lib/world-cup/stadium-metadata";
+import {
+  isKnockoutSlotPlaceholder,
+  R32_MATCH_ID_PREFIX,
+  r32MatchId,
+} from "@/lib/world-cup/r32-hub-fixtures";
+import type { WcMatchRow } from "@/lib/world-cup/standings";
+
+export type QfFixtureRecord = {
+  match_number: number;
+  date: string;
+  kickoff_time: string;
+  stadium: string;
+  city: string;
+  venue_raw: string;
+  home_team: string;
+  away_team: string;
+  home_goals?: number | null;
+  away_goals?: number | null;
+  status?: string | null;
+};
+
+export { r32MatchId as qfMatchId };
+
+export function loadQfFixtures(): QfFixtureRecord[] {
+  const file = qfFixtureData as { fixtures?: QfFixtureRecord[] };
+  return [...(file.fixtures ?? [])].sort((a, b) => a.match_number - b.match_number);
+}
+
+function resolveTeamId(
+  name: string,
+  teamNames: Map<string, string>
+): string | null {
+  if (isKnockoutSlotPlaceholder(name)) {
+    return `${R32_MATCH_ID_PREFIX}slot-${name.replace(/\s+/g, "").toUpperCase()}`;
+  }
+  const key = normalizeNationalTeamName(name);
+  for (const [id, teamName] of teamNames) {
+    if (normalizeNationalTeamName(teamName) === key) return id;
+  }
+  return null;
+}
+
+export function buildQfHubMatchRows(
+  teamNames: Map<string, string>
+): Array<WcMatchRow & { home_team_name: string; away_team_name: string }> {
+  return loadQfFixtures().map((fx) => {
+    const venueMeta = resolveStadiumVenue(fx.city) ?? resolveStadiumVenue(fx.stadium);
+    const isLive = fx.status === "live";
+    const finished = fx.status === "finished";
+    return {
+      id: r32MatchId(fx.match_number),
+      date: fx.date,
+      time: fx.kickoff_time,
+      competition: "FIFA World Cup 2026",
+      round: "QF",
+      group_code: null,
+      status: finished ? "finished" : isLive ? "live" : "scheduled",
+      home_team_id: resolveTeamId(fx.home_team, teamNames),
+      away_team_id: resolveTeamId(fx.away_team, teamNames),
+      home_goals: fx.home_goals ?? null,
+      away_goals: fx.away_goals ?? null,
+      home_team_name: fx.home_team,
+      away_team_name: fx.away_team,
+      venue: fx.venue_raw,
+      venue_city: fx.city,
+      venue_label: fx.stadium,
+      venue_altitude_meters: venueMeta?.altitude_meters ?? null,
+    };
+  });
+}
+
+export function isQfHubMatchId(id: string | null | undefined): boolean {
+  if (!id?.startsWith(R32_MATCH_ID_PREFIX)) return false;
+  const num = Number(id.slice(R32_MATCH_ID_PREFIX.length));
+  return num >= 97 && num <= 100;
+}
+
+export function qfFixtureHasBothTeams(
+  fx: Pick<QfFixtureRecord, "home_team" | "away_team">
+): boolean {
+  return (
+    !isKnockoutSlotPlaceholder(fx.home_team) && !isKnockoutSlotPlaceholder(fx.away_team)
+  );
+}

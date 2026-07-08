@@ -36,6 +36,7 @@ import {
   isR32HubMatchId,
 } from "@/lib/world-cup/r32-hub-fixtures";
 import { buildR16HubMatchRows } from "@/lib/world-cup/r16-hub-fixtures";
+import { buildQfHubMatchRows } from "@/lib/world-cup/qf-hub-fixtures";
 import { filterWorldCup2026GroupStageMatches } from "@/lib/world-cup/tournament-fixtures";
 import { buildCompletePredictionsMap } from "@/lib/world-cup/run-tournament-forecast";
 import { runDeterministicTournamentForecast } from "@/lib/world-cup/tournament-simulation";
@@ -629,7 +630,11 @@ function enrichKnockoutUpcomingRows(
   const pairIndex = buildPredictionTeamPairIndex(predByMatch);
   const recentById = new Map(recent.map((m) => [m.id, m]));
   const withoutSyntheticKnockout = existingUpcoming.filter((m) => !isR32HubMatchId(m.id));
-  const knockoutRows = [...buildR32HubMatchRows(teamNames), ...buildR16HubMatchRows(teamNames)]
+  const knockoutRows = [
+    ...buildR32HubMatchRows(teamNames),
+    ...buildR16HubMatchRows(teamNames),
+    ...buildQfHubMatchRows(teamNames),
+  ]
     .filter((m) => !recentById.has(m.id))
     .map((m) =>
       patchHubMatchFromLive(

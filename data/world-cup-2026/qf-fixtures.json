@@ -1,0 +1,59 @@
+{
+  "version": "qf-live-draw-v1",
+  "source": "FIFA Game Schedule & Where to Watch (imported 2026-07-08)",
+  "source_html": "Game Schedule & Where to Watch _ FIFA World Cup 2026™.html",
+  "fixtures": [
+    {
+      "match_number": 97,
+      "date": "2026-07-09",
+      "kickoff_time": "16:00",
+      "stadium": "Gillette Stadium",
+      "city": "Boston",
+      "venue_raw": "Gillette Stadium (Neutral Site)",
+      "home_team": "France",
+      "away_team": "Morocco",
+      "fifa_match_id": "400021536",
+      "cest_date": "2026-07-09",
+      "cest_time": "22:00"
+    },
+    {
+      "match_number": 98,
+      "date": "2026-07-10",
+      "kickoff_time": "12:00",
+      "stadium": "SoFi Stadium",
+      "city": "Los Angeles",
+      "venue_raw": "SoFi Stadium (Neutral Site)",
+      "home_team": "Spain",
+      "away_team": "Belgium",
+      "fifa_match_id": "400021538",
+      "cest_date": "2026-07-10",
+      "cest_time": "21:00"
+    },
+    {
+      "match_number": 99,
+      "date": "2026-07-11",
+      "kickoff_time": "17:00",
+      "stadium": "Hard Rock Stadium",
+      "city": "Miami",
+      "venue_raw": "Hard Rock Stadium (Neutral Site)",
+      "home_team": "Norway",
+      "away_team": "England",
+      "fifa_match_id": "400021539",
+      "cest_date": "2026-07-11",
+      "cest_time": "23:00"
+    },
+    {
+      "match_number": 100,
+      "date": "2026-07-11",
+      "kickoff_time": "20:00",
+      "stadium": "Arrowhead Stadium",
+      "city": "Kansas City",
+      "venue_raw": "Arrowhead Stadium (Neutral Site)",
+      "home_team": "Argentina",
+      "away_team": "Switzerland",
+      "fifa_match_id": "400021537",
+      "cest_date": "2026-07-12",
+      "cest_time": "03:00"
+    }
+  ]
+}

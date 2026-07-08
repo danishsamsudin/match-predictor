@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseFifaWtwR32ScheduleHtml, parseFifaWtwR16ScheduleHtml, type FifaKnockoutScheduleFallback } from "@/lib/world-cup/parse-fifa-wtw-schedule-html";
+import { parseFifaWtwR32ScheduleHtml, parseFifaWtwR16ScheduleHtml, parseFifaWtwQfScheduleHtml, type FifaKnockoutScheduleFallback } from "@/lib/world-cup/parse-fifa-wtw-schedule-html";
 
 const DEFAULT_HTML = path.join(
   os.homedir(),
@@ -12,7 +12,7 @@ const DEFAULT_HTML = path.join(
 
 const BRACKET_PATH = path.join(process.cwd(), "data/world-cup-2026/knockout-bracket.json");
 
-function loadBracketFallbacks(round: "R32" | "R16"): FifaKnockoutScheduleFallback[] {
+function loadBracketFallbacks(round: "R32" | "R16" | "QF"): FifaKnockoutScheduleFallback[] {
   const raw = JSON.parse(fs.readFileSync(BRACKET_PATH, "utf8")) as {
     matches?: Array<{
       match_number: number;
@@ -84,6 +84,34 @@ describe("parseFifaWtwR32ScheduleHtml", () => {
       const mexicoEngland = fixtures.find((f) => f.match_number === 92)!;
       expect(mexicoEngland.home_team).toBe("Mexico");
       expect(mexicoEngland.away_team).toBe("England");
+    }
+  );
+
+  it.skipIf(!fs.existsSync(DEFAULT_HTML))(
+    "parses 4 Quarter-final fixtures with resolved teams",
+    () => {
+      const html = fs.readFileSync(DEFAULT_HTML, "utf8");
+      const fixtures = parseFifaWtwQfScheduleHtml(html, loadBracketFallbacks("QF"));
+
+      expect(fixtures).toHaveLength(4);
+      expect(fixtures.map((f) => f.match_number).sort((a, b) => a - b)).toEqual([97, 98, 99, 100]);
+
+      const franceMorocco = fixtures.find((f) => f.match_number === 97)!;
+      expect(franceMorocco.home_team).toBe("France");
+      expect(franceMorocco.away_team).toBe("Morocco");
+      expect(franceMorocco.city).toBe("Boston");
+
+      const spainBelgium = fixtures.find((f) => f.match_number === 98)!;
+      expect(spainBelgium.home_team).toBe("Spain");
+      expect(spainBelgium.away_team).toBe("Belgium");
+
+      const norwayEngland = fixtures.find((f) => f.match_number === 99)!;
+      expect(norwayEngland.home_team).toBe("Norway");
+      expect(norwayEngland.away_team).toBe("England");
+
+      const argSwitzerland = fixtures.find((f) => f.match_number === 100)!;
+      expect(argSwitzerland.home_team).toBe("Argentina");
+      expect(argSwitzerland.away_team).toBe("Switzerland");
     }
   );
 });

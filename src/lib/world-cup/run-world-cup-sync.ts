@@ -28,6 +28,7 @@ import {
   isKnockoutSlotPlaceholder,
 } from "@/lib/world-cup/r32-hub-fixtures";
 import { buildR16HubMatchRows } from "@/lib/world-cup/r16-hub-fixtures";
+import { buildQfHubMatchRows } from "@/lib/world-cup/qf-hub-fixtures";
 import {
   resolveMatchPhase,
   shouldRefreshHubPrediction,
@@ -228,7 +229,31 @@ export async function runWorldCupHubSync(): Promise<WorldCupSyncResult> {
         !isKnockoutSlotPlaceholder(m.away_team_name)
     ) as WcMatchWithMeta[];
 
-  matches = [...matches, ...r32Rows, ...r16Rows];
+  const qfRows = buildQfHubMatchRows(r32TeamNames)
+    .map((m) => {
+      const db = r32DbById.get(m.id);
+      if (!db) return m;
+      return {
+        ...m,
+        home_goals: (db.home_goals as number | null) ?? m.home_goals,
+        away_goals: (db.away_goals as number | null) ?? m.away_goals,
+        status: deriveMatchStatus({
+          ...m,
+          home_goals: (db.home_goals as number | null) ?? m.home_goals,
+          away_goals: (db.away_goals as number | null) ?? m.away_goals,
+          status: (db.status as string | null) ?? m.status,
+        }),
+      };
+    })
+    .filter(
+      (m) =>
+        m.home_team_id &&
+        m.away_team_id &&
+        !isKnockoutSlotPlaceholder(m.home_team_name) &&
+        !isKnockoutSlotPlaceholder(m.away_team_name)
+    ) as WcMatchWithMeta[];
+
+  matches = [...matches, ...r32Rows, ...r16Rows, ...qfRows];
   let matchesEnriched = 0;
   for (const m of matches) {
     const patch = enrichMatchEnvironment(m, matches, teamNames, {

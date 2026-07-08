@@ -63,6 +63,14 @@ const FIFA_R16_MATCH_NUMBERS: Record<string, number> = {
   "400021535": 96,
 };
 
+/** FIFA match-centre ids → official World Cup match numbers (97–100). */
+const FIFA_QF_MATCH_NUMBERS: Record<string, number> = {
+  "400021536": 97,
+  "400021538": 98,
+  "400021539": 99,
+  "400021537": 100,
+};
+
 const FIFA_GENERIC_STADIUM_TO_CANONICAL: Record<string, { stadium: string; city: string }> =
   Object.fromEntries(
     listWorldCup2026Stadiums().flatMap(({ stadium, city }) => {
@@ -319,6 +327,17 @@ export function parseFifaWtwR16ScheduleHtml(
 ): FifaWtwParsedMatch[] {
   return parseKnockoutScheduleHtml(html, "Round of 16", FIFA_R16_MATCH_NUMBERS, {
     fallbackDateLabel: "4 July 2026",
+    fallbacks,
+  });
+}
+
+/** Parse FIFA “Game Schedule & Where to Watch” saved HTML for Quarter-final fixtures. */
+export function parseFifaWtwQfScheduleHtml(
+  html: string,
+  fallbacks?: FifaKnockoutScheduleFallback[]
+): FifaWtwParsedMatch[] {
+  return parseKnockoutScheduleHtml(html, "Quarter-final", FIFA_QF_MATCH_NUMBERS, {
+    fallbackDateLabel: "9 July 2026",
     fallbacks,
   });
 }

@@ -1,6 +1,7 @@
 import { normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
 import { buildR16HubMatchRows } from "@/lib/world-cup/r16-hub-fixtures";
+import { buildQfHubMatchRows } from "@/lib/world-cup/qf-hub-fixtures";
 import {
   buildR32HubMatchRows,
   isKnockoutSlotPlaceholder,
@@ -50,6 +51,7 @@ export function findKnockoutHubMatchForTeamPair(input: {
   const candidates = [
     ...buildR32HubMatchRows(input.teamNames),
     ...buildR16HubMatchRows(input.teamNames),
+    ...buildQfHubMatchRows(input.teamNames),
   ];
 
   for (const fx of candidates) {

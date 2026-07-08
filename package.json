@@ -35,6 +35,8 @@
     "wc:r32": "npx tsx scripts/seed-world-cup-r32-fixtures.ts",
     "wc:import-r16": "npx tsx scripts/import-fifa-r16-schedule.ts",
     "wc:r16": "npx tsx scripts/seed-world-cup-r16-fixtures.ts",
+    "wc:import-qf": "npx tsx scripts/import-fifa-qf-schedule.ts",
+    "wc:qf": "npx tsx scripts/seed-world-cup-qf-fixtures.ts",
     "wc:sync": "npx tsx scripts/wc-sync-cli.ts",
     "wc:sync:http": "bash scripts/wc-sync.sh",
     "snapshots:league": "npx tsx scripts/run-league-prediction-snapshots.ts",

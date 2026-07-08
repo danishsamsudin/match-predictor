@@ -16,6 +16,7 @@ import argparse
 import os
 import re
 import sys
+import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,11 @@ sys.path.insert(0, str(_SCRIPTS_DIR / "statsbomb"))
 from process_aggregates import aggregate_match_process  # noqa: E402
 
 OPEN_DATA_BASE = "https://raw.githubusercontent.com/statsbomb/open-data/master/data"
+REQUEST_INTERVAL_SEC = 0.35
+MAX_RETRIES = 8
+BACKOFF_BASE_SEC = 5.0
+TRANSIENT_STATUS = {429, 500, 502, 503, 504}
+_last_request_at = 0.0
 INTERNATIONAL_COMPETITIONS = {
     43: "FIFA World Cup",
     55: "FIFA World Cup",
@@ -135,10 +141,71 @@ def international_match_tier_weight(competition: Optional[str]) -> float:
     return 1.0
 
 
+def _wait_for_request_slot() -> None:
+    global _last_request_at
+    elapsed = time.monotonic() - _last_request_at
+    if elapsed < REQUEST_INTERVAL_SEC:
+        time.sleep(REQUEST_INTERVAL_SEC - elapsed)
+
+
 def fetch_json(url: str) -> Any:
-    res = requests.get(url, timeout=60)
-    res.raise_for_status()
-    return res.json()
+    global _last_request_at
+    last_error: Optional[Exception] = None
+
+    for attempt in range(MAX_RETRIES):
+        _wait_for_request_slot()
+        try:
+            res = requests.get(
+                url,
+                timeout=60,
+                headers={"User-Agent": "match-predictor-statsbomb-import/1.0"},
+            )
+            _last_request_at = time.monotonic()
+
+            if res.status_code in TRANSIENT_STATUS:
+                retry_after = res.headers.get("Retry-After", "").strip()
+                if retry_after.isdigit():
+                    wait = float(retry_after)
+                else:
+                    wait = BACKOFF_BASE_SEC * (2**attempt)
+                if attempt >= MAX_RETRIES - 1:
+                    res.raise_for_status()
+                print(
+                    f"Rate limited ({res.status_code}) for {url}; "
+                    f"retry {attempt + 1}/{MAX_RETRIES - 1} in {wait:.1f}s",
+                    file=sys.stderr,
+                )
+                time.sleep(wait)
+                continue
+
+            res.raise_for_status()
+            return res.json()
+        except requests.HTTPError as exc:
+            last_error = exc
+            status = exc.response.status_code if exc.response is not None else None
+            if status not in TRANSIENT_STATUS or attempt >= MAX_RETRIES - 1:
+                raise
+            wait = BACKOFF_BASE_SEC * (2**attempt)
+            print(
+                f"Request failed ({status}) for {url}; "
+                f"retry {attempt + 1}/{MAX_RETRIES - 1} in {wait:.1f}s",
+                file=sys.stderr,
+            )
+            time.sleep(wait)
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt >= MAX_RETRIES - 1:
+                raise
+            wait = BACKOFF_BASE_SEC * (2**attempt)
+            print(
+                f"Request error for {url}; retry {attempt + 1}/{MAX_RETRIES - 1} in {wait:.1f}s",
+                file=sys.stderr,
+            )
+            time.sleep(wait)
+
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError(f"Failed to fetch {url}")
 
 
 def create_supabase_client() -> Client:
