@@ -123,7 +123,7 @@ export function PredictionResultCard({
   };
 
   return (
-    <div className="liquid-glass-panel min-w-0 max-w-full rounded-2xl sm:rounded-[2rem]">
+    <div className="liquid-glass-panel min-w-0 max-w-full overflow-hidden rounded-2xl sm:rounded-[2rem]">
       <div className="h-0.5 bg-gradient-to-r from-indigo-500 via-cyan-500 to-violet-500 dark:from-cyan-400 dark:via-fuchsia-500 dark:to-violet-400" />
 
       <div className="border-b border-white/30 px-4 py-4 dark:border-slate-800/60 sm:px-6">
