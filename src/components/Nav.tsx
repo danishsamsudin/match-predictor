@@ -8,6 +8,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const links = [
   { href: "/predict", label: "Predict" },
+  { href: "/league", label: "League" },
   { href: "/world-cup", label: "World Cup" },
   { href: "/predictions", label: "History" },
 ];
@@ -16,7 +17,7 @@ export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const isLoginPage = pathname === "/";
+  const isLoginPage = pathname === "/login";
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -82,7 +83,7 @@ export function Nav() {
               {logoutButton}
               <ThemeToggle />
             </div>
-            <Link href="/predict" className="transition-opacity hover:opacity-90">
+            <Link href="/" className="transition-opacity hover:opacity-90">
               <BrandLogo size="md" />
             </Link>
           </div>
@@ -95,7 +96,7 @@ export function Nav() {
 
         {/* Desktop: logo left, theme + links in one pill */}
         <div className="hidden items-center justify-between gap-3 sm:flex">
-          <Link href="/predict" className="shrink-0 transition-opacity hover:opacity-90">
+          <Link href="/" className="shrink-0 transition-opacity hover:opacity-90">
             <BrandLogo size="md" />
           </Link>
           <div className="flex items-center gap-2">

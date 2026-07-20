@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>GLPM Co-founder Guide</title>
+  <style>
+    @page { size: A4; margin: 22mm 20mm 24mm 20mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.55;
+      color: #1a1a1a;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    h1 { font-size: 22pt; margin: 0 0 0.4em; page-break-after: avoid; }
+    h2 {
+      font-size: 14pt;
+      margin: 1.6em 0 0.5em;
+      padding-top: 0.3em;
+      border-top: 1px solid #ddd;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 11.5pt; margin: 1.2em 0 0.4em; page-break-after: avoid; }
+    h4 { font-size: 10.5pt; margin: 1em 0 0.3em; page-break-after: avoid; }
+    p, li { orphans: 3; widows: 3; }
+    ul, ol { padding-left: 1.4em; }
+    li { margin: 0.2em 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5pt;
+      margin: 0.8em 0 1.2em;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f4f4f4; font-weight: 600; }
+    code {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 9pt;
+      background: #f5f5f5;
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+    }
+    pre {
+      background: #f7f7f7;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      font-size: 8.5pt;
+      line-height: 1.45;
+      page-break-inside: avoid;
+    }
+    pre code { background: none; padding: 0; }
+    hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+    blockquote {
+      margin: 0.8em 0;
+      padding: 0.4em 1em;
+      border-left: 3px solid #ccc;
+      color: #444;
+    }
+    .diagram-note {
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin: 1em 0;
+      page-break-inside: avoid;
+    }
+    .diagram-note pre {
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0.4em 0 0;
+      font-size: 8pt;
+    }
+    a { color: #1a5276; text-decoration: none; }
+    em { color: #555; }
+  </style>
+</head>
+<body>
+<h1>Graham League Prediction Model (GLPM)</h1>
+<p><strong>Co-founder guide — what we built, how it works, and how to run it</strong></p>
+<p><em>Last updated: July 2026</em></p>
+<hr>
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#1-executive-summary">Executive summary</a></li>
+<li><a href="#2-what-we-implemented">What we implemented</a></li>
+<li><a href="#3-what-changed-from-the-old-model">What changed from the old model</a></li>
+<li><a href="#4-how-predictions-work-moving-forward">How predictions work moving forward</a></li>
+<li><a href="#5-system-architecture">System architecture</a></li>
+<li><a href="#6-data-what-we-need-and-why">Data: what we need and why</a></li>
+<li><a href="#7-why-this-is-machine-learning">Why this is machine learning</a></li>
+<li><a href="#8-training-the-model">Training the model</a></li>
+<li><a href="#9-the-seven-rating-engines">The seven rating engines</a></li>
+<li><a href="#10-rating-vectors-and-bayesian-updates">Rating vectors and Bayesian updates</a></li>
+<li><a href="#11-expected-goals-engine">Expected goals engine</a></li>
+<li><a href="#12-match-prediction-markets">Match prediction markets</a></li>
+<li><a href="#13-operational-runbook">Operational runbook</a></li>
+<li><a href="#14-glossary">Glossary</a></li>
+</ol>
+<hr>
+<h2>1. Executive summary</h2>
+<p>The <strong>Graham League Prediction Model (GLPM)</strong> is our new probabilistic framework for <strong>club football</strong> (domestic leagues). It replaces a single “team strength” number with a <strong>seven-dimensional rating system</strong> that estimates how many quality chances each team will create against a specific opponent — then derives every betting market from those expected goals.</p>
+<p><strong>Core idea:</strong> Goals are noisy. Expected goals (xG) are not. GLPM predicts xG first, then converts xG into scorelines, 1X2, BTTS, and Over/Under probabilities using the same underlying math every time.</p>
+<p><strong>What makes it different:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Old approach</th>
+<th>GLPM</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>One composite strength index</td>
+<td>Seven specialist ratings (attack, defence, GK, build-up, possession, pressing, finishing)</td>
+</tr>
+<tr>
+<td>Rank teams</td>
+<td>Estimate chance creation vs a specific opponent</td>
+</tr>
+<tr>
+<td>Markets may use different logic</td>
+<td>All markets from one xG pair via Dixon–Coles</td>
+</tr>
+<tr>
+<td>Mixed data sources for clubs</td>
+<td>Dedicated <code>glpm_*</code> schema; SportMonks primary, Wyscout enrichment</td>
+</tr>
+</tbody></table>
+<p>The World Cup / national-team predictor is <strong>unchanged</strong>. GLPM applies to <strong>club</strong> mode only.</p>
+<hr>
+<h2>2. What we implemented</h2>
+<h3>2.1 End-to-end pipeline</h3>
+<p>We built a full production stack from raw match data to UI:</p>
+<pre><code>Football data (SportMonks + Wyscout)
+        ↓
+Layer 1 — Match ingest &amp; storage
+        ↓
+Layer 2 — Feature engineering
+        ↓
+7 rating engines (ML training)
+        ↓
+Rating Vector assembly  R = [A, D, GK, BU, PO, PR, FR]
+        ↓
+Optional Bayesian temporal smoothing
+        ↓
+Expected Goals Engine  →  xG_home, xG_away
+        ↓
+Dixon–Coles score matrix  →  1X2, BTTS, O/U, correct scores
+        ↓
+API + League Hub UI
+</code></pre>
+<h3>2.2 Software components</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it does</th>
+<th>Key location</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Data ingest</strong></td>
+<td>Pull fixtures, team stats, player stats, shots from SportMonks; enrich with Wyscout PPDA and shot detail</td>
+<td><code>src/lib/glpm/ingestMatch.ts</code>, <code>scripts/glpm-sportmonks-*.ts</code></td>
+</tr>
+<tr>
+<td><strong>Feature engineering</strong></td>
+<td>Turn raw stats into model-ready per-match features</td>
+<td><code>features/*.py</code>, <code>src/lib/glpm/layer2/</code></td>
+</tr>
+<tr>
+<td><strong>Rating engines (×7)</strong></td>
+<td>Train hierarchical ML models per football domain</td>
+<td><code>models/ratings/{attack,defence,...}/</code></td>
+</tr>
+<tr>
+<td><strong>Vector assembly</strong></td>
+<td>Combine seven primary ratings into one vector per team</td>
+<td><code>core/vector_assembly.py</code></td>
+</tr>
+<tr>
+<td><strong>Bayesian updater</strong></td>
+<td>Smooth ratings over time with uncertainty</td>
+<td><code>core/bayesian.py</code></td>
+</tr>
+<tr>
+<td><strong>xG engine</strong></td>
+<td>Map rating vectors + context → expected goals</td>
+<td><code>engine/xg_engine.py</code></td>
+</tr>
+<tr>
+<td><strong>Prediction engine</strong></td>
+<td>Map xG → probability distributions</td>
+<td><code>engine/predictions.py</code></td>
+</tr>
+<tr>
+<td><strong>TypeScript mirror</strong></td>
+<td>Same math in the Next.js app for live API predictions</td>
+<td><code>src/lib/glpm/engine/</code></td>
+</tr>
+<tr>
+<td><strong>Database</strong></td>
+<td>Dedicated Supabase schema (<code>glpm_*</code> tables)</td>
+<td><code>supabase/migrations/030–039</code></td>
+</tr>
+<tr>
+<td><strong>UI</strong></td>
+<td>Club predictor + league hub</td>
+<td><code>/predict</code> (club mode), <code>/league</code></td>
+</tr>
+</tbody></table>
+<h3>2.3 User-facing surfaces</h3>
+<ul>
+<li><strong><code>/predict</code> (Club mode)</strong> — Pick season, home team, away team → GLPM returns xG, 1X2, BTTS, O/U, and interaction breakdown.</li>
+<li><strong><code>/league</code> (League Hub)</strong> — Season picker, rating leaderboards, recent results with underlying stats, upcoming fixtures with model lines.</li>
+<li><strong>API routes</strong> — <code>/api/glpm/predict</code>, <code>/api/glpm/hub</code>, <code>/api/glpm/seasons</code>, <code>/api/glpm/teams</code>.</li>
+</ul>
+<h3>2.4 Specification documentation</h3>
+<p>The full statistical methodology lives in the <strong>GOD_FILE</strong> chapters (<code>docs/GOD_FILE_CHAPTER_*.md</code>). This guide focuses on what was built, how to operate it, and the equations that matter day-to-day.</p>
+<hr>
+<h2>3. What changed from the old model</h2>
+<h3>3.1 Philosophy shift</h3>
+<p>The World Cup model asks: <em>“How strong is this team overall?”</em> — combining Elo, FIFA rank, momentum, form, and talent into one index.</p>
+<p>GLPM asks: <em>“How many quality chances will Team A create against Team B’s specific defence, goalkeeper, and pressing style?”</em></p>
+<p>That decomposition is the biggest conceptual change. A team can be elite in attack and average in defence — a single number hides that.</p>
+<h3>3.2 Technical changes</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Before (club)</th>
+<th>Now (GLPM)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Team representation</td>
+<td>Composite / Elo-style strength</td>
+<td>7 primary ratings → Rating Vector</td>
+</tr>
+<tr>
+<td>Prediction input</td>
+<td>General match form + mixed sources</td>
+<td>Latest <code>glpm_team_rating_vectors</code> per team</td>
+</tr>
+<tr>
+<td>xG calculation</td>
+<td>Ad hoc or WC-derived</td>
+<td>Interaction matrix + <code>μ · exp(c · ΔS)</code></td>
+</tr>
+<tr>
+<td>Markets</td>
+<td>Could vary by mode</td>
+<td>Unified Dixon–Coles from same xG pair</td>
+</tr>
+<tr>
+<td>Data schema</td>
+<td>FBref / general tables</td>
+<td>Dedicated <code>glpm_*</code> tables</td>
+</tr>
+<tr>
+<td>Primary data provider</td>
+<td>Mixed</td>
+<td><strong>SportMonks</strong> (primary), <strong>Wyscout</strong> (enrichment)</td>
+</tr>
+<tr>
+<td>Explainability</td>
+<td>Strength breakdown</td>
+<td>Per-matchup deltas: Attack–Defence, Finishing–GK, Build-Up–Pressing, Possession–Pressing</td>
+</tr>
+</tbody></table>
+<h3>3.3 What stayed the same</h3>
+<ul>
+<li><strong>National / World Cup mode</strong> on <code>/predict</code> still uses the existing World Cup strength-index flow, fixture picker, and squad XI editor.</li>
+<li>The <strong>Graham xG formula</strong> (<code>μ · exp(c · ΔS)</code>) is reused from the validated World Cup engine — GLPM replaces the <em>strength front-end</em> (single ΔS from Elo) with the <em>multi-dimensional interaction matrix</em>.</li>
+<li><strong>Context adjustments</strong> (home advantage, rest, travel, altitude) mirror proven constants from the club stadium-impact and WC rest-delta helpers.</li>
+</ul>
+<hr>
+<h2>4. How predictions work moving forward</h2>
+<p>Every club prediction follows the same sequence:</p>
+<ol>
+<li><strong>Load the latest Rating Vector</strong> for home and away teams (as of a given date in the season).</li>
+<li><strong>Compute tactical matchups</strong> — four interaction pairs per attacking side.</li>
+<li><strong>Combine into a strength index</strong> ΔS (weighted, capped).</li>
+<li><strong>Apply the Graham baseline</strong> — <code>xG_base = μ · exp(c · ΔS)</code>.</li>
+<li><strong>Apply context multipliers</strong> — home advantage, rest days, travel, altitude.</li>
+<li><strong>Build a Dixon–Coles score matrix</strong> from <code>(xG_H, xG_A)</code>.</li>
+<li><strong>Aggregate markets</strong> — 1X2, BTTS, Over/Under lines, correct scores.</li>
+</ol>
+<p>After each completed match:</p>
+<ol>
+<li>Ingest new match data (SportMonks + optional Wyscout enrich).</li>
+<li>Recompute Layer 2 features.</li>
+<li>Retrain or refresh rating engines (scheduled, not per-match in v1).</li>
+<li>Reassemble rating vectors.</li>
+<li>Optionally run Bayesian update for temporal smoothing.</li>
+<li>Regenerate predictions for upcoming fixtures.</li>
+</ol>
+<p><strong>Important:</strong> Predictions are only as good as the data and the freshness of rating vectors. A team with missing GK data will get a neutral (average) z-score for that dimension, which reduces edge detection but does not crash the pipeline.</p>
+<hr>
+<h2>5. System architecture</h2>
+<h3>5.1 Four database layers</h3>
+<pre><code>Layer 1 — Raw observations     glpm_matches, glpm_match_team_stats, glpm_match_player_stats, glpm_match_shots
+Layer 2 — Engineered features  glpm_match_team_features, glpm_team_style_snapshots
+Layer 3 — Ratings              glpm_team_primary_ratings, glpm_team_rating_vectors, glpm_player_primary_ratings
+Layer 4 — Predictions          glpm_prediction_history, glpm_validation_logs
+</code></pre>
+<h3>5.2 Modular design</h3>
+<p>Each rating engine (Attack, Defence, etc.) is <strong>independent</strong>. You can improve the Finishing engine without touching Defence. The xG engine consumes only the assembled Rating Vector — it does not care how individual ratings were estimated.</p>
+<p>This mirrors the design philosophy in Chapter 1: modularity, interpretability, and incremental improvement.</p>
+<h3>5.3 Architecture diagram</h3>
+<div class="diagram-note"><p><strong>Architecture diagram</strong> (see markdown source for interactive version):</p><pre>flowchart TB
+    subgraph sources [Data Sources]
+        SM[SportMonks]
+        WS[Wyscout]
+    end
+
+<pre><code>subgraph ingest [Layer 1 &amp; 2]
+    ING[Ingest &amp; Validate]
+    FE[Feature Engineering]
+end
+
+subgraph ratings [Layer 3 — Rating Engines]
+    A[Attack]
+    D[Defence]
+    GK[Goalkeeper]
+    BU[Build-Up]
+    PO[Possession]
+    PR[Pressing]
+    FR[Finishing]
+    ASM[Vector Assembly]
+end
+
+subgraph predict [Layer 4 — Prediction]
+    XG[xG Engine]
+    DC[Dixon–Coles]
+    API[API / UI]
+end
+
+SM --&gt; ING
+WS --&gt; ING
+ING --&gt; FE
+FE --&gt; A &amp; D &amp; GK &amp; BU &amp; PO &amp; PR &amp; FR
+A &amp; D &amp; GK &amp; BU &amp; PO &amp; PR &amp; FR --&gt; ASM
+ASM --&gt; XG
+XG --&gt; DC
+DC --&gt; API&lt;/pre&gt;&lt;/div&gt;
+</code></pre>
+<hr>
+<h2>6. Data: what we need and why</h2>
+<h3>6.1 Data providers</h3>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Role</th>
+<th>What it supplies</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>SportMonks</strong></td>
+<td>Primary</td>
+<td>Fixtures, results, team match stats (xG, shots, possession, tackles, passes, etc.), player stats, lineups</td>
+</tr>
+<tr>
+<td><strong>Wyscout</strong></td>
+<td>Secondary enrichment</td>
+<td>PPDA refinement, shot coordinates/events, advanced stats when mapped to our schema</td>
+</tr>
+</tbody></table>
+<p>Ingest is orchestrated by <code>src/lib/glpm/ingestMatch.ts</code>. Backfill scripts exist for full-season loads.</p>
+<h3>6.2 Minimum data for rating training</h3>
+<p>To train all seven engines on a season, we need <strong>completed matches</strong> with:</p>
+<table>
+<thead>
+<tr>
+<th>Data category</th>
+<th>Used by</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Match results</strong></td>
+<td>All engines</td>
+<td>Goals, home/away, date</td>
+</tr>
+<tr>
+<td><strong>Team attacking stats</strong></td>
+<td>Attack, Finishing</td>
+<td>Shots, xG, box entries, big chances</td>
+</tr>
+<tr>
+<td><strong>Team defensive stats</strong></td>
+<td>Defence, Pressing</td>
+<td>xGA, tackles, interceptions, PPDA</td>
+</tr>
+<tr>
+<td><strong>Possession / passing</strong></td>
+<td>Build-Up, Possession</td>
+<td>Pass completion, progressive passes, possession %</td>
+</tr>
+<tr>
+<td><strong>Player GK stats</strong></td>
+<td>Goalkeeper</td>
+<td>Saves, PSxG, goals conceded (minutes-weighted to team)</td>
+</tr>
+<tr>
+<td><strong>Shot-level detail</strong></td>
+<td>Finishing (ideal)</td>
+<td>Body part, goal-mouth zone, xG per shot — from Wyscout when available</td>
+</tr>
+</tbody></table>
+<h3>6.3 What each data type does in the model</h3>
+<p><strong>xG (expected goals)</strong> — The central process metric. Attack is trained to predict future xG creation; Defence is trained to predict future xG suppression. Finishing uses <strong>Goals − xG</strong> (over/under-performance), not raw goals.</p>
+<p><strong>Shots and shot quality</strong> — Volume (how many chances) vs quality (xG per shot, big-chance rate). Separated into different component ratings within Attack.</p>
+<p><strong>Possession and passing</strong> — Build-Up and Possession engines. Measure how teams progress the ball and control territory — relevant when a high-press team faces a possession team.</p>
+<p><strong>PPDA (Passes Allowed Per Defensive Action)</strong> — Pressing intensity proxy. Lower PPDA = more intense press. Used by Pressing engine and as an opponent-adjustment input for Build-Up matchups.</p>
+<p><strong>PSxG (Post-Shot Expected Goals)</strong> — Goalkeeper shot-stopping quality. Core input for GK engine: <em>Goals Prevented = PSxG − Goals Conceded</em>.</p>
+<p><strong>Context variables</strong> — Home/away, rest days, travel distance, venue altitude. Applied at <strong>prediction time</strong> (xG engine), not baked into ratings.</p>
+<h3>6.4 Data validation</h3>
+<p>Before any match enters the pipeline, validation rules check (<code>src/lib/glpm/validation/rules.ts</code>):</p>
+<ul>
+<li>Goals and xG are non-negative</li>
+<li>Possession percentages sum to ~100%</li>
+<li>Required identifiers (SportMonks IDs) are present</li>
+<li>Schema consistency</li>
+</ul>
+<p>Failed validations are logged to <code>glpm_validation_logs</code> without blocking the entire batch.</p>
+<h3>6.5 Key database tables</h3>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>glpm_competitions</code>, <code>glpm_seasons</code>, <code>glpm_teams</code>, <code>glpm_players</code></td>
+<td>Dimensions</td>
+</tr>
+<tr>
+<td><code>glpm_matches</code></td>
+<td>Fixture spine (SportMonks <code>sm_id</code> as primary key)</td>
+</tr>
+<tr>
+<td><code>glpm_match_team_stats</code></td>
+<td>Full team stats per match</td>
+</tr>
+<tr>
+<td><code>glpm_match_player_stats</code></td>
+<td>Per-player stats including GK</td>
+</tr>
+<tr>
+<td><code>glpm_match_shots</code>, <code>glpm_match_events</code></td>
+<td>Shot and event detail</td>
+</tr>
+<tr>
+<td><code>glpm_match_team_features</code></td>
+<td>Layer 2 engineered features</td>
+</tr>
+<tr>
+<td><code>glpm_team_primary_ratings</code></td>
+<td>Long-form primary ratings over time</td>
+</tr>
+<tr>
+<td><code>glpm_team_rating_vectors</code></td>
+<td>Wide table: <code>r_attack</code>, <code>r_defence</code>, … <code>r_finishing</code></td>
+</tr>
+<tr>
+<td><code>glpm_prediction_history</code></td>
+<td>Archived predictions with score matrices</td>
+</tr>
+<tr>
+<td><code>glpm_provider_payloads</code></td>
+<td>Raw JSON audit trail</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>7. Why this is machine learning</h2>
+<p>GLPM is not a hand-tuned formula with fixed coefficients for team quality. The <strong>rating estimation</strong> stage is genuine supervised machine learning.</p>
+<h3>7.1 The learning problem</h3>
+<p>For each rating engine, we ask:</p>
+<blockquote>
+<p><em>Given this team’s recent adjusted performance features, can we predict how they will perform on [process metric] over their next 5 matches?</em></p>
+</blockquote>
+<p>That is a <strong>supervised regression</strong> problem:</p>
+<ul>
+<li><strong>Inputs (X):</strong> Opponent-adjusted, context-adjusted feature vectors from historical matches</li>
+<li><strong>Target (y):</strong> Forward-looking 5-match rolling mean of a process metric (e.g. non-penalty xG per 90 for Attack)</li>
+<li><strong>Output:</strong> A latent score → calibrated to 0–100 GLPM scale</li>
+</ul>
+<p>We are learning latent football abilities that are not directly observable — classic latent-variable modelling.</p>
+<h3>7.2 Models used</h3>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Estimator</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>&lt; 500</code> training rows</td>
+<td><strong>Bayesian Ridge Regression</strong> — linear, with built-in uncertainty (σ)</td>
+</tr>
+<tr>
+<td><code>≥ 500</code> training rows</td>
+<td><strong>LightGBM</strong> — gradient-boosted trees for non-linear patterns</td>
+</tr>
+</tbody></table>
+<p>Every engine uses the same estimator selection logic. BayesianRidge gives us <code>return_std</code> for confidence; LightGBM handles richer interactions when data volume supports it.</p>
+<h3>7.3 Hierarchical structure (why it’s not one big model)</h3>
+<p>Each primary rating is built in three ML layers:</p>
+<pre><code>Raw adjusted features
+        ↓  ML (6 component models)
+Component Ratings  (e.g. chance_volume, chance_quality, …)
+        ↓  ML (3 domain models)
+Domain Ratings     (e.g. creation, progression, situational)
+        ↓  ML (1 primary model)
+Primary Rating     (e.g. Attack A)
+        ↓  Calibration
+0–100 GLPM Score
+</code></pre>
+<p>This hierarchy is itself a modelling choice: it forces the model to learn <strong>interpretable sub-abilities</strong> before combining them, rather than one opaque black box.</p>
+<h3>7.4 Calibration (not ML, but essential)</h3>
+<p>Raw model outputs are mapped to the universal 0–100 scale via <strong>empirical percentile calibration</strong> (<code>GlpmCalibrator</code>):</p>
+<ul>
+<li>Fit on the distribution of latent scores in the training set</li>
+<li>Map percentiles to fixed score bands (Elite = 90–100, Average = 60–69, etc.)</li>
+</ul>
+<p>This ensures a rating of 75 means the same thing across Attack, Defence, and Finishing.</p>
+<h3>7.5 Bayesian updating (probabilistic, not retraining)</h3>
+<p>After ML training produces engine outputs, an optional <strong>Gaussian conjugate update</strong> smooths ratings over time — treating each new engine observation as noisy evidence about the true latent rating. This is Bayesian inference, distinct from the supervised ML training step.</p>
+<h3>7.6 What is <em>not</em> ML</h3>
+<p>The xG engine and Dixon–Coles market layer use <strong>fixed, interpretable equations</strong> with locked coefficients (μ, c, weights, ρ). These were validated in the World Cup model and are not retrained per season in v1. The ML learns <em>team quality</em>; the equations learn <em>how quality translates to xG and probabilities</em>.</p>
+<hr>
+<h2>8. Training the model</h2>
+<h3>8.1 Prerequisites</h3>
+<pre><code class="language-bash"># Python environment
+bash scripts/ml/setup-venv.sh
+
+# Supabase credentials in .env (for loading match frames)
+# SportMonks API key (for ingest)
+</code></pre>
+<h3>8.2 Recommended order of operations</h3>
+<pre><code class="language-bash"># Step 0 — Ingest a full season
+npm run glpm:sm-backfill -- --season-id &lt;SEASON_SM_ID&gt;
+npm run glpm:wyscout-backfill -- --season-id &lt;SEASON_SM_ID&gt;   # optional enrichment
+
+# Step 1 — Train all seven rating engines
+npm run glpm:attack-train -- --season-id &lt;ID&gt;
+npm run glpm:defence-train -- --season-id &lt;ID&gt;
+npm run glpm:goalkeeper-train -- --season-id &lt;ID&gt;
+npm run glpm:build-up-train -- --season-id &lt;ID&gt;
+npm run glpm:possession-train -- --season-id &lt;ID&gt;
+npm run glpm:pressing-train -- --season-id &lt;ID&gt;
+npm run glpm:finishing-train -- --season-id &lt;ID&gt;
+
+# Step 2 — Assemble rating vectors
+npm run glpm:assemble-vectors -- --season-id &lt;ID&gt;
+
+# Step 3 — (Optional) Bayesian temporal smoothing
+npm run glpm:bayesian-update -- --season-id &lt;ID&gt; --half-life 90
+
+# Step 4 — Predict a fixture
+npm run glpm:predict-from-vectors -- --home-team-id &lt;H&gt; --away-team-id &lt;A&gt; --season-id &lt;ID&gt;
+
+# Step 5 — Backtest / validation
+npm run glpm:validation -- --season-id &lt;ID&gt;
+</code></pre>
+<p>Each train script wraps a Python pipeline that loads Supabase data, fits models, calibrates scores, and upserts results. Trained model artifacts are saved to <code>models/ratings/{domain}/artifacts/</code>.</p>
+<h3>8.3 Synthetic training (development only)</h3>
+<p>Each engine supports <code>--synthetic</code> mode for testing without real data:</p>
+<pre><code class="language-bash">npm run glpm:attack-train:synthetic
+</code></pre>
+<h3>8.4 When to retrain</h3>
+<table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>New season starts</td>
+<td>Full backfill + retrain all engines</td>
+</tr>
+<tr>
+<td>Mid-season (weekly)</td>
+<td>Reassemble vectors; optional Bayesian update</td>
+</tr>
+<tr>
+<td>Major data backfill</td>
+<td>Retrain affected engines</td>
+</tr>
+<tr>
+<td>Model improvement</td>
+<td>Retrain specific engine independently</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>9. The seven rating engines</h2>
+<p>All seven engines share the same pipeline structure:</p>
+<pre><code>Historical matches
+  → Feature engineering
+  → Opponent &amp; context adjustment
+  → 6 Component models (ML)
+  → 3 Domain models (ML)
+  → 1 Primary model (ML)
+  → GlpmCalibrator → 0–100 score
+</code></pre>
+<p><strong>Opponent adjustment</strong> (all team-level engines):</p>
+<pre><code>s_opp = league_mean_xg_conceded / opponent_rolling_xg_conceded
+feature_adj = (feature − context_offset) / s_opp
+</code></pre>
+<p>When defence ratings are available, <code>s_opp</code> can use <code>defence_rating / 50</code> instead of raw xGA rolling averages.</p>
+<p><strong>Training target</strong> (all engines):</p>
+<pre><code>y = mean(next 5 matches of [process metric])
+</code></pre>
+<hr>
+<h3>9.1 Attack (A)</h3>
+<p><strong>Question answered:</strong> <em>How good is this team at creating chances?</em></p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Name</th>
+<th>Combines</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Components (6)</strong></td>
+<td>chance_volume, chance_quality, ball_progression, territorial_control, transition_threat, set_piece_threat</td>
+<td>Adjusted features per group</td>
+</tr>
+<tr>
+<td><strong>Domains (3)</strong></td>
+<td>creation, progression, situational</td>
+<td>Pairs of components</td>
+</tr>
+<tr>
+<td><strong>Primary</strong></td>
+<td>Attack (A)</td>
+<td>All three domains</td>
+</tr>
+</tbody></table>
+<p><strong>Key input features:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Features</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Chance volume</td>
+<td><code>shots_p90</code>, <code>box_entries_p90</code>, <code>big_chances_p90</code>, <code>touches_in_box_p90</code></td>
+</tr>
+<tr>
+<td>Chance quality</td>
+<td><code>xg_per_shot</code>, <code>big_chance_pct</code>, <code>central_shot_pct</code>, <code>avg_shot_distance</code></td>
+</tr>
+<tr>
+<td>Ball progression</td>
+<td><code>prog_pass_rate</code>, <code>prog_carry_rate</code>, <code>final_third_entry_rate</code></td>
+</tr>
+<tr>
+<td>Territorial control</td>
+<td><code>field_tilt</code>, <code>territory_pct</code>, <code>final_third_occupancy</code></td>
+</tr>
+<tr>
+<td>Transition threat</td>
+<td><code>transition_xg_per_recovery</code>, <code>counter_efficiency</code>, <code>fast_break_rate</code></td>
+</tr>
+<tr>
+<td>Set piece threat</td>
+<td><code>set_piece_xg_per_match</code>, <code>set_piece_shot_rate</code></td>
+</tr>
+</tbody></table>
+<p><strong>Primary training target:</strong> Future adjusted non-penalty xG per 90 (<code>npxg_p90_adj</code>).</p>
+<hr>
+<h3>9.2 Defence (D)</h3>
+<p><strong>Question answered:</strong> <em>How good is this team at preventing chances?</em></p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Name</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Components (7)</strong></td>
+<td>chance_suppression, defensive_organisation, transition_defence, box_protection, set_piece_defence, pressing, defensive_territorial_control</td>
+</tr>
+<tr>
+<td><strong>Domains (3)</strong></td>
+<td>prevention, protection, control</td>
+</tr>
+<tr>
+<td><strong>Primary</strong></td>
+<td>Defence (D)</td>
+</tr>
+</tbody></table>
+<p><strong>Key input features:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Features (higher = better defence)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Chance suppression</td>
+<td><code>shots_suppression</code>, <code>xga_per_opp_poss</code>, <code>big_chances_conceded_rate</code></td>
+</tr>
+<tr>
+<td>Defensive organisation</td>
+<td><code>def_actions_per_poss</code>, <code>interception_rate</code>, <code>tackle_share</code></td>
+</tr>
+<tr>
+<td>Transition defence</td>
+<td><code>transition_xga_per_loss</code>, <code>fast_break_prevention_rate</code></td>
+</tr>
+<tr>
+<td>Box protection</td>
+<td><code>blocks_per_box_entry</code>, <code>clearances_per_box_entry</code></td>
+</tr>
+<tr>
+<td>Set piece defence</td>
+<td><code>set_piece_xga_suppression</code>, <code>corner_xga_suppression</code></td>
+</tr>
+<tr>
+<td>Pressing</td>
+<td><code>ppda_inv</code>, <code>high_turnovers_p90</code>, <code>press_duel_rate</code></td>
+</tr>
+<tr>
+<td>Territorial control</td>
+<td><code>field_tilt_against_suppression</code>, <code>opp_box_entry_suppression</code></td>
+</tr>
+</tbody></table>
+<p><strong>Primary training target:</strong> Future adjusted xGA suppression (<code>xga_suppression_adj</code>).</p>
+<p>Concession rates are inverted: <code>scale / (1 + rate)</code> so higher values mean better defence.</p>
+<hr>
+<h3>9.3 Goalkeeper (GK)</h3>
+<p><strong>Question answered:</strong> <em>How much does this team’s goalkeeper prevent beyond expected?</em></p>
+<p>This is a <strong>player-level</strong> engine aggregated to team level by minutes played.</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Name</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Components (5)</strong></td>
+<td>shot_stopping, area_command, distribution, sweeper, penalty</td>
+</tr>
+<tr>
+<td><strong>Domains (2)</strong></td>
+<td>goal_prevention, goalkeeper_involvement</td>
+</tr>
+<tr>
+<td><strong>Primary</strong></td>
+<td>Goalkeeper (GK)</td>
+</tr>
+</tbody></table>
+<p><strong>Core metric:</strong></p>
+<pre><code>Goals Prevented = PSxG − Goals Conceded
+</code></pre>
+<p><strong>Penalty save rate shrinkage</strong> (small-sample stabilisation):</p>
+<pre><code>θ* = (n / (n + k)) · θ̂ + (k / (n + k)) · μ₀
+
+where k = 8, μ₀ ≈ 25% (league prior save rate)
+</code></pre>
+<p><strong>Primary training target:</strong> Future adjusted goals prevented (<code>goals_prevented_adj</code>).</p>
+<hr>
+<h3>9.4 Build-Up (BU)</h3>
+<p><strong>Question answered:</strong> <em>How well does this team progress the ball under pressure?</em></p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Name</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Components (6)</strong></td>
+<td>ball_progression, vertical_line_breaking, press_resistance, security, distribution_accuracy, tempo</td>
+</tr>
+<tr>
+<td><strong>Domains (3)</strong></td>
+<td>progression, retention, distribution</td>
+</tr>
+<tr>
+<td><strong>Primary</strong></td>
+<td>Build-Up (BU)</td>
+</tr>
+</tbody></table>
+<p><strong>Primary training target:</strong> Future adjusted final-third entry rate (<code>final_third_entry_rate_adj</code>).</p>
+<p>Relevant in xG engine as <strong>Build-Up vs Opponent Pressing</strong> matchup.</p>
+<hr>
+<h3>9.5 Possession (PO)</h3>
+<p><strong>Question answered:</strong> <em>How well does this team control the game with the ball?</em></p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Name</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Components (6)</strong></td>
+<td>possession_security, ball_circulation, territorial_dominance, space_control, game_control, possession_tempo</td>
+</tr>
+<tr>
+<td><strong>Domains (3)</strong></td>
+<td>ball_retention, territorial_control, possession_control</td>
+</tr>
+<tr>
+<td><strong>Primary</strong></td>
+<td>Possession (PO)</td>
+</tr>
+</tbody></table>
+<p><strong>Primary training target:</strong> Future adjusted possession percentage (<code>possession_pct_adj</code>).</p>
+<p>Relevant in xG engine as <strong>Possession vs Opponent Pressing</strong> matchup.</p>
+<hr>
+<h3>9.6 Pressing (PR)</h3>
+<p><strong>Question answered:</strong> <em>How effectively does this team win the ball back high up the pitch?</em></p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Name</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Components (6)</strong></td>
+<td>high_press, mid_block_press, counter_press, recovery_efficiency, press_success, press_resistance_disruption</td>
+</tr>
+<tr>
+<td><strong>Domains (3)</strong></td>
+<td>press_intensity, ball_recovery, press_effectiveness</td>
+</tr>
+<tr>
+<td><strong>Primary</strong></td>
+<td>Pressing (PR)</td>
+</tr>
+</tbody></table>
+<p><strong>PPDA style thresholds</strong> (aligned with tactical style snapshots):</p>
+<table>
+<thead>
+<tr>
+<th>Style</th>
+<th>PPDA</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>High press</td>
+<td>≤ 9</td>
+</tr>
+<tr>
+<td>Mid-block</td>
+<td>9 – 14</td>
+</tr>
+<tr>
+<td>Low block</td>
+<td>&gt; 14</td>
+</tr>
+</tbody></table>
+<p><strong>Primary training target:</strong> Future adjusted inverse PPDA (<code>ppda_inv_adj</code>).</p>
+<p>Pressing appears in <strong>two</strong> xG interaction pairs (vs Build-Up and vs Possession).</p>
+<hr>
+<h3>9.7 Finishing (FR)</h3>
+<p><strong>Question answered:</strong> <em>Does this team convert chances better or worse than expected?</em></p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Name</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Components (6)</strong></td>
+<td>shot_accuracy, shot_technique, finishing_efficiency, clinical_finishing, one_on_one_finishing, pressure_finishing</td>
+</tr>
+<tr>
+<td><strong>Domains (3)</strong></td>
+<td>shot_execution, chance_conversion, finishing_composure</td>
+</tr>
+<tr>
+<td><strong>Primary</strong></td>
+<td>Finishing (FR)</td>
+</tr>
+</tbody></table>
+<p><strong>Core metric:</strong></p>
+<pre><code>Finishing over/under-performance = Goals − xG
+</code></pre>
+<p>We deliberately do <strong>not</strong> train on raw goals alone — that confounds chance quality with conversion skill.</p>
+<p><strong>Primary training target:</strong> Future adjusted goals-minus-xG (<code>goals_minus_xg_adj</code>).</p>
+<p>Uses Wyscout shot metadata (body part, goal-mouth zones) when available for richer component features.</p>
+<hr>
+<h3>9.8 Rating scale (all engines)</h3>
+<p>After calibration, all primary ratings use the same interpretable scale:</p>
+<table>
+<thead>
+<tr>
+<th>Score</th>
+<th>Band</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>90 – 100</td>
+<td>Elite</td>
+<td>Top ~5% of league</td>
+</tr>
+<tr>
+<td>80 – 89</td>
+<td>Excellent</td>
+<td>Top ~15%</td>
+</tr>
+<tr>
+<td>70 – 79</td>
+<td>Strong</td>
+<td>Above average</td>
+</tr>
+<tr>
+<td>60 – 69</td>
+<td>Average</td>
+<td>League median band</td>
+</tr>
+<tr>
+<td>50 – 59</td>
+<td>Below average</td>
+<td></td>
+</tr>
+<tr>
+<td>40 – 49</td>
+<td>Poor</td>
+<td></td>
+</tr>
+<tr>
+<td>&lt; 40</td>
+<td>Very poor</td>
+<td>Bottom ~5%</td>
+</tr>
+</tbody></table>
+<p>The “Average” band starts at <strong>60</strong> — this is the centering point used in the xG engine (<code>rating_center = 60</code>, <code>rating_scale = 20</code>).</p>
+<hr>
+<h2>10. Rating vectors and Bayesian updates</h2>
+<h3>10.1 The Rating Vector</h3>
+<p>Once all seven primaries are estimated, they are assembled into a single vector per team per date:</p>
+<pre><code>R = [A, D, GK, BU, PO, PR, FR]ᵀ
+</code></pre>
+<p>Stored in <code>glpm_team_rating_vectors</code> as columns <code>r_attack</code>, <code>r_defence</code>, <code>r_goalkeeper</code>, <code>r_build_up</code>, <code>r_possession</code>, <code>r_pressing</code>, <code>r_finishing</code>.</p>
+<p>Each dimension carries metadata: confidence, variance, matches used, recent trend (up/down/flat).</p>
+<p>The League Hub “Overall” rating shown in leaderboards is the <strong>mean of all seven primaries</strong> from the latest vector.</p>
+<h3>10.2 Z-score conversion (for xG engine)</h3>
+<p>Before entering the interaction matrix, each rating is converted to a centered z-score:</p>
+<pre><code>z = (r − 60) / 20
+</code></pre>
+<p>Missing or NaN ratings default to <code>z = 0</code> (league average, neutral).</p>
+<h3>10.3 Bayesian temporal update</h3>
+<p>After vector assembly, an optional pass smooths ratings over time using Gaussian conjugate updates.</p>
+<p><strong>Prior variance inflation</strong> (time decay — stale evidence fades):</p>
+<pre><code>σ²_prior ← σ² · exp(λ · Δt)
+
+where λ = ln(2) / 90 days  (variance doubles every 90 days, capped at 25×)
+</code></pre>
+<p><strong>Observation update</strong> (new engine output arrives):</p>
+<pre><code>τ_post = τ_prior + confidence_obs / σ²_obs
+μ_post = (τ_prior · μ_prior + τ_obs · μ_obs) / τ_post
+</code></pre>
+<p><strong>Initial prior at season start:</strong> μ = 50, σ² = 400 (σ = 20) per dimension.</p>
+<p><strong>Confidence formula:</strong></p>
+<pre><code>confidence = (1 / (1 + σ)) · clip(matches_used / 20, 0.2, 1.0)
+</code></pre>
+<p>This ensures a team with 3 matches gets a lower-confidence rating than one with 20, and uncertainty grows when no new matches arrive.</p>
+<hr>
+<h2>11. Expected goals engine</h2>
+<p>The xG engine is the bridge between team quality (Rating Vector) and match probabilities. It reuses the validated Graham formula with a new multi-dimensional strength front-end.</p>
+<h3>11.1 Interaction matrix</h3>
+<p>For each attacking side, four tactical matchups are evaluated:</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Delta formula</th>
+<th>Weight</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Attack vs Defence</td>
+<td>Δ_AD = z_attack − z_opp_defence</td>
+<td><strong>0.40</strong></td>
+</tr>
+<tr>
+<td>Finishing vs Goalkeeper</td>
+<td>Δ_FG = z_finishing − z_opp_gk</td>
+<td><strong>0.25</strong></td>
+</tr>
+<tr>
+<td>Build-Up vs Pressing</td>
+<td>Δ_BP = z_build_up − z_opp_pressing</td>
+<td><strong>0.20</strong></td>
+</tr>
+<tr>
+<td>Possession vs Pressing</td>
+<td>Δ_PP = z_possession − z_opp_pressing</td>
+<td><strong>0.15</strong></td>
+</tr>
+</tbody></table>
+<p><strong>Home attacking</strong> uses home team’s z-scores vs away team’s defensive z-scores. <strong>Away attacking</strong> reverses the roles.</p>
+<p><strong>Strength index:</strong></p>
+<pre><code>ΔS_raw = 0.40·Δ_AD + 0.25·Δ_FG + 0.20·Δ_BP + 0.15·Δ_PP
+ΔS     = clip(ΔS_raw, −3, +3)
+</code></pre>
+<p>Weights sum to 1.0. The cap at ±3 prevents extreme ratings from producing unrealistic xG.</p>
+<h3>11.2 Baseline xG (Graham engine)</h3>
+<pre><code>xG_base = μ · exp(c · ΔS)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>μ</td>
+<td>1.35</td>
+<td>Baseline xG per team in an average matchup</td>
+</tr>
+<tr>
+<td>c</td>
+<td>0.28</td>
+<td>Strength exponent — a full Attack–Defence edge (ΔS ≈ 0.40) → ~+12% xG</td>
+</tr>
+</tbody></table>
+<p>Example: If the home team has ΔS = +1.0 (clear overall edge):</p>
+<pre><code>xG_base = 1.35 · exp(0.28 × 1.0) = 1.35 · 1.323 = 1.79
+</code></pre>
+<h3>11.3 Context multipliers</h3>
+<p>Applied per side after baseline xG:</p>
+<pre><code>xG_final = clip(xG_base × home_mult × away_mult,  0.15,  4.5)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Factor</th>
+<th>Home</th>
+<th>Away</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Home advantage</strong></td>
+<td>×1.12</td>
+<td>×1.00</td>
+<td>Disabled at neutral venues</td>
+</tr>
+<tr>
+<td><strong>Rest days</strong></td>
+<td>piecewise</td>
+<td>same</td>
+<td>≥3 days → 1.0; 0 days → 0.85; linear between</td>
+</tr>
+<tr>
+<td><strong>Congestion</strong></td>
+<td>×0.97 extra</td>
+<td>same</td>
+<td>When rest ≤ 4 days</td>
+</tr>
+<tr>
+<td><strong>Travel</strong></td>
+<td>—</td>
+<td>×0.95 if &gt;1500 km; ×0.98 if &gt;500 km</td>
+<td>Away team only</td>
+</tr>
+<tr>
+<td><strong>Altitude</strong></td>
+<td>×1.00</td>
+<td>×0.97 if venue &gt;1000 m</td>
+<td>Away team only</td>
+</tr>
+</tbody></table>
+<p>Competition-specific baselines can override μ via <code>context.competition_mu</code>.</p>
+<h3>11.4 Complete xG worked example</h3>
+<p>Suppose:</p>
+<ul>
+<li>Home Attack z = +1.5, Away Defence z = −0.5 → Δ_AD = +2.0</li>
+<li>Home Finishing z = +0.5, Away GK z = +0.0 → Δ_FG = +0.5</li>
+<li>Home Build-Up z = +0.0, Away Pressing z = +1.0 → Δ_BP = −1.0</li>
+<li>Home Possession z = +0.5, Away Pressing z = +1.0 → Δ_PP = −0.5</li>
+</ul>
+<pre><code>ΔS_raw = 0.40(2.0) + 0.25(0.5) + 0.20(−1.0) + 0.15(−0.5)
+       = 0.80 + 0.125 − 0.20 − 0.075
+       = 0.65
+
+xG_base = 1.35 · exp(0.28 × 0.65) = 1.35 · 1.197 = 1.62
+
+xG_home = 1.62 × 1.12 (home advantage) = 1.81
+</code></pre>
+<p>The same process runs for the away team attacking the home defence.</p>
+<hr>
+<h2>12. Match prediction markets</h2>
+<p>Given <code>(xG_H, xG_A)</code>, all markets are derived from a single <strong>Dixon–Coles Goal Probability Matrix</strong>.</p>
+<h3>12.1 Score matrix</h3>
+<p>Independent Poisson base with low-score correlation correction:</p>
+<pre><code>P(h, a) ∝ Poisson(h; λ_H) · Poisson(a; λ_A) · τ(h, a)
+</code></pre>
+<p>where <code>λ_H = xG_H</code>, <code>λ_A = xG_A</code>, and grid covers goals h, a = 0 … 9 (10×10 matrix, renormalised).</p>
+<p><strong>Dixon–Coles τ correction</strong> (ρ = −0.13 default):</p>
+<table>
+<thead>
+<tr>
+<th>Score (h, a)</th>
+<th>τ factor</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>(0, 0)</td>
+<td>1 − λ_H · λ_A · ρ</td>
+</tr>
+<tr>
+<td>(0, 1)</td>
+<td>1 + λ_H · ρ</td>
+</tr>
+<tr>
+<td>(1, 0)</td>
+<td>1 + λ_A · ρ</td>
+</tr>
+<tr>
+<td>(1, 1)</td>
+<td>1 − ρ</td>
+</tr>
+<tr>
+<td>All others</td>
+<td>1</td>
+</tr>
+</tbody></table>
+<p>ρ &lt; 0 reflects the empirical fact that 0–0 and 1–1 occur more often than independent Poisson predicts, while 0–1 and 1–0 occur slightly less.</p>
+<h3>12.2 Derived markets</h3>
+<table>
+<thead>
+<tr>
+<th>Market</th>
+<th>Formula</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Home win</strong></td>
+<td>Σ P(h,a) where h &gt; a</td>
+</tr>
+<tr>
+<td><strong>Draw</strong></td>
+<td>Σ P(h,a) where h = a</td>
+</tr>
+<tr>
+<td><strong>Away win</strong></td>
+<td>Σ P(h,a) where h &lt; a</td>
+</tr>
+<tr>
+<td><strong>BTTS Yes</strong></td>
+<td>Σ P(h,a) where h &gt; 0 AND a &gt; 0</td>
+</tr>
+<tr>
+<td><strong>Over 2.5</strong></td>
+<td>Σ P(h,a) where h + a &gt; 2.5</td>
+</tr>
+<tr>
+<td><strong>Correct score</strong></td>
+<td>Individual cell P(h,a)</td>
+</tr>
+</tbody></table>
+<p>Over/Under lines computed: 0.5, 1.5, 2.5, 3.5, 4.5.</p>
+<p>All predictions are archived in <code>glpm_prediction_history</code> with the full score matrix for audit and backtesting.</p>
+<p><strong>Model versions:</strong> <code>glpm_xg_v1</code> (xG engine), <code>glpm_pred_v1</code> (Dixon–Coles layer).</p>
+<hr>
+<h2>13. Operational runbook</h2>
+<h3>13.1 Day-to-day (during a season)</h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Command / action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Ingest last round’s matches</td>
+<td><code>npm run glpm:sm-ingest -- --match-id &lt;ID&gt;</code></td>
+</tr>
+<tr>
+<td>Wyscout enrich (if needed)</td>
+<td><code>npm run glpm:wy-enrich -- --match-id &lt;ID&gt;</code></td>
+</tr>
+<tr>
+<td>Refresh rating vectors</td>
+<td><code>npm run glpm:assemble-vectors -- --season-id &lt;ID&gt;</code></td>
+</tr>
+<tr>
+<td>Bayesian smooth</td>
+<td><code>npm run glpm:bayesian-update -- --season-id &lt;ID&gt;</code></td>
+</tr>
+<tr>
+<td>View hub</td>
+<td>Open <code>/league</code> in the app</td>
+</tr>
+</tbody></table>
+<h3>13.2 Start of season</h3>
+<ol>
+<li>Create season in Supabase (<code>glpm_seasons</code>)</li>
+<li>Backfill all prior-season matches for training data</li>
+<li>Train all seven engines</li>
+<li>Assemble opening-day vectors</li>
+<li>Generate predictions for Round 1 fixtures</li>
+</ol>
+<h3>13.3 Environment variables required</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>SUPABASE_URL</code> / <code>SUPABASE_SERVICE_ROLE_KEY</code></td>
+<td>Database access for ingest and training</td>
+</tr>
+<tr>
+<td><code>SPORTMONKS_API_KEY</code></td>
+<td>Primary match data</td>
+</tr>
+<tr>
+<td><code>WYSCOUT_*</code> credentials</td>
+<td>Optional enrichment</td>
+</tr>
+</tbody></table>
+<h3>13.4 Key file reference</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Path</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Specification (full methodology)</td>
+<td><code>docs/GOD_FILE_CHAPTER_*.md</code></td>
+</tr>
+<tr>
+<td>Python xG engine</td>
+<td><code>engine/xg_engine.py</code>, <code>engine/interactions.py</code>, <code>engine/predictions.py</code></td>
+</tr>
+<tr>
+<td>TypeScript xG engine (API)</td>
+<td><code>src/lib/glpm/engine/</code></td>
+</tr>
+<tr>
+<td>Rating pipelines</td>
+<td><code>models/ratings/{domain}/pipeline.py</code></td>
+</tr>
+<tr>
+<td>Vector assembly</td>
+<td><code>core/vector_assembly.py</code></td>
+</tr>
+<tr>
+<td>Bayesian update</td>
+<td><code>core/bayesian.py</code></td>
+</tr>
+<tr>
+<td>Ingest orchestration</td>
+<td><code>src/lib/glpm/ingestMatch.ts</code></td>
+</tr>
+<tr>
+<td>Club predictor UI</td>
+<td><code>src/components/glpm/GlpmClubPredictor.tsx</code></td>
+</tr>
+<tr>
+<td>League hub</td>
+<td><code>src/app/league/page.tsx</code></td>
+</tr>
+<tr>
+<td>Tests</td>
+<td><code>tests/glpm/test_*.py</code>, <code>src/lib/glpm/engine/engine.test.ts</code></td>
+</tr>
+</tbody></table>
+<h3>13.5 Validation and backtesting</h3>
+<pre><code class="language-bash">npm run glpm:validation -- --season-id &lt;ID&gt;
+</code></pre>
+<p>Logs prediction accuracy metrics and writes to <code>glpm_validation_logs</code>. Use this after any model change before promoting to production predictions.</p>
+<hr>
+<h2>14. Glossary</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>GLPM</strong></td>
+<td>Graham League Prediction Model</td>
+</tr>
+<tr>
+<td><strong>Rating Vector (R)</strong></td>
+<td><code>[A, D, GK, BU, PO, PR, FR]</code> — seven primary ratings for one team at one date</td>
+</tr>
+<tr>
+<td><strong>Primary Rating</strong></td>
+<td>Top-level 0–100 score for one football domain (e.g. Attack)</td>
+</tr>
+<tr>
+<td><strong>Domain Rating</strong></td>
+<td>Intermediate aggregation of two component ratings</td>
+</tr>
+<tr>
+<td><strong>Component Rating</strong></td>
+<td>Most granular latent ability estimated from raw features</td>
+</tr>
+<tr>
+<td><strong>xG</strong></td>
+<td>Expected Goals — quality-weighted chance count</td>
+</tr>
+<tr>
+<td><strong>PSxG</strong></td>
+<td>Post-Shot Expected Goals — xG after shot placement/execution</td>
+</tr>
+<tr>
+<td><strong>PPDA</strong></td>
+<td>Passes Allowed Per Defensive Action — pressing intensity proxy</td>
+</tr>
+<tr>
+<td><strong>ΔS</strong></td>
+<td>Strength index — weighted sum of tactical matchup z-score deltas</td>
+</tr>
+<tr>
+<td><strong>Dixon–Coles</strong></td>
+<td>Poisson score model with low-score correlation correction (ρ)</td>
+</tr>
+<tr>
+<td><strong>GlpmCalibrator</strong></td>
+<td>Maps ML latent scores → universal 0–100 percentile scale</td>
+</tr>
+<tr>
+<td><strong>Layer 1 / 2 / 3 / 4</strong></td>
+<td>Raw data / Features / Ratings / Predictions database tiers</td>
+</tr>
+<tr>
+<td><strong>sm_id</strong></td>
+<td>SportMonks entity ID — primary key for GLPM tables</td>
+</tr>
+<tr>
+<td><strong>Bayesian update</strong></td>
+<td>Gaussian conjugate smoothing of rating vectors over time</td>
+</tr>
+<tr>
+<td><strong>Process metric</strong></td>
+<td>Underlying football behaviour (xG, xGA, goals−xG) — not match outcomes</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Quick equation reference</h2>
+<pre><code># Rating training (each engine layer)
+y = mean(next 5 matches of process metric)
+latent = ML(adjusted_features)
+score = GlpmCalibrator(latent)  →  ∈ [0, 100]
+
+# Opponent adjustment
+feature_adj = (feature − context_offset) / s_opp
+
+# Z-score (for xG engine)
+z = (rating − 60) / 20
+
+# Interaction matrix
+ΔS = 0.40·(z_A − z_D_opp) + 0.25·(z_FR − z_GK_opp)
+   + 0.20·(z_BU − z_PR_opp) + 0.15·(z_PO − z_PR_opp)
+ΔS = clip(ΔS, −3, +3)
+
+# Expected goals
+xG_base = 1.35 · exp(0.28 · ΔS)
+xG = clip(xG_base × context_multiplier, 0.15, 4.5)
+
+# Score matrix (Dixon–Coles)
+P(h,a) ∝ Poisson(h|λ_H) · Poisson(a|λ_A) · τ(h,a; ρ=−0.13)
+
+# Bayesian update
+σ²_prior ← σ² · exp(ln(2)/90 · Δt)
+μ_post = (τ_prior·μ_prior + τ_obs·μ_obs) / (τ_prior + τ_obs)
+</code></pre>
+<hr>
+<p><em>For the full statistical derivation of each engine, see <code>docs/GOD_FILE_CHAPTER_1.md</code> through <code>docs/GOD_FILE_CHAPTER_14.md</code>.</em></p>
+
+</body>
+</html>

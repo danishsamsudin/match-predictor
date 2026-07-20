@@ -1,0 +1,1 @@
+"""GLPM rating models."""

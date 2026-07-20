@@ -1,0 +1,3 @@
+artifacts/
+*.joblib
+last_scored_sample.csv

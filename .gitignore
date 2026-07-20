@@ -42,6 +42,9 @@
 # misc
 .DS_Store
 *.pem
+__pycache__/
+*.pyc
+.Rhistory
 
 # debug
 npm-debug.log*

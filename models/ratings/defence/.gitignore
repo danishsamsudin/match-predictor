@@ -1,0 +1,7 @@
+tests
+__pycache__
+*.pyc
+artifacts/*.joblib
+artifacts/*.csv
+artifacts/calibrator_*.json
+!artifacts/.gitkeep

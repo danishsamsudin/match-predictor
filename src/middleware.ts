@@ -19,6 +19,9 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === "/") {
     return true;
   }
+  if (pathname === "/login") {
+    return true;
+  }
   if (pathname === "/api/auth/login") {
     return true;
   }
@@ -47,10 +50,6 @@ export async function middleware(request: NextRequest) {
   const session = token ? await verifySessionToken(token, config.secret) : null;
   const isAuthenticated = session !== null;
 
-  if (isAuthenticated && pathname === "/") {
-    return NextResponse.redirect(new URL("/predict", request.url));
-  }
-
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
@@ -64,9 +63,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const loginUrl = new URL("/", request.url);
-    if (pathname !== "/") {
-      loginUrl.searchParams.set("next", pathname);
+    const loginUrl = new URL("/login", request.url);
+    if (pathname !== "/login") {
+      const next = `${pathname}${request.nextUrl.search}`;
+      loginUrl.searchParams.set("next", next);
     }
     return NextResponse.redirect(loginUrl);
   }

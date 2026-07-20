@@ -2,20 +2,25 @@
 
 import { Suspense, useState } from "react";
 import { DualPredictionResults } from "./match-predictor/DualPredictionResults";
-import { FixturePickerSheet } from "./match-predictor/FixturePickerSheet";
 import { MatchPredictorShell } from "./match-predictor/MatchPredictorShell";
 import { SquadXiPicker } from "./match-predictor/SquadXiPicker";
 import { TeamPickerSheet } from "./match-predictor/TeamPickerSheet";
 import { usePredictionForm } from "./match-predictor/usePredictionForm";
+import { GlpmClubPredictor } from "./glpm/GlpmClubPredictor";
 
 function PredictionFormInner() {
   const form = usePredictionForm();
   const [homeSheetOpen, setHomeSheetOpen] = useState(false);
   const [awaySheetOpen, setAwaySheetOpen] = useState(false);
-  const [fixtureSheetOpen, setFixtureSheetOpen] = useState(false);
 
-  const showFixturePicker =
-    form.inputMode === "fixture" && form.entityType === "club";
+  if (form.entityType === "club") {
+    return (
+      <GlpmClubPredictor
+        entityType={form.entityType}
+        onEntityTypeChange={form.setEntityType}
+      />
+    );
+  }
 
   return (
     <div className="w-full space-y-0">
@@ -48,7 +53,6 @@ function PredictionFormInner() {
         setLineupSource={form.setLineupSource}
         onHomePodClick={() => setHomeSheetOpen(true)}
         onAwayPodClick={() => setAwaySheetOpen(true)}
-        onOpenFixture={showFixturePicker ? () => setFixtureSheetOpen(true) : undefined}
         squadXiSection={
           form.showXiPicker ? (
             <SquadXiPicker
@@ -105,24 +109,6 @@ function PredictionFormInner() {
         onTeamChange={form.handleAwayTeamChange}
         disabled={form.loadingCountries}
       />
-
-      {showFixturePicker && (
-        <FixturePickerSheet
-          open={fixtureSheetOpen}
-          onClose={() => setFixtureSheetOpen(false)}
-          matchCountry={form.matchCountry}
-          matchLeagueId={form.matchLeagueId}
-          matchLeagues={form.matchLeagues}
-          countries={form.countries}
-          fixtures={form.fixtures}
-          selectedFixtureId={form.selectedFixtureId}
-          loadingFixtures={form.loadingFixtures}
-          loadingCountries={form.loadingCountries}
-          onCountryChange={form.setMatchCountry}
-          onLeagueChange={form.setMatchLeagueId}
-          onFixtureSelect={form.handleFixtureChange}
-        />
-      )}
 
       {form.loading && !form.result && Object.keys(form.resultsBySource).length === 0 && (
         <div className="liquid-glass-panel mx-auto mt-8 max-w-6xl animate-pulse rounded-[2rem] p-8">

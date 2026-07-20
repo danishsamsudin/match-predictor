@@ -6,8 +6,8 @@ import { Tooltip } from "@/components/ui/Tooltip";
 const ENTITY_TIPS = {
   club: (
     <>
-      Pick <strong>club</strong> teams from domestic leagues (Premier League, La Liga, etc.). Use
-      the team badges below to choose home and away sides.
+      Pick <strong>club</strong> teams from GLPM competitions (Premier League, Eredivisie, etc.).
+      Forecasts use the seven-dimensional rating vector, interaction xG, and Dixon–Coles markets.
     </>
   ),
   national: (
@@ -22,15 +22,14 @@ const ENTITY_TIPS = {
 const MODE_TIPS = {
   fixture: (
     <>
-      <strong>Fixture</strong> mode uses a real upcoming match from our database. Choose both clubs,
-      then use &quot;Find a match&quot; to load kickoff, venue, and team stats. Only available
-      for club teams when fixtures exist in the selected league.
+      <strong>Fixture</strong> mode is reserved for national / World Cup flows. Club forecasts use
+      GLPM <strong>Compare</strong> with ingested rating vectors.
     </>
   ),
   compare: (
     <>
-      <strong>Compare</strong> mode builds a hypothetical match between any two clubs (even across
-      leagues). No scheduled fixture is required - set location, date, and time yourself.
+      <strong>Compare</strong> any two clubs that have GLPM rating vectors for the selected season.
+      No scheduled fixture is required.
     </>
   ),
 } as const;
@@ -81,6 +80,7 @@ export function ModeToolbar({
   inputMode: "fixture" | "compare";
   onInputModeChange: (v: "fixture" | "compare") => void;
 }) {
+  const fixtureDisabled = entityType === "national" || entityType === "club";
   const fixtureTip =
     entityType === "national" ? (
       <>
@@ -124,7 +124,7 @@ export function ModeToolbar({
           value="fixture"
           current={inputMode}
           onSelect={(v) => onInputModeChange(v as "fixture" | "compare")}
-          disabled={entityType === "national"}
+          disabled={fixtureDisabled}
           tip={fixtureTip}
         />
         <Segment

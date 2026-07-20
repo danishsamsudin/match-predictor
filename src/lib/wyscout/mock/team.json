@@ -1,0 +1,10 @@
+{
+  "wyId": 1612,
+  "name": "Arsenal",
+  "officialName": "Arsenal FC",
+  "city": "London",
+  "area": { "id": 14, "name": "England", "alpha3code": "ENG" },
+  "stadiumName": "Emirates Stadium",
+  "stadiumCapacity": 60704,
+  "coach": { "wyId": 9001, "shortName": "M. Arteta" }
+}

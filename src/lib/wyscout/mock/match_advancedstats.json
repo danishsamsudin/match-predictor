@@ -1,0 +1,61 @@
+{
+  "matchId": 5153807,
+  "teams": {
+    "1612": {
+      "teamId": 1612,
+      "total": {
+        "goals": 2,
+        "shots": 14,
+        "shotsOnTarget": 6,
+        "xgShot": 1.87,
+        "xgShotAgainst": 0.94,
+        "ppda": 8.4,
+        "touchInBox": 22,
+        "progressiveRun": 18,
+        "passesToFinalThird": 55,
+        "crosses": 12,
+        "throughPasses": 4,
+        "passes": 512,
+        "successfulPasses": 441,
+        "interceptions": 11,
+        "clearances": 9,
+        "recoveries": 48,
+        "pressingDuels": 31,
+        "defensiveActions": 55,
+        "dangerousOpponentHalfRecoveries": 3,
+        "gkSaves": 3,
+        "postShotXgAgainst": 1.12
+      },
+      "average": { "possessionPercent": 58.2 },
+      "percent": { "successfulPasses": 86.1, "shotsOnTarget": 42.9 }
+    },
+    "1610": {
+      "teamId": 1610,
+      "total": {
+        "goals": 1,
+        "shots": 9,
+        "shotsOnTarget": 4,
+        "xgShot": 0.94,
+        "xgShotAgainst": 1.87,
+        "ppda": 12.1,
+        "touchInBox": 14,
+        "progressiveRun": 11,
+        "passesToFinalThird": 38,
+        "crosses": 8,
+        "throughPasses": 2,
+        "passes": 398,
+        "successfulPasses": 330,
+        "interceptions": 14,
+        "clearances": 18,
+        "recoveries": 41,
+        "pressingDuels": 22,
+        "defensiveActions": 48,
+        "dangerousOpponentHalfRecoveries": 1,
+        "gkSaves": 4,
+        "postShotXgAgainst": 1.65
+      },
+      "average": { "possessionPercent": 41.8 },
+      "percent": { "successfulPasses": 82.9, "shotsOnTarget": 44.4 }
+    }
+  }
+}

@@ -20,6 +20,22 @@
     {
       "path": "/api/cron/prediction-snapshots?run=true",
       "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron/glpm-sportmonks-refresh-schedules?run=true",
+      "schedule": "0 4 * * 1"
+    },
+    {
+      "path": "/api/cron/glpm-sportmonks-refresh-teams?run=true",
+      "schedule": "30 4 * * 1"
+    },
+    {
+      "path": "/api/cron/glpm-sportmonks-refresh-players?run=true",
+      "schedule": "0 5 1 * *"
+    },
+    {
+      "path": "/api/cron/glpm-sportmonks-refresh-coaches?run=true",
+      "schedule": "30 5 1 * *"
     }
   ]
 }

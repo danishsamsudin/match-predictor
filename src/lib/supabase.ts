@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { GlpmTables } from "./glpm/types";
 
 function getSupabaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -1269,7 +1270,7 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["soccerdata_team_aliases"]["Insert"]>;
         Relationships: [];
       };
-    };
+    } & GlpmTables;
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: Record<string, never>;

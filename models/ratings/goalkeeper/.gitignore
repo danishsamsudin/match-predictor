@@ -1,0 +1,4 @@
+# Ignore trained artifacts
+*.joblib
+calibrator_*.json
+last_scored_sample.csv

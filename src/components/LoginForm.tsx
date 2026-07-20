@@ -35,7 +35,7 @@ export function LoginForm() {
       const destination =
         nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
           ? nextPath
-          : "/predict";
+          : "/";
       router.push(destination);
       router.refresh();
     } catch {

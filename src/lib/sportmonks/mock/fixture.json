@@ -1,0 +1,99 @@
+{
+  "data": {
+    "id": 19135515,
+    "league_id": 8,
+    "season_id": 23614,
+    "round_id": 300001,
+    "state_id": 5,
+    "venue_id": 50,
+    "name": "Arsenal vs Chelsea",
+    "starting_at": "2024-11-10 17:30:00",
+    "length": 90,
+    "participants": [
+      {
+        "id": 19,
+        "name": "Arsenal",
+        "meta": { "location": "home", "winner": true }
+      },
+      {
+        "id": 18,
+        "name": "Chelsea",
+        "meta": { "location": "away", "winner": false }
+      }
+    ],
+    "scores": [
+      {
+        "participant_id": 19,
+        "description": "CURRENT",
+        "score": { "goals": 2, "participant": "home" }
+      },
+      {
+        "participant_id": 18,
+        "description": "CURRENT",
+        "score": { "goals": 1, "participant": "away" }
+      }
+    ],
+    "statistics": [
+      { "type_id": 45, "participant_id": 19, "data": { "value": 58.2 } },
+      { "type_id": 45, "participant_id": 18, "data": { "value": 41.8 } },
+      { "type_id": 42, "participant_id": 19, "data": { "value": 14 } },
+      { "type_id": 42, "participant_id": 18, "data": { "value": 9 } },
+      { "type_id": 86, "participant_id": 19, "data": { "value": 6 } },
+      { "type_id": 86, "participant_id": 18, "data": { "value": 4 } },
+      { "type_id": 80, "participant_id": 19, "data": { "value": 512 } },
+      { "type_id": 80, "participant_id": 18, "data": { "value": 398 } },
+      { "type_id": 81, "participant_id": 19, "data": { "value": 441 } },
+      { "type_id": 81, "participant_id": 18, "data": { "value": 330 } },
+      { "type_id": 78, "participant_id": 19, "data": { "value": 18 } },
+      { "type_id": 78, "participant_id": 18, "data": { "value": 22 } },
+      { "type_id": 580, "participant_id": 19, "data": { "value": 3 } },
+      { "type_id": 580, "participant_id": 18, "data": { "value": 1 } },
+      { "type_id": 5304, "participant_id": 19, "data": { "value": 1.87 } },
+      { "type_id": 5304, "participant_id": 18, "data": { "value": 0.94 } },
+      { "type_id": 5305, "participant_id": 19, "data": { "value": 1.65 } },
+      { "type_id": 5305, "participant_id": 18, "data": { "value": 1.12 } },
+      { "type_id": 9687, "participant_id": 19, "data": { "value": 0.94 } },
+      { "type_id": 9687, "participant_id": 18, "data": { "value": 1.87 } }
+    ],
+    "events": [
+      {
+        "id": 800001,
+        "participant_id": 19,
+        "player_id": 9001,
+        "type_id": 14,
+        "minute": 23,
+        "sort_order": 1,
+        "info": "Goal"
+      },
+      {
+        "id": 800002,
+        "participant_id": 18,
+        "player_id": 9002,
+        "type_id": 14,
+        "minute": 55,
+        "sort_order": 2,
+        "info": "Goal"
+      },
+      {
+        "id": 800003,
+        "participant_id": 19,
+        "player_id": 9001,
+        "type_id": 14,
+        "minute": 78,
+        "sort_order": 3,
+        "info": "Goal"
+      }
+    ],
+    "league": { "id": 8, "name": "Premier League", "country_id": 462 },
+    "season": {
+      "id": 23614,
+      "name": "2024/2025",
+      "league_id": 8,
+      "starting_at": "2024-08-16",
+      "ending_at": "2025-05-25",
+      "is_current": true
+    },
+    "venue": { "id": 50, "name": "Emirates Stadium", "city_name": "London", "capacity": 60704 },
+    "state": { "id": 5, "state": "FT", "name": "Full Time", "short_name": "FT" }
+  }
+}
