@@ -84,6 +84,17 @@ export type SmState = {
   short_name?: string;
 };
 
+export type SmRound = {
+  id?: number;
+  name?: string;
+};
+
+export type SmLineup = {
+  player_id?: number;
+  team_id?: number;
+  player_name?: string;
+};
+
 export type SmFixture = {
   id: number;
   sport_id?: number;
@@ -108,8 +119,9 @@ export type SmFixture = {
   season?: SmSeason;
   venue?: SmVenue;
   state?: SmState;
+  round?: SmRound;
   formations?: unknown[];
-  lineups?: unknown[];
+  lineups?: SmLineup[];
   [key: string]: unknown;
 };
 
@@ -145,7 +157,7 @@ export type SmPlayerTeamLink = {
   player_id?: number;
   jersey_number?: number;
   start?: string;
-  end?: string;
+  end?: string | null;
   captain?: boolean;
   team?: SmTeam;
 };
@@ -193,7 +205,7 @@ export type SmCoach = SmNamedEntity & {
     team_id?: number;
     coach_id?: number;
     start?: string;
-    end?: string;
+    end?: string | null;
     active?: boolean;
     team?: SmTeam;
   }>;

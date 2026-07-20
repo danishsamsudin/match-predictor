@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSyncCronSecret } from "@/lib/config/data-source";
 import { parseIdList, DEFAULT_GLPM_SEASON_IDS_2026_27 } from "@/lib/sportmonks/constants";
 
-export const GLPM_CRON_RUNTIME = "nodejs" as const;
-export const GLPM_CRON_MAX_DURATION = 240;
-
 export function isGlpmCronAuthorized(request: NextRequest): boolean {
   const secret = getSyncCronSecret() ?? process.env.CRON_SECRET?.trim();
   if (!secret) return true;

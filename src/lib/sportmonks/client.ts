@@ -8,6 +8,7 @@
  */
 
 import type { SmApiResponse, SmCoach, SmPagination, SmPlayer, SmTeam } from "./types";
+import { SM_LEAGUE } from "./constants";
 
 export {
   SM_LEAGUE,

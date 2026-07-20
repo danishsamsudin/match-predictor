@@ -1,16 +1,14 @@
 import { NextRequest } from "next/server";
 import { refreshSportmonksTeams } from "@/lib/glpm/sportmonks/refreshEntities";
 import {
-  GLPM_CRON_MAX_DURATION,
-  GLPM_CRON_RUNTIME,
   parseBoolQuery,
   parseNumberQuery,
   parseSeasonIdsParam,
   runGlpmCron,
 } from "@/lib/glpm/sportmonks/cronRoute";
 
-export const runtime = GLPM_CRON_RUNTIME;
-export const maxDuration = GLPM_CRON_MAX_DURATION;
+export const runtime = "nodejs";
+export const maxDuration = 240;
 
 const HINT =
   "GET /api/cron/glpm-sportmonks-refresh-teams?run=true&seasonIds=28083,27958,... (weekly)";
