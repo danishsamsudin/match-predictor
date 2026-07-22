@@ -8,16 +8,19 @@ import type { LoadedRatingVector } from "@/lib/glpm/load-vectors";
 import { PRIMARY_ORDER, type PrimaryKey } from "@/lib/glpm/engine";
 import { extractVenueLocation } from "@/lib/glpm/hub-weather";
 import { fairOddsFromProb, hubPredictionFromHistoryRow } from "@/lib/glpm/hub-prediction-map";
+import { CROSS_LEAGUE_REMAP_MODEL } from "@/lib/glpm/league-strength";
+import { SM_LEAGUE } from "@/lib/sportmonks/constants";
 
 function fakeVector(
   teamSmId: number,
-  ratings: Partial<Record<PrimaryKey, number>> = {}
+  ratings: Partial<Record<PrimaryKey, number>> = {},
+  seasonId = 1
 ): LoadedRatingVector {
   const base = {} as Record<PrimaryKey, number>;
   for (const k of PRIMARY_ORDER) base[k] = ratings[k] ?? 60;
   return {
     teamSmId,
-    seasonId: 1,
+    seasonId,
     asOfDate: "2026-05-01",
     ratings: base,
     metadata: {},
@@ -55,18 +58,97 @@ describe("hub-vector-resolve", () => {
     expect(prior?.vector.teamSmId).toBe(99);
   });
 
+  it("remaps Championship any-season vectors into Premier League fixtures", () => {
+    const season = new Map<number, LoadedRatingVector>();
+    const championshipSeasonId = 25648;
+    const plSeasonId = 28083;
+    const any = new Map([
+      [19, fakeVector(19, { attack: 92, defence: 90 }, championshipSeasonId)],
+    ]);
+    const mean = buildCompetitionMeanVector(
+      [fakeVector(1, { attack: 60, defence: 60 }, plSeasonId)],
+      { teamSmId: 0, seasonId: plSeasonId }
+    );
+    const seasonCompetitionBySeasonId = new Map([
+      [championshipSeasonId, SM_LEAGUE.CHAMPIONSHIP],
+      [plSeasonId, SM_LEAGUE.PREMIER_LEAGUE],
+    ]);
+
+    const resolved = resolveHubTeamVector(19, season, any, mean, {
+      targetCompetitionId: SM_LEAGUE.PREMIER_LEAGUE,
+      seasonCompetitionBySeasonId,
+      destinationAnchor: 60,
+      targetSeasonId: plSeasonId,
+    });
+
+    expect(resolved?.isPrior).toBe(true);
+    expect(resolved?.vector.modelVersion).toBe(CROSS_LEAGUE_REMAP_MODEL);
+    expect(resolved?.vector.seasonId).toBe(plSeasonId);
+    expect(resolved!.vector.ratings.attack).toBeLessThan(60);
+    expect(resolved!.vector.ratings.attack).toBeLessThan(92);
+  });
+
+  it("passes through same-competition any-season vectors unchanged", () => {
+    const season = new Map<number, LoadedRatingVector>();
+    const priorPlSeason = 25583;
+    const plSeasonId = 28083;
+    const any = new Map([[
+      19,
+      fakeVector(19, { attack: 88 }, priorPlSeason),
+    ]]);
+    const seasonCompetitionBySeasonId = new Map([
+      [priorPlSeason, SM_LEAGUE.PREMIER_LEAGUE],
+      [plSeasonId, SM_LEAGUE.PREMIER_LEAGUE],
+    ]);
+
+    const resolved = resolveHubTeamVector(19, season, any, null, {
+      targetCompetitionId: SM_LEAGUE.PREMIER_LEAGUE,
+      seasonCompetitionBySeasonId,
+      targetSeasonId: plSeasonId,
+    });
+
+    expect(resolved?.isPrior).toBe(false);
+    expect(resolved?.vector.ratings.attack).toBe(88);
+    expect(resolved?.vector.modelVersion).toBe("test");
+  });
+
   it("returns null when no vectors and no competition mean", () => {
     expect(
       resolveHubTeamVector(1, new Map(), new Map(), null)
     ).toBeNull();
   });
 
-  it("marks prediction source prior when either side uses mean", () => {
-    const real = { vector: fakeVector(1), isPrior: false };
-    const prior = { vector: fakeVector(2), isPrior: true };
-    expect(predictionSourceFromResolved(real, prior, false)).toBe("prior");
-    expect(predictionSourceFromResolved(real, real, true)).toBe("stored");
-    expect(predictionSourceFromResolved(real, real, false)).toBe("live");
+  it("uses promotion prior for newcomers without any-season vectors", () => {
+    const season = new Map<number, LoadedRatingVector>();
+    const any = new Map<number, LoadedRatingVector>();
+    const mean = buildCompetitionMeanVector(
+      [fakeVector(1, { attack: 60, defence: 60 }, 27958)],
+      { teamSmId: 0, seasonId: 27958 }
+    );
+    const resolved = resolveHubTeamVector(1128, season, any, mean, {
+      targetCompetitionId: SM_LEAGUE.EREDIVISIE,
+      seasonCompetitionBySeasonId: new Map([[27958, SM_LEAGUE.EREDIVISIE]]),
+      destinationAnchor: 60,
+      targetSeasonId: 27958,
+      promotedTeamIds: new Set([1128]),
+    });
+    expect(resolved?.isPrior).toBe(true);
+    expect(resolved?.vector.modelVersion).toBe("glpm_promotion_prior_v1");
+    expect(resolved?.vector.ratings.attack).toBe(48);
+    expect(resolved?.vector.teamSmId).toBe(1128);
+  });
+
+  it("does not use promotion prior when competition mean applies to non-promoted sides", () => {
+    const mean = buildCompetitionMeanVector([fakeVector(1, { attack: 60 })], {
+      teamSmId: 0,
+      seasonId: 1,
+    });
+    const resolved = resolveHubTeamVector(99, new Map(), new Map(), mean, {
+      targetSeasonId: 1,
+      promotedTeamIds: new Set([1128]),
+    });
+    expect(resolved?.vector.ratings.attack).toBe(60);
+    expect(resolved?.vector.modelVersion).toBe("glpm_hub_competition_mean_v1");
   });
 });
 

@@ -6,6 +6,7 @@ export type SmParticipant = {
   id: number;
   name?: string;
   short_code?: string;
+  image_path?: string;
   meta?: { location?: "home" | "away"; winner?: boolean | null };
 };
 

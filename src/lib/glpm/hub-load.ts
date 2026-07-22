@@ -26,6 +26,7 @@ import {
   predictionSourceFromResolved,
   resolveHubTeamVector,
 } from "@/lib/glpm/hub-vector-resolve";
+import { loadPromotedTeamIds } from "@/lib/glpm/promotion";
 import { resolveHubMatchWeather } from "@/lib/glpm/hub-weather";
 import {
   annotateSeasonReadiness,
@@ -147,13 +148,14 @@ export async function loadGlpmHubPayload(
 
   const { data: seasons } = await client
     .from("glpm_seasons")
-    .select("sm_id,name,competition_id")
+    .select("sm_id,name,competition_id,start_date")
     .order("start_date", { ascending: false });
 
   const seasonList = (seasons ?? []).map((s) => ({
     smId: s.sm_id,
     name: s.name,
     competitionId: s.competition_id,
+    startDate: s.start_date,
   }));
 
   const readiness = await loadGlpmSeasonReadiness(client);
@@ -301,6 +303,14 @@ export async function loadGlpmHubPayload(
     seasonId,
   });
 
+  const seasonCompetitionBySeasonId = new Map<number, number>();
+  for (const s of seasonList) {
+    seasonCompetitionBySeasonId.set(s.smId, s.competitionId);
+  }
+  const destinationAnchor = competitionMean
+    ? meanPrimaryRatings(competitionMean.ratings)
+    : null;
+
   const { data: finishedMatches } = await client
     .from("glpm_matches")
     .select(
@@ -339,6 +349,24 @@ export async function loadGlpmHubPayload(
     teamsNeedingFallback,
     teamName
   );
+
+  const promotedTeamIds =
+    competitionId != null
+      ? await loadPromotedTeamIds(client, {
+          seasonId,
+          competitionId,
+          currentTeamIds: fixtureTeamIds,
+          seasons: seasonList,
+        })
+      : new Set<number>();
+
+  const resolveOpts = {
+    targetCompetitionId: competitionId,
+    seasonCompetitionBySeasonId,
+    destinationAnchor,
+    targetSeasonId: seasonId,
+    promotedTeamIds,
+  };
 
   const recentSlice = finished.slice(0, 12);
   const recentIds = recentSlice.map((m) => m.sm_id);
@@ -397,13 +425,15 @@ export async function loadGlpmHubPayload(
       homeTeamSmId,
       seasonVectors,
       anySeasonVectors,
-      competitionMean
+      competitionMean,
+      resolveOpts
     );
     const away = resolveHubTeamVector(
       awayTeamSmId,
       seasonVectors,
       anySeasonVectors,
-      competitionMean
+      competitionMean,
+      resolveOpts
     );
     return { home, away };
   };

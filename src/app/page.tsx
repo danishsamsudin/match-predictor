@@ -3,9 +3,13 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
 import { HomeLeagueFixturesPanel } from "@/components/glpm/HomeLeagueFixturesPanel";
 import { HomeLeagueStandingsPanel } from "@/components/glpm/HomeLeagueStandingsPanel";
+import { HomeLiveScoresPanel } from "@/components/glpm/HomeLiveScoresPanel";
 import { createServerClient, tryCreateServiceClient } from "@/lib/supabase";
 import { BRAND_HERO_EYEBROW, BRAND_HERO_SUBTITLE, BRAND_NAME } from "@/lib/brand";
 import { loadGlpmHubPayload, type GlpmHubPayload } from "@/lib/glpm/hub-load";
+import { loadLiveScoresBoard } from "@/lib/glpm/live-scores/load";
+import { placeholderLiveScoresBoard } from "@/lib/glpm/live-scores/placeholders";
+import type { LiveScoresBoardPayload } from "@/lib/glpm/live-scores/types";
 import {
   loadGlpmStandingsForCompetition,
   type GlpmLeagueStandings,
@@ -97,17 +101,20 @@ export default async function HomePage() {
   let leagueBlocks: HomeLeagueBlock[] = [];
   let standingsBlocks: GlpmLeagueStandings[] = [];
   let history = [] as Awaited<ReturnType<typeof loadPredictionHistoryFeed>>;
+  let liveScores: LiveScoresBoardPayload = placeholderLiveScoresBoard();
   let updatedAt: string | null = null;
 
   try {
     const client = getClient();
     leagueBlocks = await loadLeagueBlocks(client);
-    const [standings, historyFeed] = await Promise.all([
+    const [standings, historyFeed, liveBoard] = await Promise.all([
       loadStandingsBlocks(client, leagueBlocks),
       loadPredictionHistoryFeed(client, 6),
+      loadLiveScoresBoard(client),
     ]);
     standingsBlocks = standings;
     history = historyFeed;
+    liveScores = liveBoard;
     updatedAt =
       leagueBlocks.find((block) => block.payload?.updatedAt)?.payload?.updatedAt ?? null;
   } catch {
@@ -120,6 +127,7 @@ export default async function HomePage() {
       rows: [],
     }));
     history = [];
+    liveScores = placeholderLiveScoresBoard();
   }
 
   const fixturesLeagues = leagueBlocks.map((block) => ({
@@ -163,6 +171,10 @@ export default async function HomePage() {
             </Link>
           </div>
         </div>
+      </section>
+
+      <section className="mt-8">
+        <HomeLiveScoresPanel board={liveScores} />
       </section>
 
       <section className="mt-8">

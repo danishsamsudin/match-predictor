@@ -305,6 +305,42 @@ export class SportmonksClient {
     });
   }
 
+  /**
+   * In-play (+ soft ±15m) livescores. Prefer over fixtures for the live board.
+   * Filter with `fixtureLeagues` so Starter plans only burn quota on owned leagues.
+   */
+  async getInplayLivescores(options?: {
+    leagueIds?: number[];
+    include?: string;
+  }): Promise<SmFixture[]> {
+    const leagueIds = options?.leagueIds ?? DEFAULT_GLPM_LEAGUE_IDS;
+    const include = sanitizeFixtureInclude(
+      options?.include ??
+        "scores;participants;venue;state;league;round;periods;events"
+    );
+    const res = await this.get<SmApiResponse<SmFixture[]>>("/livescores/inplay", {
+      include,
+      filters: `fixtureLeagues:${leagueIds.join(",")}`,
+    });
+    return Array.isArray(res.data) ? res.data : [];
+  }
+
+  /** Fixtures updated in the last ~10s (efficient high-frequency poll). */
+  async getLatestLivescores(options?: {
+    leagueIds?: number[];
+    include?: string;
+  }): Promise<SmFixture[]> {
+    const leagueIds = options?.leagueIds ?? DEFAULT_GLPM_LEAGUE_IDS;
+    const include = sanitizeFixtureInclude(
+      options?.include ?? "scores;participants;venue;state;league;round;periods;events"
+    );
+    const res = await this.get<SmApiResponse<SmFixture[]>>("/livescores/latest", {
+      include,
+      filters: `fixtureLeagues:${leagueIds.join(",")}`,
+    });
+    return Array.isArray(res.data) ? res.data : [];
+  }
+
   getFixturesBetween(
     start: string,
     end: string,

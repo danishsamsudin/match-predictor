@@ -17,6 +17,13 @@ import {
   toRatingVectorInput,
   type LoadedRatingVector,
 } from "@/lib/glpm/load-vectors";
+import { meanPrimaryRatings } from "@/lib/glpm/hub-vector-resolve";
+import { remapRatingVectorAcrossCompetitions } from "@/lib/glpm/league-strength";
+import {
+  buildPromotionPriorVector,
+  loadPromotedTeamIds,
+  type SeasonCompetitionRef,
+} from "@/lib/glpm/promotion";
 import type { GlpmPredictUiPayload, GlpmStyleSummary } from "@/lib/glpm/ui-types";
 
 export type { GlpmPredictUiPayload, GlpmStyleSummary } from "@/lib/glpm/ui-types";
@@ -54,23 +61,169 @@ function teamBlock(
   };
 }
 
-/** Use requested season when vectors exist; otherwise latest vector from any trained season. */
+async function loadSeasonCompetition(
+  client: Client,
+  seasonId: number
+): Promise<number | null> {
+  const { data } = await client
+    .from("glpm_seasons")
+    .select("competition_id")
+    .eq("sm_id", seasonId)
+    .maybeSingle();
+  return data?.competition_id ?? null;
+}
+
+async function loadSeasonRefs(client: Client): Promise<SeasonCompetitionRef[]> {
+  const { data } = await client
+    .from("glpm_seasons")
+    .select("sm_id,competition_id,start_date")
+    .order("start_date", { ascending: false });
+  return (data ?? []).map((s) => ({
+    smId: s.sm_id,
+    competitionId: s.competition_id,
+    startDate: s.start_date,
+  }));
+}
+
+async function loadCompetitionDestinationAnchor(
+  client: Client,
+  competitionId: number,
+  excludeTeamSmId?: number
+): Promise<number | null> {
+  const { data: seasons } = await client
+    .from("glpm_seasons")
+    .select("sm_id")
+    .eq("competition_id", competitionId);
+  const seasonIds = (seasons ?? []).map((s) => s.sm_id);
+  if (!seasonIds.length) return null;
+
+  const { data: rows } = await client
+    .from("glpm_team_rating_vectors")
+    .select(
+      "team_sm_id,season_id,as_of_date,r_attack,r_defence,r_goalkeeper,r_build_up,r_possession,r_pressing,r_finishing"
+    )
+    .in("season_id", seasonIds)
+    .order("as_of_date", { ascending: false });
+
+  const latest = new Map<number, NonNullable<typeof rows>[number]>();
+  for (const row of rows ?? []) {
+    if (excludeTeamSmId != null && row.team_sm_id === excludeTeamSmId) continue;
+    if (!latest.has(row.team_sm_id)) latest.set(row.team_sm_id, row);
+  }
+  if (!latest.size) return null;
+
+  let sum = 0;
+  let n = 0;
+  for (const row of latest.values()) {
+    const ratings = {
+      attack: Number(row.r_attack ?? 60),
+      defence: Number(row.r_defence ?? 60),
+      goalkeeper: Number(row.r_goalkeeper ?? 60),
+      build_up: Number(row.r_build_up ?? 60),
+      possession: Number(row.r_possession ?? 60),
+      pressing: Number(row.r_pressing ?? 60),
+      finishing: Number(row.r_finishing ?? 60),
+    };
+    sum += meanPrimaryRatings(ratings);
+    n += 1;
+  }
+  return n > 0 ? sum / n : null;
+}
+
+/**
+ * Prefer the requested season vector; otherwise latest any-season vector,
+ * remapped when the source competition differs; otherwise a promotion prior
+ * for clubs new to the competition.
+ */
 async function loadVectorForPredict(
   client: Client,
   teamSmId: number,
-  seasonId?: number | null
+  seasonId?: number | null,
+  cache?: {
+    seasons?: SeasonCompetitionRef[];
+    promotedBySeason?: Map<number, Set<number>>;
+  }
 ): Promise<LoadedRatingVector | null> {
   if (seasonId != null) {
     const scoped = await loadLatestRatingVector(client, { teamSmId, seasonId });
     if (scoped) return scoped;
 
-    const { count } = await client
-      .from("glpm_team_rating_vectors")
-      .select("team_sm_id", { count: "exact", head: true })
-      .eq("season_id", seasonId);
-    if ((count ?? 0) === 0) {
-      return loadLatestRatingVector(client, { teamSmId });
+    const fallback = await loadLatestRatingVector(client, { teamSmId });
+    if (fallback) {
+      const [targetCompetitionId, sourceCompetitionId] = await Promise.all([
+        loadSeasonCompetition(client, seasonId),
+        loadSeasonCompetition(client, fallback.seasonId),
+      ]);
+
+      if (
+        targetCompetitionId == null ||
+        sourceCompetitionId == null ||
+        sourceCompetitionId === targetCompetitionId
+      ) {
+        return fallback;
+      }
+
+      const destinationAnchor = await loadCompetitionDestinationAnchor(
+        client,
+        targetCompetitionId,
+        teamSmId
+      );
+
+      return remapRatingVectorAcrossCompetitions(
+        fallback,
+        sourceCompetitionId,
+        targetCompetitionId,
+        {
+          destinationAnchor,
+          targetSeasonId: seasonId,
+        }
+      );
     }
+
+    // No historical vector: use promotion prior when the club is new to this league.
+    const seasons = cache?.seasons ?? (await loadSeasonRefs(client));
+    if (cache && !cache.seasons) cache.seasons = seasons;
+    const competitionId =
+      seasons.find((s) => s.smId === seasonId)?.competitionId ??
+      (await loadSeasonCompetition(client, seasonId));
+    if (competitionId == null) return null;
+
+    let promoted = cache?.promotedBySeason?.get(seasonId);
+    if (!promoted) {
+      const { data: matches } = await client
+        .from("glpm_matches")
+        .select("home_team_sm_id,away_team_sm_id")
+        .eq("season_id", seasonId);
+      const seasonTeams = new Set<number>([teamSmId]);
+      for (const m of matches ?? []) {
+        seasonTeams.add(m.home_team_sm_id);
+        seasonTeams.add(m.away_team_sm_id);
+      }
+      promoted = await loadPromotedTeamIds(client, {
+        seasonId,
+        competitionId,
+        currentTeamIds: seasonTeams,
+        seasons,
+      });
+      if (cache) {
+        if (!cache.promotedBySeason) cache.promotedBySeason = new Map();
+        cache.promotedBySeason.set(seasonId, promoted);
+      }
+    }
+
+    if (promoted.has(teamSmId)) {
+      const { data: team } = await client
+        .from("glpm_teams")
+        .select("name")
+        .eq("sm_id", teamSmId)
+        .maybeSingle();
+      return buildPromotionPriorVector({
+        teamSmId,
+        seasonId,
+        teamName: team?.name ?? null,
+      });
+    }
+
     return null;
   }
   return loadLatestRatingVector(client, { teamSmId });
@@ -87,8 +240,23 @@ export async function runGlpmPredict(
     persist?: boolean;
   }
 ): Promise<GlpmPredictUiPayload> {
-  const home = await loadVectorForPredict(client, input.homeTeamSmId, input.seasonId);
-  const away = await loadVectorForPredict(client, input.awayTeamSmId, input.seasonId);
+  const cache: {
+    seasons?: SeasonCompetitionRef[];
+    promotedBySeason?: Map<number, Set<number>>;
+  } = {};
+
+  const home = await loadVectorForPredict(
+    client,
+    input.homeTeamSmId,
+    input.seasonId,
+    cache
+  );
+  const away = await loadVectorForPredict(
+    client,
+    input.awayTeamSmId,
+    input.seasonId,
+    cache
+  );
 
   if (!home) {
     throw new Error(
