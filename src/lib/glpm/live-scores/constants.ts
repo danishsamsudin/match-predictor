@@ -33,4 +33,11 @@ export const PLAN_LIVESCORE_INCLUDE = [
   "round",
   "periods",
   "events",
+  "events.type",
+  "statistics",
+  "xGFixture",
 ].join(";");
+
+/** Filter livescores events to the main timeline types (goals, cards, subs, pens, VAR). */
+export const LIVESCORE_EVENT_TYPE_FILTER =
+  "eventTypes:10,14,15,16,17,18,19,20,21,22,23";

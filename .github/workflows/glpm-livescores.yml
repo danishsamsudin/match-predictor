@@ -1,0 +1,115 @@
+# Poll GLPM in-play livescores via the production cron endpoint.
+# Cheap on GitHub Actions (curl only); work runs on Vercel.
+# Designed for dense match windows; handler no-ops when no fixtures are live.
+#
+# Required:
+# - secrets.SYNC_CRON_SECRET (or secrets.CRON_SECRET)
+# - secrets.APP_URL or vars.APP_URL
+#
+# Manual: Actions -> "GLPM livescores poll" -> Run workflow
+
+name: GLPM livescores poll
+
+on:
+  schedule:
+    # Fri-Sun peak European windows (every 5m, 12:00-23:55 UTC)
+    - cron: "*/5 12-23 * * 5,6,0"
+    # Tue-Wed midweek (every 5m, 17:00-22:55 UTC)
+    - cron: "*/5 17-22 * * 2,3"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Bypass live-window gate (smoke test only)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: glpm-livescores-poll
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve app URL and auth
+        id: config
+        env:
+          APP_URL_SECRET: ${{ secrets.APP_URL }}
+          APP_URL_VAR: ${{ vars.APP_URL }}
+          SYNC_CRON_SECRET: ${{ secrets.SYNC_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          APP_URL="${APP_URL_SECRET:-}"
+          if [ -z "$APP_URL" ]; then
+            APP_URL="${APP_URL_VAR:-}"
+          fi
+          APP_URL="${APP_URL%/}"
+          if [ -z "$APP_URL" ]; then
+            echo "::error::Set secrets.APP_URL or vars.APP_URL to your production origin"
+            exit 1
+          fi
+
+          SECRET="${SYNC_CRON_SECRET:-}"
+          if [ -z "$SECRET" ]; then
+            SECRET="${CRON_SECRET:-}"
+          fi
+          if [ -z "$SECRET" ]; then
+            echo "::error::Set secrets.SYNC_CRON_SECRET (or secrets.CRON_SECRET)"
+            exit 1
+          fi
+
+          FORCE="${{ github.event.inputs.force || 'false' }}"
+          {
+            echo "app_url=$APP_URL"
+            echo "force=$FORCE"
+          } >> "$GITHUB_OUTPUT"
+          echo "CRON_BEARER=$SECRET" >> "$GITHUB_ENV"
+
+      - name: Poll in-play livescores
+        env:
+          APP_URL: ${{ steps.config.outputs.app_url }}
+          FORCE: ${{ steps.config.outputs.force }}
+        run: |
+          set -euo pipefail
+          QS="run=true"
+          if [ "$FORCE" = "true" ]; then
+            QS="${QS}&force=true"
+          fi
+          URL="${APP_URL}/api/cron/glpm-livescores?${QS}"
+
+          echo "POST ${URL%%\?*}?${QS}"
+          HTTP_CODE=$(curl -sS -o /tmp/glpm-livescores.json -w "%{http_code}" \
+            --max-time 90 \
+            -X POST \
+            -H "Authorization: Bearer ${CRON_BEARER}" \
+            -H "Accept: application/json" \
+            "$URL")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Livescores poll failed with HTTP ${HTTP_CODE}"
+            cat /tmp/glpm-livescores.json || true
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json
+          with open("/tmp/glpm-livescores.json") as f:
+              data = json.load(f)
+          print(
+              "livescores ok:",
+              f"skipped={data.get('skipped')}",
+              f"inWindow={data.get('inWindowCount')}",
+              f"fetched={data.get('fetchedCount')}",
+              f"updated={data.get('updatedCount')}",
+              f"reason={data.get('reason') or '-'}",
+          )
+          PY

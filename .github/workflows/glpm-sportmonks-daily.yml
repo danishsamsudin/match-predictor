@@ -3,6 +3,9 @@ name: GLPM SportMonks daily sync
 # Morning discovers today's slate (in GLPM_MATCHDAY_TIMEZONE), then a dispatcher
 # fires lineup / results / night refresh when due.
 #
+# Night refresh (refresh phase) trains engines, runs glpm:backfill-vs-style for
+# CX style-lift charts, then force-writes upcoming GLPM prediction snapshots.
+#
 # Required secrets:
 #   SPORTMONKS_API_TOKEN
 #   SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)
@@ -11,6 +14,11 @@ name: GLPM SportMonks daily sync
 #
 # Optional:
 #   NEXT_PUBLIC_SUPABASE_ANON_KEY (not required for service client)
+#
+# Related workflows:
+#   glpm-vs-style-backfill.yml  — manual bulk vs-style backfill
+#   glpm-standings-refresh.yml  — schedules + standings via production crons
+#   glpm-livescores.yml         — in-play livescores poll via production cron
 
 on:
   schedule:

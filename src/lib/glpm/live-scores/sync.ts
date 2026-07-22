@@ -5,6 +5,7 @@ import {
   DEFAULT_GLPM_LEAGUE_IDS,
 } from "@/lib/sportmonks/client";
 import type { SmFixture, SmScore } from "@/lib/sportmonks/types";
+import { mapSportmonksEvents } from "@/lib/glpm/layer1/sportmonks/upsertFixture";
 import {
   isFinishedFixture,
   SM_FIXTURE_STATE_FINISHED,
@@ -12,6 +13,7 @@ import {
 import {
   LIVE_POLL_AFTER_KICKOFF_MS,
   LIVE_POLL_LEAD_MS,
+  LIVESCORE_EVENT_TYPE_FILTER,
   PLAN_LIVESCORE_INCLUDE,
   SM_FIXTURE_STATE_LIVE_WINDOW,
 } from "./constants";
@@ -51,6 +53,34 @@ function homeAwayIds(fixture: SmFixture): { homeId: number; awayId: number } | n
   return { homeId: home.id, awayId: away.id };
 }
 
+function mergeLivePayload(
+  previous: unknown,
+  fixture: SmFixture
+): Record<string, unknown> {
+  const prev =
+    previous && typeof previous === "object" ? (previous as Record<string, unknown>) : {};
+  return {
+    ...prev,
+    id: fixture.id,
+    league_id: fixture.league_id ?? prev.league_id,
+    season_id: fixture.season_id ?? prev.season_id,
+    state_id: fixture.state_id ?? prev.state_id,
+    starting_at: fixture.starting_at ?? prev.starting_at,
+    length: fixture.length ?? prev.length,
+    name: fixture.name ?? prev.name,
+    participants: fixture.participants ?? prev.participants,
+    scores: fixture.scores ?? prev.scores,
+    state: fixture.state ?? prev.state,
+    venue: fixture.venue ?? prev.venue,
+    league: fixture.league ?? prev.league,
+    round: fixture.round ?? prev.round,
+    periods: fixture.periods ?? prev.periods,
+    events: fixture.events ?? prev.events,
+    statistics: fixture.statistics ?? prev.statistics,
+    xGFixture: fixture.xGFixture ?? prev.xGFixture,
+  };
+}
+
 /**
  * True when our DB already knows a GLPM fixture is inside the livescore poll window.
  * Avoids SportMonks API calls on quiet days / overnight.
@@ -85,14 +115,13 @@ export async function countFixturesInLivePollWindow(
       return false;
     }
     if (row.state_id != null && SM_FIXTURE_STATE_LIVE_WINDOW.has(row.state_id)) return true;
-    // Kickoff inside window and not finished → poll (covers missing state_id).
     return true;
   }).length;
 }
 
 /**
- * Poll SportMonks `/livescores/inplay` for GLPM leagues and patch `glpm_matches` scores.
- * Early-exits without an API call when no fixtures are in the local poll window.
+ * Poll SportMonks `/livescores/inplay` for GLPM leagues and patch `glpm_matches`
+ * scores + live payload (events, statistics, periods) for the home timeline.
  */
 export async function syncInplayLivescores(
   client: Client,
@@ -118,6 +147,7 @@ export async function syncInplayLivescores(
   const fixtures = await sm.getInplayLivescores({
     leagueIds,
     include: PLAN_LIVESCORE_INCLUDE,
+    extraFilters: LIVESCORE_EVENT_TYPE_FILTER,
   });
 
   let updatedCount = 0;
@@ -138,15 +168,28 @@ export async function syncInplayLivescores(
         ? Number(roundName)
         : null;
 
+    const { data: existing, error: readErr } = await client
+      .from("glpm_matches")
+      .select("payload")
+      .eq("sm_id", fixture.id)
+      .maybeSingle();
+
+    if (readErr) {
+      console.warn(`[livescores] read fixture ${fixture.id} failed: ${readErr.message}`);
+      continue;
+    }
+
     const patch: Database["public"]["Tables"]["glpm_matches"]["Update"] = {
       home_score: homeScore,
       away_score: awayScore,
       state_id: stateId,
       status,
       synced_at: syncedAt,
+      payload: mergeLivePayload(existing?.payload, fixture),
     };
     if (venue) patch.venue = venue;
     if (gameweek != null) patch.gameweek = gameweek;
+    if (fixture.length != null) patch.duration_minutes = fixture.length;
 
     const { error, count } = await client
       .from("glpm_matches")
@@ -157,6 +200,17 @@ export async function syncInplayLivescores(
       console.warn(`[livescores] update fixture ${fixture.id} failed: ${error.message}`);
       continue;
     }
+
+    const events = mapSportmonksEvents(fixture);
+    if (events.length) {
+      const { error: evErr } = await client
+        .from("glpm_match_events")
+        .upsert(events, { onConflict: "event_id" });
+      if (evErr) {
+        console.warn(`[livescores] upsert events ${fixture.id} failed: ${evErr.message}`);
+      }
+    }
+
     matchSmIds.push(fixture.id);
     if ((count ?? 0) > 0) updatedCount += 1;
   }

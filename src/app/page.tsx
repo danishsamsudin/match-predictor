@@ -7,6 +7,7 @@ import { HomeLiveScoresPanel } from "@/components/glpm/HomeLiveScoresPanel";
 import { createServerClient, tryCreateServiceClient } from "@/lib/supabase";
 import { BRAND_HERO_EYEBROW, BRAND_HERO_SUBTITLE, BRAND_NAME } from "@/lib/brand";
 import { loadGlpmHubPayload, type GlpmHubPayload } from "@/lib/glpm/hub-load";
+import { getGlpmLeagueStrength } from "@/lib/glpm/league-strength";
 import { loadLiveScoresBoard } from "@/lib/glpm/live-scores/load";
 import { placeholderLiveScoresBoard } from "@/lib/glpm/live-scores/placeholders";
 import type { LiveScoresBoardPayload } from "@/lib/glpm/live-scores/types";
@@ -137,6 +138,24 @@ export default async function HomePage() {
     matches: block.payload?.upcoming ?? [],
   }));
 
+  const topTeamsSnapshot = leagueBlocks
+    .flatMap((block) => {
+      const competitionId = block.payload?.competition?.smId ?? null;
+      const leagueOmega =
+        competitionId != null ? getGlpmLeagueStrength(competitionId) : 0.75;
+      return (block.payload?.ratingLeaders ?? []).map((leader) => ({
+        league: block.leagueName,
+        team: leader.teamName,
+        overall: leader.overall,
+        leagueOmega,
+        adjustedOverall: leader.overall * leagueOmega,
+        teamSmId: leader.teamSmId,
+        seasonId: block.payload?.season?.smId ?? null,
+      }));
+    })
+    .sort((a, b) => b.adjustedOverall - a.adjustedOverall)
+    .slice(0, 8);
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <section className="liquid-glass-panel rounded-2xl p-6 sm:rounded-[2rem] sm:p-10">
@@ -187,43 +206,45 @@ export default async function HomePage() {
 
       <section className="mt-10 grid gap-4 sm:grid-cols-2">
         <div className="liquid-glass-panel rounded-2xl p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-lg font-bold text-foreground">Top Teams Snapshot</h3>
-            <Link href="/league" className="text-xs font-semibold text-primary hover:underline">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-lg font-bold text-foreground">Top Teams Snapshot</h3>
+              <p className="mt-0.5 text-xs text-muted">
+                Ranked by overall × league strength vs Premier League (Ω). PL = 1.0×.
+              </p>
+            </div>
+            <Link
+              href="/league"
+              className="shrink-0 text-xs font-semibold text-primary hover:underline"
+            >
               Full rankings →
             </Link>
           </div>
           <div className="space-y-2">
-            {leagueBlocks
-              .flatMap((block) =>
-                (block.payload?.ratingLeaders ?? [])
-                  .slice(0, 2)
-                  .map((leader) => ({
-                    league: block.leagueName,
-                    team: leader.teamName,
-                    overall: leader.overall,
-                    teamSmId: leader.teamSmId,
-                    seasonId: block.payload?.season?.smId ?? null,
-                  }))
-              )
-              .slice(0, 8)
-              .map((item) => (
-                <div
-                  key={`${item.league}-${item.teamSmId}`}
-                  className="flex items-center justify-between rounded-xl border border-glass-border bg-surface/60 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{item.team}</p>
-                    <p className="text-xs text-muted">{item.league}</p>
-                  </div>
-                  <Link
-                    href={`/predict?entity=club&mode=compare&home=${item.teamSmId}${item.seasonId != null ? `&seasonId=${item.seasonId}` : ""}`}
-                    className="shrink-0 text-xs font-semibold text-primary hover:underline"
-                  >
-                    {item.overall.toFixed(1)}
-                  </Link>
+            {topTeamsSnapshot.map((item) => (
+              <div
+                key={`${item.league}-${item.teamSmId}`}
+                className="flex items-center justify-between rounded-xl border border-glass-border bg-surface/60 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{item.team}</p>
+                  <p className="text-xs text-muted">
+                    {item.league} · Ω {item.leagueOmega.toFixed(2)}×
+                  </p>
                 </div>
-              ))}
+                <Link
+                  href={`/predict?entity=club&mode=compare&home=${item.teamSmId}${item.seasonId != null ? `&seasonId=${item.seasonId}` : ""}`}
+                  className="shrink-0 text-right"
+                >
+                  <p className="text-xs font-semibold text-primary hover:underline">
+                    {item.adjustedOverall.toFixed(1)}
+                  </p>
+                  <p className="text-[10px] text-muted">
+                    {item.overall.toFixed(1)} raw
+                  </p>
+                </Link>
+              </div>
+            ))}
           </div>
         </div>
 

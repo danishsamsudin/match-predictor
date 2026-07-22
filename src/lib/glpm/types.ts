@@ -325,6 +325,10 @@ export type GlpmMatchTeamStatsTable = {
     psxg_faced: number | null;
     gk_saves: number | null;
     goals_prevented: number | null;
+    corners: number | null;
+    yellow_cards: number | null;
+    red_cards: number | null;
+    fouls: number | null;
     xg_source: GlpmMetricSource | null;
     psxg_source: GlpmMetricSource | null;
     ppda_source: "wyscout" | "sportmonks_proxy" | null;
@@ -375,6 +379,10 @@ export type GlpmMatchTeamStatsTable = {
     psxg_faced?: number | null;
     gk_saves?: number | null;
     goals_prevented?: number | null;
+    corners?: number | null;
+    yellow_cards?: number | null;
+    red_cards?: number | null;
+    fouls?: number | null;
     xg_source?: GlpmMetricSource | null;
     psxg_source?: GlpmMetricSource | null;
     ppda_source?: "wyscout" | "sportmonks_proxy" | null;
@@ -894,6 +902,78 @@ export type GlpmPredictionHistoryTable = {
   Relationships: [];
 };
 
+export type GlpmCxPredictionHistoryTable = {
+  Row: {
+    id: string;
+    match_sm_id: number | null;
+    home_team_sm_id: number | null;
+    away_team_sm_id: number | null;
+    season_id: number | null;
+    base_home_xg: number;
+    base_away_xg: number;
+    home_xg: number;
+    away_xg: number;
+    home_win_pct: number;
+    draw_pct: number;
+    away_win_pct: number;
+    btts_yes_pct: number;
+    btts_no_pct: number;
+    over_under: Record<string, GlpmOverUnderLine>;
+    score_matrix: number[][];
+    breakdown: unknown;
+    rho: number;
+    model_version: string;
+    executed_at: string;
+    created_at: string;
+  };
+  Insert: {
+    id?: string;
+    match_sm_id?: number | null;
+    home_team_sm_id?: number | null;
+    away_team_sm_id?: number | null;
+    season_id?: number | null;
+    base_home_xg: number;
+    base_away_xg: number;
+    home_xg: number;
+    away_xg: number;
+    home_win_pct: number;
+    draw_pct: number;
+    away_win_pct: number;
+    btts_yes_pct: number;
+    btts_no_pct: number;
+    over_under?: Record<string, GlpmOverUnderLine>;
+    score_matrix: number[][];
+    breakdown?: unknown;
+    rho?: number;
+    model_version?: string;
+    executed_at?: string;
+    created_at?: string;
+  };
+  Update: Partial<GlpmCxPredictionHistoryTable["Insert"]>;
+  Relationships: [];
+};
+
+export type GlpmCxSeasonSimRunsTable = {
+  Row: {
+    id: string;
+    season_id: number;
+    model_source: string;
+    iterations: number;
+    summary: unknown;
+    executed_at: string;
+  };
+  Insert: {
+    id?: string;
+    season_id: number;
+    model_source?: string;
+    iterations: number;
+    summary?: unknown;
+    executed_at?: string;
+  };
+  Update: Partial<GlpmCxSeasonSimRunsTable["Insert"]>;
+  Relationships: [];
+};
+
 export type GlpmPrimaryRatingType =
   | "attack"
   | "defence"
@@ -1001,6 +1081,7 @@ export type GlpmTeamComponentRatingsTable = {
   Row: {
     team_sm_id: number;
     season_id: number;
+    rating_type: GlpmPrimaryRatingType;
     component: string;
     as_of_date: string;
     rating: number;
@@ -1012,6 +1093,7 @@ export type GlpmTeamComponentRatingsTable = {
   Insert: {
     team_sm_id: number;
     season_id: number;
+    rating_type: GlpmPrimaryRatingType;
     component: string;
     as_of_date: string;
     rating: number;
@@ -1028,6 +1110,7 @@ export type GlpmTeamDomainRatingsTable = {
   Row: {
     team_sm_id: number;
     season_id: number;
+    rating_type: GlpmPrimaryRatingType;
     domain: string;
     as_of_date: string;
     rating: number;
@@ -1039,6 +1122,7 @@ export type GlpmTeamDomainRatingsTable = {
   Insert: {
     team_sm_id: number;
     season_id: number;
+    rating_type: GlpmPrimaryRatingType;
     domain: string;
     as_of_date: string;
     rating: number;
@@ -1206,6 +1290,8 @@ export type GlpmTables = {
   glpm_match_team_features: GlpmMatchTeamFeaturesTable;
   glpm_validation_logs: GlpmValidationLogsTable;
   glpm_prediction_history: GlpmPredictionHistoryTable;
+  glpm_cx_prediction_history: GlpmCxPredictionHistoryTable;
+  glpm_cx_season_sim_runs: GlpmCxSeasonSimRunsTable;
   glpm_team_primary_ratings: GlpmTeamPrimaryRatingsTable;
   glpm_team_rating_vectors: GlpmTeamRatingVectorsTable;
   glpm_team_component_ratings: GlpmTeamComponentRatingsTable;

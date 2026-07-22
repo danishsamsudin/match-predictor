@@ -35,15 +35,21 @@ export type SmEvent = {
   period_id?: number;
   participant_id?: number | null;
   type_id?: number;
+  /** Finer classification within type_id when present. */
+  sub_type_id?: number | null;
   player_id?: number | null;
   related_player_id?: number | null;
   player_name?: string;
+  /** Assist (goals) or player off (subs), depending on type_id. */
+  related_player_name?: string | null;
   minute?: number | null;
   extra_minute?: number | null;
   sort_order?: number;
   section?: string;
   info?: string | null;
   addition?: string | null;
+  result?: string | null;
+  type?: { id?: number; name?: string; code?: string };
 };
 
 export type SmXgFixtureRow = {

@@ -345,6 +345,11 @@ async function main() {
       detail: "half-life 90 days",
     },
     {
+      id: "vs-style",
+      title: "Backfill match vs style",
+      detail: "populate glpm_match_vs_style for CX style-lift charts",
+    },
+    {
       id: "predict",
       title: "Sample matchup prediction",
       detail: "top-2 attack teams from this training run",
@@ -542,6 +547,28 @@ async function main() {
     }
   } else {
     skipStep(tracker, "Bayesian temporal smoothing", "--skip-bayesian");
+  }
+
+  // ── Vs-style Layer-2 (CX insights) ──────────────────────────────────
+  {
+    const t0 = beginStep(
+      tracker,
+      "Backfill match vs style",
+      "Tag finished matches by opponent style for GLPM-CX lift charts"
+    );
+    const vs = await run(
+      "npm",
+      ["run", "glpm:backfill-vs-style", "--", "--season-id", seasonId],
+      true
+    );
+    if (vs.status !== 0) {
+      console.warn(
+        "  · vs-style backfill failed (non-fatal) — CX style-lift charts may be empty."
+      );
+      endStep(tracker, t0, "continued after warning");
+    } else {
+      endStep(tracker, t0);
+    }
   }
 
   // ── Sample prediction ───────────────────────────────────────────────

@@ -309,6 +309,45 @@ export async function runGlpmNightRefresh(
     }
   }
 
+  // Style-vs-style Layer-2 backfill (GLPM-CX insights). Non-fatal.
+  const vsStyleSeasonIds = [
+    ...new Set([
+      ...seasonsTrained,
+      ...(playedSeasonIds.length ? playedSeasonIds : []),
+    ]),
+  ];
+  if (!vsStyleSeasonIds.length) {
+    notes.push("skip vs-style backfill (no seasons to process)");
+  } else if (dryRun) {
+    notes.push(
+      `dryRun — would backfill vs-style for seasons: ${vsStyleSeasonIds.join(", ")}`
+    );
+  } else {
+    for (const seasonId of vsStyleSeasonIds) {
+      const vs = await runNpm(
+        "glpm:backfill-vs-style",
+        ["--season-id", String(seasonId)],
+        cwd
+      );
+      trainLog.push({
+        seasonId,
+        script: "glpm:backfill-vs-style",
+        ok: vs.status === 0,
+        detail:
+          vs.status === 0
+            ? (vs.stdout || "").trim().slice(-200) || "ok"
+            : (vs.stderr || vs.stdout).slice(-400),
+      });
+      if (vs.status !== 0) {
+        notes.push(
+          `WARNING glpm:backfill-vs-style season ${seasonId} failed (non-fatal)`
+        );
+      } else {
+        notes.push(`vs-style backfill ok season ${seasonId}`);
+      }
+    }
+  }
+
   let predictions: NightRefreshSummary["predictions"];
   if (!options.skipPredict) {
     if (dryRun) {
@@ -327,7 +366,12 @@ export async function runGlpmNightRefresh(
     notes.push("skipPredict=true");
   }
 
-  const trainFailed = trainLog.some((t) => !t.ok && t.script !== "glpm:bayesian-update");
+  const trainFailed = trainLog.some(
+    (t) =>
+      !t.ok &&
+      t.script !== "glpm:bayesian-update" &&
+      t.script !== "glpm:backfill-vs-style"
+  );
   const predictFailed = predictions ? !predictions.ok : false;
   const ok = !trainFailed && !predictFailed;
 

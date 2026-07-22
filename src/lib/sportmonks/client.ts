@@ -76,7 +76,7 @@ export const PLAN_FIXTURE_INCLUDE = [
 
 const PLAN_FIXTURE_INCLUDE_SET = new Set(PLAN_FIXTURE_INCLUDE.split(";"));
 
-/** Drop unknown includes; allow nested lineup paths and xGFixture. */
+/** Drop unknown includes; allow nested lineup/events paths and xGFixture. */
 export function sanitizeFixtureInclude(include: string): string {
   const parts = include
     .split(";")
@@ -86,6 +86,7 @@ export function sanitizeFixtureInclude(include: string): string {
         p.length > 0 &&
         (PLAN_FIXTURE_INCLUDE_SET.has(p) ||
           p.startsWith("lineups.") ||
+          p.startsWith("events.") ||
           p === "xGFixture")
     );
   return parts.length > 0 ? parts.join(";") : PLAN_FIXTURE_INCLUDE;
@@ -312,15 +313,23 @@ export class SportmonksClient {
   async getInplayLivescores(options?: {
     leagueIds?: number[];
     include?: string;
+    /** Extra SportMonks filter clauses joined with `;` (e.g. eventTypes:14,19). */
+    extraFilters?: string;
   }): Promise<SmFixture[]> {
     const leagueIds = options?.leagueIds ?? DEFAULT_GLPM_LEAGUE_IDS;
     const include = sanitizeFixtureInclude(
       options?.include ??
-        "scores;participants;venue;state;league;round;periods;events"
+        "scores;participants;venue;state;league;round;periods;events;events.type;statistics;xGFixture"
     );
+    const filters = [
+      `fixtureLeagues:${leagueIds.join(",")}`,
+      options?.extraFilters?.trim(),
+    ]
+      .filter(Boolean)
+      .join(";");
     const res = await this.get<SmApiResponse<SmFixture[]>>("/livescores/inplay", {
       include,
-      filters: `fixtureLeagues:${leagueIds.join(",")}`,
+      filters,
     });
     return Array.isArray(res.data) ? res.data : [];
   }
@@ -329,14 +338,22 @@ export class SportmonksClient {
   async getLatestLivescores(options?: {
     leagueIds?: number[];
     include?: string;
+    extraFilters?: string;
   }): Promise<SmFixture[]> {
     const leagueIds = options?.leagueIds ?? DEFAULT_GLPM_LEAGUE_IDS;
     const include = sanitizeFixtureInclude(
-      options?.include ?? "scores;participants;venue;state;league;round;periods;events"
+      options?.include ??
+        "scores;participants;venue;state;league;round;periods;events;events.type;statistics;xGFixture"
     );
+    const filters = [
+      `fixtureLeagues:${leagueIds.join(",")}`,
+      options?.extraFilters?.trim(),
+    ]
+      .filter(Boolean)
+      .join(";");
     const res = await this.get<SmApiResponse<SmFixture[]>>("/livescores/latest", {
       include,
-      filters: `fixtureLeagues:${leagueIds.join(",")}`,
+      filters,
     });
     return Array.isArray(res.data) ? res.data : [];
   }

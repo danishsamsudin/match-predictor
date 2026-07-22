@@ -24,6 +24,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: GLPM / GLPM-CX unit tests
+        run: npm test -- src/lib/glpm src/lib/glpm-cx
+
       - name: Build
         run: npm run build
         env:

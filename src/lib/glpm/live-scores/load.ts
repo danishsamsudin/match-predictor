@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveTeamLogo } from "@/lib/data/team-logos";
 import type { Database } from "@/lib/supabase";
 import { DEFAULT_GLPM_LEAGUE_IDS } from "@/lib/sportmonks/constants";
+import type { SmEvent, SmStatistic, SmXgFixtureRow } from "@/lib/sportmonks/types";
 import {
   isFinishedFixture,
   SM_FIXTURE_STATE_FINISHED,
@@ -12,6 +13,10 @@ import {
   SM_FIXTURE_STATE_INPLAY,
 } from "./constants";
 import { formatRoundLabel, leagueMetaForId } from "./league-meta";
+import {
+  emptySideMetrics,
+  mapFixtureLiveExtras,
+} from "./map-timeline";
 import { placeholderLiveScoresBoard } from "./placeholders";
 import type { LiveScoreMatch, LiveScoresBoardPayload } from "./types";
 
@@ -30,6 +35,7 @@ type MatchRow = {
   state_id: number | null;
   kickoff_at: string | null;
   synced_at: string | null;
+  duration_minutes: number | null;
   payload: unknown;
 };
 
@@ -121,6 +127,23 @@ function mapRow(row: MatchRow): LiveScoreMatch | null {
     (row.payload as { venue?: { name?: string } } | null)?.venue?.name ??
     "Stadium TBC";
 
+  const payload = row.payload as {
+    events?: SmEvent[];
+    statistics?: SmStatistic[];
+    xGFixture?: SmXgFixtureRow[];
+    length?: number;
+  } | null;
+
+  const extras = mapFixtureLiveExtras(
+    {
+      events: payload?.events,
+      statistics: payload?.statistics,
+      xGFixture: payload?.xGFixture,
+    },
+    row.home_team_sm_id,
+    row.away_team_sm_id
+  );
+
   return {
     matchSmId: row.sm_id,
     leagueName: meta.name,
@@ -139,7 +162,11 @@ function mapRow(row: MatchRow): LiveScoreMatch | null {
     awayScore: row.away_score ?? 0,
     statusLabel: statusLabel(row),
     minute: minuteFromPayload(row.payload),
+    durationMinutes: row.duration_minutes ?? payload?.length ?? 90,
     kickoffAt: row.kickoff_at,
+    timeline: extras.timeline,
+    homeMetrics: extras.homeMetrics,
+    awayMetrics: extras.awayMetrics,
     isPlaceholder: false,
   };
 }
@@ -160,7 +187,7 @@ export async function loadLiveScoresBoard(
   const { data, error } = await client
     .from("glpm_matches")
     .select(
-      "sm_id,league_sm_id,home_team_sm_id,away_team_sm_id,home_score,away_score,venue,gameweek,status,state_id,kickoff_at,synced_at,payload"
+      "sm_id,league_sm_id,home_team_sm_id,away_team_sm_id,home_score,away_score,venue,gameweek,status,state_id,kickoff_at,synced_at,duration_minutes,payload"
     )
     .gte("kickoff_at", windowStart)
     .lte("kickoff_at", windowEnd)

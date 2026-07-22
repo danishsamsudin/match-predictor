@@ -1,0 +1,55 @@
+# Manual / scheduled backfill of glpm_match_vs_style for GLPM-CX style-lift charts.
+# Also runs automatically inside night refresh (glpm-sportmonks-daily.yml → refresh phase).
+#
+# Required secrets:
+#   SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)
+#   SUPABASE_SERVICE_ROLE_KEY
+
+name: GLPM vs-style backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      season_ids:
+        description: "Comma-separated SportMonks season IDs (default: 2025/26 + 2026/27 GLPM set)"
+        required: false
+        type: string
+        default: "25583,25597,25648,25646,25533,28083,27958,27903,27895,28321"
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Backfill match vs style
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          IDS="${{ inputs.season_ids }}"
+          IFS=',' read -ra SEASONS <<< "$IDS"
+          for raw in "${SEASONS[@]}"; do
+            SID="$(echo "$raw" | tr -d '[:space:]')"
+            if [ -z "$SID" ]; then
+              continue
+            fi
+            echo "::group::vs-style season ${SID}"
+            npm run glpm:backfill-vs-style -- --season-id "$SID"
+            echo "::endgroup::"
+          done

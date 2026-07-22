@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ModeToolbar } from "@/components/match-predictor/ModeToolbar";
 import { PageHero } from "@/components/match-predictor/PageHero";
-import { GlpmPredictionResultCard } from "@/components/glpm/GlpmPredictionResultCard";
-import type { GlpmPredictUiPayload } from "@/lib/glpm/ui-types";
+import { GlpmInsightsDashboard } from "@/components/glpm/insights/GlpmInsightsDashboard";
+import type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";
 import type { EntityType } from "@/lib/types/football-lookup";
 import { sanitizeUserFacingMessage } from "@/lib/api/user-facing-messages";
 
@@ -47,7 +47,7 @@ export function GlpmClubPredictor({
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<GlpmPredictUiPayload | null>(null);
+  const [result, setResult] = useState<GlpmCxPredictPayload | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,25 +166,24 @@ export function GlpmClubPredictor({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/glpm/predict", {
+      const res = await fetch("/api/glpm/predict-cx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           homeTeamSmId: Number(homeTeamId),
           awayTeamSmId: Number(awayTeamId),
           seasonId: seasonId ? Number(seasonId) : null,
-          context: { isNeutralVenue: false },
         }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(
           sanitizeUserFacingMessage(data.error) ??
-            "Unable to complete GLPM prediction."
+            "Unable to complete GLPM-CX prediction."
         );
         return;
       }
-      setResult(data as GlpmPredictUiPayload);
+      setResult(data as GlpmCxPredictPayload);
     } catch {
       setError("Network error — please try again.");
     } finally {
@@ -208,7 +207,7 @@ export function GlpmClubPredictor({
         <PageHero
           eyebrow="Graham League Prediction Model"
           title="Club matchup"
-          description="Compare two clubs with the seven-dimensional GLPM rating vector, interaction xG, and Dixon–Coles markets."
+          description="Compare two clubs with frozen GLPM ratings plus the Contextual Extension (rest, travel, weather, lineup) and insight charts."
         />
       </div>
 
@@ -340,7 +339,7 @@ export function GlpmClubPredictor({
           disabled={submitDisabled}
           className="w-full rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-slate-950"
         >
-          {loading ? "Generating GLPM forecast…" : "Generate GLPM forecast"}
+          {loading ? "Generating GLPM-CX insights…" : "Generate GLPM-CX insights"}
         </button>
       </form>
 
@@ -354,7 +353,7 @@ export function GlpmClubPredictor({
 
       {result ? (
         <div className="mx-auto w-full max-w-6xl">
-          <GlpmPredictionResultCard result={result} />
+          <GlpmInsightsDashboard payload={result} />
         </div>
       ) : null}
     </div>
