@@ -5,7 +5,7 @@
 import { parseStatValue, SM_STAT_TYPE } from "../../../sportmonks/statTypes";
 import type { SmFixture, SmStatistic, SmXgFixtureRow } from "../../../sportmonks/types";
 
-const EXPECTED_TYPE_IDS = new Set([
+const EXPECTED_TYPE_IDS: Set<number> = new Set([
   SM_STAT_TYPE.EXPECTED_GOALS,
   SM_STAT_TYPE.EXPECTED_GOALS_ON_TARGET,
   SM_STAT_TYPE.EXPECTED_GOALS_PREVENTED,
