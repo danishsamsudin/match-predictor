@@ -51,7 +51,7 @@ The World Cup / national-team predictor is **unchanged**. GLPM applies to **club
 We built a full production stack from raw match data to UI:
 
 ```
-Football data (SportMonks + Wyscout)
+Football data (SportMonks primary + optional Wyscout enrich)
         ↓
 Layer 1 — Match ingest & storage
         ↓
@@ -74,7 +74,7 @@ API + League Hub UI
 
 | Layer | What it does | Key location |
 |---|---|---|
-| **Data ingest** | Pull fixtures, team stats, player stats, shots from SportMonks; enrich with Wyscout PPDA and shot detail | `src/lib/glpm/ingestMatch.ts`, `scripts/glpm-sportmonks-*.ts` |
+| **Data ingest** | Pull fixtures, team stats, xG Basic, lineup GK stats from SportMonks; optional Wyscout PPDA/shot enrich | `src/lib/glpm/ingestMatch.ts`, `scripts/glpm-sportmonks-*.ts` |
 | **Feature engineering** | Turn raw stats into model-ready per-match features | `features/*.py`, `src/lib/glpm/layer2/` |
 | **Rating engines (×7)** | Train hierarchical ML models per football domain | `models/ratings/{attack,defence,...}/` |
 | **Vector assembly** | Combine seven primary ratings into one vector per team | `core/vector_assembly.py` |
@@ -218,10 +218,30 @@ flowchart TB
 
 | Provider | Role | What it supplies |
 |---|---|---|
-| **SportMonks** | Primary | Fixtures, results, team match stats (xG, shots, possession, tackles, passes, etc.), player stats, lineups |
-| **Wyscout** | Secondary enrichment | PPDA refinement, shot coordinates/events, advanced stats when mapped to our schema |
+| **SportMonks** (+ xG Basic) | **Primary (production)** | Fixtures, results, team match stats (xG, xGoT, shots, possession, tackles, passes, saves), `xGFixture`, lineup GK details |
+| **Wyscout** | **Dormant backup** | True PPDA, shot coordinates/events, advanced GK involvement — re-enable when credentials exist |
 
 Ingest is orchestrated by `src/lib/glpm/ingestMatch.ts`. Backfill scripts exist for full-season loads.
+
+### 6.1.1 SportMonks proxy formulas (when Wyscout is off)
+
+| Field | Formula | Source tag |
+|---|---|---|
+| `defensive_actions` | tackles + interceptions + clearances | computed |
+| `ppda` | opponent passes ÷ max(1, own defensive actions) | `sportmonks_proxy` |
+| `xg` | `xGFixture` / type 5304, else shot proxy | `sportmonks` or proxy flag |
+| `psxg_faced` | opponent xGoT (5305), else opp xG × 0.85 | `sportmonks` or proxy flag |
+| `goals_prevented` | type 9686, else psxg_faced − goals conceded | computed / sportmonks |
+| `gk_saves` | team stat type 57, else sum of GK lineup saves | `sportmonks` |
+
+### 6.1.2 Wyscout reactivation checklist (optional)
+
+1. Set `WYSCOUT_USERNAME` / `WYSCOUT_PASSWORD` in `.env.local`
+2. Populate `glpm_provider_entity_map` for teams and matches
+3. Set `GLPM_WYSCOUT_ENRICH=1` (off by default)
+4. After SportMonks ingest, run `npm run glpm:wy-enrich -- <matchSmId>` per match (or use Wyscout backfill scripts)
+
+Wyscout PPDA overwrites the SportMonks proxy only when present (`ppda_source: "wyscout"`). Wyscout enrich never overwrites SportMonks xG/psxG when already set.
 
 ### 6.2 Minimum data for rating training
 
@@ -356,10 +376,27 @@ bash scripts/ml/setup-venv.sh
 
 ### 8.2 Recommended order of operations
 
+**One command (Premier League — use 2025/26 season `25583` until 2026/27 has finished matches):**
+
+```bash
+npm run glpm:league-run -- --season-id 25583
+```
+
+When the 2026/27 season is underway:
+
+```bash
+npm run glpm:league-run -- --season-id 28083
+```
+
+This runs SportMonks backfill, trains all seven engines, assembles vectors, optional Bayesian smoothing, a sample prediction, and writes a plain-English report to `data/reports/glpm-league-run-<season>-<timestamp>.md` plus a compact PDF of the same name.
+
+**Manual steps (same pipeline):**
+
 ```bash
 # Step 0 — Ingest a full season
 npm run glpm:sm-backfill -- --season-id <SEASON_SM_ID>
-npm run glpm:wyscout-backfill -- --season-id <SEASON_SM_ID>   # optional enrichment
+# Optional Wyscout enrich (requires GLPM_WYSCOUT_ENRICH=1 and credentials):
+npm run glpm:wy-enrich -- <matchSmId>
 
 # Step 1 — Train all seven rating engines
 npm run glpm:attack-train -- --season-id <ID>
@@ -808,8 +845,9 @@ All predictions are archived in `glpm_prediction_history` with the full score ma
 
 | Task | Command / action |
 |---|---|
+| **Full season pipeline + report** | `npm run glpm:league-run -- --season-id <ID>` |
 | Ingest last round’s matches | `npm run glpm:sm-ingest -- --match-id <ID>` |
-| Wyscout enrich (if needed) | `npm run glpm:wy-enrich -- --match-id <ID>` |
+| Wyscout enrich (optional; set `GLPM_WYSCOUT_ENRICH=1`) | `npm run glpm:wy-enrich -- <matchSmId>` |
 | Refresh rating vectors | `npm run glpm:assemble-vectors -- --season-id <ID>` |
 | Bayesian smooth | `npm run glpm:bayesian-update -- --season-id <ID>` |
 | View hub | Open `/league` in the app |

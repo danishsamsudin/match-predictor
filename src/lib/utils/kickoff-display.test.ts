@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatCalendarDateLongLocal,
+  formatKickoffCardLocal,
   formatKickoffLocal,
   getDefaultMatchDateTimeLocal,
   localDateTimeToUtcIso,
@@ -22,6 +24,26 @@ describe("kickoff-display", () => {
     const label = formatKickoffLocal("2026-06-15T12:00:00.000Z");
     expect(label.length).toBeGreaterThan(5);
     expect(label).toMatch(/2026|Jun|15/i);
+  });
+
+  it("formats card kickoff with long weekday and local time", () => {
+    const { dateLabel, timeLabel, fullLabel } = formatKickoffCardLocal(
+      "2026-06-15T18:00:00.000Z"
+    );
+    expect(dateLabel).toMatch(/June/);
+    expect(dateLabel).toMatch(/15/);
+    expect(timeLabel).toBeTruthy();
+    expect(fullLabel).toContain("·");
+  });
+
+  it("falls back to long date-only when kickoffAt missing", () => {
+    const { timeLabel, fullLabel } = formatKickoffCardLocal(null, "2026-06-15");
+    expect(timeLabel).toBeNull();
+    expect(fullLabel).toBe("Monday 15 June");
+  });
+
+  it("formats long calendar dates in a stable en-GB order", () => {
+    expect(formatCalendarDateLongLocal("2026-07-23")).toBe("Thursday 23 July");
   });
 
   it("default local datetime is on the hour", () => {

@@ -1,0 +1,1132 @@
+[
+  {
+    "smId": 407,
+    "name": "Abe Lenstra Stadion",
+    "cityName": "Heerenveen",
+    "countryName": "Netherlands",
+    "latitude": 52.958611,
+    "longitude": 5.936111,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1744,
+    "name": "AFAS Stadion",
+    "cityName": "Alkmaar",
+    "countryName": "Netherlands",
+    "latitude": 52.6128273,
+    "longitude": 4.7420619,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 53,
+    "name": "Allianz Arena",
+    "cityName": "Munich",
+    "countryName": "Germany",
+    "latitude": 48.218819,
+    "longitude": 11.624722,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 230,
+    "name": "Anfield",
+    "cityName": "Liverpool",
+    "countryName": "England",
+    "latitude": 53.430833,
+    "longitude": -2.960833,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 418,
+    "name": "Arena Garibaldi - Stadio Romeo Anconetani",
+    "cityName": "Pisa",
+    "countryName": "Italy",
+    "latitude": 43.77758,
+    "longitude": 10.38,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 500,
+    "name": "Ashton Gate Stadium",
+    "cityName": "Bristol",
+    "countryName": "England",
+    "latitude": 51.4398694,
+    "longitude": -2.6203405,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 638,
+    "name": "Asito Stadion",
+    "cityName": "Almelo",
+    "countryName": "Netherlands",
+    "latitude": 52.338833,
+    "longitude": 6.6508289,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1947,
+    "name": "BayArena",
+    "cityName": "Leverkusen",
+    "countryName": "Germany",
+    "latitude": 51.038333,
+    "longitude": 7.002222,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 207,
+    "name": "Bet365 Stadium",
+    "cityName": "Stoke",
+    "countryName": "England",
+    "latitude": 52.988333,
+    "longitude": -2.175556,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 2,
+    "name": "Bramall Lane",
+    "cityName": "Sheffield",
+    "countryName": "England",
+    "latitude": 53.370278,
+    "longitude": -1.470833,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 339003,
+    "name": "BUKO Stadion",
+    "cityName": "Velsen",
+    "countryName": "Netherlands",
+    "latitude": 52.455,
+    "longitude": 4.635,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 125,
+    "name": "Cardiff City Stadium",
+    "cityName": "Cardiff",
+    "countryName": "Wales",
+    "latitude": 51.472778,
+    "longitude": -3.203056,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 489,
+    "name": "Carrow Road",
+    "cityName": "Norwich",
+    "countryName": "England",
+    "latitude": 52.622222,
+    "longitude": 1.309167,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 485,
+    "name": "Craven Cottage",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.475,
+    "longitude": -0.221667,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 7224,
+    "name": "Dacia Arena",
+    "cityName": "Udine",
+    "countryName": "Italy",
+    "latitude": 45.966047,
+    "longitude": 12.96555,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 171,
+    "name": "De Adelaarshorst",
+    "cityName": "Deventer",
+    "countryName": "Netherlands",
+    "latitude": 52.260416,
+    "longitude": 6.172578,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 132,
+    "name": "De Grolsch Veste",
+    "cityName": "Enschede",
+    "countryName": "Netherlands",
+    "latitude": 52.236667,
+    "longitude": 6.8375,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 338734,
+    "name": "Deepdale",
+    "cityName": "Preston",
+    "countryName": "England",
+    "latitude": 53.77223,
+    "longitude": -2.68843,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 339832,
+    "name": "Deutsche Bank Park",
+    "cityName": "Frankfurt am Main",
+    "countryName": "Germany",
+    "latitude": 50.068056,
+    "longitude": 8.645806,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 488,
+    "name": "Elland Road",
+    "cityName": "Leeds",
+    "countryName": "England",
+    "latitude": 53.777778,
+    "longitude": -1.572222,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 204,
+    "name": "Emirates Stadium",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.556667,
+    "longitude": -0.106111,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 151,
+    "name": "Etihad Stadium",
+    "cityName": "Manchester",
+    "countryName": "England",
+    "latitude": 53.483056,
+    "longitude": -2.200278,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1438,
+    "name": "Euroborg",
+    "cityName": "Groningen",
+    "countryName": "Netherlands",
+    "latitude": 53.206111,
+    "longitude": 6.591389,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 2063,
+    "name": "Europa-Park Stadion",
+    "cityName": "Freiburg im Breisgau",
+    "countryName": "Germany",
+    "latitude": 48.0213778,
+    "longitude": 7.829817,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 8,
+    "name": "Ewood Park",
+    "cityName": "Blackburn",
+    "countryName": "England",
+    "latitude": 53.7238304,
+    "longitude": -2.489167,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 685,
+    "name": "Fortuna Sittard Stadion",
+    "cityName": "Sittard",
+    "countryName": "Netherlands",
+    "latitude": 50.99219,
+    "longitude": 5.843622,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 839,
+    "name": "Fratton Park",
+    "cityName": "Portsmouth",
+    "countryName": "England",
+    "latitude": 50.796389,
+    "longitude": -1.063889,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 193,
+    "name": "Gewiss Stadium",
+    "cityName": "Bergamo",
+    "countryName": "Italy",
+    "latitude": 45.708889,
+    "longitude": 9.680833,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 72,
+    "name": "Goffertstadion",
+    "cityName": "Nijmegen",
+    "countryName": "Netherlands",
+    "latitude": 51.8224848,
+    "longitude": 5.8371565,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 338817,
+    "name": "Gtech Community Stadium",
+    "cityName": "Brentford",
+    "countryName": "England",
+    "latitude": 51.49081,
+    "longitude": -0.28883,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 343762,
+    "name": "Hill Dickinson Stadium",
+    "cityName": "Liverpool",
+    "countryName": "England",
+    "latitude": 53.42499,
+    "longitude": -3.00275,
+    "source": "sportmonks",
+    "sourceNotes": "City filled from Bramley-Moore Dock / Everton stadium location"
+  },
+  {
+    "smId": 495,
+    "name": "Hillsborough Stadium",
+    "cityName": "Sheffield",
+    "countryName": "England",
+    "latitude": 53.411389,
+    "longitude": -1.500556,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 338881,
+    "name": "Hitachi Capital Mobility Stadium",
+    "cityName": "Groningen",
+    "countryName": "Netherlands",
+    "latitude": 53.20611,
+    "longitude": 6.59139,
+    "source": "wikipedia",
+    "sourceNotes": "Euroborg / Hitachi Capital Mobility Stadion — Wikipedia Q1374804"
+  },
+  {
+    "smId": 1571,
+    "name": "Home Deluxe Arena",
+    "cityName": "Paderborn",
+    "countryName": "Germany",
+    "latitude": 51.71746,
+    "longitude": 8.753295,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 154,
+    "name": "Johan Cruijff Arena",
+    "cityName": "Amsterdam",
+    "countryName": "Netherlands",
+    "latitude": 52.314167,
+    "longitude": 4.941944,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 152,
+    "name": "Juventus Stadium",
+    "cityName": "Torino",
+    "countryName": "Italy",
+    "latitude": 45.109444,
+    "longitude": 7.641111,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 117,
+    "name": "King Power Stadium",
+    "cityName": "Leicester",
+    "countryName": "England",
+    "latitude": 52.620397,
+    "longitude": -1.1423352,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 174,
+    "name": "Koning Willem II Stadion",
+    "cityName": "Tilburg",
+    "countryName": "Netherlands",
+    "latitude": 51.5426917,
+    "longitude": 5.0668066,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 343504,
+    "name": "Kooi Stadion",
+    "cityName": "Leeuwarden",
+    "countryName": "Netherlands",
+    "latitude": 53.2051487,
+    "longitude": 5.7712702,
+    "source": "sportmonks",
+    "sourceNotes": "City filled for Cambuur home ground (Kooi Stadion)"
+  },
+  {
+    "smId": 1437,
+    "name": "Kras Stadion",
+    "cityName": "Volendam",
+    "countryName": "Netherlands",
+    "latitude": 52.4963759,
+    "longitude": 5.0682736,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 994,
+    "name": "LNER Stadium",
+    "cityName": "Lincoln",
+    "countryName": "England",
+    "latitude": 53.218289,
+    "longitude": -0.540811,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 214,
+    "name": "London Stadium",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.538611,
+    "longitude": -0.016389,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 388,
+    "name": "MAC³PARK Stadion",
+    "cityName": "Zwolle",
+    "countryName": "Netherlands",
+    "latitude": 52.517181,
+    "longitude": 6.120869,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1613,
+    "name": "MAPEI Stadium - Città del Tricolore",
+    "cityName": "Reggio Emilia",
+    "countryName": "Italy",
+    "latitude": 44.714722,
+    "longitude": 10.649722,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 491,
+    "name": "MATRADE Loftus Road",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.5094016,
+    "longitude": -0.2321136,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 2103,
+    "name": "Mewa Arena",
+    "cityName": "Mainz",
+    "countryName": "Germany",
+    "latitude": 49.98353,
+    "longitude": 8.22569,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1945,
+    "name": "MHPArena",
+    "cityName": "Stuttgart",
+    "countryName": "Germany",
+    "latitude": 48.792222,
+    "longitude": 9.231944,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 2110,
+    "name": "Millerntor-Stadion",
+    "cityName": "Hamburg",
+    "countryName": "Germany",
+    "latitude": 53.55455,
+    "longitude": 9.96777,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 199,
+    "name": "MKM Stadium",
+    "cityName": "Hull",
+    "countryName": "England",
+    "latitude": 53.74592,
+    "longitude": -0.36806,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 492,
+    "name": "Molineux Stadium",
+    "cityName": "Wolverhampton",
+    "countryName": "England",
+    "latitude": 52.590195,
+    "longitude": -2.131226,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 206,
+    "name": "Old Trafford",
+    "cityName": "Manchester",
+    "countryName": "England",
+    "latitude": 53.463056,
+    "longitude": -2.291389,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 181,
+    "name": "Philips Stadion",
+    "cityName": "Eindhoven",
+    "countryName": "Netherlands",
+    "latitude": 51.441667,
+    "longitude": 5.4675,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 504,
+    "name": "Portman Road Stadium",
+    "cityName": "Ipswich",
+    "countryName": "England",
+    "latitude": 52.05498,
+    "longitude": 1.14507,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1618,
+    "name": "PreZero Arena",
+    "cityName": "Sinsheim",
+    "countryName": "Germany",
+    "latitude": 49.23802,
+    "longitude": 8.88764,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 232,
+    "name": "Pride Park Stadium",
+    "cityName": "Derby",
+    "countryName": "England",
+    "latitude": 52.915,
+    "longitude": -1.447222,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 871,
+    "name": "Racecourse Ground",
+    "cityName": "Racecourse Ground",
+    "countryName": "Wales",
+    "latitude": 53.051944,
+    "longitude": -3.003611,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 158,
+    "name": "Rat Verlegh Stadion",
+    "cityName": "Breda",
+    "countryName": "Netherlands",
+    "latitude": 51.595556,
+    "longitude": 4.750278,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 2171,
+    "name": "Red Bull Arena",
+    "cityName": "Leipzig",
+    "countryName": "Germany",
+    "latitude": 51.34575,
+    "longitude": 12.348278,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1946,
+    "name": "RheinEnergieStadion",
+    "cityName": "Cologne",
+    "countryName": "Germany",
+    "latitude": 50.933611,
+    "longitude": 6.875,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 203,
+    "name": "Riverside Stadium",
+    "cityName": "Middlesbrough",
+    "countryName": "England",
+    "latitude": 54.578333,
+    "longitude": -1.216944,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 160319,
+    "name": "Sardegna Arena",
+    "cityName": "Cagliari",
+    "countryName": "Italy",
+    "latitude": 39.241304,
+    "longitude": 9.097347,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 201,
+    "name": "Selhurst Park",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.398243,
+    "longitude": -0.0852551,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 2166,
+    "name": "Signal Iduna Park",
+    "cityName": "Dortmund",
+    "countryName": "Germany",
+    "latitude": 51.4925,
+    "longitude": 7.451667,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 332,
+    "name": "Sparta-Stadion Het Kasteel",
+    "cityName": "Rotterdam",
+    "countryName": "Netherlands",
+    "latitude": 51.919294,
+    "longitude": 4.433712,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 338718,
+    "name": "Sportpark De Weeren",
+    "cityName": "Amsterdam",
+    "countryName": "Netherlands",
+    "latitude": 52.40028,
+    "longitude": 4.95803,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 507,
+    "name": "St. Andrew's Stadium",
+    "cityName": "Birmingham",
+    "countryName": "England",
+    "latitude": 52.47574,
+    "longitude": -1.86811,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 449,
+    "name": "St. James' Park",
+    "cityName": "Newcastle upon Tyne",
+    "countryName": "England",
+    "latitude": 54.9754693,
+    "longitude": -1.6218737,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 167,
+    "name": "St. Mary's Stadium",
+    "cityName": "Southampton",
+    "countryName": "England",
+    "latitude": 50.9034964,
+    "longitude": -1.3879984,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 7223,
+    "name": "Stadio Artemio Franchi",
+    "cityName": "Firenze",
+    "countryName": "Italy",
+    "latitude": 43.780833,
+    "longitude": 11.282222,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 145449,
+    "name": "Stadio Benito Stirpe",
+    "cityName": "Frosinone",
+    "countryName": "Italy",
+    "latitude": 41.634167,
+    "longitude": 13.321944,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 86,
+    "name": "Stadio Comunale Luigi Ferraris",
+    "cityName": "Genova",
+    "countryName": "Italy",
+    "latitude": 44.4164753,
+    "longitude": 8.9525341,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 5047,
+    "name": "Stadio Comunale Via del Mare",
+    "cityName": "Lecce",
+    "countryName": "Italy",
+    "latitude": 40.356585,
+    "longitude": 18.184099,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 134,
+    "name": "Stadio Diego Armando Maradona",
+    "cityName": "Napoli",
+    "countryName": "Italy",
+    "latitude": 40.827967,
+    "longitude": 14.193008,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 7175,
+    "name": "Stadio Ennio Tardini",
+    "cityName": "Parma",
+    "countryName": "Italy",
+    "latitude": 44.7947582,
+    "longitude": 10.3383727,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 7129,
+    "name": "Stadio Giovanni Zini",
+    "cityName": "Cremona",
+    "countryName": "Italy",
+    "latitude": 45.1401435,
+    "longitude": 10.0348561,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1721,
+    "name": "Stadio Giuseppe Meazza",
+    "cityName": "Milano",
+    "countryName": "Italy",
+    "latitude": 45.478056,
+    "longitude": 9.123889,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 23058,
+    "name": "Stadio Giuseppe Sinigaglia",
+    "cityName": "Como",
+    "countryName": "Italy",
+    "latitude": 45.813889,
+    "longitude": 9.072222,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 443,
+    "name": "Stadio Marc'Antonio Bentegodi",
+    "cityName": "Verona",
+    "countryName": "Italy",
+    "latitude": 45.435356,
+    "longitude": 10.968647,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 7189,
+    "name": "Stadio Olimpico",
+    "cityName": "Roma",
+    "countryName": "Italy",
+    "latitude": 41.9339424,
+    "longitude": 12.4547705,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 142,
+    "name": "Stadio Olimpico Grande Torino",
+    "cityName": "Torino",
+    "countryName": "Italy",
+    "latitude": 45.0417432,
+    "longitude": 7.6500185,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 19196,
+    "name": "Stadio Pierluigi Penzo",
+    "cityName": "Venezia",
+    "countryName": "Italy",
+    "latitude": 45.427761,
+    "longitude": 12.363731,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 5515,
+    "name": "Stadio Renato Dall'Ara",
+    "cityName": "Bologna",
+    "countryName": "Italy",
+    "latitude": 44.492314,
+    "longitude": 11.309667,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 420,
+    "name": "Stadion An der Alten Försterei",
+    "cityName": "Berlin",
+    "countryName": "Germany",
+    "latitude": 52.457222,
+    "longitude": 13.568056,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1795,
+    "name": "Stadion Feijenoord",
+    "cityName": "Rotterdam",
+    "countryName": "Netherlands",
+    "latitude": 51.9029027,
+    "longitude": 4.5122641,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 227,
+    "name": "Stadion Galgenwaard",
+    "cityName": "Utrecht",
+    "countryName": "Netherlands",
+    "latitude": 52.078333,
+    "longitude": 5.145833,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 180,
+    "name": "Stadion im Borussia-Park",
+    "cityName": "Mönchengladbach",
+    "countryName": "Germany",
+    "latitude": 51.174722,
+    "longitude": 6.385556,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 212,
+    "name": "Stadium of Light",
+    "cityName": "Sunderland",
+    "countryName": "England",
+    "latitude": 54.91404,
+    "longitude": -1.388983,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 321614,
+    "name": "Stamford Bridge",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.481667,
+    "longitude": -0.191111,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 208,
+    "name": "Swansea.com Stadium",
+    "cityName": "Swansea",
+    "countryName": "Wales",
+    "latitude": 51.6422,
+    "longitude": -3.9351,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 480,
+    "name": "The American Express Community Stadium",
+    "cityName": "Falmer",
+    "countryName": "England",
+    "latitude": 50.861822,
+    "longitude": -0.083278,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 542,
+    "name": "The City Ground",
+    "cityName": "Nottingham",
+    "countryName": "England",
+    "latitude": 52.94,
+    "longitude": -1.132778,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 270,
+    "name": "The Coventry Building Society Arena",
+    "cityName": "Coventry",
+    "countryName": "England",
+    "latitude": 52.44836,
+    "longitude": -1.49664,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 656,
+    "name": "The Den",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.4859529,
+    "longitude": -0.0509149,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 119,
+    "name": "The Hawthorns",
+    "cityName": "West Bromwich",
+    "countryName": "England",
+    "latitude": 52.509167,
+    "longitude": -1.963889,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 658,
+    "name": "The Kassam Stadium",
+    "cityName": "Oxford",
+    "countryName": "England",
+    "latitude": 51.716539,
+    "longitude": -1.207958,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 667,
+    "name": "The Valley",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.486389,
+    "longitude": 0.036389,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 281313,
+    "name": "Tottenham Hotspur Stadium",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.604444,
+    "longitude": -0.066389,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 200,
+    "name": "Turf Moor",
+    "cityName": "Burnley",
+    "countryName": "England",
+    "latitude": 53.789167,
+    "longitude": -2.230278,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 787,
+    "name": "U-Power Stadium",
+    "cityName": "Monza",
+    "countryName": "Italy",
+    "latitude": 45.583112,
+    "longitude": 9.3079276,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 383,
+    "name": "University of Bolton Stadium",
+    "cityName": "Bolton",
+    "countryName": "England",
+    "latitude": 53.5806,
+    "longitude": -2.53563,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 2101,
+    "name": "URSAPHARM-Arena an der Kaiserlinde",
+    "cityName": "Spiesen-Elversberg",
+    "countryName": null,
+    "latitude": 49.318611,
+    "longitude": 7.121667,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 91991,
+    "name": "Van Donge & De Roo Stadion",
+    "cityName": "Rotterdam",
+    "countryName": "Netherlands",
+    "latitude": 51.9170026,
+    "longitude": 4.5204412,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 2138,
+    "name": "Veltins-Arena",
+    "cityName": "Gelsenkirchen",
+    "countryName": "Germany",
+    "latitude": 51.554444,
+    "longitude": 7.0675,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 19,
+    "name": "Vicarage Road",
+    "cityName": "Watford",
+    "countryName": "England",
+    "latitude": 51.64982,
+    "longitude": -0.40147,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 5,
+    "name": "Villa Park",
+    "cityName": "Birmingham",
+    "countryName": "England",
+    "latitude": 52.509167,
+    "longitude": -1.884722,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 146,
+    "name": "Vitality Stadium",
+    "cityName": "Bournemouth",
+    "countryName": "England",
+    "latitude": 50.7352,
+    "longitude": -1.83833,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1610,
+    "name": "Volksparkstadion",
+    "cityName": "Hamburg",
+    "countryName": "Germany",
+    "latitude": 53.587357,
+    "longitude": 9.899214,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 80,
+    "name": "Volkswagen Arena",
+    "cityName": "Wolfsburg",
+    "countryName": "Germany",
+    "latitude": 52.431561,
+    "longitude": 10.803541,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1670,
+    "name": "Walter-Birkhold-Jugendstadion",
+    "cityName": "Heidenheim an der Brenz",
+    "countryName": "Germany",
+    "latitude": 48.666449,
+    "longitude": 10.135257,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 1315,
+    "name": "Wembley Stadium",
+    "cityName": "London",
+    "countryName": "England",
+    "latitude": 51.555556,
+    "longitude": -0.279444,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 91825,
+    "name": "WerkTalent Stadion",
+    "cityName": "Den Haag",
+    "countryName": "Netherlands",
+    "latitude": 52.0799838,
+    "longitude": 4.3113461,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 339831,
+    "name": "Wohninvest Weserstadion",
+    "cityName": "Bremen",
+    "countryName": "Germany",
+    "latitude": 53.066389,
+    "longitude": 8.8375,
+    "source": "sportmonks",
+    "sourceNotes": null
+  },
+  {
+    "smId": 2165,
+    "name": "WWK Arena",
+    "cityName": "Augsburg",
+    "countryName": "Germany",
+    "latitude": 48.323056,
+    "longitude": 10.886111,
+    "source": "sportmonks",
+    "sourceNotes": null
+  }
+]

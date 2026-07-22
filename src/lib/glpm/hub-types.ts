@@ -2,6 +2,20 @@
  * Client-safe hub payload types.
  */
 
+export type GlpmHubPredictionSource = "stored" | "live" | "prior";
+
+export type GlpmHubWeather = {
+  /** available = real kickoff forecast; tbc = match too far out / not yet forecastable */
+  status: "available" | "tbc";
+  condition: string | null;
+  tempC: number | null;
+  weatherCode?: number;
+  source: "sportmonks" | "open-meteo" | "pending";
+  /** Home-ground venue label used for the forecast. */
+  venueName?: string | null;
+  cityName?: string | null;
+};
+
 export type GlpmHubRatingLeader = {
   teamSmId: number;
   teamName: string;
@@ -64,6 +78,32 @@ export type GlpmHubUpcomingMatch = {
     over25: number;
     bttsYes: number;
   } | null;
+  predictionSource: GlpmHubPredictionSource | null;
+  weather: GlpmHubWeather | null;
+};
+
+/** League table row derived from finished GLPM matches. */
+export type GlpmStandingRankMovement = "up" | "down" | "same" | "new";
+
+export type GlpmStandingRow = {
+  rank: number;
+  teamSmId: number;
+  teamName: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+  /** Most recent first, e.g. ["W","D","L","W","W"]. */
+  form: Array<"W" | "D" | "L">;
+  /** Rank before the last results change; null until first standings refresh. */
+  previousRank?: number | null;
+  /** previousRank - rank; positive means the team moved up the table. */
+  rankDelta?: number;
+  rankMovement?: GlpmStandingRankMovement;
 };
 
 export type GlpmHubPayload = {

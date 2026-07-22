@@ -132,6 +132,45 @@ export type GlpmTeamsTable = {
   Relationships: [];
 };
 
+export type GlpmVenuesTable = {
+  Row: {
+    sm_id: number;
+    name: string;
+    city_name: string | null;
+    country_id: number | null;
+    country_name: string | null;
+    address: string | null;
+    capacity: number | null;
+    latitude: number;
+    longitude: number;
+    altitude_m: number | null;
+    image_path: string | null;
+    source: string;
+    source_notes: string | null;
+    payload: unknown;
+    synced_at: string;
+  };
+  Insert: {
+    sm_id: number;
+    name: string;
+    city_name?: string | null;
+    country_id?: number | null;
+    country_name?: string | null;
+    address?: string | null;
+    capacity?: number | null;
+    latitude: number;
+    longitude: number;
+    altitude_m?: number | null;
+    image_path?: string | null;
+    source?: string;
+    source_notes?: string | null;
+    payload?: unknown;
+    synced_at?: string;
+  };
+  Update: Partial<GlpmVenuesTable["Insert"]>;
+  Relationships: [];
+};
+
 export type GlpmPlayersTable = {
   Row: {
     sm_id: number;
@@ -288,7 +327,7 @@ export type GlpmMatchTeamStatsTable = {
     goals_prevented: number | null;
     xg_source: GlpmMetricSource | null;
     psxg_source: GlpmMetricSource | null;
-    ppda_source: "wyscout" | null;
+    ppda_source: "wyscout" | "sportmonks_proxy" | null;
     validation_status: GlpmValidationStatus;
     source_endpoint: string | null;
     payload: unknown;
@@ -338,7 +377,7 @@ export type GlpmMatchTeamStatsTable = {
     goals_prevented?: number | null;
     xg_source?: GlpmMetricSource | null;
     psxg_source?: GlpmMetricSource | null;
-    ppda_source?: "wyscout" | null;
+    ppda_source?: "wyscout" | "sportmonks_proxy" | null;
     validation_status?: GlpmValidationStatus;
     source_endpoint?: string | null;
     payload?: unknown;
@@ -1043,12 +1082,118 @@ export type GlpmRatingHistoryTable = {
   Relationships: [];
 };
 
+export type GlpmStandingsCurrentTable = {
+  Row: {
+    season_id: number;
+    team_sm_id: number;
+    rank: number;
+    previous_rank: number | null;
+    played: number;
+    won: number;
+    drawn: number;
+    lost: number;
+    goals_for: number;
+    goals_against: number;
+    goal_difference: number;
+    points: number;
+    form: string[];
+    results_fingerprint: string;
+    computed_at: string;
+  };
+  Insert: {
+    season_id: number;
+    team_sm_id: number;
+    rank: number;
+    previous_rank?: number | null;
+    played?: number;
+    won?: number;
+    drawn?: number;
+    lost?: number;
+    goals_for?: number;
+    goals_against?: number;
+    goal_difference?: number;
+    points?: number;
+    form?: string[];
+    results_fingerprint: string;
+    computed_at?: string;
+  };
+  Update: Partial<GlpmStandingsCurrentTable["Insert"]>;
+  Relationships: [];
+};
+
+export type GlpmStandingsSnapshotsTable = {
+  Row: {
+    season_id: number;
+    snapshot_at: string;
+    trigger: string;
+    results_fingerprint: string;
+    rows: unknown;
+  };
+  Insert: {
+    season_id: number;
+    snapshot_at?: string;
+    trigger?: string;
+    results_fingerprint: string;
+    rows: unknown;
+  };
+  Update: Partial<GlpmStandingsSnapshotsTable["Insert"]>;
+  Relationships: [];
+};
+
+export type GlpmDailySyncWindowsTable = {
+  Row: {
+    match_date: string;
+    time_zone: string;
+    fixture_ids: number[];
+    first_kickoff_at: string | null;
+    last_kickoff_at: string | null;
+    lineup_due_at: string | null;
+    results_due_at: string | null;
+    refresh_due_at: string | null;
+    empty_matchday: boolean;
+    lineup_done: boolean;
+    results_done: boolean;
+    refresh_done: boolean;
+    lineup_confirmed_count: number;
+    morning_summary: unknown | null;
+    lineup_summary: unknown | null;
+    results_summary: unknown | null;
+    refresh_summary: unknown | null;
+    updated_at: string;
+    created_at: string;
+  };
+  Insert: {
+    match_date: string;
+    time_zone: string;
+    fixture_ids?: number[];
+    first_kickoff_at?: string | null;
+    last_kickoff_at?: string | null;
+    lineup_due_at?: string | null;
+    results_due_at?: string | null;
+    refresh_due_at?: string | null;
+    empty_matchday?: boolean;
+    lineup_done?: boolean;
+    results_done?: boolean;
+    refresh_done?: boolean;
+    lineup_confirmed_count?: number;
+    morning_summary?: unknown | null;
+    lineup_summary?: unknown | null;
+    results_summary?: unknown | null;
+    refresh_summary?: unknown | null;
+    updated_at?: string;
+    created_at?: string;
+  };
+  Update: Partial<GlpmDailySyncWindowsTable["Insert"]>;
+  Relationships: [];
+};
+
 export type GlpmTables = {
   glpm_provider_payloads: GlpmProviderPayloadsTable;
   glpm_provider_entity_map: GlpmProviderEntityMapTable;
   glpm_competitions: GlpmCompetitionsTable;
   glpm_seasons: GlpmSeasonsTable;
   glpm_teams: GlpmTeamsTable;
+  glpm_venues: GlpmVenuesTable;
   glpm_players: GlpmPlayersTable;
   glpm_coaches: GlpmCoachesTable;
   glpm_matches: GlpmMatchesTable;
@@ -1070,4 +1215,7 @@ export type GlpmTables = {
   glpm_player_domain_ratings: GlpmPlayerDomainRatingsTable;
   glpm_player_component_ratings: GlpmPlayerComponentRatingsTable;
   glpm_player_rating_history: GlpmPlayerRatingHistoryTable;
+  glpm_standings_current: GlpmStandingsCurrentTable;
+  glpm_standings_snapshots: GlpmStandingsSnapshotsTable;
+  glpm_daily_sync_windows: GlpmDailySyncWindowsTable;
 };

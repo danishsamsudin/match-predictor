@@ -26,6 +26,15 @@ export const SM_STAT_TYPE = {
   CLEARANCES: 101,
   BLOCKS: 102,
   CROSSES: 98,
+  /** Saves (team aggregate or GK lineup detail) */
+  SAVES: 57,
+  ATTACKS: 43,
+  DANGEROUS_ATTACKS: 44,
+  SHOTS_INSIDE_BOX: 49,
+  KEY_PASSES: 117,
+  DUELS_WON: 106,
+  SUCCESSFUL_DRIBBLES: 109,
+  SUCCESSFUL_LONG_PASSES: 27264,
 } as const;
 
 /** Map SM type_id to glpm_match_team_stats column (for-side metrics). */

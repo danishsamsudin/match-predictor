@@ -73,17 +73,23 @@ class OpponentContextAdjuster:
 
         opp_id = work["opponent_team_sm_id"]
         # Map opponent → their rolling concession mean as of this match date (approx via merge)
-        opp_lookup = team_def.rename(
-            columns={
-                "team_sm_id": "opponent_team_sm_id",
-                "roll_xg_conc": "opp_roll_xg_conc",
-            }
-        )[["opponent_team_sm_id", "match_date", "opp_roll_xg_conc"]]
+        opp_lookup = (
+            team_def.rename(
+                columns={
+                    "team_sm_id": "opponent_team_sm_id",
+                    "roll_xg_conc": "opp_roll_xg_conc",
+                }
+            )[["opponent_team_sm_id", "match_date", "opp_roll_xg_conc"]]
+            # Duplicate team-date rows (e.g. remapped fixtures) would cartesian-expand
+            # the merge and break index alignment below.
+            .drop_duplicates(subset=["opponent_team_sm_id", "match_date"], keep="last")
+        )
 
         merged = work.merge(
             opp_lookup,
             on=["opponent_team_sm_id", "match_date"],
             how="left",
+            validate="many_to_one",
         )
         # Fallback: use contemporaneous opponent row's xg_conceded if present as opp columns
         if "opp_xg_conceded" in merged.columns:

@@ -26,6 +26,14 @@
       "schedule": "0 4 * * 1"
     },
     {
+      "path": "/api/cron/glpm-standings-refresh?run=true",
+      "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/api/cron/glpm-upcoming-predictions?run=true",
+      "schedule": "30 5 * * *"
+    },
+    {
       "path": "/api/cron/glpm-sportmonks-refresh-teams?run=true",
       "schedule": "30 4 * * 1"
     },

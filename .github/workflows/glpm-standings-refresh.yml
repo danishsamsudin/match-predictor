@@ -1,0 +1,195 @@
+# Refresh GLPM fixtures/scores + standings movement for all 5 club leagues.
+#
+# Design goals
+# - Cheap on GitHub Actions: only curl production cron endpoints (work runs on Vercel).
+# - Fresh enough for multi-league match days without hammering SportMonks / GH.
+# - Tight relative window on frequent runs; weekly Vercel cron still does a wider sync.
+#
+# Required repo secrets / vars
+# - secrets.SYNC_CRON_SECRET  (or secrets.CRON_SECRET) - same as Vercel cron auth
+# - secrets.APP_URL or vars.APP_URL - production origin, e.g. https://your-app.vercel.app
+#
+# Manual run: Actions -> "GLPM standings refresh" -> Run workflow
+
+name: GLPM standings refresh
+
+on:
+  schedule:
+    # Fri-Sun peak European windows (every 2h, 12:00-22:00 UTC)
+    - cron: "10 12,14,16,18,20,22 * * 5,6,0"
+    # Tue-Wed midweek slates
+    - cron: "10 17,19,21 * * 2,3"
+    # Mon / Thu quieter catch-up
+    - cron: "10 8,19 * * 1,4"
+  workflow_dispatch:
+    inputs:
+      past_days:
+        description: "Finished/upcoming lookback days for SportMonks ingest"
+        required: false
+        default: "2"
+      future_days:
+        description: "Upcoming lookahead days for SportMonks ingest"
+        required: false
+        default: "1"
+      dry_run:
+        description: "If true, schedules refresh reports only (no ingest / no standings write)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: glpm-standings-refresh
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve app URL and auth
+        id: config
+        env:
+          APP_URL_SECRET: ${{ secrets.APP_URL }}
+          APP_URL_VAR: ${{ vars.APP_URL }}
+          SYNC_CRON_SECRET: ${{ secrets.SYNC_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          APP_URL="${APP_URL_SECRET:-}"
+          if [ -z "$APP_URL" ]; then
+            APP_URL="${APP_URL_VAR:-}"
+          fi
+          APP_URL="${APP_URL%/}"
+          if [ -z "$APP_URL" ]; then
+            echo "::error::Set secrets.APP_URL or vars.APP_URL to your production origin"
+            exit 1
+          fi
+
+          SECRET="${SYNC_CRON_SECRET:-}"
+          if [ -z "$SECRET" ]; then
+            SECRET="${CRON_SECRET:-}"
+          fi
+          if [ -z "$SECRET" ]; then
+            echo "::error::Set secrets.SYNC_CRON_SECRET (or secrets.CRON_SECRET)"
+            exit 1
+          fi
+
+          PAST_DAYS="${{ github.event.inputs.past_days || '2' }}"
+          FUTURE_DAYS="${{ github.event.inputs.future_days || '1' }}"
+          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+
+          {
+            echo "app_url=$APP_URL"
+            echo "past_days=$PAST_DAYS"
+            echo "future_days=$FUTURE_DAYS"
+            echo "dry_run=$DRY_RUN"
+          } >> "$GITHUB_OUTPUT"
+
+          # Do not print the secret; only stash for later steps via env file.
+          echo "CRON_BEARER=$SECRET" >> "$GITHUB_ENV"
+
+      - name: Refresh SportMonks schedules (tight window, all 5 leagues)
+        id: schedules
+        env:
+          APP_URL: ${{ steps.config.outputs.app_url }}
+          PAST_DAYS: ${{ steps.config.outputs.past_days }}
+          FUTURE_DAYS: ${{ steps.config.outputs.future_days }}
+          DRY_RUN: ${{ steps.config.outputs.dry_run }}
+        run: |
+          set -euo pipefail
+          # Default 2026/27 season IDs: PL, Eredivisie, Championship, Serie A, Bundesliga
+          SEASON_IDS="28083,27958,27903,27895,28321"
+          QS="run=true&seasonIds=${SEASON_IDS}&pastDays=${PAST_DAYS}&futureDays=${FUTURE_DAYS}&buildFeatures=false"
+          if [ "$DRY_RUN" = "true" ]; then
+            QS="${QS}&dryRun=true"
+          fi
+          URL="${APP_URL}/api/cron/glpm-sportmonks-refresh-schedules?${QS}"
+
+          echo "POST ${URL%%\?*}?... (past=${PAST_DAYS}d future=${FUTURE_DAYS}d dryRun=${DRY_RUN})"
+          # Schedules cron allows up to 240s on Vercel; leave headroom for cold starts.
+          HTTP_CODE=$(curl -sS -o /tmp/glpm-schedules.json -w "%{http_code}" \
+            --max-time 300 \
+            -X POST \
+            -H "Authorization: Bearer ${CRON_BEARER}" \
+            -H "Accept: application/json" \
+            "$URL")
+
+          echo "schedules_http=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Schedules refresh failed with HTTP ${HTTP_CODE}"
+            cat /tmp/glpm-schedules.json || true
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json
+          with open("/tmp/glpm-schedules.json") as f:
+              data = json.load(f)
+          totals = data.get("totals") or {}
+          print(
+              "schedules ok:",
+              f"window={totals.get('fixturesInWindow', 0)}",
+              f"ingested={totals.get('ingested', 0)}",
+              f"failed={totals.get('failed', 0)}",
+          )
+          for row in data.get("seasonSummaries") or []:
+              print(
+                  f"  season {row.get('seasonId')}: "
+                  f"inWindow={row.get('fixturesInWindow')} "
+                  f"ingested={row.get('ingested')} "
+                  f"failed={row.get('failed')}"
+              )
+          if int(totals.get("failed") or 0) > 0:
+              print(
+                  f"::warning::{totals.get('failed')} fixture ingestions failed; "
+                  "continuing to standings refresh with whatever scores landed"
+              )
+          PY
+
+      - name: Refresh standings movement
+        if: steps.config.outputs.dry_run != 'true'
+        env:
+          APP_URL: ${{ steps.config.outputs.app_url }}
+        run: |
+          set -euo pipefail
+          SEASON_IDS="28083,27958,27903,27895,28321"
+          URL="${APP_URL}/api/cron/glpm-standings-refresh?run=true&seasonIds=${SEASON_IDS}&trigger=github"
+
+          echo "POST ${URL%%\?*}?run=true&trigger=github"
+          HTTP_CODE=$(curl -sS -o /tmp/glpm-standings.json -w "%{http_code}" \
+            --max-time 120 \
+            -X POST \
+            -H "Authorization: Bearer ${CRON_BEARER}" \
+            -H "Accept: application/json" \
+            "$URL")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Standings refresh failed with HTTP ${HTTP_CODE}"
+            cat /tmp/glpm-standings.json || true
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json
+          with open("/tmp/glpm-standings.json") as f:
+              data = json.load(f)
+          totals = data.get("totals") or {}
+          print(
+              "standings ok:",
+              f"seasons={totals.get('seasons', 0)}",
+              f"teams={totals.get('teamsUpserted', 0)}",
+              f"fingerprintChanges={totals.get('fingerprintsChanged', 0)}",
+          )
+          for row in data.get("seasons") or []:
+              changed = "changed" if row.get("fingerprintChanged") else "unchanged"
+              print(
+                  f"  season {row.get('seasonId')}: "
+                  f"teams={row.get('teamCount')} fingerprint={changed}"
+              )
+          PY

@@ -1,7 +1,8 @@
 /**
  * Pick GLPM seasons that actually have ingest and/or trained vectors.
- * Avoids defaulting to future seasons (e.g. 2026/27) that were only touched by a schedule backfill
- * when a finished / trained season is available — unless callers explicitly want fixture seasons.
+ * Default predict/hub picker avoids future seasons that only have schedule
+ * backfill when a finished / trained season is available. Fixture and home
+ * standings callers use pickFixtureSeasonId to prefer upcoming seasons.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";

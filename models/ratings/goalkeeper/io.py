@@ -45,6 +45,112 @@ def _paginate(client, table: str, columns: str, filters: Optional[dict] = None) 
     return rows
 
 
+def _load_gk_proxy_frame_from_team_stats(
+    client,
+    *,
+    season_id: Optional[int] = None,
+) -> pd.DataFrame:
+    """
+    Build GK player-match rows from team stats + lineup GK ids in stored payloads.
+    Used when glpm_match_player_stats was not populated during initial ingest.
+    """
+    matches = _paginate(
+        client,
+        "glpm_matches",
+        "sm_id, season_id, match_date, home_team_sm_id, away_team_sm_id, status",
+        {"season_id": season_id} if season_id is not None else None,
+    )
+    if not matches:
+        return pd.DataFrame()
+
+    rows: list[dict[str, Any]] = []
+    for m in matches:
+        status = str(m.get("status") or "")
+        if status.lower() == "not started":
+            continue
+        match_id = int(m["sm_id"])
+        home_id = int(m["home_team_sm_id"])
+        away_id = int(m["away_team_sm_id"])
+
+        payload_resp = (
+            client.table("glpm_provider_payloads")
+            .select("payload")
+            .eq("provider", "sportmonks")
+            .eq("entity_type", "match")
+            .eq("entity_key", str(match_id))
+            .limit(1)
+            .execute()
+        )
+        if not payload_resp.data:
+            continue
+        fixture = payload_resp.data[0].get("payload") or {}
+        lineups = fixture.get("lineups") or []
+
+        ts_resp = (
+            client.table("glpm_match_team_stats")
+            .select("*")
+            .eq("match_sm_id", match_id)
+            .execute()
+        )
+        team_stats = {int(r["team_sm_id"]): r for r in (ts_resp.data or [])}
+
+        for team_id, opp_id in ((home_id, away_id), (away_id, home_id)):
+            ts = team_stats.get(team_id)
+            opp = team_stats.get(opp_id)
+            if not ts:
+                continue
+            gk_lineup = _find_gk_lineup(lineups, team_id)
+            if not gk_lineup:
+                continue
+            player_id = gk_lineup.get("player_id")
+            if not player_id:
+                continue
+            psxg = ts.get("psxg_faced")
+            saves = ts.get("gk_saves")
+            gc = None
+            if opp and opp.get("goals") is not None:
+                gc = opp.get("goals")
+            if psxg is None and saves is None and gc is None:
+                continue
+            rows.append(
+                {
+                    "match_sm_id": match_id,
+                    "player_sm_id": int(player_id),
+                    "team_sm_id": team_id,
+                    "season_id": m.get("season_id"),
+                    "match_date": m.get("match_date"),
+                    "home_team_sm_id": home_id,
+                    "away_team_sm_id": away_id,
+                    "is_goalkeeper": True,
+                    "minutes_played": 90,
+                    "psxg_faced": psxg,
+                    "gk_saves": saves,
+                    "goals_conceded": gc,
+                    "shots_faced": ts.get("shots_conceded") or (opp.get("shots") if opp else None),
+                    "sot_faced": opp.get("shots_on_target") if opp else None,
+                    "payload": {"source": "sportmonks_team_proxy_io"},
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+def _find_gk_lineup(lineups: list[dict], team_id: int) -> Optional[dict]:
+    gks = [
+        lu
+        for lu in lineups
+        if int(lu.get("team_id") or 0) == team_id
+        and (
+            int(lu.get("position_id") or 0) in (24, 25)
+            or "goalkeeper" in str(lu.get("position", {}).get("name", "")).lower()
+        )
+    ]
+    if not gks:
+        return None
+    starter = next((g for g in gks if g.get("type_id") == 11), gks[0])
+    return starter
+
+
 def load_gk_player_frame(
     client,
     *,
@@ -72,6 +178,9 @@ def load_gk_player_frame(
     stats_df = stats_df[stats_df["match_sm_id"].astype(int).isin(match_ids)].copy()
     if "is_goalkeeper" in stats_df.columns:
         stats_df = stats_df[stats_df["is_goalkeeper"] == True].copy()  # noqa: E712
+
+    if stats_df.empty:
+        stats_df = _load_gk_proxy_frame_from_team_stats(client, season_id=season_id)
 
     if stats_df.empty:
         return pd.DataFrame()

@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
-import { GlpmUpcomingFixturesSection } from "@/components/glpm/GlpmUpcomingFixturesSection";
+import { HomeLeagueFixturesPanel } from "@/components/glpm/HomeLeagueFixturesPanel";
+import { HomeLeagueStandingsPanel } from "@/components/glpm/HomeLeagueStandingsPanel";
 import { createServerClient, tryCreateServiceClient } from "@/lib/supabase";
 import { BRAND_HERO_EYEBROW, BRAND_HERO_SUBTITLE, BRAND_NAME } from "@/lib/brand";
 import { loadGlpmHubPayload, type GlpmHubPayload } from "@/lib/glpm/hub-load";
+import {
+  loadGlpmStandingsForCompetition,
+  type GlpmLeagueStandings,
+} from "@/lib/glpm/load-standings";
 import { loadPredictionHistoryFeed } from "@/lib/prediction/load-history-feed";
 
 export const metadata: Metadata = {
@@ -18,6 +23,9 @@ const TARGET_LEAGUES = [
   "Bundesliga",
   "Championship",
 ] as const;
+
+/** Enough open fixtures to cover a busy two-day Championship slate. */
+const HOME_UPCOMING_LIMIT = 48;
 
 type HomeLeagueBlock = {
   leagueName: string;
@@ -41,27 +49,85 @@ async function loadLeagueBlocks(client: ReturnType<typeof getClient>): Promise<H
       const payload = await loadGlpmHubPayload(client, {
         competitionId: competition.smId,
         preferFixtures: true,
+        upcomingLimit: HOME_UPCOMING_LIMIT,
       });
       return { leagueName: name, payload };
     })
   );
 }
 
+async function loadStandingsBlocks(
+  client: ReturnType<typeof getClient>,
+  leagueBlocks: HomeLeagueBlock[]
+): Promise<GlpmLeagueStandings[]> {
+  return Promise.all(
+    leagueBlocks.map(async (block) => {
+      const competitionId = block.payload?.competition?.smId ?? null;
+      if (competitionId == null) {
+        return {
+          leagueName: block.leagueName,
+          competitionId: null,
+          seasonId: null,
+          seasonName: null,
+          rows: [],
+        };
+      }
+
+      const seasons = (block.payload?.seasons ?? []).filter(
+        (s) => s.competitionId === competitionId
+      );
+      // Prefer the upcoming schedule season (e.g. 2026/27) so standings match
+      // home fixtures during the off-season transition; fall back to finished.
+      const seasonId =
+        seasons.find((s) => s.hasUpcomingMatches)?.smId ??
+        seasons.find((s) => s.hasFinishedMatches)?.smId ??
+        block.payload?.season?.smId ??
+        null;
+
+      return loadGlpmStandingsForCompetition(client, {
+        competitionId,
+        leagueName: block.leagueName,
+        seasonId,
+      });
+    })
+  );
+}
+
 export default async function HomePage() {
   let leagueBlocks: HomeLeagueBlock[] = [];
+  let standingsBlocks: GlpmLeagueStandings[] = [];
   let history = [] as Awaited<ReturnType<typeof loadPredictionHistoryFeed>>;
   let updatedAt: string | null = null;
 
   try {
     const client = getClient();
     leagueBlocks = await loadLeagueBlocks(client);
-    history = await loadPredictionHistoryFeed(client, 6);
+    const [standings, historyFeed] = await Promise.all([
+      loadStandingsBlocks(client, leagueBlocks),
+      loadPredictionHistoryFeed(client, 6),
+    ]);
+    standingsBlocks = standings;
+    history = historyFeed;
     updatedAt =
       leagueBlocks.find((block) => block.payload?.updatedAt)?.payload?.updatedAt ?? null;
   } catch {
     leagueBlocks = TARGET_LEAGUES.map((name) => ({ leagueName: name, payload: null }));
+    standingsBlocks = TARGET_LEAGUES.map((name) => ({
+      leagueName: name,
+      competitionId: null,
+      seasonId: null,
+      seasonName: null,
+      rows: [],
+    }));
     history = [];
   }
+
+  const fixturesLeagues = leagueBlocks.map((block) => ({
+    leagueName: block.leagueName,
+    competitionId: block.payload?.competition?.smId ?? null,
+    seasonId: block.payload?.season?.smId ?? null,
+    matches: block.payload?.upcoming ?? [],
+  }));
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
@@ -100,42 +166,11 @@ export default async function HomePage() {
       </section>
 
       <section className="mt-8">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-xl font-bold text-foreground">Upcoming Fixtures by League</h2>
-          <Link href="/league" className="text-sm font-semibold text-primary hover:underline">
-            View full hub →
-          </Link>
-        </div>
-        <p className="mb-5 text-sm text-muted">
-          Open compare from any card to jump into a prefilled prediction flow.
-        </p>
-        <div className="space-y-6">
-          {leagueBlocks.map((block) => (
-            <article key={block.leagueName} className="liquid-glass-panel rounded-2xl p-4 sm:p-5">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-base font-semibold text-foreground">{block.leagueName}</h3>
-                {block.payload?.competition?.smId ? (
-                  <Link
-                    href={`/league?competitionId=${block.payload.competition.smId}${block.payload.season?.smId ? `&seasonId=${block.payload.season.smId}` : ""}`}
-                    className="text-xs font-semibold text-primary hover:underline"
-                  >
-                    More details →
-                  </Link>
-                ) : null}
-              </div>
-              {block.payload ? (
-                <GlpmUpcomingFixturesSection
-                  matches={block.payload.upcoming.slice(0, 3)}
-                  seasonId={block.payload.season?.smId ?? null}
-                />
-              ) : (
-                <p className="text-sm text-muted">
-                  This league is not ready yet. Ingest season data to unlock fixtures.
-                </p>
-              )}
-            </article>
-          ))}
-        </div>
+        <HomeLeagueFixturesPanel leagues={fixturesLeagues} />
+      </section>
+
+      <section className="mt-8">
+        <HomeLeagueStandingsPanel leagues={standingsBlocks} />
       </section>
 
       <section className="mt-10 grid gap-4 sm:grid-cols-2">

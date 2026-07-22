@@ -3,8 +3,14 @@
 /** World Cup fixtures are displayed and edited in Central European time. */
 export const WC_DISPLAY_TIMEZONE = "Europe/Paris";
 
+/**
+ * Fixed locale so SSR and client hydration agree (avoids en-US "July 23" vs en-GB "23 July").
+ * Day-month order matches product copy like "Monday 8 June".
+ */
+export const DISPLAY_LOCALE = "en-GB";
+
 export function getLocalTimezoneLabel(now = new Date()): string {
-  const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" }).formatToParts(now);
+  const parts = new Intl.DateTimeFormat(DISPLAY_LOCALE, { timeZoneName: "short" }).formatToParts(now);
   return parts.find((p) => p.type === "timeZoneName")?.value ?? "local";
 }
 
@@ -12,7 +18,7 @@ export function getLocalTimezoneLabel(now = new Date()): string {
 export function formatKickoffLocal(isoUtc: string, now = new Date()): string {
   const kickoff = new Date(isoUtc);
   if (Number.isNaN(kickoff.getTime())) return isoUtc;
-  return kickoff.toLocaleString(undefined, {
+  return kickoff.toLocaleString(DISPLAY_LOCALE, {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -22,16 +28,64 @@ export function formatKickoffLocal(isoUtc: string, now = new Date()): string {
   });
 }
 
+/**
+ * Card header kickoff: "Monday 8 June · 20:00 CEST" in the viewer's local zone.
+ * Falls back to a date-only long form when only a calendar date is available.
+ */
+export function formatKickoffCardLocal(
+  kickoffAt: string | null | undefined,
+  matchDate?: string | null
+): { dateLabel: string; timeLabel: string | null; fullLabel: string } {
+  if (kickoffAt) {
+    const kickoff = new Date(kickoffAt);
+    if (!Number.isNaN(kickoff.getTime())) {
+      const dateLabel = kickoff.toLocaleDateString(DISPLAY_LOCALE, {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      });
+      const timeLabel = kickoff.toLocaleTimeString(DISPLAY_LOCALE, {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+      });
+      return {
+        dateLabel,
+        timeLabel,
+        fullLabel: `${dateLabel} · ${timeLabel}`,
+      };
+    }
+  }
+
+  if (matchDate) {
+    const dateLabel = formatCalendarDateLongLocal(matchDate);
+    return { dateLabel, timeLabel: null, fullLabel: dateLabel };
+  }
+
+  return { dateLabel: "Kickoff TBA", timeLabel: null, fullLabel: "Kickoff TBA" };
+}
+
+/** Long calendar date without time, e.g. "Monday 8 June". */
+export function formatCalendarDateLongLocal(isoDate: string): string {
+  const kickoff = new Date(`${isoDate.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(kickoff.getTime())) return isoDate;
+  return kickoff.toLocaleDateString(DISPLAY_LOCALE, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
 /** Short date+time for fixture picker labels. */
 export function formatFixtureKickoffLocal(isoUtc: string): string {
   const kickoff = new Date(isoUtc);
   if (Number.isNaN(kickoff.getTime())) return isoUtc;
-  const dateLabel = kickoff.toLocaleDateString(undefined, {
+  const dateLabel = kickoff.toLocaleDateString(DISPLAY_LOCALE, {
     weekday: "short",
     day: "numeric",
     month: "short",
   });
-  const timeLabel = kickoff.toLocaleTimeString(undefined, {
+  const timeLabel = kickoff.toLocaleTimeString(DISPLAY_LOCALE, {
     hour: "2-digit",
     minute: "2-digit",
     timeZoneName: "short",
@@ -162,7 +216,7 @@ export function getDefaultMatchDateTimeLocal(now = new Date()): { date: string; 
 export function formatCalendarDateLocal(isoDate: string): string {
   const kickoff = new Date(`${isoDate.slice(0, 10)}T12:00:00Z`);
   if (Number.isNaN(kickoff.getTime())) return isoDate;
-  return kickoff.toLocaleDateString(undefined, {
+  return kickoff.toLocaleDateString(DISPLAY_LOCALE, {
     day: "numeric",
     month: "short",
     year: "numeric",

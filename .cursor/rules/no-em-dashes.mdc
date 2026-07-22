@@ -1,0 +1,17 @@
+---
+description: Never use em-dashes or en-dashes in product copy or UI strings
+alwaysApply: true
+---
+
+# Dash style
+
+Never use em-dashes (`—`) or en-dashes (`–`) in user-facing copy, UI labels, comments that mirror product tone, or generated strings.
+
+Use a regular hyphen/minus with a space on both sides:
+
+- Correct: `Home 1.50 - Away 1.73`
+- Correct: `Flip for markets - O/U and BTTS`
+- Incorrect: `Home 1.50–Away 1.73`
+- Incorrect: `Flip for markets — O/U and BTTS`
+
+For empty/missing values in tables or cells, prefer a plain `-` (not an em-dash).

@@ -4,10 +4,12 @@
  * Usage:
  *   npx tsx scripts/glpm-sportmonks-backfill-season.ts <seasonId>
  *   npx tsx scripts/glpm-sportmonks-backfill-season.ts <seasonId> --limit 10
+ *   npx tsx scripts/glpm-sportmonks-backfill-season.ts <seasonId> --completed-only
  */
 import fs from "node:fs";
 import path from "node:path";
 import { ingestMatchFromSportmonks } from "../src/lib/glpm/ingestMatch";
+import { extractFixtureIds } from "../src/lib/glpm/sportmonks/fixtureSchedule";
 import { tryCreateServiceClient } from "../src/lib/supabase";
 import { createSportmonksClient } from "../src/lib/sportmonks/client";
 
@@ -23,47 +25,25 @@ function loadEnvLocal() {
   }
 }
 
-/**
- * Collect SportMonks fixture IDs from a schedules/seasons payload.
- * Stages and rounds also have id + league_id + starting_at — only use
- * objects nested under a `fixtures` array (or names like "Team A vs Team B").
- */
-function extractFixtureIds(payload: unknown): number[] {
-  const ids: number[] = [];
-  const walk = (node: unknown, parentKey: string | null) => {
-    if (!node || typeof node !== "object") return;
-    if (Array.isArray(node)) {
-      for (const item of node) walk(item, parentKey);
-      return;
-    }
-    const obj = node as Record<string, unknown>;
-    const id = obj.id;
-    if (typeof id === "number") {
-      const name = typeof obj.name === "string" ? obj.name : "";
-      const underFixtures = parentKey === "fixtures";
-      const looksLikeFixture =
-        underFixtures ||
-        (typeof obj.starting_at === "string" &&
-          obj.starting_at.includes(":") &&
-          (/\bvs\b/i.test(name) || obj.state_id != null || obj.round_id != null));
-      if (looksLikeFixture) ids.push(id);
-    }
-    for (const [k, v] of Object.entries(obj)) walk(v, k);
-  };
-  walk(payload, null);
-  return [...new Set(ids)];
-}
-
 async function main() {
   loadEnvLocal();
   const args = process.argv.slice(2);
   const forceFeatures = args.includes("--force-features");
+  const completedOnly = args.includes("--completed-only");
   const limitIdx = args.indexOf("--limit");
   const limit = limitIdx >= 0 ? Number(args[limitIdx + 1]) : undefined;
-  const seasonArg = args.find((a, i) => !a.startsWith("-") && (limitIdx < 0 || i !== limitIdx + 1));
+  const seasonArg = args.find(
+    (a, i) =>
+      !a.startsWith("-") &&
+      (limitIdx < 0 || i !== limitIdx + 1) &&
+      a !== "true" &&
+      a !== "false"
+  );
 
   if (!seasonArg) {
-    console.error("Usage: npx tsx scripts/glpm-sportmonks-backfill-season.ts <seasonId> [--limit N]");
+    console.error(
+      "Usage: npx tsx scripts/glpm-sportmonks-backfill-season.ts <seasonId> [--limit N] [--completed-only]"
+    );
     process.exit(1);
   }
 
@@ -78,10 +58,20 @@ async function main() {
 
   const client = createSportmonksClient();
   const schedule = await client.getSeasonSchedule(seasonId);
-  let fixtureIds = extractFixtureIds(schedule);
+  let fixtureIds = extractFixtureIds(schedule, { completedOnly });
   if (limit != null && Number.isFinite(limit)) fixtureIds = fixtureIds.slice(0, limit);
 
-  console.log(`Season ${seasonId}: ingesting ${fixtureIds.length} fixture(s)...`);
+  const filterNote = completedOnly ? " (completed fixtures only)" : "";
+  console.log(`Season ${seasonId}: ingesting ${fixtureIds.length} fixture(s)${filterNote}...`);
+
+  if (fixtureIds.length === 0) {
+    console.warn(
+      completedOnly
+        ? "No completed fixtures found in the schedule. Future seasons have nothing to train on yet."
+        : "No fixtures found in schedule payload."
+    );
+    return;
+  }
 
   let ok = 0;
   let flagged = 0;

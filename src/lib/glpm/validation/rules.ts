@@ -31,6 +31,7 @@ export type TeamStatsLike = {
   xg_proxy?: boolean | null;
   /** True when PSxG came from xG×0.85 proxy (no xGoT). */
   psxg_proxy?: boolean | null;
+  ppda_source?: "wyscout" | "sportmonks_proxy" | null;
 };
 
 export type PlayerMinutesLike = {
@@ -127,8 +128,17 @@ function validateTeamSide(stats: TeamStatsLike, entityKey: string): ValidationIs
     ...base,
     ruleCode: "PPDA_MISSING",
     severity: "warn",
-    message: "PPDA not present (SportMonks primary ingest; enrich from Wyscout)",
+    message: "PPDA not present (enrich from Wyscout or SportMonks proxy inputs)",
     observed: { team_sm_id: stats.team_sm_id },
+  });
+
+  pushIf(issues, stats.ppda_source === "sportmonks_proxy", {
+    ...base,
+    ruleCode: "PPDA_PROXY",
+    severity: "warn",
+    message:
+      "PPDA estimated from opponent passes / defensive actions (SportMonks proxy, not Wyscout)",
+    observed: { team_sm_id: stats.team_sm_id, ppda: stats.ppda },
   });
 
   pushIf(
@@ -151,7 +161,7 @@ function validateTeamSide(stats: TeamStatsLike, entityKey: string): ValidationIs
     ruleCode: "XG_MISSING",
     severity: "warn",
     message:
-      "xG not present (plan has no Expected Goals / xGFixture; shot proxy also unavailable)",
+      "xG not present (no SportMonks Expected Goals / xGFixture; shot proxy also unavailable)",
     observed: { team_sm_id: stats.team_sm_id, shots: stats.shots },
   });
 

@@ -3,12 +3,11 @@
  * Base: https://api.sportmonks.com/v3/football
  * Auth: SPORTMONKS_API_TOKEN (api_token query or Authorization header)
  *
- * Fixture includes are locked to the project subscription (no Expected Goals /
- * xGFixture / other premium includes). See {@link PLAN_FIXTURE_INCLUDE}.
+ * Fixture includes for SportMonks Starter + xG Basic (see {@link PLAN_FIXTURE_INCLUDE}).
  */
 
-import type { SmApiResponse, SmCoach, SmPagination, SmPlayer, SmTeam } from "./types";
-import { SM_LEAGUE } from "./constants";
+import type { SmApiResponse, SmCoach, SmFixture, SmPagination, SmPlayer, SmTeam } from "./types";
+import { DEFAULT_GLPM_LEAGUE_IDS, SM_LEAGUE } from "./constants";
 
 export {
   SM_LEAGUE,
@@ -42,8 +41,8 @@ export const PLAN_PLAYER_INCLUDE_MINIMAL = ["country", "nationality", "teams", "
 const DEFAULT_BASE = "https://api.sportmonks.com/v3/football";
 
 /**
- * Only includes available on our SportMonks football plan.
- * Do not append premium includes (e.g. xGFixture) — they return 403 and break ingest.
+ * Fixture includes for SportMonks Starter + xG Basic.
+ * xGFixture supplies Expected metrics; lineups.details.type supplies GK counting stats.
  */
 export const PLAN_FIXTURE_INCLUDE = [
   "round",
@@ -63,6 +62,8 @@ export const PLAN_FIXTURE_INCLUDE = [
   "statistics",
   "periods",
   "lineups",
+  "lineups.details.type",
+  "xGFixture",
   "sport",
   "participants",
   "sidelined",
@@ -75,12 +76,18 @@ export const PLAN_FIXTURE_INCLUDE = [
 
 const PLAN_FIXTURE_INCLUDE_SET = new Set(PLAN_FIXTURE_INCLUDE.split(";"));
 
-/** Drop premium / unknown includes so callers cannot request plan-blocked fields. */
+/** Drop unknown includes; allow nested lineup paths and xGFixture. */
 export function sanitizeFixtureInclude(include: string): string {
   const parts = include
     .split(";")
     .map((p) => p.trim())
-    .filter((p) => p.length > 0 && PLAN_FIXTURE_INCLUDE_SET.has(p));
+    .filter(
+      (p) =>
+        p.length > 0 &&
+        (PLAN_FIXTURE_INCLUDE_SET.has(p) ||
+          p.startsWith("lineups.") ||
+          p === "xGFixture")
+    );
   return parts.length > 0 ? parts.join(";") : PLAN_FIXTURE_INCLUDE;
 }
 
@@ -191,7 +198,25 @@ export class SportmonksClient {
 
   getFixturesMulti(ids: number[], include: string = PLAN_FIXTURE_INCLUDE) {
     const chunk = ids.slice(0, 50).join(",");
-    return this.get(`/fixtures/multi/${chunk}`, { include: sanitizeFixtureInclude(include) });
+    return this.get<SmApiResponse<SmFixture[]>>(`/fixtures/multi/${chunk}`, {
+      include: sanitizeFixtureInclude(include),
+    });
+  }
+
+  /** All fixtures on a calendar date (SportMonks date), optionally filtered to GLPM leagues. */
+  getFixturesByDate(
+    dateYmd: string,
+    options?: { leagueIds?: number[]; include?: string; maxPages?: number }
+  ) {
+    const leagueIds = options?.leagueIds ?? DEFAULT_GLPM_LEAGUE_IDS;
+    return this.listAllPages<SmFixture>(
+      `/fixtures/date/${dateYmd}`,
+      {
+        include: sanitizeFixtureInclude(options?.include ?? PLAN_FIXTURE_INCLUDE),
+        filters: `fixtureLeagues:${leagueIds.join(",")}`,
+      },
+      { maxPages: options?.maxPages }
+    );
   }
 
   getLeague(id: number, include?: string) {
@@ -283,9 +308,23 @@ export class SportmonksClient {
   getFixturesBetween(
     start: string,
     end: string,
-    leagueIds = [SM_LEAGUE.PREMIER_LEAGUE, SM_LEAGUE.EREDIVISIE]
+    options?: { leagueIds?: number[]; include?: string; maxPages?: number }
   ) {
-    return this.get(`/fixtures/between/${start}/${end}`, {
+    const leagueIds =
+      options?.leagueIds ??
+      ([SM_LEAGUE.PREMIER_LEAGUE, SM_LEAGUE.EREDIVISIE] as number[]);
+    const include = options?.include;
+    if (include) {
+      return this.listAllPages<SmFixture>(
+        `/fixtures/between/${start}/${end}`,
+        {
+          include: sanitizeFixtureInclude(include),
+          filters: `fixtureLeagues:${leagueIds.join(",")}`,
+        },
+        { maxPages: options?.maxPages }
+      );
+    }
+    return this.get<SmApiResponse<SmFixture[]>>(`/fixtures/between/${start}/${end}`, {
       filters: `fixtureLeagues:${leagueIds.join(",")}`,
     });
   }

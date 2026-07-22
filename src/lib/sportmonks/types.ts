@@ -89,10 +89,28 @@ export type SmRound = {
   name?: string;
 };
 
+export type SmLineupDetail = {
+  type_id?: number;
+  value?: number | string;
+  data?: { value?: number | string };
+  type?: { id?: number; name?: string; code?: string };
+};
+
 export type SmLineup = {
   player_id?: number;
   team_id?: number;
   player_name?: string;
+  position_id?: number;
+  type_id?: number;
+  jersey_number?: number;
+  minutes?: number;
+  position?: { id?: number; name?: string; code?: string };
+  player?: {
+    id?: number;
+    display_name?: string;
+    position?: { id?: number; name?: string; code?: string };
+  };
+  details?: SmLineupDetail[];
 };
 
 export type SmFixture = {
@@ -113,7 +131,7 @@ export type SmFixture = {
   scores?: SmScore[];
   statistics?: SmStatistic[];
   events?: SmEvent[];
-  /** Premium include — not on our plan; do not request. Prefer statistics + shot proxy. */
+  /** xG Basic add-on — fixture-level expected metrics (5304/5305/9686/9687/7943) */
   xGFixture?: SmXgFixtureRow[];
   league?: SmLeague;
   season?: SmSeason;

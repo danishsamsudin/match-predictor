@@ -60,14 +60,22 @@ class OpponentContextAdjuster:
             .transform(lambda s: s.shift(1).rolling(self.rolling_window, min_periods=1).mean())
         )
 
-        opp_lookup = team_def.rename(
-            columns={
-                "team_sm_id": "opponent_team_sm_id",
-                "roll_xg_conc": "opp_roll_xg_conc",
-            }
-        )[["opponent_team_sm_id", "match_date", "opp_roll_xg_conc"]]
+        opp_lookup = (
+            team_def.rename(
+                columns={
+                    "team_sm_id": "opponent_team_sm_id",
+                    "roll_xg_conc": "opp_roll_xg_conc",
+                }
+            )[["opponent_team_sm_id", "match_date", "opp_roll_xg_conc"]]
+            .drop_duplicates(subset=["opponent_team_sm_id", "match_date"], keep="last")
+        )
 
-        merged = work.merge(opp_lookup, on=["opponent_team_sm_id", "match_date"], how="left")
+        merged = work.merge(
+            opp_lookup,
+            on=["opponent_team_sm_id", "match_date"],
+            how="left",
+            validate="many_to_one",
+        )
         if "opp_xg_conceded" in merged.columns:
             merged["opp_roll_xg_conc"] = merged["opp_roll_xg_conc"].fillna(
                 merged["opp_xg_conceded"]
@@ -103,14 +111,22 @@ class OpponentContextAdjuster:
             .transform(lambda s: s.shift(1).rolling(self.rolling_window, min_periods=1).mean())
         )
 
-        opp_lookup = team_gk.rename(
-            columns={
-                "team_sm_id": "opponent_team_sm_id",
-                "roll_gp": "opp_roll_gp",
-            }
-        )[["opponent_team_sm_id", "match_date", "opp_roll_gp"]]
+        opp_lookup = (
+            team_gk.rename(
+                columns={
+                    "team_sm_id": "opponent_team_sm_id",
+                    "roll_gp": "opp_roll_gp",
+                }
+            )[["opponent_team_sm_id", "match_date", "opp_roll_gp"]]
+            .drop_duplicates(subset=["opponent_team_sm_id", "match_date"], keep="last")
+        )
 
-        merged = work.merge(opp_lookup, on=["opponent_team_sm_id", "match_date"], how="left")
+        merged = work.merge(
+            opp_lookup,
+            on=["opponent_team_sm_id", "match_date"],
+            how="left",
+            validate="many_to_one",
+        )
         if "opp_goals_prevented" in merged.columns:
             merged["opp_roll_gp"] = merged["opp_roll_gp"].fillna(merged["opp_goals_prevented"])
 

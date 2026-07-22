@@ -1,21 +1,23 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../../../supabase";
-import {
-  estimateShotBasedXgProxy,
-  parseStatValue,
-  SM_STAT_TYPE,
-} from "../../../sportmonks/statTypes";
-import type {
-  SmEvent,
-  SmFixture,
-  SmParticipant,
-  SmScore,
-  SmStatistic,
-} from "../../../sportmonks/types";
+import { estimateShotBasedXgProxy, SM_STAT_TYPE } from "../../../sportmonks/statTypes";
+import type { SmEvent, SmFixture, SmParticipant, SmScore } from "../../../sportmonks/types";
 import {
   ensureFixturePlayersReferenced,
   upsertSportmonksTeam,
 } from "./mapEntities";
+import { upsertSportmonksGkStats } from "./mapLineupPlayerStats";
+import {
+  computeBallRecoveriesProxy,
+  computeDefensiveActions,
+  computeFinalThirdEntriesProxy,
+  computeHighTurnoversProxy,
+  computePpdaProxy,
+  computeProgressivePassesProxy,
+  mergeXgFixtureIntoMaps,
+  statsForParticipant,
+  sumLineupGkSavesByTeam,
+} from "./proxies";
 import { upsertProviderPayload } from "../upsertPayload";
 
 type Client = SupabaseClient<Database>;
@@ -46,19 +48,6 @@ function currentGoals(scores: SmScore[] | undefined, participantId: number): num
   const any = preferred ?? scores.find((s) => s.participant_id === participantId);
   const g = any?.score?.goals;
   return typeof g === "number" ? g : null;
-}
-
-function statsForParticipant(
-  stats: SmStatistic[] | undefined,
-  participantId: number
-): Map<number, number> {
-  const map = new Map<number, number>();
-  for (const s of stats ?? []) {
-    if (s.participant_id !== participantId) continue;
-    const v = parseStatValue(s.data?.value ?? s.value);
-    if (v != null) map.set(s.type_id, v);
-  }
-  return map;
 }
 
 /**
@@ -138,6 +127,8 @@ export function mapSportmonksTeamStats(args: {
   const { fixture, homeId, awayId } = args;
   const homeMap = statsForParticipant(fixture.statistics, homeId);
   const awayMap = statsForParticipant(fixture.statistics, awayId);
+  mergeXgFixtureIntoMaps(fixture, homeId, awayId, homeMap, awayMap);
+  const lineupGkSaves = sumLineupGkSavesByTeam(fixture);
 
   const homeXgRes = resolveTeamXg(homeMap);
   const awayXgRes = resolveTeamXg(awayMap);
@@ -161,6 +152,21 @@ export function mapSportmonksTeamStats(args: {
     const xg = xgRes.xg;
     const psxgFaced = psxgRes.psxg;
     const npxgProvider = map.get(SM_STAT_TYPE.NPXG) ?? null;
+    const defensiveActions = computeDefensiveActions(map);
+    const ppda = computePpdaProxy(map, oppMap);
+    const ppdaSource = ppda != null ? ("sportmonks_proxy" as const) : null;
+    const progressivePasses = computeProgressivePassesProxy(map);
+    const finalThirdEntries = computeFinalThirdEntriesProxy(map);
+    const ballRecoveries = computeBallRecoveriesProxy(map);
+    const highTurnovers = computeHighTurnoversProxy(map);
+    const teamGkSaves = map.get(SM_STAT_TYPE.SAVES) ?? lineupGkSaves.get(teamId) ?? null;
+    const xgFromFixture = (fixture.xGFixture ?? []).some(
+      (r) => r.participant_id === teamId && r.type_id === SM_STAT_TYPE.EXPECTED_GOALS
+    );
+    const psxgFromFixture = (fixture.xGFixture ?? []).some(
+      (r) =>
+        r.participant_id === oppId && r.type_id === SM_STAT_TYPE.EXPECTED_GOALS_ON_TARGET
+    );
     return {
       match_sm_id: fixture.id,
       team_sm_id: teamId,
@@ -173,11 +179,11 @@ export function mapSportmonksTeamStats(args: {
       shots,
       shots_on_target: sot,
       big_chances: map.get(SM_STAT_TYPE.BIG_CHANCES) ?? null,
-      box_entries: null,
+      box_entries: map.get(SM_STAT_TYPE.SHOTS_INSIDE_BOX) ?? null,
       touches_in_box: null,
-      progressive_passes: null,
+      progressive_passes: progressivePasses,
       progressive_carries: null,
-      final_third_entries: null,
+      final_third_entries: finalThirdEntries,
       crosses: map.get(SM_STAT_TYPE.CROSSES) ?? null,
       through_balls: null,
       passes,
@@ -192,25 +198,25 @@ export function mapSportmonksTeamStats(args: {
       clearances: map.get(SM_STAT_TYPE.CLEARANCES) ?? null,
       pressures: null,
       pressing_duels: null,
-      ppda: null,
-      ball_recoveries: null,
-      high_turnovers: null,
-      defensive_actions: null,
+      ppda,
+      ball_recoveries: ballRecoveries,
+      high_turnovers: highTurnovers,
+      defensive_actions: defensiveActions,
       possession_pct: map.get(SM_STAT_TYPE.BALL_POSSESSION) ?? null,
       pass_completion_pct:
         passes != null && succ != null && passes > 0 ? (succ / passes) * 100 : null,
       field_tilt: null,
       territory_pct: null,
       psxg_faced: psxgFaced,
-      gk_saves: null,
+      gk_saves: teamGkSaves != null ? Math.round(teamGkSaves) : null,
       goals_prevented:
         map.get(SM_STAT_TYPE.EXPECTED_GOALS_PREVENTED) ??
         (psxgFaced != null && currentGoals(fixture.scores, oppId) != null
           ? psxgFaced - (currentGoals(fixture.scores, oppId) as number)
           : null),
-      xg_source: xg != null ? "sportmonks" : null,
-      psxg_source: psxgFaced != null ? "sportmonks" : null,
-      ppda_source: null,
+      xg_source: xg != null && !xgRes.fromProxy ? "sportmonks" : null,
+      psxg_source: psxgFaced != null && !psxgRes.fromProxy ? "sportmonks" : null,
+      ppda_source: ppdaSource,
       validation_status: "pending",
       source_endpoint: `/fixtures/${fixture.id}`,
       payload: {
@@ -218,8 +224,11 @@ export function mapSportmonksTeamStats(args: {
         opponentId: oppId,
         xg_proxy: xgRes.fromProxy,
         psxg_proxy: psxgRes.fromProxy,
+        xg_from_xgfixture: xgFromFixture,
+        psxg_from_xgfixture: psxgFromFixture,
         plan_note:
-          "SportMonks plan: no xGFixture; Expected Goals from statistics when present else shot proxy",
+          "SportMonks xG Basic + proxies: Expected from statistics/xGFixture when present; PPDA from passes/defensive actions; build-up from key+long passes and dangerous attacks",
+        build_up_proxy: progressivePasses != null || finalThirdEntries != null,
       } as unknown,
       synced_at: new Date().toISOString(),
     };
@@ -325,6 +334,13 @@ export async function upsertSportmonksFixtureBundle(
     .from("glpm_match_team_stats")
     .upsert(stats, { onConflict: "match_sm_id,team_sm_id" });
   if (statsErr) throw new Error(`upsert stats failed: ${statsErr.message}`);
+
+  await upsertSportmonksGkStats(supabase, {
+    fixture,
+    teamStats: stats,
+    homeId: home.id,
+    awayId: away.id,
+  });
 
   const events = mapSportmonksEvents(fixture);
   if (events.length) {

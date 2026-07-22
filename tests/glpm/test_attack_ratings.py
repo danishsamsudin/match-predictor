@@ -148,6 +148,74 @@ def test_opponent_adjustment_stronger_defence_lowers_volume():
     ].mean()
 
 
+def test_opponent_adjustment_tolerates_duplicate_team_dates():
+    """Duplicate (team, date) rows must not explode the opponent-strength merge."""
+    base = {
+        "is_home": True,
+        "shots_p90": 15.0,
+        "box_entries_p90": 20.0,
+        "touches_in_box_p90": 25.0,
+        "big_chances_p90": 3.0,
+        "shots_per_poss": 20.0,
+        "xg_per_shot": 0.12,
+        "big_chance_pct": 0.2,
+        "central_shot_pct": 0.5,
+        "avg_shot_distance": 15.0,
+        "prog_pass_rate": 0.1,
+        "prog_carry_rate": 0.05,
+        "final_third_entry_rate": 0.08,
+        "box_entry_rate": 0.04,
+        "field_tilt": 55.0,
+        "territory_pct": 52.0,
+        "final_third_occupancy": 0.3,
+        "transition_xg_per_recovery": 0.02,
+        "counter_efficiency": 0.15,
+        "fast_break_rate": 0.1,
+        "set_piece_xg_per_match": 0.25,
+        "set_piece_shot_rate": 0.2,
+        "xg_conceded": 1.0,
+        "opp_xg_conceded": 1.0,
+    }
+    rows = []
+    for i in range(8):
+        rows.append(
+            {
+                **base,
+                "match_sm_id": i,
+                "team_sm_id": 1,
+                "opponent_team_sm_id": 2,
+                "match_date": f"2025-09-{i + 1:02d}",
+            }
+        )
+        rows.append(
+            {
+                **base,
+                "match_sm_id": i,
+                "team_sm_id": 2,
+                "opponent_team_sm_id": 1,
+                "match_date": f"2025-09-{i + 1:02d}",
+                "xg_conceded": 0.5,
+            }
+        )
+    # Remapped duplicate of an opponent team-date row (same key as existing).
+    rows.append(
+        {
+            **base,
+            "match_sm_id": 99,
+            "team_sm_id": 2,
+            "opponent_team_sm_id": 1,
+            "match_date": "2025-09-03",
+            "xg_conceded": 0.4,
+        }
+    )
+
+    df = pd.DataFrame(rows)
+    adj = OpponentContextAdjuster().fit_transform(df)
+    assert len(adj) == len(df)
+    assert adj["s_opp"].notna().all()
+    assert "shots_p90_adj" in adj.columns
+
+
 def test_calibration_percentile_bands():
     scores = np.linspace(0, 1, 100)
     cal = GlpmCalibrator().fit(scores)

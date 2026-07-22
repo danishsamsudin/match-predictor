@@ -26,6 +26,14 @@ import {
 import fixtureMock from "../sportmonks/mock/fixture.json";
 import eventsMock from "../wyscout/mock/match_events.json";
 import advancedMock from "../wyscout/mock/match_advancedstats.json";
+import {
+  computeBallRecoveriesProxy,
+  computeDefensiveActions,
+  computeFinalThirdEntriesProxy,
+  computeHighTurnoversProxy,
+  computePpdaProxy,
+  computeProgressivePassesProxy,
+} from "./layer1/sportmonks/proxies";
 import { listAdvancedStatsSides } from "./layer1/upsertMatchTeamStats";
 
 const fixture = (fixtureMock as SmApiResponse<SmFixture>).data;
@@ -63,9 +71,38 @@ describe("GLPM SportMonks primary mappers", () => {
     expect(home.xg_source).toBe("sportmonks");
     expect(home.psxg_source).toBe("sportmonks");
     expect((home.payload as { xg_proxy?: boolean }).xg_proxy).toBe(false);
-    expect(home.ppda).toBeNull();
+    expect(home.ppda).toBeCloseTo(398 / 43, 3);
+    expect(home.ppda_source).toBe("sportmonks_proxy");
+    expect(home.defensive_actions).toBe(43);
+    expect(home.gk_saves).toBe(5);
     expect(home.possession_pct).toBeCloseTo(58.2);
     expect(home.shots).toBe(14);
+  });
+
+  it("uses xGFixture when statistics lack Expected Goals", () => {
+    const noXgStatsFixture: SmFixture = {
+      ...fixture,
+      statistics: (fixture.statistics ?? []).filter(
+        (s) => s.type_id !== 5304 && s.type_id !== 5305 && s.type_id !== 9687
+      ),
+      xGFixture: [
+        { type_id: 5304, participant_id: 19, data: { value: 2.05 } },
+        { type_id: 5304, participant_id: 18, data: { value: 0.88 } },
+        { type_id: 5305, participant_id: 19, data: { value: 1.72 } },
+        { type_id: 5305, participant_id: 18, data: { value: 1.05 } },
+      ],
+    };
+    const stats = mapSportmonksTeamStats({
+      fixture: noXgStatsFixture,
+      homeId: 19,
+      awayId: 18,
+    });
+    const home = stats.find((s) => s.is_home)!;
+    const away = stats.find((s) => !s.is_home)!;
+    expect(home.xg).toBeCloseTo(2.05);
+    expect(away.xg).toBeCloseTo(0.88);
+    expect(home.psxg_faced).toBeCloseTo(1.05);
+    expect((home.payload as { xg_from_xgfixture?: boolean }).xg_from_xgfixture).toBe(true);
   });
 
   it("falls back to shot-based xG proxy when Expected Goals stats are absent", () => {
@@ -114,6 +151,86 @@ describe("GLPM SportMonks primary mappers", () => {
     expect(playerRow.sm_id).toBe(9001);
     expect(playerRow.current_team_sm_id).toBe(19);
     expect(playerRow.role_name).toBe("Forward");
+  });
+});
+
+describe("GLPM SportMonks PPDA proxy edge cases", () => {
+  it("returns null PPDA when defensive actions are zero", () => {
+    const own = new Map<number, number>([
+      [78, 0],
+      [100, 0],
+      [101, 0],
+      [80, 400],
+    ]);
+    const opp = new Map<number, number>([[80, 500]]);
+    expect(computeDefensiveActions(own)).toBe(0);
+    expect(computePpdaProxy(own, opp)).toBeNull();
+  });
+
+  it("returns null PPDA when opponent passes are missing", () => {
+    const own = new Map<number, number>([
+      [78, 10],
+      [100, 5],
+      [101, 8],
+    ]);
+    const opp = new Map<number, number>();
+    expect(computePpdaProxy(own, opp)).toBeNull();
+  });
+});
+
+describe("GLPM SportMonks build-up and pressing proxies", () => {
+  it("computes progressive passes from key passes + successful long passes", () => {
+    const map = new Map<number, number>([
+      [117, 12],
+      [27264, 8],
+    ]);
+    expect(computeProgressivePassesProxy(map)).toBe(20);
+  });
+
+  it("prefers dangerous attacks for final-third entries", () => {
+    const map = new Map<number, number>([
+      [44, 38],
+      [43, 90],
+    ]);
+    expect(computeFinalThirdEntriesProxy(map)).toBe(38);
+  });
+
+  it("maps build-up fields on team stats rows", () => {
+    const buildUpFixture: SmFixture = {
+      ...fixture,
+      statistics: [
+        ...(fixture.statistics ?? []),
+        { type_id: 117, participant_id: 19, data: { value: 10 } },
+        { type_id: 27264, participant_id: 19, data: { value: 15 } },
+        { type_id: 44, participant_id: 19, data: { value: 42 } },
+        { type_id: 49, participant_id: 19, data: { value: 11 } },
+        { type_id: 117, participant_id: 18, data: { value: 7 } },
+        { type_id: 27264, participant_id: 18, data: { value: 9 } },
+        { type_id: 44, participant_id: 18, data: { value: 31 } },
+        { type_id: 49, participant_id: 18, data: { value: 6 } },
+      ],
+    };
+    const stats = mapSportmonksTeamStats({
+      fixture: buildUpFixture,
+      homeId: 19,
+      awayId: 18,
+    });
+    const home = stats.find((s) => s.is_home)!;
+    expect(home.progressive_passes).toBe(25);
+    expect(home.final_third_entries).toBe(42);
+    expect(home.box_entries).toBe(11);
+    expect(home.ball_recoveries).toBe(28);
+    expect(home.high_turnovers).toBe(10);
+    expect((home.payload as { build_up_proxy?: boolean }).build_up_proxy).toBe(true);
+  });
+
+  it("derives ball recoveries and high turnovers from tackles + interceptions", () => {
+    const map = new Map<number, number>([
+      [78, 14],
+      [100, 6],
+    ]);
+    expect(computeBallRecoveriesProxy(map)).toBe(20);
+    expect(computeHighTurnoversProxy(map)).toBe(6);
   });
 });
 
@@ -200,12 +317,32 @@ describe("GLPM Section 2.14 validation", () => {
     expect(issues.some((i) => i.ruleCode === "POSSESSION_SUM")).toBe(true);
   });
 
-  it("warns PPDA_MISSING after SportMonks-only ingest", () => {
+  it("warns PPDA_MISSING only when proxy inputs are absent", () => {
     const issues = validateMatchBundle({
       home: baseStats({ team_sm_id: 19, is_home: true, ppda: null }),
       away: baseStats({ team_sm_id: 18, is_home: false, possession_pct: 45, ppda: null }),
     });
     expect(issues.filter((i) => i.ruleCode === "PPDA_MISSING").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("warns PPDA_PROXY for SportMonks proxy PPDA without PPDA_MISSING", () => {
+    const issues = validateMatchBundle({
+      home: baseStats({
+        team_sm_id: 19,
+        is_home: true,
+        ppda: 9.2,
+        ppda_source: "sportmonks_proxy",
+      }),
+      away: baseStats({
+        team_sm_id: 18,
+        is_home: false,
+        possession_pct: 45,
+        ppda: 11.5,
+        ppda_source: "sportmonks_proxy",
+      }),
+    });
+    expect(issues.some((i) => i.ruleCode === "PPDA_PROXY")).toBe(true);
+    expect(issues.some((i) => i.ruleCode === "PPDA_MISSING")).toBe(false);
   });
 
   it("warns XG_PROXY / XG_MISSING without failing the bundle", () => {
@@ -242,7 +379,7 @@ describe("GLPM Section 2.14 validation", () => {
 });
 
 describe("GLPM Layer 2 + enrich non-overwrite semantics", () => {
-  it("builds features from SM stats without inventing PPDA", () => {
+  it("builds features from SM stats with proxy PPDA", () => {
     const stats = mapSportmonksTeamStats({
       fixture,
       homeId: 19,
@@ -261,7 +398,7 @@ describe("GLPM Layer 2 + enrich non-overwrite semantics", () => {
     });
 
     expect(features.xg_per_shot).toBeCloseTo(1.87 / 14);
-    expect(features.ppda).toBeNull();
+    expect(features.ppda).toBeCloseTo(398 / 43, 3);
     expect(features.psxg_faced).toBeCloseTo(1.12);
     expect(features.goals_prevented).toBeCloseTo(1.12 - 1);
   });

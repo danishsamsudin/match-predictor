@@ -68,17 +68,21 @@ class OpponentContextAdjuster:
             .transform(lambda s: s.shift(1).rolling(self.rolling_window, min_periods=1).mean())
         )
 
-        opp_lookup = team_att.rename(
-            columns={
-                "team_sm_id": "opponent_team_sm_id",
-                "roll_xg": "opp_roll_xg",
-            }
-        )[["opponent_team_sm_id", "match_date", "opp_roll_xg"]]
+        opp_lookup = (
+            team_att.rename(
+                columns={
+                    "team_sm_id": "opponent_team_sm_id",
+                    "roll_xg": "opp_roll_xg",
+                }
+            )[["opponent_team_sm_id", "match_date", "opp_roll_xg"]]
+            .drop_duplicates(subset=["opponent_team_sm_id", "match_date"], keep="last")
+        )
 
         merged = work.merge(
             opp_lookup,
             on=["opponent_team_sm_id", "match_date"],
             how="left",
+            validate="many_to_one",
         )
         if "opp_xg" in merged.columns:
             merged["opp_roll_xg"] = merged["opp_roll_xg"].fillna(merged["opp_xg"])

@@ -2,6 +2,12 @@
  * GLPM match ingest — SportMonks primary, Wyscout secondary enrich.
  */
 
+/** Wyscout enrich is off by default; set GLPM_WYSCOUT_ENRICH=1 to enable cron/manual enrich. */
+export function isWyscoutEnrichEnabled(): boolean {
+  const v = process.env.GLPM_WYSCOUT_ENRICH?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../supabase";
 import type { SportmonksClient } from "../sportmonks/client";
