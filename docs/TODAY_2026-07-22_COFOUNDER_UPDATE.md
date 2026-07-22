@@ -21,6 +21,12 @@ Today we turned GLPM from “trained seasons sitting in the DB” into a **live 
 
 Code is on `main` and deployed via Vercel production.
 
+### Publish links (end of day)
+- **GitHub:** https://github.com/danishsamsudin/match-predictor (`main` @ `afd150b`)
+- **Production:** https://match-predictor-ten.vercel.app
+- **This write-up:** [`docs/TODAY_2026-07-22_COFOUNDER_UPDATE.md`](./TODAY_2026-07-22_COFOUNDER_UPDATE.md)
+- Supabase migrations `041`–`044` are already applied on the production Match Predictor project.
+
 ---
 
 ## 1. Homepage: tabbed fixtures + standings
