@@ -35,7 +35,7 @@
     },
     {
       "path": "/api/cron/glpm-livescores?run=true",
-      "schedule": "0 * * * *"
+      "schedule": "0 12 * * *"
     },
     {
       "path": "/api/cron/glpm-sportmonks-refresh-teams?run=true",
