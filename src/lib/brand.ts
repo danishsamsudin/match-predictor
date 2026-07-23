@@ -8,6 +8,8 @@ export const BRAND_HERO_EYEBROW = "Dynamic match intelligence";
 export const BRAND_HERO_SUBTITLE =
   "Generate win probabilities, expected goals, and match stat estimates with advanced form models and live context.";
 
+export const BRAND_CONTACT_EMAIL = "info@tradelinkinternational.nl";
+
 export function brandPageTitle(page: string): string {
   return `${page} | ${BRAND_NAME}`;
 }

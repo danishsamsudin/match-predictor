@@ -15,14 +15,23 @@ function isCronSecretAuthorized(request: NextRequest): boolean {
   return provided === secret;
 }
 
+const PUBLIC_EXACT_PATHS = new Set([
+  "/",
+  "/login",
+  "/signup",
+  "/pricing",
+  "/features",
+  "/methodology",
+  "/faq",
+  "/terms",
+  "/privacy",
+  "/disclaimer",
+  "/api/auth/login",
+  "/api/waitlist",
+]);
+
 function isPublicPath(pathname: string): boolean {
-  if (pathname === "/") {
-    return true;
-  }
-  if (pathname === "/login") {
-    return true;
-  }
-  if (pathname === "/api/auth/login") {
+  if (PUBLIC_EXACT_PATHS.has(pathname)) {
     return true;
   }
   if (pathname.startsWith("/api/cron/")) {
