@@ -29,8 +29,10 @@ import {
 import { loadPromotedTeamIds } from "@/lib/glpm/promotion";
 import { resolveHubMatchWeather } from "@/lib/glpm/hub-weather";
 import {
-  annotateSeasonReadiness,
-  loadGlpmSeasonReadiness,
+  loadGlpmHubCatalog,
+  type GlpmHubCatalog,
+} from "@/lib/glpm/hub-catalog";
+import {
   pickDefaultGlpmSeasonId,
   pickFixtureSeasonId,
 } from "@/lib/glpm/season-ready";
@@ -44,6 +46,30 @@ export type {
 } from "@/lib/glpm/hub-types";
 
 type Client = SupabaseClient<Database>;
+
+const VECTOR_SELECT =
+  "team_sm_id,season_id,as_of_date,r_attack,r_defence,r_goalkeeper,r_build_up,r_possession,r_pressing,r_finishing,model_version,metadata";
+
+const MATCH_LIST_SELECT =
+  "sm_id,home_team_sm_id,away_team_sm_id,home_score,away_score,match_date,kickoff_at,venue,venue_sm_id,gameweek,status" as const;
+
+const MATCH_LIST_WITH_PAYLOAD =
+  "sm_id,home_team_sm_id,away_team_sm_id,home_score,away_score,match_date,kickoff_at,venue,venue_sm_id,gameweek,status,payload" as const;
+
+type HubMatchListRow = {
+  sm_id: number;
+  home_team_sm_id: number;
+  away_team_sm_id: number;
+  home_score: number | null;
+  away_score: number | null;
+  match_date: string | null;
+  kickoff_at: string | null;
+  venue: string | null;
+  venue_sm_id: number | null;
+  gameweek: number | null;
+  status: string | null;
+  payload?: unknown;
+};
 
 function vectorFromRow(row: {
   team_sm_id: number;
@@ -109,11 +135,13 @@ async function loadLatestAnySeasonVectors(
   const missing = [...new Set(teamIds)].filter((id) => Number.isFinite(id));
   if (!missing.length) return out;
 
+  // Cap rows: a few recent vectors per missing team is enough for fallback.
   const { data: rows } = await client
     .from("glpm_team_rating_vectors")
-    .select("*")
+    .select(VECTOR_SELECT)
     .in("team_sm_id", missing)
-    .order("as_of_date", { ascending: false });
+    .order("as_of_date", { ascending: false })
+    .limit(Math.max(missing.length * 4, 20));
 
   for (const row of rows ?? []) {
     if (out.has(row.team_sm_id)) continue;
@@ -124,57 +152,35 @@ async function loadLatestAnySeasonVectors(
   return out;
 }
 
+export type LoadGlpmHubPayloadOpts = {
+  seasonId?: number | null;
+  competitionId?: number | null;
+  /** Prefer seasons with open-score fixtures (home upcoming preview). */
+  preferFixtures?: boolean;
+  /**
+   * Attach Open-Meteo / Sportmonks weather on upcoming cards.
+   * Default false - weather is expensive; enable only when needed.
+   */
+  includeWeather?: boolean;
+  /** Include recent finished results + match stats (default true). */
+  includeRecent?: boolean;
+  /** Cap for open-score fixtures (default 24; home uses a higher limit). */
+  upcomingLimit?: number;
+  /** Reuse a preloaded catalog (avoids N+1 readiness scans on home). */
+  catalog?: GlpmHubCatalog;
+};
+
 export async function loadGlpmHubPayload(
   client: Client,
-  opts: {
-    seasonId?: number | null;
-    competitionId?: number | null;
-    /** Prefer seasons with open-score fixtures (home upcoming preview). */
-    preferFixtures?: boolean;
-    /** Attach Open-Meteo / Sportmonks weather on upcoming cards (default true). */
-    includeWeather?: boolean;
-    /** Cap for open-score fixtures (default 24; home uses a higher limit). */
-    upcomingLimit?: number;
-  } = {}
+  opts: LoadGlpmHubPayloadOpts = {}
 ): Promise<GlpmHubPayload> {
   const updatedAt = new Date().toISOString();
-  const includeWeather = opts.includeWeather !== false;
+  const includeWeather = opts.includeWeather === true;
+  const includeRecent = opts.includeRecent !== false;
   const upcomingLimit = Math.max(1, opts.upcomingLimit ?? 24);
 
-  const { data: competitions } = await client
-    .from("glpm_competitions")
-    .select("sm_id,name,area_name")
-    .order("name");
-
-  const { data: seasons } = await client
-    .from("glpm_seasons")
-    .select("sm_id,name,competition_id,start_date")
-    .order("start_date", { ascending: false });
-
-  const seasonList = (seasons ?? []).map((s) => ({
-    smId: s.sm_id,
-    name: s.name,
-    competitionId: s.competition_id,
-    startDate: s.start_date,
-  }));
-
-  const readiness = await loadGlpmSeasonReadiness(client);
-
-  const competitionList = (competitions ?? []).map((c) => ({
-    smId: c.sm_id,
-    name: c.name,
-    areaName: c.area_name,
-    defaultSeasonId: pickDefaultGlpmSeasonId(seasonList, readiness, c.sm_id),
-  }));
-  const seasonsForPayload = annotateSeasonReadiness(seasonList, readiness).map((s) => ({
-    smId: s.smId,
-    name: s.name,
-    competitionId: s.competitionId,
-    hasVectors: s.hasVectors,
-    hasFinishedMatches: s.hasFinishedMatches,
-    hasUpcomingMatches: s.hasUpcomingMatches,
-    isPredictReady: s.isPredictReady,
-  }));
+  const catalog = opts.catalog ?? (await loadGlpmHubCatalog(client));
+  const { seasonList, readiness, competitionList, seasonsForPayload } = catalog;
 
   let seasonId = opts.seasonId ?? null;
   let competitionId = opts.competitionId ?? null;
@@ -213,19 +219,55 @@ export async function loadGlpmHubPayload(
     };
   }
 
-  const { data: teams } = await client.from("glpm_teams").select("sm_id,name,city");
+  const openMatchesQuery = includeWeather
+    ? client
+        .from("glpm_matches")
+        .select(MATCH_LIST_WITH_PAYLOAD)
+        .eq("season_id", seasonId)
+        .or("home_score.is.null,away_score.is.null")
+        .order("match_date", { ascending: true })
+        .limit(upcomingLimit)
+    : client
+        .from("glpm_matches")
+        .select(MATCH_LIST_SELECT)
+        .eq("season_id", seasonId)
+        .or("home_score.is.null,away_score.is.null")
+        .order("match_date", { ascending: true })
+        .limit(upcomingLimit);
+
+  const [
+    { data: teams },
+    { data: vectorRows },
+    finishedMatchesResult,
+    openMatchesResult,
+  ] = await Promise.all([
+    client.from("glpm_teams").select("sm_id,name,city"),
+    client
+      .from("glpm_team_rating_vectors")
+      .select(VECTOR_SELECT)
+      .eq("season_id", seasonId)
+      .order("as_of_date", { ascending: false }),
+    includeRecent
+      ? client
+          .from("glpm_matches")
+          .select(MATCH_LIST_SELECT)
+          .eq("season_id", seasonId)
+          .not("home_score", "is", null)
+          .not("away_score", "is", null)
+          .order("match_date", { ascending: false })
+          .limit(40)
+      : Promise.resolve({ data: [] as HubMatchListRow[] }),
+    openMatchesQuery,
+  ]);
+
+  const openMatches = (openMatchesResult.data ?? []) as HubMatchListRow[];
+
   const teamName = new Map((teams ?? []).map((t) => [t.sm_id, t.name] as const));
   const teamCity = new Map(
     (teams ?? [])
       .filter((t) => t.city != null && String(t.city).trim())
       .map((t) => [t.sm_id, String(t.city)] as const)
   );
-
-  const { data: vectorRows } = await client
-    .from("glpm_team_rating_vectors")
-    .select("*")
-    .eq("season_id", seasonId)
-    .order("as_of_date", { ascending: false });
 
   const latestByTeam = new Map<number, NonNullable<typeof vectorRows>[number]>();
   for (const row of vectorRows ?? []) {
@@ -264,7 +306,7 @@ export async function loadGlpmHubPayload(
     if (competitionSeasonIds.length) {
       const { data: compRows } = await client
         .from("glpm_team_rating_vectors")
-        .select("*")
+        .select(VECTOR_SELECT)
         .in("season_id", competitionSeasonIds)
         .order("as_of_date", { ascending: false });
       const latestComp = new Map<number, NonNullable<typeof compRows>[number]>();
@@ -311,29 +353,8 @@ export async function loadGlpmHubPayload(
     ? meanPrimaryRatings(competitionMean.ratings)
     : null;
 
-  const { data: finishedMatches } = await client
-    .from("glpm_matches")
-    .select(
-      "sm_id,home_team_sm_id,away_team_sm_id,home_score,away_score,match_date,kickoff_at,venue,gameweek,status,payload"
-    )
-    .eq("season_id", seasonId)
-    .not("home_score", "is", null)
-    .not("away_score", "is", null)
-    .order("match_date", { ascending: false })
-    .limit(40);
-
-  const { data: openMatches } = await client
-    .from("glpm_matches")
-    .select(
-      "sm_id,home_team_sm_id,away_team_sm_id,home_score,away_score,match_date,kickoff_at,venue,venue_sm_id,gameweek,status,payload"
-    )
-    .eq("season_id", seasonId)
-    .or("home_score.is.null,away_score.is.null")
-    .order("match_date", { ascending: true })
-    .limit(upcomingLimit);
-
-  const finished = finishedMatches ?? [];
-  const upcomingRows = [...(openMatches ?? [])].sort((a, b) => {
+  const finished = (finishedMatchesResult.data ?? []) as HubMatchListRow[];
+  const upcomingRows = [...openMatches].sort((a, b) => {
     const da = a.kickoff_at ?? a.match_date ?? "";
     const db = b.kickoff_at ?? b.match_date ?? "";
     return da.localeCompare(db);
@@ -344,21 +365,41 @@ export async function loadGlpmHubPayload(
     ...upcomingRows.flatMap((m) => [m.home_team_sm_id, m.away_team_sm_id]),
   ];
   const teamsNeedingFallback = fixtureTeamIds.filter((id) => !seasonVectors.has(id));
-  const anySeasonVectors = await loadLatestAnySeasonVectors(
-    client,
-    teamsNeedingFallback,
-    teamName
-  );
 
-  const promotedTeamIds =
-    competitionId != null
-      ? await loadPromotedTeamIds(client, {
-          seasonId,
-          competitionId,
-          currentTeamIds: fixtureTeamIds,
-          seasons: seasonList,
-        })
-      : new Set<number>();
+  const recentSlice = includeRecent ? finished.slice(0, 12) : [];
+  const recentIds = recentSlice.map((m) => m.sm_id);
+  const upcomingIds = upcomingRows.map((m) => m.sm_id);
+  const historyIds = [...new Set([...recentIds, ...upcomingIds])];
+
+  const [anySeasonVectors, promotedTeamIds, statsRowsResult, predRowsResult] =
+    await Promise.all([
+      loadLatestAnySeasonVectors(client, teamsNeedingFallback, teamName),
+      competitionId != null
+        ? loadPromotedTeamIds(client, {
+            seasonId,
+            competitionId,
+            currentTeamIds: fixtureTeamIds,
+            seasons: seasonList,
+          })
+        : Promise.resolve(new Set<number>()),
+      recentIds.length > 0
+        ? client
+            .from("glpm_match_team_stats")
+            .select(
+              "match_sm_id,team_sm_id,is_home,goals,xg,shots,shots_on_target,possession_pct,ppda"
+            )
+            .in("match_sm_id", recentIds)
+        : Promise.resolve({ data: [] as never[] }),
+      historyIds.length > 0
+        ? client
+            .from("glpm_prediction_history")
+            .select(
+              "match_sm_id,home_win_pct,draw_pct,away_win_pct,home_xg,away_xg,btts_yes_pct,over_under,executed_at"
+            )
+            .in("match_sm_id", historyIds)
+            .order("executed_at", { ascending: false })
+        : Promise.resolve({ data: [] as never[] }),
+    ]);
 
   const resolveOpts = {
     targetCompetitionId: competitionId,
@@ -368,26 +409,11 @@ export async function loadGlpmHubPayload(
     promotedTeamIds,
   };
 
-  const recentSlice = finished.slice(0, 12);
-  const recentIds = recentSlice.map((m) => m.sm_id);
-  const upcomingIds = upcomingRows.map((m) => m.sm_id);
-  const historyIds = [...new Set([...recentIds, ...upcomingIds])];
-
-  const { data: statsRows } =
-    recentIds.length > 0
-      ? await client
-          .from("glpm_match_team_stats")
-          .select(
-            "match_sm_id,team_sm_id,is_home,goals,xg,shots,shots_on_target,possession_pct,ppda"
-          )
-          .in("match_sm_id", recentIds)
-      : { data: [] as never[] };
-
   const statsByMatch = new Map<
     number,
     { home: GlpmHubMatchSummaryStats | null; away: GlpmHubMatchSummaryStats | null }
   >();
-  for (const s of statsRows ?? []) {
+  for (const s of statsRowsResult.data ?? []) {
     const cur = statsByMatch.get(s.match_sm_id) ?? { home: null, away: null };
     const block: GlpmHubMatchSummaryStats = {
       goals: s.goals,
@@ -402,19 +428,8 @@ export async function loadGlpmHubPayload(
     statsByMatch.set(s.match_sm_id, cur);
   }
 
-  const { data: predRows } =
-    historyIds.length > 0
-      ? await client
-          .from("glpm_prediction_history")
-          .select(
-            "match_sm_id,home_win_pct,draw_pct,away_win_pct,home_xg,away_xg,btts_yes_pct,over_under,executed_at"
-          )
-          .in("match_sm_id", historyIds)
-          .order("executed_at", { ascending: false })
-      : { data: [] as never[] };
-
-  const predByMatch = new Map<number, NonNullable<typeof predRows>[number]>();
-  for (const p of predRows ?? []) {
+  const predByMatch = new Map<number, NonNullable<typeof predRowsResult.data>[number]>();
+  for (const p of predRowsResult.data ?? []) {
     if (p.match_sm_id != null && !predByMatch.has(p.match_sm_id)) {
       predByMatch.set(p.match_sm_id, p);
     }
@@ -518,7 +533,7 @@ export async function loadGlpmHubPayload(
           m.venue_sm_id != null ? venuesById.get(m.venue_sm_id) ?? null : null;
         try {
           const weather = await resolveHubMatchWeather({
-            payload: m.payload,
+            payload: m.payload ?? null,
             venueName: m.venue ?? stored?.name ?? null,
             homeTeamCity: teamCity.get(m.home_team_sm_id) ?? null,
             matchDate: m.match_date,

@@ -4,10 +4,7 @@ import { GlpmHubSeasonPicker } from "@/components/glpm/GlpmHubSeasonPicker";
 import { GlpmRatingLeadersGrid } from "@/components/glpm/GlpmRatingLeadersGrid";
 import { GlpmRecentResultsSection } from "@/components/glpm/GlpmRecentResultsSection";
 import { GlpmUpcomingFixturesSection } from "@/components/glpm/GlpmUpcomingFixturesSection";
-import { tryCreateServiceClient, createServerClient } from "@/lib/supabase";
-import { loadGlpmHubPayload } from "@/lib/glpm/hub-load";
-
-export const dynamic = "force-dynamic";
+import { loadGlpmHubPayloadCached } from "@/lib/glpm/hub-load-cached";
 
 export const metadata = {
   title: "League Hub · GLPM",
@@ -27,8 +24,11 @@ export default async function LeagueHubPage({
   let payload = null;
   let loadError: string | null = null;
   try {
-    const client = tryCreateServiceClient() ?? createServerClient();
-    payload = await loadGlpmHubPayload(client, { seasonId, competitionId });
+    payload = await loadGlpmHubPayloadCached({
+      seasonId,
+      competitionId,
+      includeWeather: false,
+    });
   } catch (err) {
     loadError = err instanceof Error ? err.message : "Failed to load league hub";
   }

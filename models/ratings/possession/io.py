@@ -101,6 +101,10 @@ def load_match_team_frame(
     )
     merged = merged.merge(opp, on=["match_sm_id", "opponent_team_sm_id"], how="left")
 
+    # Prefer stored ppda_allowed (pressure faced) over joined opponent ppda.
+    if "ppda_allowed" in merged.columns:
+        merged["opp_ppda"] = merged["ppda_allowed"].combine_first(merged.get("opp_ppda"))
+
     # Optional counterpart primary ratings
     try:
         press_rows = _paginate(

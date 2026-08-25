@@ -1,0 +1,33 @@
+# Keep CLI uploads small while preserving build-time JSON imports under /data.
+.git
+.next
+node_modules
+.venv-ml
+.pytest_cache
+.cursor
+coverage
+out
+build
+export
+/models
+/core
+/engine
+/features
+/services
+*.tsbuildinfo
+.DS_Store
+.env*
+**/__pycache__/
+**/*.pyc
+
+# Heavy local artifacts (not required for Next.js build)
+/data/reports/
+/data/world-cup-2026/WC-Opta-Results/
+/data/world-cup-2026/WC-Opta-Player-Stats/
+/data/world-cup-2026/WC Squads/
+/data/world-cup-2026/WC Squads - SoFIFA/
+/data/imports/fbref/
+/data/imports/scoutlyst/
+/data/imports/transfermarkt/
+/data/imports/sofifa/
+/data/glpm/

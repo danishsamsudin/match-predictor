@@ -252,7 +252,7 @@ def _meta_from_stats(stats: Mapping[str, Any], minutes: Any) -> dict[str, Any]:
         "pressing_rating": stats.get("pressing_rating"),
         "build_up_rating": stats.get("build_up_rating"),
         "possession_rating": stats.get("possession_rating"),
-        "opp_ppda": stats.get("opp_ppda"),
+        "opp_ppda": stats.get("opp_ppda") if stats.get("ppda_allowed") is None else stats.get("ppda_allowed"),
         "opp_high_turnovers": stats.get("opp_high_turnovers"),
         "opp_pass_completion_pct": stats.get("opp_pass_completion_pct"),
         "opp_progressive_passes": stats.get("opp_progressive_passes"),
@@ -308,7 +308,9 @@ class BuildUpFeatureBuilder:
         self, stats: Mapping[str, Any]
     ) -> dict[str, Optional[float]]:
         completion = _pct_to_unit(stats.get("pass_completion_pct"))
-        opp_ppda = _as_float(stats.get("opp_ppda"))
+        opp_ppda = _as_float(stats.get("ppda_allowed"))
+        if opp_ppda is None:
+            opp_ppda = _as_float(stats.get("opp_ppda"))
         # Higher opp press (lower PPDA) → harder context; reward completion under stress.
         press_intensity = None
         if opp_ppda is not None and opp_ppda > 0:

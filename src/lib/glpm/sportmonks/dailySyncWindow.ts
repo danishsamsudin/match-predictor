@@ -60,13 +60,13 @@ export async function patchDailySyncWindow(
   client: Client,
   matchDate: string,
   patch: WindowUpdate
-): Promise<WindowRow> {
+): Promise<WindowRow | null> {
   const { data, error } = await client
     .from("glpm_daily_sync_windows")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("match_date", matchDate)
     .select("*")
-    .single();
+    .maybeSingle();
   if (error) throw new Error(`patchDailySyncWindow: ${error.message}`);
   return data;
 }

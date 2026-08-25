@@ -315,6 +315,7 @@ export type GlpmMatchTeamStatsTable = {
     pressures: number | null;
     pressing_duels: number | null;
     ppda: number | null;
+    ppda_allowed: number | null;
     ball_recoveries: number | null;
     high_turnovers: number | null;
     defensive_actions: number | null;
@@ -331,7 +332,7 @@ export type GlpmMatchTeamStatsTable = {
     fouls: number | null;
     xg_source: GlpmMetricSource | null;
     psxg_source: GlpmMetricSource | null;
-    ppda_source: "wyscout" | "sportmonks_proxy" | null;
+    ppda_source: "wyscout" | "understat" | "sportmonks_proxy" | null;
     validation_status: GlpmValidationStatus;
     source_endpoint: string | null;
     payload: unknown;
@@ -369,6 +370,7 @@ export type GlpmMatchTeamStatsTable = {
     pressures?: number | null;
     pressing_duels?: number | null;
     ppda?: number | null;
+    ppda_allowed?: number | null;
     ball_recoveries?: number | null;
     high_turnovers?: number | null;
     defensive_actions?: number | null;
@@ -385,7 +387,7 @@ export type GlpmMatchTeamStatsTable = {
     fouls?: number | null;
     xg_source?: GlpmMetricSource | null;
     psxg_source?: GlpmMetricSource | null;
-    ppda_source?: "wyscout" | "sportmonks_proxy" | null;
+    ppda_source?: "wyscout" | "understat" | "sportmonks_proxy" | null;
     validation_status?: GlpmValidationStatus;
     source_endpoint?: string | null;
     payload?: unknown;
@@ -788,6 +790,7 @@ export type GlpmMatchTeamFeaturesTable = {
     progressive_pass_rate: number | null;
     field_tilt: number | null;
     ppda: number | null;
+    ppda_allowed: number | null;
     ppda_event: number | null;
     psxg_faced: number | null;
     goals_prevented: number | null;
@@ -808,6 +811,7 @@ export type GlpmMatchTeamFeaturesTable = {
     progressive_pass_rate?: number | null;
     field_tilt?: number | null;
     ppda?: number | null;
+    ppda_allowed?: number | null;
     ppda_event?: number | null;
     psxg_faced?: number | null;
     goals_prevented?: number | null;

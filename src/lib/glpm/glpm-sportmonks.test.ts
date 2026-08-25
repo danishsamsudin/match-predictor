@@ -73,6 +73,8 @@ describe("GLPM SportMonks primary mappers", () => {
     expect((home.payload as { xg_proxy?: boolean }).xg_proxy).toBe(false);
     expect(home.ppda).toBeCloseTo(398 / 43, 3);
     expect(home.ppda_source).toBe("sportmonks_proxy");
+    expect(home.ppda_allowed).toBeCloseTo(away.ppda!, 3);
+    expect(away.ppda_allowed).toBeCloseTo(home.ppda!, 3);
     expect(home.defensive_actions).toBe(43);
     expect(home.gk_saves).toBe(5);
     expect(home.possession_pct).toBeCloseTo(58.2);
@@ -399,6 +401,7 @@ describe("GLPM Layer 2 + enrich non-overwrite semantics", () => {
 
     expect(features.xg_per_shot).toBeCloseTo(1.87 / 14);
     expect(features.ppda).toBeCloseTo(398 / 43, 3);
+    expect(features.ppda_allowed).toBeCloseTo(stats.ppda_allowed!, 3);
     expect(features.psxg_faced).toBeCloseTo(1.12);
     expect(features.goals_prevented).toBeCloseTo(1.12 - 1);
   });

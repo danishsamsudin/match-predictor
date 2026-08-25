@@ -179,10 +179,13 @@ export async function runGlpmNightRefresh(
   }
   if (window?.empty_matchday) {
     if (!dryRun) {
-      await patchDailySyncWindow(supabase, matchDate, {
+      const patched = await patchDailySyncWindow(supabase, matchDate, {
         refresh_done: true,
         refresh_summary: { skipped: true, reason: "empty_matchday" },
       });
+      if (!patched) {
+        notes.push(`No daily sync window for ${matchDate} — empty matchday note only`);
+      }
     }
     return {
       ok: true,
@@ -192,7 +195,7 @@ export async function runGlpmNightRefresh(
       seasonsTrained: [],
       seasonsSkipped: [],
       train: [],
-      notes: ["Empty matchday — refresh marked done"],
+      notes: [...notes, "Empty matchday — refresh marked done"],
     };
   }
 
@@ -376,7 +379,7 @@ export async function runGlpmNightRefresh(
   const ok = !trainFailed && !predictFailed;
 
   if (!dryRun && ok) {
-    await patchDailySyncWindow(supabase, matchDate, {
+    const patched = await patchDailySyncWindow(supabase, matchDate, {
       refresh_done: true,
       refresh_summary: {
         seasonsTrained,
@@ -385,8 +388,13 @@ export async function runGlpmNightRefresh(
         predictions,
       },
     });
+    if (!patched) {
+      notes.push(
+        `No daily sync window for ${matchDate} — refresh completed without marking refresh_done`
+      );
+    }
   } else if (!dryRun && !ok) {
-    await patchDailySyncWindow(supabase, matchDate, {
+    const patched = await patchDailySyncWindow(supabase, matchDate, {
       refresh_summary: {
         ok: false,
         seasonsTrained,
@@ -395,7 +403,13 @@ export async function runGlpmNightRefresh(
         predictions,
       },
     });
-    notes.push("Refresh NOT marked done — dispatcher will retry");
+    if (!patched) {
+      notes.push(
+        `No daily sync window for ${matchDate} — could not persist refresh_summary`
+      );
+    } else {
+      notes.push("Refresh NOT marked done — dispatcher will retry");
+    }
   }
 
   return {

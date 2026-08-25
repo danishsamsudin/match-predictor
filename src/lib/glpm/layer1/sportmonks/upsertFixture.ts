@@ -199,6 +199,7 @@ export function mapSportmonksTeamStats(args: {
       pressures: null,
       pressing_duels: null,
       ppda,
+      ppda_allowed: null,
       ball_recoveries: ballRecoveries,
       high_turnovers: highTurnovers,
       defensive_actions: defensiveActions,
@@ -234,10 +235,30 @@ export function mapSportmonksTeamStats(args: {
     };
   }
 
-  return [
-    side(homeId, true, homeMap, homeXgRes, homePsxg, awayId, awayMap, awayXgRes.xg),
-    side(awayId, false, awayMap, awayXgRes, awayPsxg, homeId, homeMap, homeXgRes.xg),
-  ];
+  const homeSide = side(
+    homeId,
+    true,
+    homeMap,
+    homeXgRes,
+    homePsxg,
+    awayId,
+    awayMap,
+    awayXgRes.xg
+  );
+  const awaySide = side(
+    awayId,
+    false,
+    awayMap,
+    awayXgRes,
+    awayPsxg,
+    homeId,
+    homeMap,
+    homeXgRes.xg
+  );
+  // PPDA allowed = opponent pressing intensity (sibling team's PPDA).
+  homeSide.ppda_allowed = awaySide.ppda ?? null;
+  awaySide.ppda_allowed = homeSide.ppda ?? null;
+  return [homeSide, awaySide];
 }
 
 export function mapSportmonksEvents(fixture: SmFixture): EventInsert[] {

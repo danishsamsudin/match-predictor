@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { GlpmHubPayload } from "@/lib/glpm/hub-types";
 
@@ -25,6 +26,19 @@ export function GlpmHubSeasonPicker({
     if (s) params.set("seasonId", s);
     router.push(`/league?${params.toString()}`);
   }
+
+  // Prefetch other competitions so switching reuses the 60s hub cache.
+  useEffect(() => {
+    for (const c of payload.competitions) {
+      if (competitionId != null && String(c.smId) === competitionId) continue;
+      const params = new URLSearchParams();
+      params.set("competitionId", String(c.smId));
+      if (c.defaultSeasonId != null) {
+        params.set("seasonId", String(c.defaultSeasonId));
+      }
+      router.prefetch(`/league?${params.toString()}`);
+    }
+  }, [payload.competitions, competitionId, router]);
 
   return (
     <div className="mb-8 grid gap-3 sm:grid-cols-2">

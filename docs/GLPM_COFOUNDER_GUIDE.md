@@ -223,16 +223,19 @@ flowchart TB
 
 Ingest is orchestrated by `src/lib/glpm/ingestMatch.ts`. Backfill scripts exist for full-season loads.
 
-### 6.1.1 SportMonks proxy formulas (when Wyscout is off)
+### 6.1.1 SportMonks proxy formulas (when Understat PPDA is unavailable)
 
 | Field | Formula | Source tag |
 |---|---|---|
 | `defensive_actions` | tackles + interceptions + clearances | computed |
 | `ppda` | opponent passes ÷ max(1, own defensive actions) | `sportmonks_proxy` |
+| `ppda_allowed` | sibling team's `ppda` (pressure faced) | derived |
 | `xg` | `xGFixture` / type 5304, else shot proxy | `sportmonks` or proxy flag |
 | `psxg_faced` | opponent xGoT (5305), else opp xG × 0.85 | `sportmonks` or proxy flag |
 | `goals_prevented` | type 9686, else psxg_faced − goals conceded | computed / sportmonks |
 | `gk_saves` | team stat type 57, else sum of GK lineup saves | `sportmonks` |
+
+**Understat PPDA** (Premier League, Bundesliga, Serie A): `npm run glpm:fetch-ppda` writes native `ppda` / `ppda_allowed` with `ppda_source: "understat"`, overwriting SportMonks proxy. Championship and Eredivisie stay on the proxy formula. Runs automatically in the SportMonks **results** daily-sync phase before night refresh.
 
 ### 6.1.2 Wyscout reactivation checklist (optional)
 

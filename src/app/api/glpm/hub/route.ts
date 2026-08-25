@@ -1,22 +1,16 @@
 import { NextResponse } from "next/server";
-import { tryCreateServiceClient, createServerClient } from "@/lib/supabase";
-import { loadGlpmHubPayload } from "@/lib/glpm/hub-load";
-
-export const dynamic = "force-dynamic";
-
-function getClient() {
-  return tryCreateServiceClient() ?? createServerClient();
-}
+import { loadGlpmHubPayloadCached } from "@/lib/glpm/hub-load-cached";
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const seasonId = url.searchParams.get("seasonId");
     const competitionId = url.searchParams.get("competitionId");
-    const client = getClient();
-    const payload = await loadGlpmHubPayload(client, {
+    const includeWeather = url.searchParams.get("weather") === "1";
+    const payload = await loadGlpmHubPayloadCached({
       seasonId: seasonId ? Number(seasonId) : null,
       competitionId: competitionId ? Number(competitionId) : null,
+      includeWeather,
     });
     return NextResponse.json(payload);
   } catch (err) {

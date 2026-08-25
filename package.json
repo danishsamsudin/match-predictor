@@ -67,6 +67,7 @@
     "glpm:sm-refresh-schedules": "npx tsx scripts/glpm-sportmonks-refresh-schedules.ts",
     "glpm:sm-daily-sync": "npx tsx scripts/glpm-sportmonks-daily-sync.ts",
     "glpm:night-refresh": "npx tsx scripts/glpm-night-refresh.ts",
+    "glpm:fetch-ppda": "npx tsx scripts/glpm-fetch-ppda.ts",
     "glpm:standings-refresh": "npx tsx scripts/glpm-standings-refresh.ts",
     "glpm:sm-refresh-teams": "npx tsx scripts/glpm-sportmonks-refresh-teams.ts",
     "glpm:sm-refresh-players": "npx tsx scripts/glpm-sportmonks-refresh-players.ts",

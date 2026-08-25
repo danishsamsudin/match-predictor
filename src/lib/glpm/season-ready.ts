@@ -14,6 +14,8 @@ export type GlpmSeasonRef = {
   smId: number;
   name: string | null;
   competitionId: number;
+  /** ISO date when available; used for prior-season / ordering helpers. */
+  startDate?: string | null;
 };
 
 export type GlpmSeasonReadiness = {
@@ -37,9 +39,22 @@ export async function loadGlpmSeasonReadiness(
 ): Promise<Map<number, GlpmSeasonReadiness>> {
   const map = new Map<number, GlpmSeasonReadiness>();
 
-  const { data: vectorRows } = await client
-    .from("glpm_team_rating_vectors")
-    .select("season_id");
+  // Parallel scans; season_id alone is enough for picker readiness flags.
+  const [{ data: vectorRows }, { data: finishedRows }, { data: upcomingRows }] =
+    await Promise.all([
+      client.from("glpm_team_rating_vectors").select("season_id"),
+      client
+        .from("glpm_matches")
+        .select("season_id")
+        .not("home_score", "is", null)
+        .limit(5000),
+      client
+        .from("glpm_matches")
+        .select("season_id")
+        .or("home_score.is.null,away_score.is.null")
+        .limit(5000),
+    ]);
+
   for (const row of vectorRows ?? []) {
     const cur = map.get(row.season_id) ?? emptyReadiness();
     cur.hasVectors = true;
@@ -47,11 +62,6 @@ export async function loadGlpmSeasonReadiness(
     map.set(row.season_id, cur);
   }
 
-  const { data: finishedRows } = await client
-    .from("glpm_matches")
-    .select("season_id")
-    .not("home_score", "is", null)
-    .limit(5000);
   for (const row of finishedRows ?? []) {
     if (row.season_id == null) continue;
     const cur = map.get(row.season_id) ?? emptyReadiness();
@@ -59,11 +69,6 @@ export async function loadGlpmSeasonReadiness(
     map.set(row.season_id, cur);
   }
 
-  const { data: upcomingRows } = await client
-    .from("glpm_matches")
-    .select("season_id")
-    .or("home_score.is.null,away_score.is.null")
-    .limit(5000);
   for (const row of upcomingRows ?? []) {
     if (row.season_id == null) continue;
     const cur = map.get(row.season_id) ?? emptyReadiness();

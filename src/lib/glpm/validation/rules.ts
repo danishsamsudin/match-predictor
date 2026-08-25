@@ -25,13 +25,14 @@ export type TeamStatsLike = {
   big_chances: number | null;
   possession_pct: number | null;
   ppda: number | null;
+  ppda_allowed?: number | null;
   defensive_actions: number | null;
   psxg_faced: number | null;
   /** True when xG came from shot/SoT proxy (no SportMonks Expected Goals). */
   xg_proxy?: boolean | null;
   /** True when PSxG came from xG×0.85 proxy (no xGoT). */
   psxg_proxy?: boolean | null;
-  ppda_source?: "wyscout" | "sportmonks_proxy" | null;
+  ppda_source?: "wyscout" | "understat" | "sportmonks_proxy" | null;
 };
 
 export type PlayerMinutesLike = {
@@ -128,8 +129,16 @@ function validateTeamSide(stats: TeamStatsLike, entityKey: string): ValidationIs
     ...base,
     ruleCode: "PPDA_MISSING",
     severity: "warn",
-    message: "PPDA not present (enrich from Wyscout or SportMonks proxy inputs)",
+    message: "PPDA not present (enrich from Understat or SportMonks proxy inputs)",
     observed: { team_sm_id: stats.team_sm_id },
+  });
+
+  pushIf(issues, stats.ppda_allowed == null && stats.ppda != null, {
+    ...base,
+    ruleCode: "PPDA_ALLOWED_MISSING",
+    severity: "warn",
+    message: "PPDA allowed (pressure faced) not present",
+    observed: { team_sm_id: stats.team_sm_id, ppda: stats.ppda },
   });
 
   pushIf(issues, stats.ppda_source === "sportmonks_proxy", {
@@ -137,7 +146,7 @@ function validateTeamSide(stats: TeamStatsLike, entityKey: string): ValidationIs
     ruleCode: "PPDA_PROXY",
     severity: "warn",
     message:
-      "PPDA estimated from opponent passes / defensive actions (SportMonks proxy, not Wyscout)",
+      "PPDA estimated from opponent passes / defensive actions (SportMonks proxy)",
     observed: { team_sm_id: stats.team_sm_id, ppda: stats.ppda },
   });
 

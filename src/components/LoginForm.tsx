@@ -37,8 +37,8 @@ export function LoginForm() {
         nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
           ? nextPath
           : "/home";
-      router.push(destination);
-      router.refresh();
+      // Cookie is already set; a single navigation is enough (refresh doubled /home work).
+      router.replace(destination);
     } catch {
       setError("Unable to sign in. Please try again.");
     } finally {

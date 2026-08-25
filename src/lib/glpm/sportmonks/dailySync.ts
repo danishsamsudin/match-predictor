@@ -37,6 +37,7 @@ import {
   type BatchIngestSummary,
 } from "./ingestFixturesBatch";
 import { refreshGlpmStandings } from "../refresh-standings";
+import { runGlpmFetchPpda, type FetchPpdaSummary } from "../fetchPpda";
 import { runGlpmNightRefresh, type NightRefreshSummary } from "./nightRefresh";
 
 type Client = SupabaseClient<Database>;
@@ -74,6 +75,7 @@ export type DailySyncSummary = {
   fixtureCount: number;
   ingest?: BatchIngestSummary;
   standings?: unknown;
+  ppda?: FetchPpdaSummary;
   refresh?: NightRefreshSummary;
   window?: unknown;
   notes: string[];
@@ -264,11 +266,11 @@ export async function runLineupPhase(options: DailySyncOptions = {}): Promise<Da
 
   const patched = dryRun
     ? window
-    : await patchDailySyncWindow(supabase, matchDate, {
+    : (await patchDailySyncWindow(supabase, matchDate, {
         lineup_done: markDone,
         lineup_confirmed_count: confirmed,
         lineup_summary: { ingest, confirmedStarters: confirmed, allConfirmed, pastFirstKickoff },
-      });
+      })) ?? window;
 
   return {
     phase: "lineup",
@@ -343,6 +345,7 @@ export async function runResultsPhase(options: DailySyncOptions = {}): Promise<D
   const merged = mergeSummaries(ingest, catchUp);
 
   let standings: unknown = null;
+  let ppda: FetchPpdaSummary | undefined;
   if (!dryRun) {
     const { data: matchRows } = await supabase
       .from("glpm_matches")
@@ -363,6 +366,25 @@ export async function runResultsPhase(options: DailySyncOptions = {}): Promise<D
       });
       notes.push(`Standings refreshed for seasons ${seasons.join(", ")}`);
     }
+
+    ppda = await runGlpmFetchPpda({
+      league: "all",
+      sinceDate: yesterday,
+      rebuildMatchIds: [
+        ...window.fixture_ids,
+        ...ydayFinished.map((f) => f.id),
+      ],
+      styleSeasonIds: seasons,
+      supabase,
+      dryRun: false,
+    });
+    notes.push(...ppda.notes);
+    if (ppda.pythonStdout.trim()) {
+      notes.push(`PPDA stdout: ${ppda.pythonStdout.trim().slice(0, 500)}`);
+    }
+    if (!ppda.ok) {
+      notes.push(`PPDA fetch failed (status ${ppda.pythonStatus})`);
+    }
   }
 
   const refreshDueAt =
@@ -373,11 +395,11 @@ export async function runResultsPhase(options: DailySyncOptions = {}): Promise<D
 
   const patched = dryRun
     ? window
-    : await patchDailySyncWindow(supabase, matchDate, {
+    : (await patchDailySyncWindow(supabase, matchDate, {
         results_done: true,
         refresh_due_at: refreshDueAt,
-        results_summary: { ingest: merged, standings },
-      });
+        results_summary: { ingest: merged, standings, ppda },
+      })) ?? window;
 
   return {
     phase: "results",
@@ -388,6 +410,7 @@ export async function runResultsPhase(options: DailySyncOptions = {}): Promise<D
     fixtureCount: window.fixture_ids.length,
     ingest: merged,
     standings,
+    ppda,
     window: patched,
     notes,
   };

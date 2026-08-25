@@ -46,6 +46,11 @@ def test_press_resistance_and_security():
         {"pass_completion_pct": 85.0, "opp_ppda": 16.0}
     )
     assert under["completion_under_press"] > easy["completion_under_press"]
+    # Stored ppda_allowed wins over opp_ppda join.
+    from_allowed = builder.press_resistance(
+        {"pass_completion_pct": 85.0, "ppda_allowed": 7.0, "opp_ppda": 16.0}
+    )
+    assert from_allowed["completion_under_press"] == under["completion_under_press"]
     sec = builder.security({"pass_completion_pct": 90.0, "successful_passes": 360, "passes": 400})
     assert sec["security_index"] is not None
     assert sec["security_index"] > 0.5

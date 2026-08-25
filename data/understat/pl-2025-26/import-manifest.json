@@ -1,0 +1,245 @@
+{
+  "season_label": "2025/26",
+  "season_sm_id": 25583,
+  "competition_sm_id": 8,
+  "as_of_date": "2026-05-24",
+  "model_version": "understat_season_v1",
+  "teams_imported": 20,
+  "players_imported": 537,
+  "player_teams_in_file": 34,
+  "sufficient_for": [
+    "PL Attack / Defence / Finishing season priors",
+    "League Hub ranking sanity for PL 2025/26",
+    "Finishing over/under-performance (Goals \u2212 xG)"
+  ],
+  "not_sufficient_for": [
+    "Match-level GLPM training (needs per-match xG/xGA)",
+    "Pressing / Build-up / Possession / GK dimensions",
+    "Other leagues (Serie A, Bundesliga, \u2026)",
+    "Live in-play prediction features"
+  ],
+  "note": "Season aggregates only. Updated Attack/Defence/Finishing from xG/xGA/Goals\u2212xG percentiles within PL.",
+  "leaderboard_preview": [
+    {
+      "rank": 1,
+      "team": "Manchester City",
+      "quality_overall": 88.89,
+      "r_attack": 100.0,
+      "r_defence": 89.82,
+      "r_finishing": 76.84,
+      "xg": 79.36,
+      "xga": 46.49,
+      "points": 78
+    },
+    {
+      "rank": 2,
+      "team": "Arsenal",
+      "quality_overall": 82.75,
+      "r_attack": 89.82,
+      "r_defence": 100.0,
+      "r_finishing": 58.42,
+      "xg": 77.49,
+      "xga": 33.13,
+      "points": 85
+    },
+    {
+      "rank": 3,
+      "team": "Manchester United",
+      "quality_overall": 79.36,
+      "r_attack": 82.81,
+      "r_defence": 86.32,
+      "r_finishing": 68.95,
+      "xg": 72.19,
+      "xga": 50.28,
+      "points": 71
+    },
+    {
+      "rank": 4,
+      "team": "Tottenham Hotspur",
+      "quality_overall": 74.68,
+      "r_attack": 47.19,
+      "r_defence": 76.84,
+      "r_finishing": 100.0,
+      "xg": 46.8,
+      "xga": 55.59,
+      "points": 41
+    },
+    {
+      "rank": 5,
+      "team": "Liverpool",
+      "quality_overall": 74.21,
+      "r_attack": 79.47,
+      "r_defence": 79.47,
+      "r_finishing": 63.68,
+      "xg": 67.26,
+      "xga": 53.87,
+      "points": 60
+    },
+    {
+      "rank": 6,
+      "team": "Aston Villa",
+      "quality_overall": 72.98,
+      "r_attack": 61.05,
+      "r_defence": 71.58,
+      "r_finishing": 86.32,
+      "xg": 56.2,
+      "xga": 56.68,
+      "points": 65
+    },
+    {
+      "rank": 7,
+      "team": "Brighton & Hove Albion",
+      "quality_overall": 69.18,
+      "r_attack": 63.68,
+      "r_defence": 82.81,
+      "r_finishing": 61.05,
+      "xg": 58.42,
+      "xga": 53.75,
+      "points": 53
+    },
+    {
+      "rank": 8,
+      "team": "AFC Bournemouth",
+      "quality_overall": 66.32,
+      "r_attack": 76.84,
+      "r_defence": 68.95,
+      "r_finishing": 53.16,
+      "xg": 66.83,
+      "xga": 56.77,
+      "points": 57
+    },
+    {
+      "rank": 9,
+      "team": "Newcastle United",
+      "quality_overall": 63.69,
+      "r_attack": 68.95,
+      "r_defence": 66.32,
+      "r_finishing": 55.79,
+      "xg": 60.61,
+      "xga": 57.31,
+      "points": 49
+    },
+    {
+      "rank": 10,
+      "team": "Leeds United",
+      "quality_overall": 63.69,
+      "r_attack": 66.32,
+      "r_defence": 74.21,
+      "r_finishing": 50.53,
+      "xg": 59.77,
+      "xga": 56.33,
+      "points": 47
+    },
+    {
+      "rank": 11,
+      "team": "Chelsea",
+      "quality_overall": 63.39,
+      "r_attack": 86.32,
+      "r_defence": 63.68,
+      "r_finishing": 40.18,
+      "xg": 72.21,
+      "xga": 58.12,
+      "points": 52
+    },
+    {
+      "rank": 12,
+      "team": "Everton",
+      "quality_overall": 62.81,
+      "r_attack": 58.42,
+      "r_defence": 58.42,
+      "r_finishing": 71.58,
+      "xg": 49.87,
+      "xga": 59.99,
+      "points": 49
+    },
+    {
+      "rank": 13,
+      "team": "Brentford",
+      "quality_overall": 60.82,
+      "r_attack": 74.21,
+      "r_defence": 61.05,
+      "r_finishing": 47.19,
+      "xg": 66.26,
+      "xga": 59.11,
+      "points": 53
+    },
+    {
+      "rank": 14,
+      "team": "Nottingham Forest",
+      "quality_overall": 60.18,
+      "r_attack": 50.53,
+      "r_defence": 47.19,
+      "r_finishing": 82.81,
+      "xg": 48.94,
+      "xga": 64.74,
+      "points": 44
+    },
+    {
+      "rank": 15,
+      "team": "Fulham",
+      "quality_overall": 59.3,
+      "r_attack": 53.16,
+      "r_defence": 50.53,
+      "r_finishing": 74.21,
+      "xg": 49.58,
+      "xga": 60.84,
+      "points": 52
+    },
+    {
+      "rank": 16,
+      "team": "Sunderland",
+      "quality_overall": 58.77,
+      "r_attack": 43.68,
+      "r_defence": 53.16,
+      "r_finishing": 79.47,
+      "xg": 43.14,
+      "xga": 60.34,
+      "points": 54
+    },
+    {
+      "rank": 17,
+      "team": "West Ham United",
+      "quality_overall": 55.26,
+      "r_attack": 55.79,
+      "r_defence": 43.68,
+      "r_finishing": 66.32,
+      "xg": 49.64,
+      "xga": 68.12,
+      "points": 39
+    },
+    {
+      "rank": 18,
+      "team": "Crystal Palace",
+      "quality_overall": 49.12,
+      "r_attack": 71.58,
+      "r_defence": 55.79,
+      "r_finishing": 20.0,
+      "xg": 62.46,
+      "xga": 60.05,
+      "points": 45
+    },
+    {
+      "rank": 19,
+      "team": "Burnley",
+      "quality_overall": 43.27,
+      "r_attack": 20.0,
+      "r_defence": 20.0,
+      "r_finishing": 89.82,
+      "xg": 36.94,
+      "xga": 82.58,
+      "points": 22
+    },
+    {
+      "rank": 20,
+      "team": "Wolverhampton Wanderers",
+      "quality_overall": 41.35,
+      "r_attack": 40.18,
+      "r_defence": 40.18,
+      "r_finishing": 43.68,
+      "xg": 38.44,
+      "xga": 68.3,
+      "points": 20
+    }
+  ],
+  "dry_run": false
+}

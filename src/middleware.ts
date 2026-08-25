@@ -55,10 +55,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = getSessionTokenFromRequest(request);
-  const session = token ? await verifySessionToken(token, config.secret) : null;
-  const isAuthenticated = session !== null;
-
+  // Public routes never need a session check (avoids crypto work on login/marketing).
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
@@ -66,6 +63,10 @@ export async function middleware(request: NextRequest) {
   if (isDataOpsPath(pathname) && isCronSecretAuthorized(request)) {
     return NextResponse.next();
   }
+
+  const token = getSessionTokenFromRequest(request);
+  const session = token ? await verifySessionToken(token, config.secret) : null;
+  const isAuthenticated = session !== null;
 
   if (!isAuthenticated) {
     if (pathname.startsWith("/api/")) {

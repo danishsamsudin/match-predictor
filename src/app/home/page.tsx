@@ -6,7 +6,9 @@ import { HomeLeagueStandingsPanel } from "@/components/glpm/HomeLeagueStandingsP
 import { HomeLiveScoresPanel } from "@/components/glpm/HomeLiveScoresPanel";
 import { createServerClient, tryCreateServiceClient } from "@/lib/supabase";
 import { BRAND_HERO_EYEBROW, BRAND_HERO_SUBTITLE, BRAND_NAME } from "@/lib/brand";
-import { loadGlpmHubPayload, type GlpmHubPayload } from "@/lib/glpm/hub-load";
+import { loadGlpmHubCatalogCached } from "@/lib/glpm/hub-catalog";
+import { loadGlpmHubPayloadCached } from "@/lib/glpm/hub-load-cached";
+import type { GlpmHubPayload } from "@/lib/glpm/hub-load";
 import { getGlpmLeagueStrength } from "@/lib/glpm/league-strength";
 import { loadLiveScoresBoard } from "@/lib/glpm/live-scores/load";
 import { placeholderLiveScoresBoard } from "@/lib/glpm/live-scores/placeholders";
@@ -16,6 +18,7 @@ import {
   type GlpmLeagueStandings,
 } from "@/lib/glpm/load-standings";
 import { loadPredictionHistoryFeed } from "@/lib/prediction/load-history-feed";
+import { pickFixtureSeasonId } from "@/lib/glpm/season-ready";
 
 export const metadata: Metadata = {
   title: `Home | ${BRAND_NAME}`,
@@ -41,20 +44,31 @@ function getClient() {
   return tryCreateServiceClient() ?? createServerClient();
 }
 
-async function loadLeagueBlocks(client: ReturnType<typeof getClient>): Promise<HomeLeagueBlock[]> {
-  const basePayload = await loadGlpmHubPayload(client, { preferFixtures: true });
+async function loadLeagueBlocks(): Promise<HomeLeagueBlock[]> {
+  const catalog = await loadGlpmHubCatalogCached();
+
   return Promise.all(
     TARGET_LEAGUES.map(async (name) => {
-      const competition = basePayload.competitions.find(
+      const competition = catalog.competitionList.find(
         (item) => item.name.toLowerCase() === name.toLowerCase()
       );
       if (!competition) {
         return { leagueName: name, payload: null };
       }
-      const payload = await loadGlpmHubPayload(client, {
+
+      const seasonId = pickFixtureSeasonId(
+        catalog.seasonList,
+        catalog.readiness,
+        competition.smId
+      );
+
+      const payload = await loadGlpmHubPayloadCached({
         competitionId: competition.smId,
+        seasonId,
         preferFixtures: true,
         upcomingLimit: HOME_UPCOMING_LIMIT,
+        includeWeather: false,
+        includeRecent: false,
       });
       return { leagueName: name, payload };
     })
@@ -107,12 +121,14 @@ export default async function HomePage() {
 
   try {
     const client = getClient();
-    leagueBlocks = await loadLeagueBlocks(client);
-    const [standings, historyFeed, liveBoard] = await Promise.all([
-      loadStandingsBlocks(client, leagueBlocks),
+    // League hubs, standings, history, and live scores in parallel (catalog is cached).
+    const [blocks, historyFeed, liveBoard] = await Promise.all([
+      loadLeagueBlocks(),
       loadPredictionHistoryFeed(client, 6),
       loadLiveScoresBoard(client),
     ]);
+    leagueBlocks = blocks;
+    const standings = await loadStandingsBlocks(client, leagueBlocks);
     standingsBlocks = standings;
     history = historyFeed;
     liveScores = liveBoard;

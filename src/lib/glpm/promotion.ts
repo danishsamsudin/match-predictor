@@ -103,21 +103,24 @@ async function loadSeasonTeamIds(
 ): Promise<Set<number>> {
   const out = new Set<number>();
 
-  const { data: matches } = await client
-    .from("glpm_matches")
-    .select("home_team_sm_id,away_team_sm_id")
-    .eq("season_id", seasonId);
-  for (const m of matches ?? []) {
-    out.add(m.home_team_sm_id);
-    out.add(m.away_team_sm_id);
-  }
-
+  // Prefer standings snapshot (small) before scanning every match row.
   const { data: standings } = await client
     .from("glpm_standings_current")
     .select("team_sm_id")
     .eq("season_id", seasonId);
   for (const row of standings ?? []) {
     out.add(row.team_sm_id);
+  }
+  if (out.size > 0) return out;
+
+  const { data: matches } = await client
+    .from("glpm_matches")
+    .select("home_team_sm_id,away_team_sm_id")
+    .eq("season_id", seasonId)
+    .limit(800);
+  for (const m of matches ?? []) {
+    out.add(m.home_team_sm_id);
+    out.add(m.away_team_sm_id);
   }
 
   return out;

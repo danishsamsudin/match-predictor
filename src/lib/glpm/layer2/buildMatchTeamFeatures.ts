@@ -66,6 +66,7 @@ export function buildTeamFeatures(args: {
     progressive_pass_rate: ratio(stats.progressive_passes, stats.passes),
     field_tilt: stats.field_tilt,
     ppda: stats.ppda,
+    ppda_allowed: stats.ppda_allowed ?? null,
     ppda_event: ppdaEvent,
     psxg_faced: psxgFaced,
     goals_prevented:
