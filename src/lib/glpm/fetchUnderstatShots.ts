@@ -62,11 +62,13 @@ function runPython(
   });
 }
 
-function parseSummary(stdout: string): {
+type ParsedShotSummary = {
   matchIds: number[];
   shotsUpserted: number;
   ok?: boolean;
-} {
+};
+
+function parseSummary(stdout: string): ParsedShotSummary {
   const trimmed = stdout.trim();
   const start = trimmed.indexOf("{");
   const end = trimmed.lastIndexOf("}");
@@ -96,7 +98,7 @@ export async function runGlpmFetchUnderstatShots(
   const skipFetch = Boolean(options.skipFetch);
 
   let py = { status: 0, stdout: "", stderr: "" };
-  let parsed = { matchIds: [] as number[], shotsUpserted: 0, ok: true as boolean | undefined };
+  let parsed: ParsedShotSummary = { matchIds: [], shotsUpserted: 0, ok: true };
 
   if (!skipFetch) {
     const script = path.join(cwd, "scripts", "glpm_fetch_understat_shots.py");
