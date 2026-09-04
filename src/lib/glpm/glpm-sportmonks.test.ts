@@ -3,6 +3,7 @@ import {
   mapSportmonksFixture,
   mapSportmonksTeamStats,
   mapSportmonksEvents,
+  preserveUnderstatOverlays,
   resolveParticipants,
 } from "./layer1/sportmonks/upsertFixture";
 import {
@@ -79,6 +80,43 @@ describe("GLPM SportMonks primary mappers", () => {
     expect(home.gk_saves).toBe(5);
     expect(home.possession_pct).toBeCloseTo(58.2);
     expect(home.shots).toBe(14);
+  });
+
+  it("fills box_entries_allowed from opponent shots inside the box", () => {
+    const withBox: SmFixture = {
+      ...fixture,
+      statistics: [
+        ...(fixture.statistics ?? []),
+        { type_id: 49, participant_id: 19, data: { value: 11 } },
+        { type_id: 49, participant_id: 18, data: { value: 7 } },
+      ],
+    };
+    const stats = mapSportmonksTeamStats({
+      fixture: withBox,
+      homeId: 19,
+      awayId: 18,
+    });
+    const home = stats.find((s) => s.is_home)!;
+    const away = stats.find((s) => !s.is_home)!;
+    expect(home.box_entries).toBe(11);
+    expect(away.box_entries).toBe(7);
+    expect(home.box_entries_allowed).toBe(7);
+    expect(away.box_entries_allowed).toBe(11);
+  });
+
+  it("keeps Understat overlays when SportMonks re-ingest would null them", () => {
+    const incoming = mapSportmonksTeamStats({
+      fixture,
+      homeId: 19,
+      awayId: 18,
+    });
+    const preserved = preserveUnderstatOverlays(incoming, [
+      { team_sm_id: 19, open_play_xg: 1.2, set_piece_xg: 0.4, field_tilt: 62.5 },
+    ]);
+    const home = preserved.find((s) => s.is_home)!;
+    expect(home.open_play_xg).toBeCloseTo(1.2);
+    expect(home.set_piece_xg).toBeCloseTo(0.4);
+    expect(home.field_tilt).toBeCloseTo(62.5);
   });
 
   it("uses xGFixture when statistics lack Expected Goals", () => {

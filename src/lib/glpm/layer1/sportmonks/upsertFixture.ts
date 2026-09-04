@@ -25,6 +25,38 @@ type StatsInsert = Database["public"]["Tables"]["glpm_match_team_stats"]["Insert
 type MatchInsert = Database["public"]["Tables"]["glpm_matches"]["Insert"];
 type EventInsert = Database["public"]["Tables"]["glpm_match_events"]["Insert"];
 
+const UNDERSTAT_OVERLAY_KEYS = [
+  "open_play_xg",
+  "set_piece_xg",
+  "field_tilt",
+] as const;
+
+type UnderstatOverlayRow = {
+  team_sm_id: number;
+  open_play_xg?: number | null;
+  set_piece_xg?: number | null;
+  field_tilt?: number | null;
+};
+
+/** Keep Understat overlays when SportMonks re-ingest would otherwise null them. */
+export function preserveUnderstatOverlays(
+  incoming: StatsInsert[],
+  existing: UnderstatOverlayRow[]
+): StatsInsert[] {
+  const byTeam = new Map(existing.map((row) => [row.team_sm_id, row]));
+  return incoming.map((row) => {
+    const prev = byTeam.get(row.team_sm_id);
+    if (!prev) return row;
+    const next = { ...row };
+    for (const key of UNDERSTAT_OVERLAY_KEYS) {
+      if (next[key] == null && prev[key] != null) {
+        next[key] = prev[key];
+      }
+    }
+    return next;
+  });
+}
+
 export function resolveParticipants(fixture: SmFixture): {
   home: SmParticipant;
   away: SmParticipant;
@@ -191,7 +223,7 @@ export function mapSportmonksTeamStats(args: {
       xg_conceded: map.get(SM_STAT_TYPE.EXPECTED_GOALS_AGAINST) ?? oppXg ?? null,
       shots_conceded: oppMap.get(SM_STAT_TYPE.SHOTS_TOTAL) ?? null,
       big_chances_conceded: oppMap.get(SM_STAT_TYPE.BIG_CHANCES) ?? null,
-      box_entries_allowed: null,
+      box_entries_allowed: oppMap.get(SM_STAT_TYPE.SHOTS_INSIDE_BOX) ?? null,
       blocks: map.get(SM_STAT_TYPE.BLOCKS) ?? null,
       interceptions: map.get(SM_STAT_TYPE.INTERCEPTIONS) ?? null,
       tackles: map.get(SM_STAT_TYPE.TACKLES) ?? null,
@@ -346,11 +378,16 @@ export async function upsertSportmonksFixtureBundle(
     .upsert(match, { onConflict: "sm_id" });
   if (matchErr) throw new Error(`upsert match failed: ${matchErr.message}`);
 
-  const stats = mapSportmonksTeamStats({
+  const mapped = mapSportmonksTeamStats({
     fixture,
     homeId: home.id,
     awayId: away.id,
   });
+  const { data: existingStats } = await supabase
+    .from("glpm_match_team_stats")
+    .select("team_sm_id, open_play_xg, set_piece_xg, field_tilt")
+    .eq("match_sm_id", fixture.id);
+  const stats = preserveUnderstatOverlays(mapped, existingStats ?? []);
   const { error: statsErr } = await supabase
     .from("glpm_match_team_stats")
     .upsert(stats, { onConflict: "match_sm_id,team_sm_id" });

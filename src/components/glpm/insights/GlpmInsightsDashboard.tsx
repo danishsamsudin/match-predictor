@@ -3,17 +3,23 @@
 import { useMemo, useState } from "react";
 import { InsightCard } from "@/components/glpm/insights/InsightCard";
 import {
-  AreaTrendChart,
-  BubbleScatterChart,
   CHART_COLORS,
-  DivergingDeltaBars,
+  BttsPanel,
+  CxFactorPanel,
+  DomainCompareList,
+  DoubleChanceList,
   DualRadarChart,
   EdgeBars,
+  FinishingCompare,
   GroupedCompareBars,
   KpiMeter,
+  MatchupTugList,
   OutcomeDonut,
   OuLadderBars,
-  WaterfallBars,
+  RestDaysCompare,
+  StyleClashPills,
+  TeamTotalsTable,
+  type CxFactorStep,
 } from "@/components/glpm/insights/charts";
 import { InfoTip } from "@/components/ui/InfoTip";
 import type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";
@@ -24,9 +30,13 @@ import {
   ATTACK_DOMAINS,
   DEFENCE_DOMAINS,
   GK_DOMAINS,
+  isSharedCeiling,
 } from "@/lib/glpm/load-insight-ratings";
 import {
   deriveMarketsFromScoreMatrix,
+  inferStyleLabels,
+  sliceScoreMatrix,
+  SCORE_HEATMAP_MAX_GOALS,
 } from "@/lib/glpm-cx/derived-markets";
 import { computeValueEdges } from "@/lib/prediction/odds-value";
 
@@ -51,67 +61,92 @@ function ScoreHeatmap({
   homeLabel: string;
   awayLabel: string;
 }) {
-  const flat = matrix.flat();
-  const maxP = Math.max(...flat, 1e-9);
+  const { grid, tailMass } = sliceScoreMatrix(matrix, SCORE_HEATMAP_MAX_GOALS);
+  const maxP = Math.max(...grid.flat(), 1e-9);
   const top: Array<{ h: number; a: number; p: number }> = [];
   for (let h = 0; h < matrix.length; h++) {
-    for (let a = 0; a < matrix[h].length; a++) {
+    for (let a = 0; a < (matrix[h]?.length ?? 0); a++) {
       top.push({ h, a, p: matrix[h][a] });
     }
   }
   top.sort((x, y) => y.p - x.p);
   const top5 = top.slice(0, 5);
+  const topMax = top5[0]?.p ?? 1e-9;
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-x-auto">
-        <table className="mx-auto border-collapse text-[10px] sm:text-xs">
-          <thead>
-            <tr>
-              <th className="p-1 text-muted">
-                {homeLabel.slice(0, 3)}\{awayLabel.slice(0, 3)}
-              </th>
-              {matrix[0]?.map((_, a) => (
-                <th key={a} className="p-1 font-medium tabular-nums text-muted">
-                  {a}
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)] lg:items-start">
+      <div>
+        <p className="mb-2 text-[11px] text-muted">
+          Home goals down the side, away across the top.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="mx-auto border-collapse text-[10px] sm:text-xs">
+            <thead>
+              <tr>
+                <th className="p-1 text-muted">
+                  {homeLabel.slice(0, 3)}\{awayLabel.slice(0, 3)}
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {matrix.map((row, h) => (
-              <tr key={h}>
-                <th className="p-1 font-medium tabular-nums text-muted">{h}</th>
-                {row.map((p, a) => {
-                  const intensity = p / maxP;
-                  return (
-                    <td key={a} className="p-0.5" title={`${h}-${a}: ${pct(p)}`}>
-                      <div
-                        className="flex h-7 w-7 items-center justify-center rounded-sm tabular-nums sm:h-8 sm:w-8"
-                        style={{
-                          backgroundColor: `color-mix(in srgb, var(--color-primary, #0ea5e9) ${Math.round(intensity * 85)}%, transparent)`,
-                          color: intensity > 0.55 ? "white" : undefined,
-                        }}
-                      >
-                        {(p * 100).toFixed(0)}
-                      </div>
-                    </td>
-                  );
-                })}
+                {grid[0]?.map((_, a) => (
+                  <th key={a} className="p-1 font-medium tabular-nums text-muted">
+                    {a}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {grid.map((row, h) => (
+                <tr key={h}>
+                  <th className="p-1 font-medium tabular-nums text-muted">{h}</th>
+                  {row.map((p, a) => {
+                    const intensity = p / maxP;
+                    return (
+                      <td key={a} className="p-0.5" title={`${h}-${a}: ${pct(p)}`}>
+                        <div
+                          className="flex h-8 w-8 items-center justify-center rounded-md tabular-nums sm:h-9 sm:w-9"
+                          style={{
+                            backgroundColor: `color-mix(in srgb, var(--color-primary, #0ea5e9) ${Math.round(intensity * 85)}%, transparent)`,
+                            color: intensity > 0.55 ? "white" : undefined,
+                          }}
+                        >
+                          {(p * 100).toFixed(1)}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {tailMass > 0.004 ? (
+          <p className="mt-2 text-center text-[11px] text-muted">
+            5+ goals on either side: {pct(tailMass)} combined
+          </p>
+        ) : null}
       </div>
-      <div className="flex flex-wrap gap-2">
-        {top5.map((s) => (
-          <span
-            key={`${s.h}-${s.a}`}
-            className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium tabular-nums dark:bg-slate-800"
-          >
-            {s.h}-{s.a} · {pct(s.p)}
-          </span>
-        ))}
+      <div className="rounded-2xl border border-glass-border bg-surface/50 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+          Most likely scorelines
+        </p>
+        <ol className="mt-3 space-y-2.5">
+          {top5.map((s, i) => (
+            <li key={`${s.h}-${s.a}`} className="flex items-center gap-3">
+              <span className="w-4 text-[11px] tabular-nums text-muted">{i + 1}</span>
+              <span className="w-12 text-sm font-bold tabular-nums text-foreground">
+                {s.h}-{s.a}
+              </span>
+              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/10">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${(s.p / topMax) * 100}%` }}
+                />
+              </div>
+              <span className="w-14 text-right text-xs font-medium tabular-nums">
+                {pct(s.p)}
+              </span>
+            </li>
+          ))}
+        </ol>
       </div>
     </div>
   );
@@ -325,42 +360,77 @@ export function GlpmInsightsDashboard({
     away: payload.base.awayTeam.ratings[key],
   }));
 
-  const domainBars = [
-    ...ATTACK_DOMAINS.map((d) => ({
-      name: `Atk ${d}`,
-      home: payload.insights.home.domains[d] ?? 0,
-      away: payload.insights.away.domains[d] ?? 0,
-    })),
-    ...DEFENCE_DOMAINS.map((d) => ({
-      name: `Def ${d}`,
-      home: payload.insights.home.domains[d] ?? 0,
-      away: payload.insights.away.domains[d] ?? 0,
-    })),
-    ...GK_DOMAINS.map((d) => ({
-      name: `GK ${d.replace(/_/g, " ")}`,
-      home: payload.insights.home.domains[d] ?? 0,
-      away: payload.insights.away.domains[d] ?? 0,
-    })),
-  ].filter((r) => r.home > 0 || r.away > 0);
+  const hiddenDomains: string[] = [];
+  const domainGroups = [
+    {
+      title: "Attack",
+      rows: ATTACK_DOMAINS.map((d) => ({
+        name: d[0].toUpperCase() + d.slice(1),
+        home: payload.insights.home.domains[d] ?? 0,
+        away: payload.insights.away.domains[d] ?? 0,
+      })).filter((r) => {
+        if (r.home <= 0 && r.away <= 0) return false;
+        if (isSharedCeiling(r.home, r.away)) {
+          hiddenDomains.push(r.name);
+          return false;
+        }
+        return true;
+      }),
+    },
+    {
+      title: "Defence",
+      rows: DEFENCE_DOMAINS.map((d) => ({
+        name: d[0].toUpperCase() + d.slice(1),
+        home: payload.insights.home.domains[d] ?? 0,
+        away: payload.insights.away.domains[d] ?? 0,
+      })).filter((r) => {
+        if (r.home <= 0 && r.away <= 0) return false;
+        if (isSharedCeiling(r.home, r.away)) {
+          hiddenDomains.push(r.name);
+          return false;
+        }
+        return true;
+      }),
+    },
+    {
+      title: "Goalkeeper",
+      rows: GK_DOMAINS.map((d) => ({
+        name: d === "goal_prevention" ? "Shot stopping" : "Involvement",
+        home: payload.insights.home.domains[d] ?? 0,
+        away: payload.insights.away.domains[d] ?? 0,
+      })).filter((r) => {
+        if (r.home <= 0 && r.away <= 0) return false;
+        if (isSharedCeiling(r.home, r.away)) {
+          hiddenDomains.push(r.name);
+          return false;
+        }
+        return true;
+      }),
+    },
+  ].filter((g) => g.rows.length);
 
   const interactionData = [
     {
-      name: "ATK-DEF",
+      name: "Attack vs Defence",
+      detail: "Home attack against away defence, and the reverse.",
       home: payload.base.interactions.home.attack_defence,
       away: payload.base.interactions.away.attack_defence,
     },
     {
-      name: "FIN-GK",
+      name: "Finishing vs Goalkeeper",
+      detail: "Chance conversion against the opponent keeper.",
       home: payload.base.interactions.home.finishing_goalkeeper,
       away: payload.base.interactions.away.finishing_goalkeeper,
     },
     {
-      name: "BU-PRS",
+      name: "Build-up vs Pressing",
+      detail: "Progression against the opponent's press.",
       home: payload.base.interactions.home.build_up_pressing,
       away: payload.base.interactions.away.build_up_pressing,
     },
     {
-      name: "POSS-PRS",
+      name: "Possession vs Pressing",
+      detail: "Territory control against the opponent's press.",
       home: payload.base.interactions.home.possession_pressing,
       away: payload.base.interactions.away.possession_pressing,
     },
@@ -374,56 +444,86 @@ export function GlpmInsightsDashboard({
       under: probs.under * 100,
     }));
 
-  const homeWaterfall: Array<{ name: string; value: number; fill?: string }> = (() => {
-    const h = payload.apply.home;
-    let running = h.baseXg;
-    const steps: Array<{ name: string; value: number; fill?: string }> = [
-      { name: "Base", value: running, fill: CHART_COLORS.home },
+  const buildCxSteps = (
+    side: typeof payload.apply.home,
+    travelKm: number,
+    restDays: number | null,
+    restNote: string | null,
+    weatherSummary: string | null,
+    lineupSummary: string
+  ): CxFactorStep[] => {
+    const factors: Array<{ name: string; multiplier: number; detail: string }> = [
+      {
+        name: "Rest",
+        multiplier: side.restMult,
+        detail:
+          restNote ??
+          `${restDays != null ? `${restDays.toFixed(1)} days` : "baseline"} since last match`,
+      },
+      {
+        name: "Travel",
+        multiplier: side.travelMult,
+        detail: `${Math.round(travelKm)} km to the venue (penalty only above 500 km)`,
+      },
+      {
+        name: "Altitude",
+        multiplier: side.altitudeMult,
+        detail:
+          payload.context.venueAltitudeM != null
+            ? `${Math.round(payload.context.venueAltitudeM)} m`
+            : "No venue altitude on file",
+      },
+      {
+        name: "Weather",
+        multiplier: side.weatherMult,
+        detail: weatherSummary ?? "No forecast nudge (needs heavy rain or high wind)",
+      },
+      {
+        name: "Lineup",
+        multiplier: side.lineupMult,
+        detail: lineupSummary,
+      },
     ];
-    const mults: Array<[string, number]> = [
-      ["Rest", h.restMult],
-      ["Travel", h.travelMult],
-      ["Alt", h.altitudeMult],
-      ["Weather", h.weatherMult],
-      ["Lineup", h.lineupMult],
+    let running = side.baseXg;
+    const steps: CxFactorStep[] = [
+      {
+        name: "GLPM base xG",
+        multiplier: 1,
+        xg: running,
+        delta: 0,
+        detail: "Frozen club model before context",
+      },
     ];
-    for (const [name, m] of mults) {
-      running *= m;
+    for (const f of factors) {
+      const next = running * f.multiplier;
       steps.push({
-        name,
-        value: running,
-        fill: m >= 1 ? CHART_COLORS.positive : CHART_COLORS.negative,
+        name: f.name,
+        multiplier: f.multiplier,
+        xg: next,
+        delta: next - running,
+        detail: f.detail,
       });
+      running = next;
     }
     return steps;
-  })();
+  };
 
-  const finishingBubble = [
-    payload.insights.homeFinishingDelta
-      ? {
-          name: homeLabel,
-          x: payload.insights.homeFinishingDelta.xg,
-          y: payload.insights.homeFinishingDelta.delta,
-          z: payload.insights.homeFinishingDelta.matches,
-          fill: CHART_COLORS.home,
-        }
-      : null,
-    payload.insights.awayFinishingDelta
-      ? {
-          name: awayLabel,
-          x: payload.insights.awayFinishingDelta.xg,
-          y: payload.insights.awayFinishingDelta.delta,
-          z: payload.insights.awayFinishingDelta.matches,
-          fill: CHART_COLORS.away,
-        }
-      : null,
-  ].filter(Boolean) as Array<{
-    name: string;
-    x: number;
-    y: number;
-    z: number;
-    fill?: string;
-  }>;
+  const homeCxSteps = buildCxSteps(
+    payload.apply.home,
+    payload.context.homeTravelKm,
+    payload.context.homeRestDays,
+    payload.context.homeRestNote ?? null,
+    payload.context.weatherSummary,
+    payload.lineup.summary
+  );
+  const awayCxSteps = buildCxSteps(
+    payload.apply.away,
+    payload.context.awayTravelKm,
+    payload.context.awayRestDays,
+    payload.context.awayRestNote ?? null,
+    payload.context.weatherSummary,
+    payload.lineup.summary
+  );
 
   const vsStyleBars = [
     ...payload.insights.homeVsStyle.slice(0, 4).map((r) => ({
@@ -438,10 +538,39 @@ export function GlpmInsightsDashboard({
     })),
   ];
 
-  const restSpark = [
-    { label: "H rest", days: payload.context.homeRestDays ?? 7 },
-    { label: "A rest", days: payload.context.awayRestDays ?? 7 },
-  ].map((r) => ({ label: r.label, days: r.days }));
+  const homeStyleLabels = inferStyleLabels({
+    labels: payload.base.homeTeam.style?.labels ?? [],
+    ratings: payload.base.homeTeam.ratings,
+    avgPossession: payload.base.homeTeam.style?.avgPossession ?? null,
+    avgPpda: payload.base.homeTeam.style?.avgPpda ?? null,
+  });
+  const awayStyleLabels = inferStyleLabels({
+    labels: payload.base.awayTeam.style?.labels ?? [],
+    ratings: payload.base.awayTeam.ratings,
+    avgPossession: payload.base.awayTeam.style?.avgPossession ?? null,
+    avgPpda: payload.base.awayTeam.style?.avgPpda ?? null,
+  });
+
+  const setPieceMissing =
+    payload.insights.home.setPieceThreat == null &&
+    payload.insights.away.setPieceThreat == null &&
+    payload.insights.home.setPieceDefence == null &&
+    payload.insights.away.setPieceDefence == null;
+  const setPieceNoSignal =
+    !setPieceMissing &&
+    isSharedCeiling(
+      payload.insights.home.setPieceThreat ?? 0,
+      payload.insights.away.setPieceThreat ?? 0
+    ) &&
+    isSharedCeiling(
+      payload.insights.home.setPieceDefence ?? 0,
+      payload.insights.away.setPieceDefence ?? 0
+    );
+  const hasStyleMetrics =
+    payload.base.homeTeam.style?.avgPossession != null ||
+    payload.base.homeTeam.style?.avgPpda != null ||
+    payload.base.awayTeam.style?.avgPossession != null ||
+    payload.base.awayTeam.style?.avgPpda != null;
 
   return (
     <div className="liquid-glass-panel overflow-hidden rounded-2xl sm:rounded-[2rem]">
@@ -496,12 +625,6 @@ export function GlpmInsightsDashboard({
         <InsightCard
           title="Match overview"
           glossaryKey="homeAwayXg"
-          howToRead="Donut shows 1X2 share. KPI tiles show projected xG for each side under the selected model."
-          badge={
-            <InfoTip label={GLPM_CX_GLOSSARY.proxyHonesty.label}>
-              {glossaryTipBody("proxyHonesty")}
-            </InfoTip>
-          }
         >
           <div className="grid gap-4 lg:grid-cols-2">
             <OutcomeDonut
@@ -549,150 +672,182 @@ export function GlpmInsightsDashboard({
         </InsightCard>
 
         {useCx ? (
-          <InsightCard
-            title="CX xG waterfall (home)"
-            glossaryKey="xgWaterfall"
-            howToRead="Each bar is cumulative home xG after applying the next CX multiplier. Starts from frozen GLPM base xG."
-          >
-            <WaterfallBars data={homeWaterfall} />
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiMeter
-                label="Home rest days"
-                value={
-                  payload.context.homeRestDays != null
-                    ? fmt(payload.context.homeRestDays, 1)
-                    : "-"
-                }
-                hint={`× ${fmt(payload.apply.home.restMult, 3)}`}
-              />
-              <KpiMeter
-                label="Away travel km"
-                value={fmt(payload.context.awayTravelKm, 0)}
-                hint={`× ${fmt(payload.apply.away.travelMult, 3)}`}
-                accent="accent"
-              />
-              <KpiMeter
-                label="Weather"
-                value={payload.context.weatherSummary ?? "TBC"}
-                hint={`× ${fmt(payload.apply.home.weatherMult, 3)}`}
-              />
-              <KpiMeter
-                label="Lineup"
-                value={payload.lineup.confirmed ? "Confirmed" : "Provisional"}
-                hint={payload.lineup.summary}
-              />
-            </div>
-            <div className="mt-3">
-              <AreaTrendChart
-                data={restSpark}
-                dataKey="days"
-                name="Rest days"
-                color={CHART_COLORS.home}
+          <InsightCard title="How context changes xG" glossaryKey="xgWaterfall">
+            <CxFactorPanel
+              homeSteps={homeCxSteps}
+              awaySteps={awayCxSteps}
+              homeLabel={homeLabel}
+              awayLabel={awayLabel}
+            />
+            <div className="mt-4">
+              <RestDaysCompare
+                homeDays={payload.context.homeRestDays}
+                awayDays={payload.context.awayRestDays}
+                homeNote={payload.context.homeRestNote ?? null}
+                awayNote={payload.context.awayRestNote ?? null}
+                homeLabel={homeLabel}
+                awayLabel={awayLabel}
+                estimated={payload.context.restIsEstimated ?? true}
               />
             </div>
           </InsightCard>
         ) : null}
 
-        <InsightCard
-          title="Primary ratings radar"
-          glossaryKey="primaryRadar"
-          howToRead="Larger area means a stronger multi-skill profile on the 0–100 GLPM scale."
-        >
+        <InsightCard title="Primary ratings radar" glossaryKey="primaryRadar">
           <DualRadarChart data={radarData} homeLabel={homeLabel} awayLabel={awayLabel} />
         </InsightCard>
 
-        {domainBars.length ? (
-          <InsightCard
-            title="Domain breakdown"
-            glossaryKey="domainBars"
-            howToRead="Compare attack/defence/GK sub-domains side by side. Missing domains stay at zero when not yet trained."
-          >
-            <GroupedCompareBars
-              data={domainBars}
+        {domainGroups.length ? (
+          <InsightCard title="Domain breakdown" glossaryKey="domainBars">
+            <DomainCompareList
+              groups={domainGroups}
               homeLabel={homeLabel}
               awayLabel={awayLabel}
             />
+            {hiddenDomains.length ? (
+              <p className="mt-3 text-[11px] text-muted">
+                Hidden (no trained signal): {hiddenDomains.join(", ")}.
+              </p>
+            ) : null}
+          </InsightCard>
+        ) : hiddenDomains.length ? (
+          <InsightCard title="Domain breakdown" glossaryKey="domainBars">
+            <p className="text-xs text-muted">
+              Sub-skill ratings for this pair are all at the shared 100 ceiling, so
+              there is nothing to compare yet.
+            </p>
           </InsightCard>
         ) : null}
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <InsightCard
-            title="Set-piece matchup"
-            glossaryKey="setPieceGauge"
-            howToRead="Home set-piece threat vs away set-piece defence (and the reverse)."
-          >
-            <GroupedCompareBars
-              data={[
-                {
-                  name: "SP threat",
-                  home: payload.insights.home.setPieceThreat ?? 0,
-                  away: payload.insights.away.setPieceThreat ?? 0,
-                },
-                {
-                  name: "SP defence",
-                  home: payload.insights.home.setPieceDefence ?? 0,
-                  away: payload.insights.away.setPieceDefence ?? 0,
-                },
-              ]}
-              homeLabel={homeLabel}
-              awayLabel={awayLabel}
-            />
+          <InsightCard title="Set-piece matchup" glossaryKey="setPieceGauge">
+            {setPieceMissing || setPieceNoSignal ? (
+              <p className="text-xs text-muted">
+                Not available yet. Shot-level set-piece flags are missing, so every
+                club is scored the same 100. That is not a real matchup.
+              </p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-xl border border-glass-border bg-surface/50 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                    Set-piece attack
+                  </p>
+                  <div className="mt-2 flex justify-between text-sm">
+                    <span className="text-primary">
+                      {homeLabel}{" "}
+                      <strong className="tabular-nums">
+                        {(payload.insights.home.setPieceThreat ?? 0).toFixed(1)}
+                      </strong>
+                    </span>
+                    <span className="text-accent">
+                      {awayLabel}{" "}
+                      <strong className="tabular-nums">
+                        {(payload.insights.away.setPieceThreat ?? 0).toFixed(1)}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-glass-border bg-surface/50 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                    Set-piece defence
+                  </p>
+                  <div className="mt-2 flex justify-between text-sm">
+                    <span className="text-primary">
+                      {homeLabel}{" "}
+                      <strong className="tabular-nums">
+                        {(payload.insights.home.setPieceDefence ?? 0).toFixed(1)}
+                      </strong>
+                    </span>
+                    <span className="text-accent">
+                      {awayLabel}{" "}
+                      <strong className="tabular-nums">
+                        {(payload.insights.away.setPieceDefence ?? 0).toFixed(1)}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </InsightCard>
 
-          <InsightCard
-            title="Style confrontation"
-            glossaryKey="styleMatchup"
-            howToRead="Badges highlight how the two tactical styles clash."
-          >
-            <div className="mb-3 flex flex-wrap gap-2">
-              {(payload.base.homeTeam.style?.labels ?? []).map((l) => (
-                <span
-                  key={`h-${l}`}
-                  className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] text-primary"
-                >
-                  {homeLabel}: {formatStyle(l)}
-                </span>
-              ))}
-              {(payload.base.awayTeam.style?.labels ?? []).map((l) => (
-                <span
-                  key={`a-${l}`}
-                  className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-[11px] text-accent"
-                >
-                  {awayLabel}: {formatStyle(l)}
-                </span>
-              ))}
+          <InsightCard title="Style confrontation" glossaryKey="styleMatchup">
+            <div className="mb-4 grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
+                  {homeLabel}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {homeStyleLabels.map((l) => (
+                    <span
+                      key={`h-${l}`}
+                      className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] text-primary"
+                    >
+                      {formatStyle(l)}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] tabular-nums text-muted">
+                  Poss{" "}
+                  {payload.base.homeTeam.style?.avgPossession != null
+                    ? `${payload.base.homeTeam.style.avgPossession.toFixed(0)}%`
+                    : "-"}
+                  {" · "}
+                  PPDA{" "}
+                  {payload.base.homeTeam.style?.avgPpda != null
+                    ? payload.base.homeTeam.style.avgPpda.toFixed(1)
+                    : "-"}
+                </p>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-accent">
+                  {awayLabel}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {awayStyleLabels.map((l) => (
+                    <span
+                      key={`a-${l}`}
+                      className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-[11px] text-accent"
+                    >
+                      {formatStyle(l)}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] tabular-nums text-muted">
+                  Poss{" "}
+                  {payload.base.awayTeam.style?.avgPossession != null
+                    ? `${payload.base.awayTeam.style.avgPossession.toFixed(0)}%`
+                    : "-"}
+                  {" · "}
+                  PPDA{" "}
+                  {payload.base.awayTeam.style?.avgPpda != null
+                    ? payload.base.awayTeam.style.avgPpda.toFixed(1)
+                    : "-"}
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              {payload.insights.styleMatchups.length ? (
-                payload.insights.styleMatchups.map((m) => (
-                  <p
-                    key={m.label}
-                    className="rounded-xl border border-glass-border bg-surface/60 px-3 py-2 text-sm font-medium"
-                  >
-                    {m.label}
-                  </p>
-                ))
-              ) : (
-                <p className="text-xs text-muted">No strong style clash flagged.</p>
-              )}
-            </div>
+            <StyleClashPills
+              clashes={payload.insights.styleMatchups}
+              formatLabel={formatStyle}
+            />
+            {!hasStyleMetrics ? (
+              <p className="mt-3 text-[11px] text-muted">
+                Possession and PPDA were not on the match stats for this season, so
+                labels are inferred from primary ratings.
+              </p>
+            ) : null}
           </InsightCard>
         </div>
 
-        <InsightCard
-          title="Matchup interactions"
-          glossaryKey="interactions"
-          howToRead="Positive Δ favours that side’s attacking pathway against the opponent’s corresponding weakness."
-        >
-          <DivergingDeltaBars data={interactionData} />
+        <InsightCard title="Matchup interactions" glossaryKey="interactions">
+          <MatchupTugList
+            data={interactionData}
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
+          />
         </InsightCard>
 
         {vsStyleBars.length ? (
-          <InsightCard
-            title="Historical lift vs opponent styles"
-            glossaryKey="vsStyleLift"
-            howToRead="Bars show % xG lift versus each opponent style relative to the team’s overall mean. Sample size is in the InfoTip data path."
-          >
+          <InsightCard title="Historical lift vs opponent styles" glossaryKey="vsStyleLift">
             <GroupedCompareBars
               data={vsStyleBars}
               homeLabel={`${homeLabel} lift %`}
@@ -716,68 +871,78 @@ export function GlpmInsightsDashboard({
           </InsightCard>
         ) : null}
 
-        {finishingBubble.length ? (
-          <InsightCard
-            title="Finishing differential"
-            glossaryKey="finishingDelta"
-            howToRead="X = season xG volume, Y = Goals − xG, bubble size = matches used. Above zero means overperforming chances."
-          >
-            <BubbleScatterChart
-              data={finishingBubble}
-              xLabel="Season xG"
-              yLabel="Goals − xG"
+        {payload.insights.homeFinishingDelta || payload.insights.awayFinishingDelta ? (
+          <InsightCard title="Finishing differential" glossaryKey="finishingDelta">
+            <FinishingCompare
+              home={payload.insights.homeFinishingDelta}
+              away={payload.insights.awayFinishingDelta}
+              homeLabel={homeLabel}
+              awayLabel={awayLabel}
             />
           </InsightCard>
-        ) : null}
+        ) : (
+          <InsightCard title="Finishing differential" glossaryKey="finishingDelta">
+            <p className="text-xs text-muted">
+              No season goals and xG are available for this pair yet. The Finishing
+              axis on the radar still reflects the trained rating.
+            </p>
+          </InsightCard>
+        )}
 
-        <InsightCard
-          title="Goal markets"
-          glossaryKey="overUnder"
-          howToRead="Paired bars show over vs under probability for each total-goals line."
-        >
+        <InsightCard title="Goal markets" glossaryKey="overUnder">
           <OuLadderBars data={ouData} />
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-glass-border bg-surface/60 p-3">
-              <div className="mb-1 flex items-center gap-2">
-                <p className="text-xs font-medium uppercase text-muted">BTTS</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:items-stretch">
+            <div className="rounded-xl border border-glass-border bg-surface/50 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                  BTTS
+                </p>
                 <InfoTip label={GLPM_CX_GLOSSARY.btts.label}>
                   {glossaryTipBody("btts")}
                 </InfoTip>
               </div>
-              <p className="text-sm">
-                Yes <strong className="tabular-nums">{pct(markets.bttsYes)}</strong>
-                <span className="mx-2 text-muted">·</span>
-                No <strong className="tabular-nums">{pct(markets.bttsNo)}</strong>
-              </p>
+              <BttsPanel yes={markets.bttsYes} no={markets.bttsNo} />
             </div>
-            <div className="rounded-xl border border-glass-border bg-surface/60 p-3">
-              <div className="mb-1 flex items-center gap-2">
-                <p className="text-xs font-medium uppercase text-muted">Double chance</p>
+            <div className="rounded-xl border border-glass-border bg-surface/50 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                  Double chance
+                </p>
                 <InfoTip label={GLPM_CX_GLOSSARY.doubleChance.label}>
                   {glossaryTipBody("doubleChance")}
                 </InfoTip>
               </div>
-              <p className="text-sm tabular-nums">
-                1X {pct(payload.cx.derived.doubleChance.homeOrDraw)} · 12{" "}
-                {pct(payload.cx.derived.doubleChance.homeOrAway)} · X2{" "}
-                {pct(payload.cx.derived.doubleChance.drawOrAway)}
-              </p>
+              <DoubleChanceList
+                rows={[
+                  {
+                    code: "1X",
+                    label: "Home or draw",
+                    prob: payload.cx.derived.doubleChance.homeOrDraw,
+                  },
+                  {
+                    code: "12",
+                    label: "Either team wins",
+                    prob: payload.cx.derived.doubleChance.homeOrAway,
+                  },
+                  {
+                    code: "X2",
+                    label: "Draw or away",
+                    prob: payload.cx.derived.doubleChance.drawOrAway,
+                  },
+                ]}
+              />
             </div>
           </div>
         </InsightCard>
 
-        <InsightCard
-          title="Asian handicap & team totals"
-          glossaryKey="asianHandicap"
-          howToRead="Cover probabilities from the score matrix. Team totals use each side’s goal margin from the same matrix."
-        >
+        <InsightCard title="Asian handicap & team totals" glossaryKey="asianHandicap">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[28rem] text-sm">
               <thead>
-                <tr className="border-b border-glass-border text-[11px] uppercase text-muted">
-                  <th className="py-2 text-left">AH line</th>
-                  <th className="py-2 text-left">Home cover</th>
-                  <th className="py-2 text-left">Away cover</th>
+                <tr className="border-b border-glass-border text-[11px] font-medium uppercase tracking-wide text-muted">
+                  <th className="py-2 text-left font-medium">AH line</th>
+                  <th className="py-2 text-left font-medium">Home cover</th>
+                  <th className="py-2 text-left font-medium">Away cover</th>
                 </tr>
               </thead>
               <tbody>
@@ -793,29 +958,19 @@ export function GlpmInsightsDashboard({
               </tbody>
             </table>
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            {payload.cx.derived.teamTotals.map((t) => (
-              <div
-                key={t.line}
-                className="rounded-xl border border-glass-border bg-surface/60 p-3 text-xs"
-              >
-                <p className="font-medium text-muted">Team total {t.line}</p>
-                <p className="mt-1 tabular-nums">
-                  {homeLabel} O {pct(t.homeOver)} / U {pct(t.homeUnder)}
-                </p>
-                <p className="tabular-nums">
-                  {awayLabel} O {pct(t.awayOver)} / U {pct(t.awayUnder)}
-                </p>
-              </div>
-            ))}
+          <div className="mt-4">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
+              Team totals
+            </p>
+            <TeamTotalsTable
+              rows={payload.cx.derived.teamTotals}
+              homeLabel={homeLabel}
+              awayLabel={awayLabel}
+            />
           </div>
         </InsightCard>
 
-        <InsightCard
-          title="Score probability matrix"
-          glossaryKey="scoreHeatmap"
-          howToRead="Darker cells are more likely exact scores. Chips list the top five."
-        >
+        <InsightCard title="Score probability matrix" glossaryKey="scoreHeatmap">
           <ScoreHeatmap
             matrix={markets.scoreMatrix}
             homeLabel={homeLabel}
@@ -825,11 +980,7 @@ export function GlpmInsightsDashboard({
 
         <ValueOpportunitiesPanel payload={payload} useCx={useCx} />
 
-        <InsightCard
-          title="Corners & cards (satellite)"
-          glossaryKey="cornersCards"
-          howToRead="Expected match event totals from the satellite model - not part of GLPM ratings."
-        >
+        <InsightCard title="Corners & cards (satellite)" glossaryKey="cornersCards">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <KpiMeter
               label="Total corners"
@@ -856,11 +1007,7 @@ export function GlpmInsightsDashboard({
         </InsightCard>
 
         {payload.satellites.playerProps.lines.length ? (
-          <InsightCard
-            title="Player shots props (satellite)"
-            glossaryKey="playerProps"
-            howToRead="Expected shots / SoT for high-minute players with over-line probabilities."
-          >
+          <InsightCard title="Player shots props (satellite)" glossaryKey="playerProps">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[36rem] text-left text-sm">
                 <thead>
@@ -895,11 +1042,7 @@ export function GlpmInsightsDashboard({
           </InsightCard>
         ) : null}
 
-        <InsightCard
-          title="Season outrights (satellite)"
-          glossaryKey="seasonSim"
-          howToRead="Open the season sim API or hub tools to run full Monte Carlo outrights. Match-level CX probabilities are the building blocks."
-        >
+        <InsightCard title="Season outrights (satellite)" glossaryKey="seasonSim">
           <p className="text-xs text-muted">
             Use <code className="text-[11px]">POST /api/glpm/season-sim</code> with remaining
             fixtures and current standings. Simulations draw from GLPM or CX 1X2 probabilities and

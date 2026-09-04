@@ -4,11 +4,17 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase";
+import {
+  lookupUnderstatSeasonRow,
+  UNDERSTAT_PL_SEASON_ID,
+} from "@/lib/glpm/understat-season-table";
 
 type Client = SupabaseClient<Database>;
 
 export type DomainRatingMap = Record<string, number>;
 export type ComponentRatingMap = Record<string, number>;
+
+export type SetPieceSource = "component" | "domain" | "missing";
 
 export type TeamInsightRatings = {
   teamSmId: number;
@@ -18,6 +24,7 @@ export type TeamInsightRatings = {
   components: ComponentRatingMap;
   setPieceThreat: number | null;
   setPieceDefence: number | null;
+  setPieceSource: SetPieceSource;
 };
 
 async function latestDomainMap(
@@ -55,7 +62,7 @@ async function latestComponentMap(
     .eq("team_sm_id", teamSmId)
     .eq("season_id", seasonId)
     .order("as_of_date", { ascending: false })
-    .limit(300);
+    .limit(800);
 
   const components: ComponentRatingMap = {};
   for (const row of data ?? []) {
@@ -75,28 +82,80 @@ export async function loadTeamInsightRatings(
     latestComponentMap(client, opts.teamSmId, opts.seasonId),
   ]);
 
+  const threatFromComponent =
+    components.set_piece_threat != null && Number.isFinite(components.set_piece_threat)
+      ? components.set_piece_threat
+      : null;
+  const defenceFromComponent =
+    components.set_piece_defence != null && Number.isFinite(components.set_piece_defence)
+      ? components.set_piece_defence
+      : null;
+  const threatFromDomain =
+    domains.situational != null && Number.isFinite(domains.situational)
+      ? domains.situational
+      : null;
+  const defenceFromDomain =
+    domains.protection != null && Number.isFinite(domains.protection)
+      ? domains.protection
+      : null;
+
+  const hasComponents = threatFromComponent != null && defenceFromComponent != null;
+  const hasDomains = threatFromDomain != null || defenceFromDomain != null;
+
   return {
     teamSmId: opts.teamSmId,
     seasonId: opts.seasonId,
     asOfDate,
     domains,
     components,
-    setPieceThreat:
-      components.set_piece_threat != null && Number.isFinite(components.set_piece_threat)
-        ? components.set_piece_threat
-        : null,
-    setPieceDefence:
-      components.set_piece_defence != null && Number.isFinite(components.set_piece_defence)
-        ? components.set_piece_defence
-        : null,
+    setPieceThreat: threatFromComponent ?? threatFromDomain,
+    setPieceDefence: defenceFromComponent ?? defenceFromDomain,
+    setPieceSource: hasComponents ? "component" : hasDomains ? "domain" : "missing",
   };
 }
 
-/** Season Goals − xG from team-match stats (may be proxy xG). */
+export type FinishingSource = "understat" | "provider" | "proxy";
+
+export type FinishingDifferential = {
+  goals: number;
+  xg: number;
+  delta: number;
+  matches: number;
+  proxyMatches: number;
+  source: FinishingSource;
+};
+
+/** True when both sides sit on the calibrator ceiling (no trained variance). */
+export function isSharedCeiling(a: number, b: number, floor = 99.5): boolean {
+  return a >= floor && b >= floor && Math.abs(a - b) < 0.51;
+}
+
+/** Season Goals − xG. Prefers Understat season totals over shot-proxy match xG. */
 export async function loadFinishingDifferential(
   client: Client,
   opts: { teamSmId: number; seasonId: number }
-): Promise<{ goals: number; xg: number; delta: number; matches: number } | null> {
+): Promise<FinishingDifferential | null> {
+  const { data: team } = await client
+    .from("glpm_teams")
+    .select("name,official_name")
+    .eq("sm_id", opts.teamSmId)
+    .maybeSingle();
+  const understat =
+    opts.seasonId === UNDERSTAT_PL_SEASON_ID
+      ? lookupUnderstatSeasonRow(team?.name) ??
+        lookupUnderstatSeasonRow(team?.official_name)
+      : null;
+  if (understat) {
+    return {
+      goals: understat.goals,
+      xg: understat.xg,
+      delta: understat.goals - understat.xg,
+      matches: understat.matches,
+      proxyMatches: 0,
+      source: "understat",
+    };
+  }
+
   const { data: matches } = await client
     .from("glpm_matches")
     .select("sm_id")
@@ -109,21 +168,51 @@ export async function loadFinishingDifferential(
 
   const { data: rows } = await client
     .from("glpm_match_team_stats")
-    .select("goals,xg,match_sm_id")
+    .select("goals,xg,match_sm_id,payload")
     .eq("team_sm_id", opts.teamSmId)
     .in("match_sm_id", matchIds.slice(0, 500));
 
-  let goals = 0;
-  let xg = 0;
-  let n = 0;
+  let providerGoals = 0;
+  let providerXg = 0;
+  let providerN = 0;
+  let proxyGoals = 0;
+  let proxyXg = 0;
+  let proxyN = 0;
   for (const row of rows ?? []) {
-    if (row.goals == null && row.xg == null) continue;
-    goals += Number(row.goals ?? 0);
-    xg += Number(row.xg ?? 0);
-    n += 1;
+    if (row.goals == null || row.xg == null) continue;
+    const g = Number(row.goals);
+    const x = Number(row.xg);
+    if (!Number.isFinite(g) || !Number.isFinite(x)) continue;
+    const payload = row.payload as { xg_proxy?: boolean } | null;
+    if (payload?.xg_proxy === true) {
+      proxyGoals += g;
+      proxyXg += x;
+      proxyN += 1;
+    } else {
+      providerGoals += g;
+      providerXg += x;
+      providerN += 1;
+    }
   }
-  if (!n) return null;
-  return { goals, xg, delta: goals - xg, matches: n };
+  if (providerN > 0) {
+    return {
+      goals: providerGoals,
+      xg: providerXg,
+      delta: providerGoals - providerXg,
+      matches: providerN,
+      proxyMatches: 0,
+      source: "provider",
+    };
+  }
+  if (!proxyN) return null;
+  return {
+    goals: proxyGoals,
+    xg: proxyXg,
+    delta: proxyGoals - proxyXg,
+    matches: proxyN,
+    proxyMatches: proxyN,
+    source: "proxy",
+  };
 }
 
 export const ATTACK_DOMAINS = ["creation", "progression", "situational"] as const;

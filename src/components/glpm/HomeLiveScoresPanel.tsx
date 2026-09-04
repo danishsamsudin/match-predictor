@@ -10,6 +10,7 @@ import type {
   LiveScoreTimelineEvent,
   LiveScoresBoardPayload,
 } from "@/lib/glpm/live-scores/types";
+import { HomeMatchdayResults } from "./HomeMatchdayResults";
 
 function TeamSide({
   name,
@@ -384,6 +385,21 @@ function LiveScoreCard({ match }: { match: LiveScoreMatch }) {
 
 export function HomeLiveScoresPanel({ board }: { board: LiveScoresBoardPayload }) {
   const isPreview = board.source === "placeholder";
+  const liveMatches = board.matches;
+  const finishedToday = board.finishedToday ?? [];
+  const yesterday = board.yesterday ?? [];
+  const hasLive = liveMatches.length > 0;
+  const hasResults = finishedToday.length > 0 || yesterday.length > 0;
+
+  const intro = isPreview
+    ? "Preview layout. Expand a live card for scorers, cards, and stats. Finished matches stay below."
+    : hasLive
+      ? "In-play fixtures with a live timeline. Finished matches from today stay below with scorers."
+      : finishedToday.length > 0
+        ? "No matches in play. Today's final scores are below, with scorers and times."
+        : hasResults
+          ? "No live matches right now. Yesterday's scores are below."
+          : "No live matches right now. Check back around kickoff for scorers, cards, and live stats.";
 
   return (
     <div className="liquid-glass-panel rounded-2xl p-4 sm:p-5">
@@ -399,21 +415,24 @@ export function HomeLiveScoresPanel({ board }: { board: LiveScoresBoardPayload }
           </span>
         ) : null}
       </div>
-      <p className="mb-4 text-sm text-muted">
-        {isPreview
-          ? "No live matches right now. Expand a card for scorers, cards, and live stats."
-          : "In-play fixtures with a live timeline. Expand any match for scorers and stats."}
-      </p>
+      <p className="mb-4 text-sm text-muted">{intro}</p>
 
-      {board.matches.length === 0 ? (
-        <p className="text-sm text-muted">No live matches at the moment.</p>
-      ) : (
+      {hasLive ? (
         <div className="grid gap-3 sm:gap-4">
-          {board.matches.map((match) => (
+          {liveMatches.map((match) => (
             <LiveScoreCard key={match.matchSmId} match={match} />
           ))}
         </div>
+      ) : hasResults ? null : (
+        <p className="text-sm text-muted">No live matches at the moment.</p>
       )}
+
+      <HomeMatchdayResults
+        finishedToday={finishedToday}
+        yesterday={yesterday}
+        todayDate={board.todayDate}
+        yesterdayDate={board.yesterdayDate}
+      />
     </div>
   );
 }

@@ -34,6 +34,7 @@
 # Local FBref / FIFA scrape exports (not committed)
 /data/imports/fbref/**/*.html
 /data/imports/fbref/**/*.htm
+/data/imports/statz/**/*.html
 /data/imports/fifa/**/*
 !/data/imports/fifa/**/.gitkeep
 !/data/imports/fifa/fifa-rankings-2026.json

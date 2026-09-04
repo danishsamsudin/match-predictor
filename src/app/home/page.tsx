@@ -10,8 +10,7 @@ import { loadGlpmHubCatalogCached } from "@/lib/glpm/hub-catalog";
 import { loadGlpmHubPayloadCached } from "@/lib/glpm/hub-load-cached";
 import type { GlpmHubPayload } from "@/lib/glpm/hub-load";
 import { getGlpmLeagueStrength } from "@/lib/glpm/league-strength";
-import { loadLiveScoresBoard } from "@/lib/glpm/live-scores/load";
-import { placeholderLiveScoresBoard } from "@/lib/glpm/live-scores/placeholders";
+import { emptyLiveScoresBoard, loadLiveScoresBoard } from "@/lib/glpm/live-scores/load";
 import type { LiveScoresBoardPayload } from "@/lib/glpm/live-scores/types";
 import {
   loadGlpmStandingsForCompetition,
@@ -19,6 +18,9 @@ import {
 } from "@/lib/glpm/load-standings";
 import { loadPredictionHistoryFeed } from "@/lib/prediction/load-history-feed";
 import { pickFixtureSeasonId } from "@/lib/glpm/season-ready";
+
+/** Live scores use request-time kickoff windows; do not prerender a stale board. */
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: `Home | ${BRAND_NAME}`,
@@ -112,39 +114,62 @@ async function loadStandingsBlocks(
   );
 }
 
+const EMPTY_LEAGUE_BLOCKS: HomeLeagueBlock[] = TARGET_LEAGUES.map((name) => ({
+  leagueName: name,
+  payload: null,
+}));
+
+const EMPTY_STANDINGS_BLOCKS: GlpmLeagueStandings[] = TARGET_LEAGUES.map((name) => ({
+  leagueName: name,
+  competitionId: null,
+  seasonId: null,
+  seasonName: null,
+  rows: [],
+}));
+
 export default async function HomePage() {
-  let leagueBlocks: HomeLeagueBlock[] = [];
-  let standingsBlocks: GlpmLeagueStandings[] = [];
+  let leagueBlocks: HomeLeagueBlock[] = EMPTY_LEAGUE_BLOCKS;
+  let standingsBlocks: GlpmLeagueStandings[] = EMPTY_STANDINGS_BLOCKS;
   let history = [] as Awaited<ReturnType<typeof loadPredictionHistoryFeed>>;
-  let liveScores: LiveScoresBoardPayload = placeholderLiveScoresBoard();
+  let liveScores: LiveScoresBoardPayload = emptyLiveScoresBoard();
   let updatedAt: string | null = null;
 
   try {
     const client = getClient();
-    // League hubs, standings, history, and live scores in parallel (catalog is cached).
-    const [blocks, historyFeed, liveBoard] = await Promise.all([
+    // Isolate live scores from hub/history failures so a catalog error
+    // cannot replace the board with demo placeholder cards.
+    const [blocksResult, historyResult, liveResult] = await Promise.allSettled([
       loadLeagueBlocks(),
       loadPredictionHistoryFeed(client, 6),
       loadLiveScoresBoard(client),
     ]);
-    leagueBlocks = blocks;
-    const standings = await loadStandingsBlocks(client, leagueBlocks);
-    standingsBlocks = standings;
-    history = historyFeed;
-    liveScores = liveBoard;
-    updatedAt =
-      leagueBlocks.find((block) => block.payload?.updatedAt)?.payload?.updatedAt ?? null;
-  } catch {
-    leagueBlocks = TARGET_LEAGUES.map((name) => ({ leagueName: name, payload: null }));
-    standingsBlocks = TARGET_LEAGUES.map((name) => ({
-      leagueName: name,
-      competitionId: null,
-      seasonId: null,
-      seasonName: null,
-      rows: [],
-    }));
-    history = [];
-    liveScores = placeholderLiveScoresBoard();
+
+    if (blocksResult.status === "fulfilled") {
+      leagueBlocks = blocksResult.value;
+      try {
+        standingsBlocks = await loadStandingsBlocks(client, leagueBlocks);
+      } catch (error) {
+        console.warn("[home] standings load failed", error);
+      }
+      updatedAt =
+        leagueBlocks.find((block) => block.payload?.updatedAt)?.payload?.updatedAt ?? null;
+    } else {
+      console.warn("[home] league blocks load failed", blocksResult.reason);
+    }
+
+    if (historyResult.status === "fulfilled") {
+      history = historyResult.value;
+    } else {
+      console.warn("[home] history load failed", historyResult.reason);
+    }
+
+    if (liveResult.status === "fulfilled") {
+      liveScores = liveResult.value;
+    } else {
+      console.warn("[home] live scores load failed", liveResult.reason);
+    }
+  } catch (error) {
+    console.warn("[home] load failed", error);
   }
 
   const fixturesLeagues = leagueBlocks.map((block) => ({

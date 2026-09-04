@@ -1,6 +1,8 @@
 import { resolveTeamLogo } from "@/lib/data/team-logos";
 import { SM_LEAGUE } from "@/lib/sportmonks/constants";
+import { scoreboardCalendar } from "./board";
 import { formatRoundLabel, leagueMetaForId } from "./league-meta";
+import { emptySideMetrics } from "./map-timeline";
 import type { LiveScoreMatch, LiveScoresBoardPayload } from "./types";
 
 function logoFor(name: string): string | null {
@@ -267,9 +269,156 @@ export function buildLiveScorePlaceholders(): LiveScoreMatch[] {
   ];
 }
 
+function buildFinishedTodayPlaceholders(): LiveScoreMatch[] {
+  const pl = leagueMetaForId(SM_LEAGUE.PREMIER_LEAGUE);
+  const bund = leagueMetaForId(SM_LEAGUE.BUNDESLIGA);
+  return [
+    {
+      matchSmId: -2001,
+      leagueName: pl.name,
+      countryIso: pl.countryIso,
+      countryName: pl.countryName,
+      stadiumName: "Anfield",
+      gameweek: 3,
+      roundLabel: formatRoundLabel(3),
+      homeTeamName: "Liverpool",
+      awayTeamName: "Everton",
+      homeTeamSmId: 8,
+      awayTeamSmId: 7,
+      homeLogoUrl: logoFor("Liverpool"),
+      awayLogoUrl: logoFor("Everton"),
+      homeScore: 2,
+      awayScore: 1,
+      statusLabel: "FT",
+      minute: 90,
+      durationMinutes: 90,
+      kickoffAt: null,
+      isPlaceholder: true,
+      timeline: [
+        {
+          id: 31,
+          kind: "goal",
+          side: "home",
+          minute: 18,
+          extraMinute: null,
+          clockLabel: "18'",
+          playerName: "Salah",
+          relatedPlayerName: "Szoboszlai",
+          info: null,
+        },
+        {
+          id: 32,
+          kind: "goal",
+          side: "away",
+          minute: 44,
+          extraMinute: null,
+          clockLabel: "44'",
+          playerName: "Ndiaye",
+          relatedPlayerName: null,
+          info: null,
+        },
+        {
+          id: 33,
+          kind: "goal",
+          side: "home",
+          minute: 79,
+          extraMinute: null,
+          clockLabel: "79'",
+          playerName: "Díaz",
+          relatedPlayerName: "Mac Allister",
+          info: null,
+        },
+      ],
+      homeMetrics: emptySideMetrics(),
+      awayMetrics: emptySideMetrics(),
+    },
+    {
+      matchSmId: -2002,
+      leagueName: bund.name,
+      countryIso: bund.countryIso,
+      countryName: bund.countryName,
+      stadiumName: "Allianz Arena",
+      gameweek: 2,
+      roundLabel: formatRoundLabel(2),
+      homeTeamName: "Bayern Munich",
+      awayTeamName: "Dortmund",
+      homeTeamSmId: 503,
+      awayTeamSmId: 68,
+      homeLogoUrl: logoFor("Bayern Munich"),
+      awayLogoUrl: logoFor("Dortmund"),
+      homeScore: 0,
+      awayScore: 0,
+      statusLabel: "FT",
+      minute: 90,
+      durationMinutes: 90,
+      kickoffAt: null,
+      isPlaceholder: true,
+      timeline: [],
+      homeMetrics: emptySideMetrics(),
+      awayMetrics: emptySideMetrics(),
+    },
+  ];
+}
+
+function yesterdayChip(
+  id: number,
+  leagueId: number,
+  home: string,
+  away: string,
+  homeSmId: number,
+  awaySmId: number,
+  homeScore: number,
+  awayScore: number
+): LiveScoreMatch {
+  const meta = leagueMetaForId(leagueId);
+  return {
+    matchSmId: id,
+    leagueName: meta.name,
+    countryIso: meta.countryIso,
+    countryName: meta.countryName,
+    stadiumName: "Stadium",
+    gameweek: 2,
+    roundLabel: formatRoundLabel(2),
+    homeTeamName: home,
+    awayTeamName: away,
+    homeTeamSmId: homeSmId,
+    awayTeamSmId: awaySmId,
+    homeLogoUrl: logoFor(home),
+    awayLogoUrl: logoFor(away),
+    homeScore,
+    awayScore,
+    statusLabel: "FT",
+    minute: 90,
+    durationMinutes: 90,
+    kickoffAt: null,
+    isPlaceholder: true,
+    timeline: [],
+    homeMetrics: emptySideMetrics(),
+    awayMetrics: emptySideMetrics(),
+  };
+}
+
+function buildYesterdayPlaceholders(): LiveScoreMatch[] {
+  return [
+    yesterdayChip(-3001, SM_LEAGUE.PREMIER_LEAGUE, "Arsenal", "Fulham", 19, 11, 3, 1),
+    yesterdayChip(-3002, SM_LEAGUE.PREMIER_LEAGUE, "Chelsea", "West Ham", 18, 1, 2, 1),
+    yesterdayChip(-3003, SM_LEAGUE.CHAMPIONSHIP, "Leeds", "Leicester", 9, 10, 2, 0),
+    yesterdayChip(-3004, SM_LEAGUE.CHAMPIONSHIP, "Norwich", "Sheffield United", 14, 15, 1, 1),
+    yesterdayChip(-3005, SM_LEAGUE.SERIE_A, "Juventus", "Roma", 625, 37, 1, 1),
+    yesterdayChip(-3006, SM_LEAGUE.SERIE_A, "Napoli", "Lazio", 113, 37, 3, 0),
+    yesterdayChip(-3007, SM_LEAGUE.EREDIVISIE, "Feyenoord", "AZ", 676, 645, 2, 2),
+    yesterdayChip(-3008, SM_LEAGUE.BUNDESLIGA, "Leipzig", "Leverkusen", 83, 44, 0, 3),
+  ];
+}
+
 export function placeholderLiveScoresBoard(): LiveScoresBoardPayload {
+  const calendar = scoreboardCalendar();
   return {
     matches: buildLiveScorePlaceholders(),
+    finishedToday: buildFinishedTodayPlaceholders(),
+    yesterday: buildYesterdayPlaceholders(),
+    todayDate: calendar.todayDate,
+    yesterdayDate: calendar.yesterdayDate,
     syncedAt: null,
     source: "placeholder",
   };

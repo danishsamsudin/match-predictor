@@ -10,6 +10,9 @@ export type CxContextConfig = {
   restBaselineDays: number;
   congestionDays: number;
   congestionPenalty: number;
+  /** Rest longer than this is treated as a layoff (rust), not extra freshness. */
+  restRustDays: number;
+  restRustMult: number;
   travelLongKm: number;
   travelModerateKm: number;
   travelLongMult: number;
@@ -26,6 +29,8 @@ export const DEFAULT_CX_CONTEXT_CONFIG: CxContextConfig = {
   restBaselineDays: 7,
   congestionDays: 4,
   congestionPenalty: 0.97,
+  restRustDays: 21,
+  restRustMult: 0.97,
   travelLongKm: 1500,
   travelModerateKm: 500,
   travelLongMult: 0.95,
@@ -44,7 +49,8 @@ export function cxRestDaysMultiplier(
 ): number {
   const days = Number.isFinite(restDays) ? restDays : config.restBaselineDays;
   let base: number;
-  if (days >= 3) base = 1;
+  if (days > config.restRustDays) base = config.restRustMult;
+  else if (days >= 3) base = 1;
   else if (days <= 0) base = 0.85;
   else base = 1 - (3 - days) / 10;
 

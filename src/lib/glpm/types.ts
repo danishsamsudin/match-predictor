@@ -4,7 +4,7 @@
  */
 
 export type GlpmValidationStatus = "pending" | "passed" | "flagged" | "warned";
-export type GlpmDataProvider = "sportmonks" | "wyscout";
+export type GlpmDataProvider = "sportmonks" | "wyscout" | "understat";
 export type GlpmMetricSource = "sportmonks" | "wyscout";
 
 export type GlpmProviderPayloadsTable = {

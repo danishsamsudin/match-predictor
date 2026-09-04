@@ -11,12 +11,17 @@ import { tryCreateServiceClient } from "../../supabase";
 import {
   DEFAULT_GLPM_SEASON_IDS_2026_27,
   SM_LEAGUE,
-  SM_SEASON_2025_26,
   SM_SEASON_2026_27,
 } from "../../sportmonks/constants";
+import {
+  resolveTrainSeasonId,
+  seasonHasFinishedMatches,
+} from "../resolve-train-season";
 import { formatDateInTimeZone, resolveMatchdayTimeZone } from "./matchday";
 import { loadDailySyncWindow, patchDailySyncWindow } from "./dailySyncWindow";
 import { runGlpmUpcomingPredictionSnapshots } from "../run-upcoming-prediction-snapshots";
+
+export { resolveTrainSeasonId };
 
 type Client = SupabaseClient<Database>;
 
@@ -29,11 +34,6 @@ const TRAIN_SCRIPTS = [
   "glpm:pressing-train",
   "glpm:finishing-train",
 ] as const;
-
-/** Prefer active 2026/27; fall back to last finished season when none played yet. */
-const TRAIN_FALLBACK_BY_LEAGUE: Partial<Record<number, number>> = {
-  [SM_LEAGUE.PREMIER_LEAGUE]: SM_SEASON_2025_26.PREMIER_LEAGUE,
-};
 
 export type NightRefreshOptions = {
   matchDate?: string;
@@ -84,18 +84,6 @@ function runNpm(
   });
 }
 
-async function seasonHasFinishedMatches(
-  client: Client,
-  seasonId: number
-): Promise<boolean> {
-  const { count } = await client
-    .from("glpm_matches")
-    .select("sm_id", { count: "exact", head: true })
-    .eq("season_id", seasonId)
-    .not("home_score", "is", null);
-  return (count ?? 0) > 0;
-}
-
 async function seasonsWithFinishedOnDate(
   client: Client,
   matchDate: string,
@@ -114,42 +102,6 @@ async function seasonsWithFinishedOnDate(
     if (finished || onDay) seasons.add(row.season_id);
   }
   return [...seasons];
-}
-
-/**
- * Pick train season: preferred 2026/27 if it has finished matches, else fallback / DB latest.
- */
-export async function resolveTrainSeasonId(
-  client: Client,
-  preferredSeasonId: number,
-  leagueId?: number
-): Promise<{ seasonId: number; reason: string }> {
-  if (await seasonHasFinishedMatches(client, preferredSeasonId)) {
-    return { seasonId: preferredSeasonId, reason: "preferred_has_finished" };
-  }
-  const fallback = leagueId != null ? TRAIN_FALLBACK_BY_LEAGUE[leagueId] : undefined;
-  if (fallback != null && (await seasonHasFinishedMatches(client, fallback))) {
-    return { seasonId: fallback, reason: `fallback_${fallback}` };
-  }
-
-  const { data: seasons } = await client
-    .from("glpm_seasons")
-    .select("sm_id,competition_id,start_date")
-    .order("start_date", { ascending: false });
-
-  const preferredMeta = (seasons ?? []).find((s) => s.sm_id === preferredSeasonId);
-  const competitionId = preferredMeta?.competition_id ?? leagueId ?? null;
-  const pool =
-    competitionId != null
-      ? (seasons ?? []).filter((s) => s.competition_id === competitionId)
-      : (seasons ?? []);
-
-  for (const s of pool) {
-    if (await seasonHasFinishedMatches(client, s.sm_id)) {
-      return { seasonId: s.sm_id, reason: `latest_finished_${s.sm_id}` };
-    }
-  }
-  return { seasonId: preferredSeasonId, reason: "preferred_no_finished_yet" };
 }
 
 export async function runGlpmNightRefresh(

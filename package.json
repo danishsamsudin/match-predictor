@@ -68,6 +68,7 @@
     "glpm:sm-daily-sync": "npx tsx scripts/glpm-sportmonks-daily-sync.ts",
     "glpm:night-refresh": "npx tsx scripts/glpm-night-refresh.ts",
     "glpm:fetch-ppda": "npx tsx scripts/glpm-fetch-ppda.ts",
+    "glpm:fetch-understat-shots": "npx tsx scripts/glpm-fetch-understat-shots.ts",
     "glpm:standings-refresh": "npx tsx scripts/glpm-standings-refresh.ts",
     "glpm:sm-refresh-teams": "npx tsx scripts/glpm-sportmonks-refresh-teams.ts",
     "glpm:sm-refresh-players": "npx tsx scripts/glpm-sportmonks-refresh-players.ts",
@@ -103,6 +104,8 @@
     "glpm:validate:dry": "python3 scripts/glpm_run_validation.py --dry-run",
     "glpm:league-run": "npx tsx scripts/glpm-league-run.ts",
     "glpm:backfill-vs-style": "npx tsx scripts/glpm-backfill-vs-style.ts",
+    "glpm:import-event-stats": "npx tsx scripts/glpm-import-event-stats-csv.ts",
+    "glpm:ingest-statz": "npx tsx scripts/glpm-ingest-statz-html.ts",
     "glpm:introspect": "bash scripts/ml/run-introspect.sh",
     "glpm:export-cofounder-pdf": "node scripts/export-glpm-cofounder-guide-pdf.mjs",
     "glpm:export-league-run-pdf": "node scripts/export-glpm-league-run-pdf.mjs"

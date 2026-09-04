@@ -10,6 +10,7 @@ import type { GlpmPredictUiPayload } from "@/lib/glpm/ui-types";
 import {
   loadFinishingDifferential,
   loadTeamInsightRatings,
+  type FinishingDifferential,
   type TeamInsightRatings,
 } from "@/lib/glpm/load-insight-ratings";
 import { applyCxToXg, CX_MODEL_VERSION, type CxApplyResult } from "@/lib/glpm-cx/apply-cx";
@@ -20,12 +21,14 @@ import {
 } from "@/lib/glpm-cx/lineup-impact";
 import {
   deriveMarketsFromScoreMatrix,
+  inferStyleLabels,
   styleMatchupBadges,
   type DerivedMarkets,
 } from "@/lib/glpm-cx/derived-markets";
 import { estimateEventMarkets } from "@/lib/glpm-cx/satellites/event-markets";
 import { estimatePlayerProps } from "@/lib/glpm-cx/satellites/player-props";
 import { aggregateVsStyleLift } from "@/lib/glpm-cx/vs-style";
+import { resolveStatsSeasonId } from "@/lib/glpm/resolve-train-season";
 
 type Client = SupabaseClient<Database>;
 
@@ -52,8 +55,8 @@ export type GlpmCxPredictPayload = {
   insights: {
     home: TeamInsightRatings;
     away: TeamInsightRatings;
-    homeFinishingDelta: { goals: number; xg: number; delta: number; matches: number } | null;
-    awayFinishingDelta: { goals: number; xg: number; delta: number; matches: number } | null;
+    homeFinishingDelta: FinishingDifferential | null;
+    awayFinishingDelta: FinishingDifferential | null;
     styleMatchups: Array<{ home: string; away: string; label: string }>;
     homeVsStyle: Array<{ style: string; liftPct: number; n: number }>;
     awayVsStyle: Array<{ style: string; liftPct: number; n: number }>;
@@ -121,47 +124,66 @@ export async function runGlpmCxPredict(
 
   const seasonId = input.seasonId ?? base.seasonId;
 
+  let statsSeasonId = seasonId;
+  let statsSeasonIsCurrent = true;
+  if (seasonId != null) {
+    const { data: seasonRow } = await client
+      .from("glpm_seasons")
+      .select("competition_id")
+      .eq("sm_id", seasonId)
+      .maybeSingle();
+    const statsPick = await resolveStatsSeasonId(
+      client,
+      seasonId,
+      seasonRow?.competition_id ?? null
+    );
+    statsSeasonId = statsPick.seasonId;
+    statsSeasonIsCurrent = statsPick.mlEligible;
+  }
+
   const [context, lineup, homeInsight, awayInsight, homeFin, awayFin, events, props, homeVs, awayVs] =
     await Promise.all([
       buildCxContextFeatures(client, {
         homeTeamSmId: input.homeTeamSmId,
         awayTeamSmId: input.awayTeamSmId,
         matchSmId: input.matchSmId,
+        seasonId,
       }),
       computeCxLineupImpact(client, {
         homeTeamSmId: input.homeTeamSmId,
         awayTeamSmId: input.awayTeamSmId,
-        seasonId,
+        seasonId: statsSeasonId,
         matchSmId: input.matchSmId,
       }),
       loadTeamInsightRatings(client, {
         teamSmId: input.homeTeamSmId,
-        seasonId,
+        seasonId: statsSeasonId,
       }),
       loadTeamInsightRatings(client, {
         teamSmId: input.awayTeamSmId,
-        seasonId,
+        seasonId: statsSeasonId,
       }),
       loadFinishingDifferential(client, {
         teamSmId: input.homeTeamSmId,
-        seasonId,
+        seasonId: statsSeasonId,
       }),
       loadFinishingDifferential(client, {
         teamSmId: input.awayTeamSmId,
-        seasonId,
+        seasonId: statsSeasonId,
       }),
       estimateEventMarkets(client, {
         homeTeamSmId: input.homeTeamSmId,
         awayTeamSmId: input.awayTeamSmId,
-        seasonId,
+        seasonId: statsSeasonId,
+        statsSeasonIsCurrent,
       }),
       estimatePlayerProps(client, {
         homeTeamSmId: input.homeTeamSmId,
         awayTeamSmId: input.awayTeamSmId,
-        seasonId,
+        seasonId: statsSeasonId,
       }),
-      aggregateVsStyleLift(client, input.homeTeamSmId, seasonId),
-      aggregateVsStyleLift(client, input.awayTeamSmId, seasonId),
+      aggregateVsStyleLift(client, input.homeTeamSmId, statsSeasonId),
+      aggregateVsStyleLift(client, input.awayTeamSmId, statsSeasonId),
     ]);
 
   const apply = applyCxToXg({
@@ -224,6 +246,8 @@ export async function runGlpmCxPredict(
           apply,
           context,
           lineup,
+          statsSeasonId,
+          eventMlActive: events.mlActive,
         },
         model_version: CX_MODEL_VERSION,
         executed_at: new Date().toISOString(),
@@ -252,8 +276,18 @@ export async function runGlpmCxPredict(
       homeFinishingDelta: homeFin,
       awayFinishingDelta: awayFin,
       styleMatchups: styleMatchupBadges(
-        base.homeTeam.style?.labels ?? [],
-        base.awayTeam.style?.labels ?? []
+        inferStyleLabels({
+          labels: base.homeTeam.style?.labels ?? [],
+          ratings: base.homeTeam.ratings,
+          avgPossession: base.homeTeam.style?.avgPossession ?? null,
+          avgPpda: base.homeTeam.style?.avgPpda ?? null,
+        }),
+        inferStyleLabels({
+          labels: base.awayTeam.style?.labels ?? [],
+          ratings: base.awayTeam.ratings,
+          avgPossession: base.awayTeam.style?.avgPossession ?? null,
+          avgPpda: base.awayTeam.style?.avgPpda ?? null,
+        })
       ),
       homeVsStyle: homeVs,
       awayVsStyle: awayVs,

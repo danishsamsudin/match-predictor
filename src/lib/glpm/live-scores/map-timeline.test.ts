@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { SmEvent } from "@/lib/sportmonks/types";
-import { mapFixtureTimeline, mapSideMetrics } from "./map-timeline";
+import {
+  formatScorerLabel,
+  goalScorersFromTimeline,
+  mapFixtureTimeline,
+  mapSideMetrics,
+} from "./map-timeline";
 
 describe("live score timeline mapping", () => {
   it("maps goals with assists and sorts by minute", () => {
@@ -59,5 +64,41 @@ describe("live score timeline mapping", () => {
       corners: 5,
       xg: 1.42,
     });
+  });
+
+  it("formats goal scorers with clock and penalty/own-goal tags", () => {
+    const timeline = mapFixtureTimeline(
+      [
+        {
+          id: 1,
+          type_id: 14,
+          participant_id: 19,
+          player_name: "Saka",
+          minute: 12,
+        },
+        {
+          id: 2,
+          type_id: 15,
+          participant_id: 18,
+          player_name: "Colwill",
+          minute: 40,
+        },
+        {
+          id: 3,
+          type_id: 16,
+          participant_id: 19,
+          player_name: "Havertz",
+          minute: 70,
+        },
+      ],
+      19,
+      18
+    );
+    const lines = goalScorersFromTimeline(timeline);
+    expect(lines.map(formatScorerLabel)).toEqual([
+      "Saka 12'",
+      "Colwill (OG) 40'",
+      "Havertz (Pen) 70'",
+    ]);
   });
 });

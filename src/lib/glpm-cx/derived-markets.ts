@@ -128,6 +128,79 @@ export function deriveMarketsFromScoreMatrix(args: {
   };
 }
 
+export const SCORE_HEATMAP_MAX_GOALS = 4;
+
+export function sliceScoreMatrix(
+  matrix: number[][],
+  maxGoals = SCORE_HEATMAP_MAX_GOALS
+): { grid: number[][]; tailMass: number } {
+  const grid: number[][] = [];
+  let tailMass = 0;
+  for (let h = 0; h < matrix.length; h++) {
+    const row = matrix[h] ?? [];
+    if (h <= maxGoals) {
+      const sliced: number[] = [];
+      for (let a = 0; a <= maxGoals; a++) {
+        sliced.push(row[a] ?? 0);
+      }
+      grid.push(sliced);
+    }
+    for (let a = 0; a < row.length; a++) {
+      if (h > maxGoals || a > maxGoals) tailMass += row[a] ?? 0;
+    }
+  }
+  while (grid.length <= maxGoals) {
+    grid.push(Array.from({ length: maxGoals + 1 }, () => 0));
+  }
+  return { grid, tailMass };
+}
+
+export function inferStyleLabels(args: {
+  labels: string[];
+  ratings: Record<string, number>;
+  avgPossession: number | null;
+  avgPpda: number | null;
+}): string[] {
+  const existing = args.labels.filter((l) => l && l !== "balanced");
+  if (existing.length) return existing;
+
+  const out: string[] = [];
+  const poss = args.avgPossession;
+  const ppda = args.avgPpda;
+  const pressR = args.ratings.pressing;
+  const possR = args.ratings.possession;
+  const buildR = args.ratings.build_up;
+  const atkR = args.ratings.attack;
+
+  if (poss != null) {
+    if (poss >= 55) out.push("high_possession");
+    else if (poss <= 42) out.push("low_possession");
+  } else if (Number.isFinite(possR)) {
+    if (possR >= 65) out.push("high_possession");
+    else if (possR <= 50) out.push("low_possession");
+  }
+
+  if (ppda != null) {
+    if (ppda <= 9) out.push("high_press");
+    else if (ppda > 14) out.push("low_block");
+    else out.push("mid_block");
+  } else if (Number.isFinite(pressR)) {
+    if (pressR >= 65) out.push("high_press");
+    else if (pressR <= 50) out.push("low_block");
+  }
+
+  if (Number.isFinite(buildR) && buildR >= 65) out.push("build_up_play");
+  if (
+    Number.isFinite(atkR) &&
+    Number.isFinite(possR) &&
+    atkR - possR >= 8
+  ) {
+    out.push("counter_attacking");
+  }
+
+  return out.length ? [...new Set(out)] : ["balanced"];
+}
+
 export function styleMatchupBadges(
   homeLabels: string[],
   awayLabels: string[]
@@ -141,6 +214,11 @@ export function styleMatchupBadges(
       label: "Transition threat vs Possession",
     },
     {
+      homeNeed: "high_possession",
+      awayNeed: "counter_attacking",
+      label: "Possession vs Transition threat",
+    },
+    {
       homeNeed: "set_piece_reliant",
       awayNeed: "low_block",
       label: "Set-piece attack vs Compact defence",
@@ -151,9 +229,29 @@ export function styleMatchupBadges(
       label: "Direct play vs High press",
     },
     {
+      homeNeed: "high_press",
+      awayNeed: "direct_play",
+      label: "High press vs Direct play",
+    },
+    {
       homeNeed: "build_up_play",
       awayNeed: "high_press",
       label: "Build-up vs High press",
+    },
+    {
+      homeNeed: "high_press",
+      awayNeed: "build_up_play",
+      label: "High press vs Build-up",
+    },
+    {
+      homeNeed: "high_possession",
+      awayNeed: "low_block",
+      label: "Possession vs Low block",
+    },
+    {
+      homeNeed: "low_block",
+      awayNeed: "high_possession",
+      label: "Low block vs Possession",
     },
   ];
 
@@ -165,11 +263,9 @@ export function styleMatchupBadges(
     if (homeSet.has(p.homeNeed) && awaySet.has(p.awayNeed)) {
       out.push({ home: p.homeNeed, away: p.awayNeed, label: p.label });
     }
-    // Also check swapped orientation with flipped label already listed
   }
 
-  // Away-attacking variants covered by mirrored pair rows above.
-  if (!out.length && (homeLabels.length || awayLabels.length)) {
+  if (!out.length) {
     const h = homeLabels[0] ?? "balanced";
     const a = awayLabels[0] ?? "balanced";
     out.push({

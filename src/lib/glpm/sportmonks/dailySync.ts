@@ -38,6 +38,7 @@ import {
 } from "./ingestFixturesBatch";
 import { refreshGlpmStandings } from "../refresh-standings";
 import { runGlpmFetchPpda, type FetchPpdaSummary } from "../fetchPpda";
+import { runGlpmFetchUnderstatShots, type FetchUnderstatShotsSummary } from "../fetchUnderstatShots";
 import { runGlpmNightRefresh, type NightRefreshSummary } from "./nightRefresh";
 
 type Client = SupabaseClient<Database>;
@@ -76,6 +77,7 @@ export type DailySyncSummary = {
   ingest?: BatchIngestSummary;
   standings?: unknown;
   ppda?: FetchPpdaSummary;
+  understatShots?: FetchUnderstatShotsSummary;
   refresh?: NightRefreshSummary;
   window?: unknown;
   notes: string[];
@@ -346,6 +348,7 @@ export async function runResultsPhase(options: DailySyncOptions = {}): Promise<D
 
   let standings: unknown = null;
   let ppda: FetchPpdaSummary | undefined;
+  let understatShots: FetchUnderstatShotsSummary | undefined;
   if (!dryRun) {
     const { data: matchRows } = await supabase
       .from("glpm_matches")
@@ -385,6 +388,21 @@ export async function runResultsPhase(options: DailySyncOptions = {}): Promise<D
     if (!ppda.ok) {
       notes.push(`PPDA fetch failed (status ${ppda.pythonStatus})`);
     }
+
+    understatShots = await runGlpmFetchUnderstatShots({
+      league: "all",
+      sinceDate: yesterday,
+      rebuildMatchIds: [
+        ...window.fixture_ids,
+        ...ydayFinished.map((f) => f.id),
+      ],
+      supabase,
+      dryRun: false,
+    });
+    notes.push(...understatShots.notes);
+    if (!understatShots.ok) {
+      notes.push(`Understat shots fetch failed (status ${understatShots.pythonStatus})`);
+    }
   }
 
   const refreshDueAt =
@@ -398,7 +416,7 @@ export async function runResultsPhase(options: DailySyncOptions = {}): Promise<D
     : (await patchDailySyncWindow(supabase, matchDate, {
         results_done: true,
         refresh_due_at: refreshDueAt,
-        results_summary: { ingest: merged, standings, ppda },
+        results_summary: { ingest: merged, standings, ppda, understatShots },
       })) ?? window;
 
   return {
@@ -411,6 +429,7 @@ export async function runResultsPhase(options: DailySyncOptions = {}): Promise<D
     ingest: merged,
     standings,
     ppda,
+    understatShots,
     window: patched,
     notes,
   };

@@ -115,7 +115,7 @@ def load_shots_by_match_team(
     rows = _paginate(
         client,
         "glpm_match_shots",
-        "match_sm_id, team_sm_id, pos_x, pos_y, pre_shot_xg, is_counter_attack, is_set_piece, is_penalty",
+        "match_sm_id, team_sm_id, pos_x, pos_y, pre_shot_xg, is_counter_attack, is_set_piece, is_penalty, tags",
     )
     out: dict[tuple[int, int], list[dict[str, Any]]] = {}
     id_set = set(match_ids)
@@ -124,6 +124,9 @@ def load_shots_by_match_team(
         if mid not in id_set:
             continue
         key = (mid, int(r["team_sm_id"]))
+        tags = r.get("tags")
+        if isinstance(tags, dict) and tags.get("situation") == "FromCorner":
+            r["is_corner"] = True
         out.setdefault(key, []).append(r)
     return out
 

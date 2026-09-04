@@ -66,6 +66,8 @@ def test_parse_understat_team_matches(ppda):
                         "h_a": "h",
                         "ppda": {"att": 200, "def": 25},
                         "ppda_allowed": {"att": 300, "def": 20},
+                        "deep": 8,
+                        "deep_allowed": 2,
                     }
                 ],
             },
@@ -90,6 +92,8 @@ def test_parse_understat_team_matches(ppda):
     assert home.team_title == "Arsenal"
     assert home.ppda == 8.0
     assert home.ppda_allowed == 15.0
+    assert home.deep == 8.0
+    assert home.deep_allowed == 2.0
     assert away.ppda == 15.0
     assert away.ppda_allowed == 8.0
 
@@ -138,6 +142,13 @@ def test_match_understat_to_glpm(ppda):
     assert home["ppda"] == 8.0
     assert home["ppda_allowed"] == 12.0
     assert home["ppda_source"] == "understat"
+
+
+def test_understat_season_year(ppda):
+    assert ppda.understat_season_year(25583, None) == 2025
+    assert ppda.understat_season_year(28083, None) == 2026
+    assert ppda.understat_season_year(None, "2025-09-21") == 2025
+    assert ppda.understat_season_year(None, "2026-03-01") == 2025
 
 
 def test_resolve_league_key(ppda):

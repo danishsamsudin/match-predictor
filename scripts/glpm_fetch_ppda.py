@@ -151,6 +151,19 @@ class UnderstatTeamMatch:
     away_title: str
     ppda: Optional[float]
     ppda_allowed: Optional[float]
+    deep: Optional[float] = None
+    deep_allowed: Optional[float] = None
+
+
+@dataclass(frozen=True)
+class UnderstatGlpmLink:
+    understat_match_id: int
+    match_sm_id: int
+    home_sm_id: int
+    away_sm_id: int
+    match_date: str
+    home_title: str
+    away_title: str
 
 
 def load_env() -> dict[str, str]:
@@ -245,6 +258,16 @@ def normalize_team_name(name: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _as_optional_float(raw: Any) -> Optional[float]:
+    if raw is None or raw == "":
+        return None
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return v if v == v else None
+
+
 def ppda_ratio(raw: Any) -> Optional[float]:
     """Convert Understat ppda / ppda_allowed ({att, def} or number) to float."""
     if raw is None:
@@ -298,8 +321,19 @@ def resolve_league_key(raw: str) -> tuple[str, str]:
     raise SystemExit(f"Unknown league: {raw}")
 
 
+# SportMonks season_id → Understat season start year.
+UNDERSTAT_SEASON_YEARS: dict[int, int] = {
+    25583: 2025,  # Premier League 2025/26
+    28083: 2026,  # Premier League 2026/27
+    28321: 2026,  # Bundesliga 2026/27
+    27895: 2026,  # Serie A 2026/27
+}
+
+
 def understat_season_year(season_id: Optional[int], since_date: Optional[str]) -> int:
     """Map to Understat season start year (e.g. 2025 for 2025/26)."""
+    if season_id is not None and season_id in UNDERSTAT_SEASON_YEARS:
+        return UNDERSTAT_SEASON_YEARS[season_id]
     if since_date:
         y = int(since_date[:4])
         m = int(since_date[5:7])
@@ -431,6 +465,8 @@ def parse_understat_team_matches(payload: dict[str, Any]) -> list[UnderstatTeamM
                     away_title=str(meta["away_title"]),
                     ppda=ppda_ratio(hist.get("ppda")),
                     ppda_allowed=ppda_ratio(hist.get("ppda_allowed")),
+                    deep=_as_optional_float(hist.get("deep")),
+                    deep_allowed=_as_optional_float(hist.get("deep_allowed")),
                 )
             )
     return out
@@ -498,27 +534,26 @@ def load_finished_matches(
     return rest(env, "GET", "glpm_matches?" + "&".join(parts)) or []
 
 
-def match_understat_to_glpm(
+def link_understat_matches(
     rows: list[UnderstatTeamMatch],
     matches: list[dict[str, Any]],
     team_lookup: dict[str, int],
     *,
     date_slack_days: int = 1,
-) -> tuple[list[dict[str, Any]], list[str]]:
-    """Return upsert patches and unmatched log lines."""
+) -> tuple[list[UnderstatGlpmLink], list[str]]:
+    """Map Understat match ids onto glpm_matches by date + home/away team."""
     by_date: dict[str, list[dict[str, Any]]] = {}
     for m in matches:
         d = str(m.get("match_date") or "")[:10]
         by_date.setdefault(d, []).append(m)
 
-    # Group Understat rows by understat match id so we have both sides' titles.
     by_us_match: dict[int, list[UnderstatTeamMatch]] = {}
     for r in rows:
         by_us_match.setdefault(r.understat_match_id, []).append(r)
 
-    patches: list[dict[str, Any]] = []
+    links: list[UnderstatGlpmLink] = []
     unmatched: list[str] = []
-    seen_keys: set[tuple[int, int]] = set()
+    seen: set[int] = set()
 
     for us_id, sides in by_us_match.items():
         sample = sides[0]
@@ -544,12 +579,45 @@ def match_understat_to_glpm(
                 f"{sample.home_title} vs {sample.away_title}"
             )
             continue
+        if us_id in seen:
+            continue
+        seen.add(us_id)
         glpm = candidates[0]
-        match_sm_id = int(glpm["sm_id"])
+        links.append(
+            UnderstatGlpmLink(
+                understat_match_id=us_id,
+                match_sm_id=int(glpm["sm_id"]),
+                home_sm_id=home_sm,
+                away_sm_id=away_sm,
+                match_date=sample.match_date,
+                home_title=sample.home_title,
+                away_title=sample.away_title,
+            )
+        )
+    return links, unmatched
 
-        for side in sides:
-            team_sm = home_sm if side.is_home else away_sm
-            key = (match_sm_id, team_sm)
+
+def match_understat_to_glpm(
+    rows: list[UnderstatTeamMatch],
+    matches: list[dict[str, Any]],
+    team_lookup: dict[str, int],
+    *,
+    date_slack_days: int = 1,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Return upsert patches and unmatched log lines."""
+    links, unmatched = link_understat_matches(
+        rows, matches, team_lookup, date_slack_days=date_slack_days
+    )
+    by_us_match: dict[int, list[UnderstatTeamMatch]] = {}
+    for r in rows:
+        by_us_match.setdefault(r.understat_match_id, []).append(r)
+
+    patches: list[dict[str, Any]] = []
+    seen_keys: set[tuple[int, int]] = set()
+    for link in links:
+        for side in by_us_match.get(link.understat_match_id, []):
+            team_sm = link.home_sm_id if side.is_home else link.away_sm_id
+            key = (link.match_sm_id, team_sm)
             if key in seen_keys:
                 continue
             seen_keys.add(key)
@@ -557,7 +625,7 @@ def match_understat_to_glpm(
                 continue
             patches.append(
                 {
-                    "match_sm_id": match_sm_id,
+                    "match_sm_id": link.match_sm_id,
                     "team_sm_id": team_sm,
                     "is_home": side.is_home,
                     "ppda": side.ppda,

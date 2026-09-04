@@ -3,7 +3,10 @@ export { buildCxContextFeatures } from "@/lib/glpm-cx/context-features";
 export { computeCxLineupImpact } from "@/lib/glpm-cx/lineup-impact";
 export {
   deriveMarketsFromScoreMatrix,
+  inferStyleLabels,
+  sliceScoreMatrix,
   styleMatchupBadges,
+  SCORE_HEATMAP_MAX_GOALS,
 } from "@/lib/glpm-cx/derived-markets";
 export { runGlpmCxPredict } from "@/lib/glpm-cx/run-cx-predict";
 export type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";

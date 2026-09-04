@@ -43,6 +43,21 @@ export function leagueMetaForId(leagueId: number | null | undefined): {
   return { name: "League", countryName: "", countryIso: "" };
 }
 
+/** Prefer known GLPM metadata; otherwise use SportMonks `payload.league`. */
+export function leagueMetaFromPayload(
+  leagueId: number | null | undefined,
+  payload: unknown
+): { name: string; countryName: string; countryIso: string } {
+  const known = leagueMetaForId(leagueId);
+  if (known.countryIso) return known;
+
+  const league = (payload as { league?: { name?: string; short_code?: string } } | null)
+    ?.league;
+  const name = league?.name?.trim() || league?.short_code?.trim();
+  if (name) return { name, countryName: known.countryName, countryIso: known.countryIso };
+  return known;
+}
+
 export function countryFlagUrl(iso: string): string {
   const clean = iso.trim().toLowerCase();
   return `https://flagcdn.com/w80/${clean}.png`;

@@ -44,7 +44,7 @@ export function InsightCard({
             {badge}
           </div>
           {caption ? (
-            <p className="text-xs leading-relaxed text-muted">{caption}</p>
+            <p className="text-xs leading-snug text-muted">{caption}</p>
           ) : null}
         </div>
         {body ? <InfoTip label={label}>{body}</InfoTip> : null}

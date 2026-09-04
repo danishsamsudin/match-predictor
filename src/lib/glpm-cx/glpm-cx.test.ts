@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyCxToXg, cxRestDaysMultiplier, cxTravelMultiplier } from "@/lib/glpm-cx/apply-cx";
-import { deriveMarketsFromScoreMatrix, styleMatchupBadges } from "@/lib/glpm-cx/derived-markets";
+import { deriveMarketsFromScoreMatrix, inferStyleLabels, sliceScoreMatrix, styleMatchupBadges } from "@/lib/glpm-cx/derived-markets";
 import { predictMatch } from "@/lib/glpm/engine";
 import { GLPM_CX_GLOSSARY, glossaryTipBody } from "@/lib/glpm-cx/glossary";
 import { poissonOverProb } from "@/lib/glpm-cx/satellites/player-props";
@@ -65,6 +65,7 @@ describe("glpm-cx applyCxToXg", () => {
   it("computes rest/travel helpers", () => {
     expect(cxRestDaysMultiplier(7)).toBe(1);
     expect(cxRestDaysMultiplier(1)).toBeLessThan(1);
+    expect(cxRestDaysMultiplier(125)).toBeLessThan(1);
     expect(cxTravelMultiplier(100)).toBe(1);
     expect(cxTravelMultiplier(2000)).toBeLessThan(1);
   });
@@ -91,6 +92,60 @@ describe("glpm-cx derived markets", () => {
   it("builds style matchup badges", () => {
     const badges = styleMatchupBadges(["high_press"], ["low_block"]);
     expect(badges.some((b) => b.label.includes("High press"))).toBe(true);
+  });
+
+  it("infers style labels from ratings when snapshots are empty", () => {
+    const labels = inferStyleLabels({
+      labels: [],
+      ratings: {
+        attack: 70,
+        defence: 55,
+        goalkeeper: 60,
+        build_up: 68,
+        possession: 48,
+        pressing: 72,
+        finishing: 61,
+      },
+      avgPossession: null,
+      avgPpda: null,
+    });
+    expect(labels).toContain("high_press");
+    expect(labels.length).toBeGreaterThan(0);
+  });
+
+  it("slices the score matrix to a 5x5 display grid", () => {
+    const pred = predictMatch(1.6, 1.1);
+    const { grid, tailMass } = sliceScoreMatrix(pred.scoreMatrix, 4);
+    expect(grid).toHaveLength(5);
+    expect(grid[0]).toHaveLength(5);
+    expect(tailMass).toBeGreaterThanOrEqual(0);
+    const displayed = grid.flat().reduce((a, b) => a + b, 0);
+    expect(displayed + tailMass).toBeCloseTo(
+      pred.scoreMatrix.flat().reduce((a, b) => a + b, 0),
+      5
+    );
+  });
+});
+
+describe("understat finishing table", () => {
+  it("maps Newcastle and Bournemouth to 2025/26 season xG", async () => {
+    const { lookupUnderstatSeasonRow } = await import(
+      "@/lib/glpm/understat-season-table"
+    );
+    const newcastle = lookupUnderstatSeasonRow("Newcastle United");
+    const bournemouth = lookupUnderstatSeasonRow("AFC Bournemouth");
+    expect(newcastle?.goals).toBe(53);
+    expect(newcastle?.xg).toBeCloseTo(60.61, 2);
+    expect(bournemouth?.goals).toBe(58);
+    expect(bournemouth?.xg).toBeCloseTo(66.83, 2);
+  });
+});
+
+describe("shared ceiling helper", () => {
+  it("treats identical 100 ratings as no signal", async () => {
+    const { isSharedCeiling } = await import("@/lib/glpm/load-insight-ratings");
+    expect(isSharedCeiling(100, 100)).toBe(true);
+    expect(isSharedCeiling(60.8, 46.7)).toBe(false);
   });
 });
 

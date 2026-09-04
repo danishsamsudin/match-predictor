@@ -39,8 +39,8 @@ export const GLPM_CX_GLOSSARY = {
   },
   scoreHeatmap: {
     label: "Score probability matrix",
-    what: "Probability of each exact scoreline (home goals × away goals).",
-    how: "Dixon–Coles adjustment on independent Poisson goal counts from each side’s xG.",
+    what: "Probability of each exact scoreline from 0-0 through 4-4. Cells with 5 or more goals are grouped as a remainder.",
+    how: "Dixon-Coles adjustment on independent Poisson goal counts from each side's xG. The engine still computes a larger grid internally so 1X2 and totals are not truncated.",
   },
   primaryRadar: {
     label: "Primary rating radar (0–100)",
@@ -49,8 +49,10 @@ export const GLPM_CX_GLOSSARY = {
   },
   domainBars: {
     label: "Domain breakdown",
-    what: "Sub-skills that roll up into each primary rating (e.g. Creation / Progression / Situational for Attack).",
+    what: "Attack, defence, and goalkeeper sub-skills on the 0-100 scale. Home is left, away is right.",
     how: "Loaded from glpm_team_domain_ratings produced by the rating trainers. Display-only; not re-fit at predict time.",
+    caveat:
+      "A domain is hidden when every club is scored 100. That happens when the training feature had no variance, most often because shot-level set-piece flags are missing.",
   },
   componentGauge: {
     label: "Component ratings",
@@ -59,8 +61,10 @@ export const GLPM_CX_GLOSSARY = {
   },
   setPieceGauge: {
     label: "Set-piece matchup",
-    what: "How one side’s set-piece attack compares with the other’s set-piece defence.",
+    what: "How one side's set-piece attack compares with the other's set-piece defence.",
     how: "Compares component ratings set_piece_threat vs set_piece_defence when both are available.",
+    caveat:
+      "If every club lands on 100, the trainer had no set-piece shot tags to learn from. That is missing data, not a real 100 vs 100 matchup.",
   },
   interactions: {
     label: "Matchup interactions (Δ)",
@@ -70,14 +74,14 @@ export const GLPM_CX_GLOSSARY = {
   styleBadges: {
     label: "Tactical style labels",
     what: "Descriptive style tags such as high press or low block.",
-    how: "Threshold rules on season averages (possession, PPDA, directness, crosses, set-piece xG share) from glpm_team_style_snapshots.",
+    how: "Threshold rules on season averages (possession, PPDA, directness) from style snapshots or match stats.",
     caveat:
-      "PPDA in SportMonks-only runs is often a proxy (opponent passes ÷ tackles + interceptions + clearances), not Wyscout event PPDA.",
+      "PPDA here is a SportMonks proxy (opponent passes divided by tackles, interceptions, and clearances), not Wyscout event PPDA.",
   },
   styleMatchup: {
     label: "Style confrontation",
-    what: "How the two teams’ style labels clash (e.g. high press vs low block).",
-    how: "Heuristic pairing of each side’s style snapshot labels. Historical lift vs a style uses glpm_match_vs_style when populated.",
+    what: "How the two tactical profiles clash. Pills are season style labels; possession and PPDA sit underneath.",
+    how: "Labels and averages come from glpm_team_style_snapshots when present, otherwise season averages of possession_pct and ppda on glpm_match_team_stats.",
   },
   vsStyleLift: {
     label: "Performance vs opponent style",
@@ -102,7 +106,7 @@ export const GLPM_CX_GLOSSARY = {
   },
   doubleChance: {
     label: "Double chance",
-    what: "Combined 1X, 12, or X2 probabilities.",
+    what: "Three combined 1X2 bets: Home or Draw (1X), either team wins (12), and Draw or Away (X2). The 12 market is home or away - it wins unless the match is a draw.",
     how: "Sums of the corresponding 1X2 outcomes from the score matrix.",
   },
   teamTotals: {
@@ -116,9 +120,9 @@ export const GLPM_CX_GLOSSARY = {
     how: "Edge = (model probability × book decimal odds) − 1. Enter book odds manually; no live scrape in v1.",
   },
   restCongestion: {
-    label: "Rest and congestion",
-    what: "How many days since each team’s last match and whether the calendar is tight.",
-    how: "CX counts days between fixtures in glpm_matches, then applies rest / congestion multipliers copied into the CX layer (not wired into frozen GLPM).",
+    label: "Rest days",
+    what: "How many days each team typically has between matches. Under 3 days is congestion; a 7-day gap is the baseline. Extra rest above 7 days does not increase xG.",
+    how: "For a real fixture, CX counts days since the last finished match. For a team-vs-team compare with no kickoff, rest is estimated from recent match spacing in the selected season so off-season gaps (80-120 days) are not treated as match rest.",
   },
   travel: {
     label: "Travel distance",
@@ -143,24 +147,25 @@ export const GLPM_CX_GLOSSARY = {
   },
   xgWaterfall: {
     label: "Base xG to CX-adjusted xG",
-    what: "Step-by-step effect of each CX multiplier on expected goals.",
-    how: "Starts from frozen GLPM xG, then multiplies rest, travel, altitude, weather, and lineup factors independently per side.",
+    what: "Five context multipliers (rest, travel, altitude, weather, lineup) scale base xG. 1.000 means that factor does not move the projection.",
+    how: "Starts from frozen GLPM xG, then multiplies rest, travel, altitude, weather, and lineup independently per side. Typical PL compares with ~7 days rest, travel under 500 km, and no confirmed XI stay at 1.000 on every factor.",
   },
   finishingDelta: {
-    label: "Finishing differential (Goals − xG)",
-    what: "Whether a team has scored more or fewer goals than their chances imply.",
-    how: "Season sum of goals minus team-match xG (often proxy xG in 2025/26). Also reflected inside the Finishing primary via training targets.",
-    caveat: "Proxy xG inflates noise in Goals − xG. Prefer the Finishing rating for skill signal.",
+    label: "Finishing differential (Goals vs xG)",
+    what: "Season goals compared with season xG. Positive means the team scored more than the chances they created.",
+    how: "For Premier League 2025/26 this uses Understat season totals (goals and xG). Other seasons use match-level xG when it is not a shot-based proxy.",
+    caveat:
+      "Shot-based proxy xG on glpm_match_team_stats is not used when Understat season xG is available. The Finishing radar axis is a separate trained rating.",
   },
   cornersCards: {
     label: "Corners and cards (satellite)",
     what: "Expected corners and bookings for the match.",
-    how: "Separate satellite model under glpm-cx. Uses team averages (and ingested corner/card counts when present). Does not feed GLPM ratings.",
+    how: "Uses 2025/26 team rates until the current season has 20 finished matches (same n as Bayesian rating confidence). After that floor, empirical-Bayes shrinkage trains on current-season labeled corners/cards. Does not feed GLPM ratings.",
   },
   playerProps: {
     label: "Player shots / SoT props (satellite)",
     what: "Simple shot and shot-on-target lines for outfield players.",
-    how: "Minutes-weighted rates from available player match stats. Satellite only - not part of GLPM.",
+    how: "Minutes-weighted rates from the stats season (prior season until 20 current-season results). Satellite only - not part of GLPM.",
   },
   seasonSim: {
     label: "Season Monte Carlo outrights",

@@ -34,26 +34,103 @@ function haversineKm(
   return 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-async function daysSinceLastMatch(
+function dayDiff(fromDate: string, toDate: string): number | null {
+  const prev = Date.parse(String(fromDate).slice(0, 10));
+  const next = Date.parse(String(toDate).slice(0, 10));
+  if (!Number.isFinite(prev) || !Number.isFinite(next)) return null;
+  return Math.max(0, (next - prev) / (1000 * 60 * 60 * 24));
+}
+
+async function lastFinishedMatchDates(
   client: Client,
   teamSmId: number,
-  beforeDate: string
-): Promise<number | null> {
-  const { data } = await client
+  beforeDate: string,
+  seasonId?: number | null,
+  limit = 8
+): Promise<string[]> {
+  let q = client
     .from("glpm_matches")
     .select("match_date")
     .or(`home_team_sm_id.eq.${teamSmId},away_team_sm_id.eq.${teamSmId}`)
     .lt("match_date", beforeDate)
     .not("home_score", "is", null)
     .order("match_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(limit);
+  if (seasonId != null) q = q.eq("season_id", seasonId);
+  const { data } = await q;
+  return (data ?? [])
+    .map((row) => String(row.match_date ?? "").slice(0, 10))
+    .filter(Boolean);
+}
 
-  if (!data?.match_date) return null;
-  const prev = Date.parse(String(data.match_date));
-  const next = Date.parse(beforeDate);
-  if (!Number.isFinite(prev) || !Number.isFinite(next)) return null;
-  return Math.max(0, (next - prev) / (1000 * 60 * 60 * 24));
+function medianGapDays(datesNewestFirst: string[]): number | null {
+  if (datesNewestFirst.length < 2) return null;
+  const gaps: number[] = [];
+  for (let i = 0; i < datesNewestFirst.length - 1; i++) {
+    const gap = dayDiff(datesNewestFirst[i + 1], datesNewestFirst[i]);
+    if (gap != null && gap > 0 && gap <= 21) gaps.push(gap);
+  }
+  if (!gaps.length) return null;
+  gaps.sort((a, b) => a - b);
+  return gaps[Math.floor(gaps.length / 2)];
+}
+
+/**
+ * Rest days for CX. Hypothetical club compares (no fixture) must not use
+ * "days since last season's final" to today - that produces 80-120 day gaps
+ * and makes every waterfall bar look identical.
+ */
+async function resolveTeamRestDays(
+  client: Client,
+  teamSmId: number,
+  beforeDate: string,
+  seasonId?: number | null,
+  hasFixture?: boolean
+): Promise<{ days: number | null; note: string | null }> {
+  const seasonDates = await lastFinishedMatchDates(
+    client,
+    teamSmId,
+    beforeDate,
+    seasonId
+  );
+  const anyDates =
+    seasonDates.length > 0
+      ? seasonDates
+      : await lastFinishedMatchDates(client, teamSmId, beforeDate, null);
+
+  if (!anyDates.length) {
+    return { days: null, note: "No finished matches found to measure rest." };
+  }
+
+  const raw = dayDiff(anyDates[0], beforeDate);
+  const typical = medianGapDays(anyDates);
+
+  if (hasFixture) {
+    return {
+      days: raw,
+      note:
+        raw != null && raw > 21
+          ? "Long gap since the last recorded result - current-season matches may be missing from glpm_matches."
+          : null,
+    };
+  }
+
+  // Club predictor has no kickoff. Prefer the team's in-season match spacing.
+  if (typical != null) {
+    return {
+      days: typical,
+      note: `Estimated from this team's recent match spacing (median ${typical.toFixed(0)} days). Not a real kickoff rest figure.`,
+    };
+  }
+
+  if (raw != null && raw > 14) {
+    return {
+      days: DEFAULT_CX_CONTEXT_CONFIG.restBaselineDays,
+      note: "Off-season / long layoff since the last recorded result. CX uses the 7-day baseline instead of the raw gap.",
+    };
+  }
+
+  return { days: raw, note: null };
 }
 
 async function resolveHomeVenue(
@@ -178,6 +255,9 @@ export type CxBuiltFeatures = {
   matchDate: string;
   homeRestDays: number | null;
   awayRestDays: number | null;
+  homeRestNote: string | null;
+  awayRestNote: string | null;
+  restIsEstimated: boolean;
   homeTravelKm: number;
   awayTravelKm: number;
   venueAltitudeM: number | null;
@@ -208,15 +288,29 @@ export async function buildCxContextFeatures(
     awayTeamSmId: number;
     matchSmId?: number | null;
     matchDate?: string | null;
+    seasonId?: number | null;
   }
 ): Promise<CxBuiltFeatures> {
   const config = DEFAULT_CX_CONTEXT_CONFIG;
   const venue = await resolveHomeVenue(client, opts.homeTeamSmId, opts.matchSmId);
   const matchDate = opts.matchDate ?? venue.matchDate;
+  const hasFixture = opts.matchSmId != null;
 
   const [homeRest, awayRest, homeCoords, awayCoords] = await Promise.all([
-    daysSinceLastMatch(client, opts.homeTeamSmId, matchDate),
-    daysSinceLastMatch(client, opts.awayTeamSmId, matchDate),
+    resolveTeamRestDays(
+      client,
+      opts.homeTeamSmId,
+      matchDate,
+      opts.seasonId,
+      hasFixture
+    ),
+    resolveTeamRestDays(
+      client,
+      opts.awayTeamSmId,
+      matchDate,
+      opts.seasonId,
+      hasFixture
+    ),
     teamHomeCoords(client, opts.homeTeamSmId),
     teamHomeCoords(client, opts.awayTeamSmId),
   ]);
@@ -291,25 +385,28 @@ export async function buildCxContextFeatures(
 
   return {
     matchDate,
-    homeRestDays: homeRest,
-    awayRestDays: awayRest,
+    homeRestDays: homeRest.days,
+    awayRestDays: awayRest.days,
+    homeRestNote: homeRest.note,
+    awayRestNote: awayRest.note,
+    restIsEstimated: !hasFixture,
     homeTravelKm,
     awayTravelKm,
     venueAltitudeM: venue.altitudeM,
     weather,
     weatherSummary,
     home: {
-      restDays: homeRest,
+      restDays: homeRest.days,
       travelKm: homeTravelKm,
-      restMult: cxRestDaysMultiplier(homeRest ?? config.restBaselineDays, config),
+      restMult: cxRestDaysMultiplier(homeRest.days ?? config.restBaselineDays, config),
       travelMult: cxTravelMultiplier(homeTravelKm, config),
       altitudeMult: alt.home,
       weatherMult,
     },
     away: {
-      restDays: awayRest,
+      restDays: awayRest.days,
       travelKm: awayTravelKm,
-      restMult: cxRestDaysMultiplier(awayRest ?? config.restBaselineDays, config),
+      restMult: cxRestDaysMultiplier(awayRest.days ?? config.restBaselineDays, config),
       travelMult: cxTravelMultiplier(awayTravelKm, config),
       altitudeMult: alt.away,
       weatherMult,

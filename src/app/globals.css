@@ -1799,6 +1799,37 @@ body {
     min-height: 460px;
   }
 
+  .home-results-rail {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin: 0;
+    list-style: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.2rem 0.05rem 0.7rem;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.35rem;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--primary) 45%, transparent) transparent;
+  }
+
+  .home-results-rail::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .home-results-rail::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--primary) 45%, transparent);
+  }
+
+  .home-results-rail-card {
+    flex: 0 0 min(11.75rem, 70vw);
+    scroll-snap-align: start;
+  }
+
   .glpm-day-spine {
     position: relative;
     flex: 0 0 4.75rem;
@@ -2360,4 +2391,31 @@ body {
     animation: none;
     transform: none;
   }
+}
+
+/* Recharts default tooltip is a white box; match the glass UI instead. */
+.recharts-default-tooltip {
+  background: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28) !important;
+  padding: 0.65rem 0.8rem !important;
+  color: var(--foreground) !important;
+  backdrop-filter: blur(20px);
+}
+
+.recharts-tooltip-label {
+  color: var(--muted) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.recharts-tooltip-item {
+  color: var(--foreground) !important;
+}
+
+.chart-float-tooltip {
+  color: var(--foreground);
 }

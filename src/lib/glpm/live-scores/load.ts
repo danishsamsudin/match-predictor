@@ -8,17 +8,37 @@ import {
   SM_FIXTURE_STATE_FINISHED,
 } from "@/lib/glpm/sportmonks/fixtureSchedule";
 import {
+  endOfZonedDayUtc,
+  startOfZonedDayUtc,
+} from "@/lib/glpm/sportmonks/matchday";
+import {
+  finishedStatusLabel,
+  looksFinishedScoreboardRow,
+  scoreboardCalendar,
+  splitDayResults,
+} from "./board";
+import {
   LIVE_POLL_AFTER_KICKOFF_MS,
   LIVE_POLL_LEAD_MS,
   SM_FIXTURE_STATE_INPLAY,
 } from "./constants";
-import { formatRoundLabel, leagueMetaForId } from "./league-meta";
-import {
-  emptySideMetrics,
-  mapFixtureLiveExtras,
-} from "./map-timeline";
+import { formatRoundLabel, leagueMetaFromPayload } from "./league-meta";
+import { mapFixtureLiveExtras } from "./map-timeline";
 import { placeholderLiveScoresBoard } from "./placeholders";
 import type { LiveScoreMatch, LiveScoresBoardPayload } from "./types";
+
+export function emptyLiveScoresBoard(nowMs?: number): LiveScoresBoardPayload {
+  const calendar = scoreboardCalendar(nowMs);
+  return {
+    matches: [],
+    finishedToday: [],
+    yesterday: [],
+    todayDate: calendar.todayDate,
+    yesterdayDate: calendar.yesterdayDate,
+    syncedAt: null,
+    source: "live",
+  };
+}
 
 type Client = SupabaseClient<Database>;
 
@@ -34,10 +54,14 @@ type MatchRow = {
   status: string | null;
   state_id: number | null;
   kickoff_at: string | null;
+  match_date: string | null;
   synced_at: string | null;
   duration_minutes: number | null;
   payload: unknown;
 };
+
+const MATCH_SELECT =
+  "sm_id,league_sm_id,home_team_sm_id,away_team_sm_id,home_score,away_score,venue,gameweek,status,state_id,kickoff_at,match_date,synced_at,duration_minutes,payload";
 
 function teamNameFromPayload(
   payload: unknown,
@@ -73,7 +97,7 @@ function logoFromPayload(
   return local || null;
 }
 
-function statusLabel(row: MatchRow): string {
+function liveStatusLabel(row: MatchRow): string {
   const raw = row.status?.trim();
   if (raw) return raw;
   if (row.state_id === 2) return "1st Half";
@@ -116,10 +140,10 @@ function isLiveBoardCandidate(row: MatchRow, nowMs: number): boolean {
   return kickMs <= nowMs + LIVE_POLL_LEAD_MS && kickMs >= nowMs - LIVE_POLL_AFTER_KICKOFF_MS;
 }
 
-function mapRow(row: MatchRow): LiveScoreMatch | null {
+function mapRow(row: MatchRow, options?: { asResult?: boolean; nowMs?: number }): LiveScoreMatch | null {
   if (row.home_team_sm_id == null || row.away_team_sm_id == null) return null;
 
-  const meta = leagueMetaForId(row.league_sm_id);
+  const meta = leagueMetaFromPayload(row.league_sm_id, row.payload);
   const homeTeamName = teamNameFromPayload(row.payload, "home", row.home_team_sm_id);
   const awayTeamName = teamNameFromPayload(row.payload, "away", row.away_team_sm_id);
   const stadium =
@@ -132,6 +156,7 @@ function mapRow(row: MatchRow): LiveScoreMatch | null {
     statistics?: SmStatistic[];
     xGFixture?: SmXgFixtureRow[];
     length?: number;
+    round?: { name?: string };
   } | null;
 
   const extras = mapFixtureLiveExtras(
@@ -144,6 +169,11 @@ function mapRow(row: MatchRow): LiveScoreMatch | null {
     row.away_team_sm_id
   );
 
+  const asResult =
+    options?.asResult === true ||
+    (options?.nowMs != null && looksFinishedScoreboardRow(row, options.nowMs));
+  const durationMinutes = row.duration_minutes ?? payload?.length ?? 90;
+
   return {
     matchSmId: row.sm_id,
     leagueName: meta.name,
@@ -151,7 +181,7 @@ function mapRow(row: MatchRow): LiveScoreMatch | null {
     countryName: meta.countryName,
     stadiumName: stadium,
     gameweek: row.gameweek,
-    roundLabel: formatRoundLabel(row.gameweek),
+    roundLabel: formatRoundLabel(row.gameweek, payload?.round?.name),
     homeTeamName,
     awayTeamName,
     homeTeamSmId: row.home_team_sm_id,
@@ -160,9 +190,9 @@ function mapRow(row: MatchRow): LiveScoreMatch | null {
     awayLogoUrl: logoFromPayload(row.payload, row.away_team_sm_id, awayTeamName),
     homeScore: row.home_score ?? 0,
     awayScore: row.away_score ?? 0,
-    statusLabel: statusLabel(row),
-    minute: minuteFromPayload(row.payload),
-    durationMinutes: row.duration_minutes ?? payload?.length ?? 90,
+    statusLabel: asResult ? finishedStatusLabel(row) : liveStatusLabel(row),
+    minute: asResult ? durationMinutes : minuteFromPayload(row.payload),
+    durationMinutes,
     kickoffAt: row.kickoff_at,
     timeline: extras.timeline,
     homeMetrics: extras.homeMetrics,
@@ -171,60 +201,107 @@ function mapRow(row: MatchRow): LiveScoreMatch | null {
   };
 }
 
+function latestSyncedAt(rows: MatchRow[]): string | null {
+  return (
+    rows
+      .map((r) => r.synced_at)
+      .filter((v): v is string => Boolean(v))
+      .sort()
+      .at(-1) ?? null
+  );
+}
+
+function mapRows(rows: MatchRow[], options?: { asResult?: boolean; nowMs?: number }): LiveScoreMatch[] {
+  return rows.map((row) => mapRow(row, options)).filter((m): m is LiveScoreMatch => m != null);
+}
+
 /**
- * Load in-play (or soft live-window) matches for the home board.
- * Falls back to placeholders when nothing is live so layout can be reviewed.
+ * Load in-play matches plus today's finished scores and yesterday's results.
+ * Uses request time (`Date.now()`), so the caller page must be dynamic.
+ * Demo cards are opt-in via `includePlaceholdersWhenEmpty`.
  */
 export async function loadLiveScoresBoard(
   client: Client,
   options?: { includePlaceholdersWhenEmpty?: boolean; nowMs?: number }
 ): Promise<LiveScoresBoardPayload> {
-  const includePlaceholders = options?.includePlaceholdersWhenEmpty !== false;
+  const includePlaceholders = options?.includePlaceholdersWhenEmpty === true;
   const nowMs = options?.nowMs ?? Date.now();
-  const windowStart = new Date(nowMs - LIVE_POLL_AFTER_KICKOFF_MS).toISOString();
-  const windowEnd = new Date(nowMs + LIVE_POLL_LEAD_MS).toISOString();
+  const calendar = scoreboardCalendar(nowMs);
+  const empty = (): LiveScoresBoardPayload => emptyLiveScoresBoard(nowMs);
 
-  const { data, error } = await client
+  const liveWindowStart = new Date(nowMs - LIVE_POLL_AFTER_KICKOFF_MS).toISOString();
+  const liveWindowEnd = new Date(nowMs + LIVE_POLL_LEAD_MS).toISOString();
+  const dayStart = startOfZonedDayUtc(calendar.yesterdayDate, calendar.timeZone).toISOString();
+  const dayEnd = endOfZonedDayUtc(calendar.todayDate, calendar.timeZone).toISOString();
+
+  const liveQuery = client
     .from("glpm_matches")
-    .select(
-      "sm_id,league_sm_id,home_team_sm_id,away_team_sm_id,home_score,away_score,venue,gameweek,status,state_id,kickoff_at,synced_at,duration_minutes,payload"
-    )
-    .gte("kickoff_at", windowStart)
-    .lte("kickoff_at", windowEnd)
+    .select(MATCH_SELECT)
+    .gte("kickoff_at", liveWindowStart)
+    .lte("kickoff_at", liveWindowEnd)
     .in("league_sm_id", DEFAULT_GLPM_LEAGUE_IDS)
     .order("kickoff_at", { ascending: true })
     .limit(24);
 
-  if (error) {
-    console.warn(`[live-scores] load failed: ${error.message}`);
-    return includePlaceholders
-      ? placeholderLiveScoresBoard()
-      : { matches: [], syncedAt: null, source: "live" };
+  const dayQuery = client
+    .from("glpm_matches")
+    .select(MATCH_SELECT)
+    .gte("kickoff_at", dayStart)
+    .lt("kickoff_at", dayEnd)
+    .order("kickoff_at", { ascending: true })
+    .limit(160);
+
+  const [liveRes, dayRes] = await Promise.all([liveQuery, dayQuery]);
+
+  if (liveRes.error) {
+    console.warn(`[live-scores] live load failed: ${liveRes.error.message}`);
+  }
+  if (dayRes.error) {
+    console.warn(`[live-scores] results load failed: ${dayRes.error.message}`);
   }
 
-  const rows = (data as MatchRow[] | null) ?? [];
-  const candidates = rows.filter((row) => isLiveBoardCandidate(row, nowMs));
-  const inplay = candidates.filter(
+  if (liveRes.error && dayRes.error) {
+    return includePlaceholders ? placeholderLiveScoresBoard() : empty();
+  }
+
+  const liveRows = ((liveRes.data as MatchRow[] | null) ?? []).filter((row) =>
+    isLiveBoardCandidate(row, nowMs)
+  );
+  const inplay = liveRows.filter(
     (row) => row.state_id != null && SM_FIXTURE_STATE_INPLAY.has(row.state_id)
   );
-  const selected = inplay.length > 0 ? inplay : candidates;
+  const selectedLive = inplay.length > 0 ? inplay : liveRows;
+  const live = mapRows(selectedLive);
 
-  const live = selected
-    .map(mapRow)
-    .filter((m): m is LiveScoreMatch => m != null);
+  const liveIds = new Set(live.map((m) => m.matchSmId));
+  const dayRows = (dayRes.data as MatchRow[] | null) ?? [];
+  const split = splitDayResults({
+    rows: dayRows,
+    liveIds,
+    todayDate: calendar.todayDate,
+    yesterdayDate: calendar.yesterdayDate,
+    timeZone: calendar.timeZone,
+    nowMs,
+  });
 
-  if (live.length === 0) {
-    return includePlaceholders
-      ? placeholderLiveScoresBoard()
-      : { matches: [], syncedAt: null, source: "live" };
+  const finishedToday = mapRows(split.finishedToday, { asResult: true, nowMs });
+  const yesterday = mapRows(split.yesterday, { asResult: true, nowMs }).sort((a, b) => {
+    const league = a.leagueName.localeCompare(b.leagueName);
+    if (league !== 0) return league;
+    return (a.kickoffAt ?? "").localeCompare(b.kickoffAt ?? "");
+  });
+
+  if (live.length === 0 && finishedToday.length === 0 && yesterday.length === 0) {
+    return includePlaceholders ? placeholderLiveScoresBoard() : empty();
   }
 
-  const syncedAt =
-    selected
-      .map((r) => r.synced_at)
-      .filter((v): v is string => Boolean(v))
-      .sort()
-      .at(-1) ?? null;
-
-  return { matches: live, syncedAt, source: "live" };
+  return {
+    matches: live,
+    finishedToday,
+    yesterday,
+    todayDate: calendar.todayDate,
+    yesterdayDate: calendar.yesterdayDate,
+    syncedAt: latestSyncedAt([...selectedLive, ...split.finishedToday, ...split.yesterday]),
+    source: "live",
+  };
 }

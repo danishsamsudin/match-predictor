@@ -71,6 +71,13 @@ export type LiveScoreMatch = {
 
 export type LiveScoresBoardPayload = {
   matches: LiveScoreMatch[];
+  /** Finished fixtures that kicked off today (same panel, below live). */
+  finishedToday: LiveScoreMatch[];
+  /** Any stored league that kicked off yesterday, for the horizontal strip. */
+  yesterday: LiveScoreMatch[];
+  /** Calendar YYYY-MM-DD in the matchday timezone. */
+  todayDate: string;
+  yesterdayDate: string;
   /** ISO timestamp of last successful livescore sync, if any. */
   syncedAt: string | null;
   source: "live" | "placeholder";

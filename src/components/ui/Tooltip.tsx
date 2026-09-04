@@ -212,7 +212,7 @@ export function Tooltip({
           transform,
           zIndex: 10000,
         }}
-        className={`pointer-events-auto w-[min(18rem,calc(100vw-1rem))] rounded-xl border border-white/30 bg-white/95 p-3 text-left text-xs font-medium leading-relaxed text-slate-700 shadow-lg backdrop-blur-sm transition-opacity dark:border-slate-800/60 dark:bg-slate-950/95 dark:text-slate-200 ${
+        className={`pointer-events-auto w-[min(18rem,calc(100vw-1rem))] rounded-2xl border border-glass-border bg-[color:var(--glass-bg)] p-3 text-left text-xs font-medium leading-relaxed text-foreground shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-opacity ${
           positioned ? "opacity-100" : "opacity-0"
         }`}
         onMouseEnter={() => setHovered(true)}

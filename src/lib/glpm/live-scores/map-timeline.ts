@@ -1,6 +1,7 @@
 import { parseStatValue, SM_STAT_TYPE } from "@/lib/sportmonks/statTypes";
 import type { SmEvent, SmFixture, SmStatistic, SmXgFixtureRow } from "@/lib/sportmonks/types";
 import {
+  isGoalLikeKind,
   LIVE_TIMELINE_EVENT_TYPES,
   timelineKindFromTypeId,
   type LiveTimelineKind,
@@ -154,6 +155,36 @@ export function mapFixtureLiveExtras(
 
 export function emptySideMetrics(): LiveScoreSideMetrics {
   return emptyMetrics();
+}
+
+export type GoalScorerLine = {
+  playerName: string;
+  clockLabel: string;
+  kind: LiveTimelineKind;
+  side: LiveScoreSide;
+};
+
+export function goalScorersFromTimeline(
+  events: LiveScoreTimelineEvent[]
+): GoalScorerLine[] {
+  return events
+    .filter((event) => isGoalLikeKind(event.kind))
+    .map((event) => ({
+      playerName: event.playerName?.trim() || "Goal",
+      clockLabel: event.clockLabel,
+      kind: event.kind,
+      side: event.side,
+    }));
+}
+
+export function formatScorerLabel(line: GoalScorerLine): string {
+  const suffix =
+    line.kind === "own_goal"
+      ? " (OG)"
+      : line.kind === "penalty" || line.kind === "pen_shootout_goal"
+        ? " (Pen)"
+        : "";
+  return `${line.playerName}${suffix} ${line.clockLabel}`;
 }
 
 export function timelineKindLabel(kind: LiveTimelineKind): string {
