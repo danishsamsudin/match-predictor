@@ -1,0 +1,228 @@
+{
+  "key": "championship-2025",
+  "season_sm_id": 25648,
+  "competition_sm_id": 9,
+  "as_of_date": "2026-05-23",
+  "model_version": "standings_goals_season_v1",
+  "teams_imported": 24,
+  "max_matches": 49,
+  "leaderboard_preview": [
+    {
+      "rank": 1,
+      "team": "Coventry City",
+      "quality_overall": 100.0,
+      "r_attack": 100.0,
+      "r_defence": 100.0,
+      "r_finishing": 100.0,
+      "points": 95
+    },
+    {
+      "rank": 2,
+      "team": "Ipswich Town",
+      "quality_overall": 90.05,
+      "r_attack": 87.54,
+      "r_defence": 91.3,
+      "r_finishing": 91.3,
+      "points": 84
+    },
+    {
+      "rank": 3,
+      "team": "Middlesbrough",
+      "quality_overall": 85.12,
+      "r_attack": 83.19,
+      "r_defence": 87.54,
+      "r_finishing": 84.64,
+      "points": 82
+    },
+    {
+      "rank": 4,
+      "team": "Southampton",
+      "quality_overall": 83.82,
+      "r_attack": 91.3,
+      "r_defence": 72.61,
+      "r_finishing": 87.54,
+      "points": 82
+    },
+    {
+      "rank": 5,
+      "team": "Millwall",
+      "quality_overall": 79.66,
+      "r_attack": 72.61,
+      "r_defence": 84.64,
+      "r_finishing": 81.74,
+      "points": 84
+    },
+    {
+      "rank": 6,
+      "team": "Norwich City",
+      "quality_overall": 74.78,
+      "r_attack": 70.43,
+      "r_defence": 78.04,
+      "r_finishing": 75.87,
+      "points": 65
+    },
+    {
+      "rank": 7,
+      "team": "Derby County",
+      "quality_overall": 72.97,
+      "r_attack": 76.96,
+      "r_defence": 62.83,
+      "r_finishing": 79.13,
+      "points": 69
+    },
+    {
+      "rank": 8,
+      "team": "Birmingham City",
+      "quality_overall": 69.71,
+      "r_attack": 60.65,
+      "r_defence": 78.04,
+      "r_finishing": 70.43,
+      "points": 64
+    },
+    {
+      "rank": 9,
+      "team": "Hull City",
+      "quality_overall": 68.62,
+      "r_attack": 83.19,
+      "r_defence": 46.81,
+      "r_finishing": 75.87,
+      "points": 80
+    },
+    {
+      "rank": 10,
+      "team": "Wrexham",
+      "quality_overall": 67.9,
+      "r_attack": 79.13,
+      "r_defence": 51.96,
+      "r_finishing": 72.61,
+      "points": 71
+    },
+    {
+      "rank": 11,
+      "team": "Bristol City",
+      "quality_overall": 65.36,
+      "r_attack": 66.09,
+      "r_defence": 62.83,
+      "r_finishing": 67.17,
+      "points": 62
+    },
+    {
+      "rank": 12,
+      "team": "Stoke City",
+      "quality_overall": 64.27,
+      "r_attack": 53.04,
+      "r_defence": 78.04,
+      "r_finishing": 61.74,
+      "points": 55
+    },
+    {
+      "rank": 13,
+      "team": "Sheffield United",
+      "quality_overall": 62.92,
+      "r_attack": 74.78,
+      "r_defence": 46.81,
+      "r_finishing": 67.17,
+      "points": 60
+    },
+    {
+      "rank": 14,
+      "team": "Swansea City",
+      "quality_overall": 62.46,
+      "r_attack": 60.65,
+      "r_defence": 62.83,
+      "r_finishing": 63.91,
+      "points": 64
+    },
+    {
+      "rank": 15,
+      "team": "Preston North End",
+      "quality_overall": 58.12,
+      "r_attack": 57.39,
+      "r_defence": 57.39,
+      "r_finishing": 59.57,
+      "points": 60
+    },
+    {
+      "rank": 16,
+      "team": "West Bromwich Albion",
+      "quality_overall": 57.97,
+      "r_attack": 48.26,
+      "r_defence": 69.35,
+      "r_finishing": 56.3,
+      "points": 53
+    },
+    {
+      "rank": 17,
+      "team": "Blackburn Rovers",
+      "quality_overall": 54.56,
+      "r_attack": 37.39,
+      "r_defence": 78.04,
+      "r_finishing": 48.26,
+      "points": 55
+    },
+    {
+      "rank": 18,
+      "team": "Leicester City",
+      "quality_overall": 54.22,
+      "r_attack": 63.91,
+      "r_defence": 42.46,
+      "r_finishing": 56.3,
+      "points": 52
+    },
+    {
+      "rank": 19,
+      "team": "Watford",
+      "quality_overall": 53.05,
+      "r_attack": 55.22,
+      "r_defence": 51.96,
+      "r_finishing": 51.96,
+      "points": 57
+    },
+    {
+      "rank": 20,
+      "team": "Queens Park Rangers",
+      "quality_overall": 52.54,
+      "r_attack": 68.26,
+      "r_defence": 37.39,
+      "r_finishing": 51.96,
+      "points": 58
+    },
+    {
+      "rank": 21,
+      "team": "Charlton Athletic",
+      "quality_overall": 51.91,
+      "r_attack": 42.46,
+      "r_defence": 69.35,
+      "r_finishing": 43.91,
+      "points": 53
+    },
+    {
+      "rank": 22,
+      "team": "Oxford United",
+      "quality_overall": 50.7,
+      "r_attack": 45.36,
+      "r_defence": 62.83,
+      "r_finishing": 43.91,
+      "points": 47
+    },
+    {
+      "rank": 23,
+      "team": "Portsmouth",
+      "quality_overall": 47.83,
+      "r_attack": 50.87,
+      "r_defence": 55.22,
+      "r_finishing": 37.39,
+      "points": 55
+    },
+    {
+      "rank": 24,
+      "team": "Sheffield Wednesday",
+      "quality_overall": 20.0,
+      "r_attack": 20.0,
+      "r_defence": 20.0,
+      "r_finishing": 20.0,
+      "points": 18
+    }
+  ],
+  "dry_run": false
+}

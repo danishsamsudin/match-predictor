@@ -40,7 +40,7 @@ export async function loadGlpmHubPayloadCached(
   const upcomingLimit = Math.max(1, opts.upcomingLimit ?? 24);
 
   const cacheKey = [
-    "glpm-hub-payload-v6",
+    "glpm-hub-payload-v7",
     seasonKey,
     competitionKey,
     preferFixtures ? "1" : "0",

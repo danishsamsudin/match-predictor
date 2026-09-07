@@ -1,0 +1,240 @@
+{
+  "key": "serie_a-2026",
+  "season_label": "2026/27",
+  "season_sm_id": 27895,
+  "competition_sm_id": 384,
+  "as_of_date": "2026-09-07",
+  "model_version": "understat_season_v1",
+  "scraped": true,
+  "from_cache": false,
+  "teams_imported": 20,
+  "players_imported": 410,
+  "max_matches": 3,
+  "leaderboard_preview": [
+    {
+      "rank": 1,
+      "team": "Roma",
+      "quality_overall": 81.87,
+      "r_attack": 100.0,
+      "r_defence": 89.82,
+      "r_finishing": 55.79,
+      "xg": 11.4522,
+      "xga": 2.2627,
+      "points": 9
+    },
+    {
+      "rank": 2,
+      "team": "Como",
+      "quality_overall": 77.37,
+      "r_attack": 74.21,
+      "r_defence": 71.58,
+      "r_finishing": 86.32,
+      "xg": 5.4905,
+      "xga": 4.0736,
+      "points": 7
+    },
+    {
+      "rank": 3,
+      "team": "Juventus",
+      "quality_overall": 75.55,
+      "r_attack": 79.47,
+      "r_defence": 100.0,
+      "r_finishing": 47.19,
+      "xg": 6.1313,
+      "xga": 0.6612,
+      "points": 7
+    },
+    {
+      "rank": 4,
+      "team": "AC Milan",
+      "quality_overall": 74.21,
+      "r_attack": 68.95,
+      "r_defence": 79.47,
+      "r_finishing": 74.21,
+      "xg": 5.0542,
+      "xga": 3.3437,
+      "points": 7
+    },
+    {
+      "rank": 5,
+      "team": "Inter",
+      "quality_overall": 74.15,
+      "r_attack": 89.82,
+      "r_defence": 74.21,
+      "r_finishing": 58.42,
+      "xg": 9.2955,
+      "xga": 3.8627,
+      "points": 9
+    },
+    {
+      "rank": 6,
+      "team": "Monza",
+      "quality_overall": 71.81,
+      "r_attack": 71.58,
+      "r_defence": 82.81,
+      "r_finishing": 61.05,
+      "xg": 5.2188,
+      "xga": 3.1838,
+      "points": 1
+    },
+    {
+      "rank": 7,
+      "team": "Lazio",
+      "quality_overall": 70.7,
+      "r_attack": 66.32,
+      "r_defence": 76.84,
+      "r_finishing": 68.95,
+      "xg": 4.8978,
+      "xga": 3.6055,
+      "points": 9
+    },
+    {
+      "rank": 8,
+      "team": "Sassuolo",
+      "quality_overall": 67.19,
+      "r_attack": 76.84,
+      "r_defence": 58.42,
+      "r_finishing": 66.32,
+      "xg": 6.0874,
+      "xga": 5.4328,
+      "points": 4
+    },
+    {
+      "rank": 9,
+      "team": "Napoli",
+      "quality_overall": 67.19,
+      "r_attack": 63.68,
+      "r_defence": 61.05,
+      "r_finishing": 76.84,
+      "xg": 4.5125,
+      "xga": 5.3831,
+      "points": 3
+    },
+    {
+      "rank": 10,
+      "team": "Frosinone",
+      "quality_overall": 66.02,
+      "r_attack": 61.05,
+      "r_defence": 47.19,
+      "r_finishing": 89.82,
+      "xg": 4.108,
+      "xga": 6.8703,
+      "points": 6
+    },
+    {
+      "rank": 11,
+      "team": "Torino",
+      "quality_overall": 65.2,
+      "r_attack": 47.19,
+      "r_defence": 68.95,
+      "r_finishing": 79.47,
+      "xg": 3.4042,
+      "xga": 4.6455,
+      "points": 3
+    },
+    {
+      "rank": 12,
+      "team": "Bologna",
+      "quality_overall": 64.21,
+      "r_attack": 86.32,
+      "r_defence": 86.32,
+      "r_finishing": 20.0,
+      "xg": 6.3074,
+      "xga": 2.8226,
+      "points": 1
+    },
+    {
+      "rank": 13,
+      "team": "Udinese",
+      "quality_overall": 63.92,
+      "r_attack": 55.79,
+      "r_defence": 53.16,
+      "r_finishing": 82.81,
+      "xg": 3.9411,
+      "xga": 6.2633,
+      "points": 4
+    },
+    {
+      "rank": 14,
+      "team": "Atalanta",
+      "quality_overall": 60.12,
+      "r_attack": 40.18,
+      "r_defence": 40.18,
+      "r_finishing": 100.0,
+      "xg": 1.8713,
+      "xga": 7.4771,
+      "points": 6
+    },
+    {
+      "rank": 15,
+      "team": "Genoa",
+      "quality_overall": 57.01,
+      "r_attack": 43.68,
+      "r_defence": 63.68,
+      "r_finishing": 63.68,
+      "xg": 2.1649,
+      "xga": 5.2778,
+      "points": 0
+    },
+    {
+      "rank": 16,
+      "team": "Venezia",
+      "quality_overall": 55.56,
+      "r_attack": 82.81,
+      "r_defence": 43.68,
+      "r_finishing": 40.18,
+      "xg": 6.1532,
+      "xga": 7.4599,
+      "points": 0
+    },
+    {
+      "rank": 17,
+      "team": "Cagliari",
+      "quality_overall": 54.04,
+      "r_attack": 53.16,
+      "r_defence": 55.79,
+      "r_finishing": 53.16,
+      "xg": 3.5025,
+      "xga": 5.4479,
+      "points": 6
+    },
+    {
+      "rank": 18,
+      "team": "Parma",
+      "quality_overall": 52.63,
+      "r_attack": 20.0,
+      "r_defence": 66.32,
+      "r_finishing": 71.58,
+      "xg": 1.8531,
+      "xga": 5.184,
+      "points": 1
+    },
+    {
+      "rank": 19,
+      "team": "Fiorentina",
+      "quality_overall": 48.25,
+      "r_attack": 50.53,
+      "r_defence": 50.53,
+      "r_finishing": 43.68,
+      "xg": 3.4629,
+      "xga": 6.4997,
+      "points": 0
+    },
+    {
+      "rank": 20,
+      "team": "Lecce",
+      "quality_overall": 42.98,
+      "r_attack": 58.42,
+      "r_defence": 20.0,
+      "r_finishing": 50.53,
+      "xg": 4.1009,
+      "xga": 9.2527,
+      "points": 3
+    }
+  ],
+  "dry_run": false,
+  "not_covered": [
+    "Championship (no Understat)",
+    "Eredivisie (no Understat)"
+  ]
+}

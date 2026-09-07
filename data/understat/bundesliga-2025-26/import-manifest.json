@@ -1,0 +1,218 @@
+{
+  "key": "bundesliga-2025",
+  "season_label": "2025/26",
+  "season_sm_id": 25646,
+  "competition_sm_id": 82,
+  "as_of_date": "2026-05-17",
+  "model_version": "understat_season_v1",
+  "scraped": true,
+  "from_cache": false,
+  "teams_imported": 18,
+  "players_imported": 499,
+  "max_matches": 34,
+  "leaderboard_preview": [
+    {
+      "rank": 1,
+      "team": "FC Bayern M\u00fcnchen",
+      "quality_overall": 96.47,
+      "r_attack": 100.0,
+      "r_defence": 89.41,
+      "r_finishing": 100.0,
+      "xg": 104.8092,
+      "xga": 44.6514,
+      "points": 89
+    },
+    {
+      "rank": 2,
+      "team": "Borussia Dortmund",
+      "quality_overall": 86.6,
+      "r_attack": 78.24,
+      "r_defence": 100.0,
+      "r_finishing": 81.57,
+      "xg": 67.8022,
+      "xga": 42.7752,
+      "points": 73
+    },
+    {
+      "rank": 3,
+      "team": "VfB Stuttgart",
+      "quality_overall": 82.88,
+      "r_attack": 81.57,
+      "r_defence": 81.57,
+      "r_finishing": 85.49,
+      "xg": 68.3296,
+      "xga": 53.448,
+      "points": 62
+    },
+    {
+      "rank": 4,
+      "team": "Bayer 04 Leverkusen",
+      "quality_overall": 75.55,
+      "r_attack": 89.41,
+      "r_defence": 85.49,
+      "r_finishing": 51.76,
+      "xg": 75.2506,
+      "xga": 50.9641,
+      "points": 59
+    },
+    {
+      "rank": 5,
+      "team": "TSG Hoffenheim",
+      "quality_overall": 74.31,
+      "r_attack": 72.35,
+      "r_defence": 72.35,
+      "r_finishing": 78.24,
+      "xg": 63.1474,
+      "xga": 54.0897,
+      "points": 61
+    },
+    {
+      "rank": 6,
+      "team": "Eintracht Frankfurt",
+      "quality_overall": 73.14,
+      "r_attack": 60.59,
+      "r_defence": 69.41,
+      "r_finishing": 89.41,
+      "xg": 51.0165,
+      "xga": 55.5525,
+      "points": 44
+    },
+    {
+      "rank": 7,
+      "team": "SC Freiburg",
+      "quality_overall": 69.41,
+      "r_attack": 57.65,
+      "r_defence": 75.29,
+      "r_finishing": 75.29,
+      "xg": 50.1307,
+      "xga": 53.5652,
+      "points": 47
+    },
+    {
+      "rank": 8,
+      "team": "RB Leipzig",
+      "quality_overall": 68.11,
+      "r_attack": 85.49,
+      "r_defence": 78.24,
+      "r_finishing": 40.59,
+      "xg": 75.1849,
+      "xga": 53.4834,
+      "points": 65
+    },
+    {
+      "rank": 9,
+      "team": "FC K\u00f6ln",
+      "quality_overall": 64.51,
+      "r_attack": 69.41,
+      "r_defence": 60.59,
+      "r_finishing": 63.53,
+      "xg": 53.8338,
+      "xga": 61.8475,
+      "points": 32
+    },
+    {
+      "rank": 10,
+      "team": "FC Union Berlin",
+      "quality_overall": 62.55,
+      "r_attack": 51.76,
+      "r_defence": 66.47,
+      "r_finishing": 69.41,
+      "xg": 48.4145,
+      "xga": 56.0621,
+      "points": 39
+    },
+    {
+      "rank": 11,
+      "team": "Borussia M\u00f6nchengladbach",
+      "quality_overall": 59.48,
+      "r_attack": 48.43,
+      "r_defence": 63.53,
+      "r_finishing": 66.47,
+      "xg": 46.689,
+      "xga": 56.6097,
+      "points": 38
+    },
+    {
+      "rank": 12,
+      "team": "FC Augsburg",
+      "quality_overall": 55.56,
+      "r_attack": 63.53,
+      "r_defence": 48.43,
+      "r_finishing": 54.71,
+      "xg": 51.2656,
+      "xga": 65.5312,
+      "points": 43
+    },
+    {
+      "rank": 13,
+      "team": "VfL Wolfsburg",
+      "quality_overall": 55.55,
+      "r_attack": 66.47,
+      "r_defence": 51.76,
+      "r_finishing": 48.43,
+      "xg": 52.5824,
+      "xga": 65.1251,
+      "points": 29
+    },
+    {
+      "rank": 14,
+      "team": "Hamburger SV",
+      "quality_overall": 53.79,
+      "r_attack": 44.51,
+      "r_defence": 44.51,
+      "r_finishing": 72.35,
+      "xg": 43.8328,
+      "xga": 66.065,
+      "points": 38
+    },
+    {
+      "rank": 15,
+      "team": "Werder Bremen",
+      "quality_overall": 51.96,
+      "r_attack": 40.59,
+      "r_defence": 57.65,
+      "r_finishing": 57.65,
+      "xg": 42.3464,
+      "xga": 61.86,
+      "points": 32
+    },
+    {
+      "rank": 16,
+      "team": "FSV Mainz 05",
+      "quality_overall": 50.0,
+      "r_attack": 75.29,
+      "r_defence": 54.71,
+      "r_finishing": 20.0,
+      "xg": 63.2648,
+      "xga": 61.8721,
+      "points": 40
+    },
+    {
+      "rank": 17,
+      "team": "St. Pauli",
+      "quality_overall": 40.39,
+      "r_attack": 20.0,
+      "r_defence": 40.59,
+      "r_finishing": 60.59,
+      "xg": 34.0315,
+      "xga": 66.8082,
+      "points": 26
+    },
+    {
+      "rank": 18,
+      "team": "FC Heidenheim",
+      "quality_overall": 39.74,
+      "r_attack": 54.71,
+      "r_defence": 20.0,
+      "r_finishing": 44.51,
+      "xg": 49.9678,
+      "xga": 71.5891,
+      "points": 26
+    }
+  ],
+  "dry_run": false,
+  "not_covered": [
+    "Championship (no Understat)",
+    "Eredivisie (no Understat)"
+  ]
+}

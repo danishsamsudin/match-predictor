@@ -1,0 +1,218 @@
+{
+  "key": "bundesliga-2026",
+  "season_label": "2026/27",
+  "season_sm_id": 28321,
+  "competition_sm_id": 82,
+  "as_of_date": "2026-09-07",
+  "model_version": "understat_season_v1",
+  "scraped": true,
+  "from_cache": false,
+  "teams_imported": 18,
+  "players_imported": 335,
+  "max_matches": 2,
+  "leaderboard_preview": [
+    {
+      "rank": 1,
+      "team": "FSV Mainz 05",
+      "quality_overall": 82.55,
+      "r_attack": 75.29,
+      "r_defence": 100.0,
+      "r_finishing": 72.35,
+      "xg": 4.8293,
+      "xga": 0.9484,
+      "points": 4
+    },
+    {
+      "rank": 2,
+      "team": "Bayer 04 Leverkusen",
+      "quality_overall": 79.15,
+      "r_attack": 85.49,
+      "r_defence": 85.49,
+      "r_finishing": 66.47,
+      "xg": 6.0074,
+      "xga": 1.6502,
+      "points": 3
+    },
+    {
+      "rank": 3,
+      "team": "FC Bayern M\u00fcnchen",
+      "quality_overall": 77.84,
+      "r_attack": 89.41,
+      "r_defence": 89.41,
+      "r_finishing": 54.71,
+      "xg": 6.1326,
+      "xga": 1.5002,
+      "points": 4
+    },
+    {
+      "rank": 4,
+      "team": "FC Augsburg",
+      "quality_overall": 76.67,
+      "r_attack": 100.0,
+      "r_defence": 60.59,
+      "r_finishing": 69.41,
+      "xg": 6.9819,
+      "xga": 4.3473,
+      "points": 6
+    },
+    {
+      "rank": 5,
+      "team": "SC Freiburg",
+      "quality_overall": 73.6,
+      "r_attack": 57.65,
+      "r_defence": 81.57,
+      "r_finishing": 81.57,
+      "xg": 3.5566,
+      "xga": 1.6818,
+      "points": 6
+    },
+    {
+      "rank": 6,
+      "team": "Elversberg",
+      "quality_overall": 72.74,
+      "r_attack": 66.47,
+      "r_defence": 51.76,
+      "r_finishing": 100.0,
+      "xg": 4.4323,
+      "xga": 5.503,
+      "points": 6
+    },
+    {
+      "rank": 7,
+      "team": "Borussia Dortmund",
+      "quality_overall": 70.85,
+      "r_attack": 54.71,
+      "r_defence": 72.35,
+      "r_finishing": 85.49,
+      "xg": 3.3377,
+      "xga": 3.2727,
+      "points": 6
+    },
+    {
+      "rank": 8,
+      "team": "RB Leipzig",
+      "quality_overall": 69.41,
+      "r_attack": 81.57,
+      "r_defence": 78.24,
+      "r_finishing": 48.43,
+      "xg": 5.3466,
+      "xga": 2.0879,
+      "points": 3
+    },
+    {
+      "rank": 9,
+      "team": "Werder Bremen",
+      "quality_overall": 66.8,
+      "r_attack": 44.51,
+      "r_defence": 66.47,
+      "r_finishing": 89.41,
+      "xg": 1.8028,
+      "xga": 3.9666,
+      "points": 3
+    },
+    {
+      "rank": 10,
+      "team": "Eintracht Frankfurt",
+      "quality_overall": 66.47,
+      "r_attack": 69.41,
+      "r_defence": 69.41,
+      "r_finishing": 60.59,
+      "xg": 4.6293,
+      "xga": 3.7288,
+      "points": 1
+    },
+    {
+      "rank": 11,
+      "team": "VfB Stuttgart",
+      "quality_overall": 62.74,
+      "r_attack": 72.35,
+      "r_defence": 40.59,
+      "r_finishing": 75.29,
+      "xg": 4.7719,
+      "xga": 6.9371,
+      "points": 3
+    },
+    {
+      "rank": 12,
+      "team": "TSG Hoffenheim",
+      "quality_overall": 62.55,
+      "r_attack": 60.59,
+      "r_defence": 63.53,
+      "r_finishing": 63.53,
+      "xg": 4.0894,
+      "xga": 4.3389,
+      "points": 0
+    },
+    {
+      "rank": 13,
+      "team": "FC K\u00f6ln",
+      "quality_overall": 61.57,
+      "r_attack": 78.24,
+      "r_defence": 54.71,
+      "r_finishing": 51.76,
+      "xg": 5.1723,
+      "xga": 5.4456,
+      "points": 3
+    },
+    {
+      "rank": 14,
+      "team": "FC Union Berlin",
+      "quality_overall": 59.48,
+      "r_attack": 51.76,
+      "r_defence": 48.43,
+      "r_finishing": 78.24,
+      "xg": 2.5332,
+      "xga": 5.5111,
+      "points": 1
+    },
+    {
+      "rank": 15,
+      "team": "Borussia M\u00f6nchengladbach",
+      "quality_overall": 55.23,
+      "r_attack": 63.53,
+      "r_defence": 44.51,
+      "r_finishing": 57.65,
+      "xg": 4.1215,
+      "xga": 6.7969,
+      "points": 0
+    },
+    {
+      "rank": 16,
+      "team": "Paderborn",
+      "quality_overall": 52.16,
+      "r_attack": 40.59,
+      "r_defence": 75.29,
+      "r_finishing": 40.59,
+      "xg": 1.4243,
+      "xga": 2.721,
+      "points": 1
+    },
+    {
+      "rank": 17,
+      "team": "Hamburger SV",
+      "quality_overall": 40.72,
+      "r_attack": 20.0,
+      "r_defence": 57.65,
+      "r_finishing": 44.51,
+      "xg": 1.3637,
+      "xga": 4.5927,
+      "points": 0
+    },
+    {
+      "rank": 18,
+      "team": "Schalke 04",
+      "quality_overall": 29.48,
+      "r_attack": 48.43,
+      "r_defence": 20.0,
+      "r_finishing": 20.0,
+      "xg": 2.0876,
+      "xga": 7.5901,
+      "points": 1
+    }
+  ],
+  "dry_run": false,
+  "not_covered": [
+    "Championship (no Understat)",
+    "Eredivisie (no Understat)"
+  ]
+}

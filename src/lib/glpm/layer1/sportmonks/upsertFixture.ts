@@ -19,6 +19,7 @@ import {
   sumLineupGkSavesByTeam,
 } from "./proxies";
 import { upsertProviderPayload } from "../upsertPayload";
+import { currentGoalsFromScores } from "@/lib/glpm/live-scores/score-from-payload";
 
 type Client = SupabaseClient<Database>;
 type StatsInsert = Database["public"]["Tables"]["glpm_match_team_stats"]["Insert"];
@@ -71,15 +72,7 @@ export function resolveParticipants(fixture: SmFixture): {
 }
 
 function currentGoals(scores: SmScore[] | undefined, participantId: number): number | null {
-  if (!scores?.length) return null;
-  const preferred = scores.find(
-    (s) =>
-      s.participant_id === participantId &&
-      (s.description === "CURRENT" || s.description === "2ND_HALF" || s.description === "FULLTIME")
-  );
-  const any = preferred ?? scores.find((s) => s.participant_id === participantId);
-  const g = any?.score?.goals;
-  return typeof g === "number" ? g : null;
+  return currentGoalsFromScores(scores, participantId);
 }
 
 /**

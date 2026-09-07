@@ -4,10 +4,17 @@ import Link from "next/link";
 import type { SideInteractions } from "@/lib/glpm/engine";
 import { buildGlpmCompareHref } from "@/lib/glpm/hub-prediction-map";
 import {
+  detailEventsFromTimeline,
+  formatResultEventPlayerLabel,
+  formatResultEventSecondaryLabel,
+  timelineKindLabel,
+} from "@/lib/glpm/live-scores/map-timeline";
+import {
   favoriteFromPrediction,
   settleScoreMarkets,
 } from "@/lib/glpm/live-scores/settle-markets";
-import type { LiveScoreMatch } from "@/lib/glpm/live-scores/types";
+import type { LiveScoreMatch, LiveScoreTimelineEvent } from "@/lib/glpm/live-scores/types";
+import { TimelineEventIcon } from "./live-scores/TimelineEventIcon";
 
 function pctLabel(p: number): string {
   return `${(p * 100).toFixed(0)}%`;
@@ -139,11 +146,6 @@ export function PredictedVsActualPanel({ match }: { match: LiveScoreMatch }) {
   const bttsHit = prediction ? prediction.bttsYes >= 0.5 === settled.btts : null;
   const resultHit = favorite != null ? favorite === settled.result : null;
 
-  const cornersTotal =
-    home?.corners != null && away?.corners != null
-      ? home.corners + away.corners
-      : null;
-
   const compareHref = buildGlpmCompareHref({
     homeTeamSmId: match.homeTeamSmId,
     awayTeamSmId: match.awayTeamSmId,
@@ -231,18 +233,10 @@ export function PredictedVsActualPanel({ match }: { match: LiveScoreMatch }) {
             label="Corners"
             predicted={
               predHome || predAway
-                ? `${sidePair(predHome?.corners, predAway?.corners, 1)}${
-                    predHome?.corners != null && predAway?.corners != null
-                      ? ` · tot ${fmtNum((predHome.corners ?? 0) + (predAway.corners ?? 0), 1)}`
-                      : ""
-                  }`
+                ? sidePair(predHome?.corners, predAway?.corners, 1)
                 : "-"
             }
-            actual={
-              cornersTotal != null
-                ? `${sidePair(home?.corners, away?.corners)} · tot ${cornersTotal}`
-                : sidePair(home?.corners, away?.corners)
-            }
+            actual={sidePair(home?.corners, away?.corners)}
           />
           <CompareRow
             label="Yellow cards"
@@ -272,6 +266,8 @@ export function PredictedVsActualPanel({ match }: { match: LiveScoreMatch }) {
         </div>
       </section>
 
+      <KeyMomentsSection events={match.timeline} />
+
       {interactions ? (
         <MatchupInteractionsBlock
           interactions={interactions}
@@ -289,6 +285,44 @@ export function PredictedVsActualPanel({ match }: { match: LiveScoreMatch }) {
         Open in predictor →
       </Link>
     </div>
+  );
+}
+
+function KeyMomentsSection({ events }: { events: LiveScoreTimelineEvent[] }) {
+  const detail = detailEventsFromTimeline(events);
+  if (detail.length === 0) return null;
+
+  return (
+    <section>
+      <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted">
+        Cards & substitutions
+      </p>
+      <ul className="divide-y divide-glass-border/70 rounded-xl border border-glass-border bg-surface/60 px-3">
+        {detail.map((event) => {
+          const isAway = event.side === "away";
+          const secondary = formatResultEventSecondaryLabel(event);
+          return (
+            <li
+              key={event.id}
+              className={`flex items-center gap-2.5 py-2 ${isAway ? "flex-row-reverse text-right" : ""}`}
+            >
+              <TimelineEventIcon kind={event.kind} size="sm" />
+              <div className={`min-w-0 flex-1 ${isAway ? "text-right" : ""}`}>
+                <p className="truncate text-xs font-medium text-foreground">
+                  <span className="tabular-nums text-muted">{event.clockLabel}</span>
+                  <span className="mx-1 text-muted-subtle">·</span>
+                  <span className="sr-only">{timelineKindLabel(event.kind)}: </span>
+                  {formatResultEventPlayerLabel(event)}
+                </p>
+                {secondary ? (
+                  <p className="mt-0.5 truncate text-[10px] text-muted">{secondary}</p>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

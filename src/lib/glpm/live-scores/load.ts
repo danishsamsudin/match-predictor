@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveTeamLogo } from "@/lib/data/team-logos";
 import type { Database } from "@/lib/supabase";
 import { DEFAULT_GLPM_LEAGUE_IDS } from "@/lib/sportmonks/constants";
-import type { SmEvent, SmStatistic, SmXgFixtureRow } from "@/lib/sportmonks/types";
+import type { SmEvent, SmScore, SmStatistic, SmXgFixtureRow } from "@/lib/sportmonks/types";
 import {
   isFinishedFixture,
   SM_FIXTURE_STATE_FINISHED,
@@ -26,6 +26,7 @@ import { enrichFinishedMatches } from "./enrich-finished";
 import { formatRoundLabel, leagueMetaFromPayload } from "./league-meta";
 import { mapFixtureLiveExtras } from "./map-timeline";
 import { placeholderLiveScoresBoard } from "./placeholders";
+import { currentGoalsFromScores } from "./score-from-payload";
 import type { LiveScoreMatch, LiveScoresBoardPayload } from "./types";
 
 export function emptyLiveScoresBoard(nowMs?: number): LiveScoresBoardPayload {
@@ -159,6 +160,7 @@ function mapRow(row: MatchRow, options?: { asResult?: boolean; nowMs?: number })
     xGFixture?: SmXgFixtureRow[];
     length?: number;
     round?: { name?: string };
+    scores?: SmScore[];
   } | null;
 
   const extras = mapFixtureLiveExtras(
@@ -176,6 +178,9 @@ function mapRow(row: MatchRow, options?: { asResult?: boolean; nowMs?: number })
     (options?.nowMs != null && looksFinishedScoreboardRow(row, options.nowMs));
   const durationMinutes = row.duration_minutes ?? payload?.length ?? 90;
 
+  const payloadHome = currentGoalsFromScores(payload?.scores, row.home_team_sm_id);
+  const payloadAway = currentGoalsFromScores(payload?.scores, row.away_team_sm_id);
+
   return {
     matchSmId: row.sm_id,
     leagueName: meta.name,
@@ -192,8 +197,8 @@ function mapRow(row: MatchRow, options?: { asResult?: boolean; nowMs?: number })
     leagueSmId: row.league_sm_id,
     homeLogoUrl: logoFromPayload(row.payload, row.home_team_sm_id, homeTeamName),
     awayLogoUrl: logoFromPayload(row.payload, row.away_team_sm_id, awayTeamName),
-    homeScore: row.home_score ?? 0,
-    awayScore: row.away_score ?? 0,
+    homeScore: payloadHome ?? row.home_score ?? 0,
+    awayScore: payloadAway ?? row.away_score ?? 0,
     statusLabel: asResult ? finishedStatusLabel(row) : liveStatusLabel(row),
     minute: asResult ? durationMinutes : minuteFromPayload(row.payload),
     durationMinutes,

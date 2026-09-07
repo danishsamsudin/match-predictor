@@ -187,6 +187,49 @@ export function formatScorerLabel(line: GoalScorerLine): string {
   return `${line.playerName}${suffix} ${line.clockLabel}`;
 }
 
+/** Cards and subs for the expanded prediction-compare panel (not the compact scoreline). */
+export function detailEventsFromTimeline(
+  events: LiveScoreTimelineEvent[]
+): LiveScoreTimelineEvent[] {
+  return events.filter((event) => {
+    if (
+      event.kind === "yellow_card" ||
+      event.kind === "red_card" ||
+      event.kind === "yellow_red_card" ||
+      event.kind === "missed_penalty" ||
+      event.kind === "pen_shootout_miss" ||
+      event.kind === "substitution"
+    ) {
+      return true;
+    }
+    return false;
+  });
+}
+
+export function formatResultEventPlayerLabel(event: LiveScoreTimelineEvent): string {
+  if (event.kind === "substitution") {
+    return event.playerName?.trim() || "Player on";
+  }
+  if (isGoalLikeKind(event.kind)) {
+    const scorer = event.playerName?.trim() || "Goal";
+    if (event.kind === "own_goal") return `${scorer} (OG)`;
+    if (event.kind === "penalty" || event.kind === "pen_shootout_goal") {
+      return `${scorer} (Pen)`;
+    }
+    return scorer;
+  }
+  return event.playerName?.trim() || timelineKindLabel(event.kind);
+}
+
+export function formatResultEventSecondaryLabel(
+  event: LiveScoreTimelineEvent
+): string | null {
+  if (event.kind === "substitution" && event.relatedPlayerName) {
+    return `for ${event.relatedPlayerName}`;
+  }
+  return null;
+}
+
 export function timelineKindLabel(kind: LiveTimelineKind): string {
   switch (kind) {
     case "goal":

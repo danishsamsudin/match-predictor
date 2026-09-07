@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 """
-Import Understat-style season aggregates (league table + players) for PL 2025/26.
+Scrape Understat season aggregates and patch Attack / Defence / Finishing on
+glpm_team_rating_vectors (percentile within each league).
 
-Updates Attack / Defence / Finishing on glpm_team_rating_vectors from real season
-xG / xGA / Goals−xG (percentile within the league).
-
-Also writes normalized artifacts under data/understat/pl-2025-26/.
+Understat coverage: EPL, Serie A, Bundesliga (not Championship / Eredivisie).
 
 Usage:
   python3 scripts/glpm_import_understat_season.py
-  python3 scripts/glpm_import_understat_season.py --dry-run
+  python3 scripts/glpm_import_understat_season.py --league epl --season 2025
+  python3 scripts/glpm_import_understat_season.py --all --dry-run
+  python3 scripts/glpm_import_understat_season.py --from-cache  # use data/understat/*/league-table.json
 """
 
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import os
+import ssl
+import sys
+import urllib.request
+import zlib
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,39 +30,108 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data" / "understat" / "pl-2025-26"
-TABLE_PATH = DATA_DIR / "league-table.json"
-PLAYERS_PATH = DATA_DIR / "players.json"
-MANIFEST_PATH = DATA_DIR / "import-manifest.json"
+sys.path.insert(0, str(ROOT / "scripts"))
+from glpm_fetch_ppda import TEAM_NAME_MAP  # noqa: E402
 
-SEASON_LABEL = "2025/26"
-SEASON_SM_ID = 25583
-COMPETITION_SM_ID = 8
-AS_OF_DATE = "2026-05-24"
 MODEL_VERSION = "understat_season_v1"
+UNDERSTAT_BASE = "https://understat.com"
+UNDERSTAT_UA = (
+    "Mozilla/5.0 (compatible; match-predictor-understat-season/1.0)"
+)
 
-TEAM_NAME_MAP: dict[str, str] = {
-    "Arsenal": "Arsenal",
-    "Aston Villa": "Aston Villa",
-    "Bournemouth": "AFC Bournemouth",
-    "Brentford": "Brentford",
-    "Brighton": "Brighton & Hove Albion",
-    "Burnley": "Burnley",
-    "Chelsea": "Chelsea",
-    "Crystal Palace": "Crystal Palace",
-    "Everton": "Everton",
-    "Fulham": "Fulham",
-    "Leeds": "Leeds United",
-    "Liverpool": "Liverpool",
-    "Manchester City": "Manchester City",
-    "Manchester United": "Manchester United",
-    "Newcastle United": "Newcastle United",
-    "Nottingham Forest": "Nottingham Forest",
-    "Sunderland": "Sunderland",
-    "Tottenham": "Tottenham Hotspur",
-    "West Ham": "West Ham United",
-    "Wolverhampton Wanderers": "Wolverhampton Wanderers",
-}
+
+@dataclass(frozen=True)
+class LeagueSeasonConfig:
+    key: str
+    label: str
+    understat_slug: str
+    season_year: int
+    season_label: str
+    season_sm_id: int
+    competition_sm_id: int
+    expected_teams: int
+    as_of_date: str
+    data_dir: Path
+
+
+# SportMonks season ids from src/lib/sportmonks/constants.ts
+LEAGUE_SEASONS: list[LeagueSeasonConfig] = [
+    LeagueSeasonConfig(
+        key="epl-2025",
+        label="Premier League",
+        understat_slug="EPL",
+        season_year=2025,
+        season_label="2025/26",
+        season_sm_id=25583,
+        competition_sm_id=8,
+        expected_teams=20,
+        as_of_date="2026-05-24",
+        data_dir=ROOT / "data" / "understat" / "epl-2025-26",
+    ),
+    LeagueSeasonConfig(
+        key="epl-2026",
+        label="Premier League",
+        understat_slug="EPL",
+        season_year=2026,
+        season_label="2026/27",
+        season_sm_id=28083,
+        competition_sm_id=8,
+        expected_teams=20,
+        as_of_date="2026-09-07",
+        data_dir=ROOT / "data" / "understat" / "epl-2026-27",
+    ),
+    LeagueSeasonConfig(
+        key="serie_a-2025",
+        label="Serie A",
+        understat_slug="Serie_A",
+        season_year=2025,
+        season_label="2025/26",
+        season_sm_id=25533,
+        competition_sm_id=384,
+        expected_teams=20,
+        as_of_date="2026-05-24",
+        data_dir=ROOT / "data" / "understat" / "serie-a-2025-26",
+    ),
+    LeagueSeasonConfig(
+        key="serie_a-2026",
+        label="Serie A",
+        understat_slug="Serie_A",
+        season_year=2026,
+        season_label="2026/27",
+        season_sm_id=27895,
+        competition_sm_id=384,
+        expected_teams=20,
+        as_of_date="2026-09-07",
+        data_dir=ROOT / "data" / "understat" / "serie-a-2026-27",
+    ),
+    LeagueSeasonConfig(
+        key="bundesliga-2025",
+        label="Bundesliga",
+        understat_slug="Bundesliga",
+        season_year=2025,
+        season_label="2025/26",
+        season_sm_id=25646,
+        competition_sm_id=82,
+        expected_teams=18,
+        as_of_date="2026-05-17",
+        data_dir=ROOT / "data" / "understat" / "bundesliga-2025-26",
+    ),
+    LeagueSeasonConfig(
+        key="bundesliga-2026",
+        label="Bundesliga",
+        understat_slug="Bundesliga",
+        season_year=2026,
+        season_label="2026/27",
+        season_sm_id=28321,
+        competition_sm_id=82,
+        expected_teams=18,
+        as_of_date="2026-09-07",
+        data_dir=ROOT / "data" / "understat" / "bundesliga-2026-27",
+    ),
+]
+
+# Keep legacy PL path readable by older tooling / overlay checks.
+LEGACY_PL_DIR = ROOT / "data" / "understat" / "pl-2025-26"
 
 
 def load_env() -> dict[str, str]:
@@ -134,25 +209,194 @@ def percentile_scores(values: list[float], *, higher_is_better: bool) -> list[fl
     return out
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
+def _read_body(resp: Any) -> bytes:
+    raw = resp.read()
+    encoding = (resp.headers.get("Content-Encoding") or "").lower()
+    if encoding == "gzip" or raw[:2] == b"\x1f\x8b":
+        return gzip.decompress(raw)
+    if encoding == "deflate":
+        try:
+            return zlib.decompress(raw)
+        except zlib.error:
+            return zlib.decompress(raw, -zlib.MAX_WBITS)
+    return raw
 
-    if not TABLE_PATH.exists() or not PLAYERS_PATH.exists():
-        raise SystemExit(f"Missing input files under {DATA_DIR}")
 
-    table = json.loads(TABLE_PATH.read_text(encoding="utf-8"))
-    players = json.loads(PLAYERS_PATH.read_text(encoding="utf-8"))
-    if not isinstance(table, list) or not isinstance(players, list):
-        raise SystemExit("Expected JSON arrays for league table and players")
+def fetch_understat_league(slug: str, season_year: int) -> dict[str, Any]:
+    ctx = ssl.create_default_context()
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(),
+        urllib.request.HTTPSHandler(context=ctx),
+    )
+    warm = urllib.request.Request(
+        f"{UNDERSTAT_BASE}/league/{slug}/{season_year}",
+        headers={"User-Agent": UNDERSTAT_UA, "Accept-Encoding": "gzip, deflate"},
+    )
+    with opener.open(warm, timeout=60) as resp:
+        _read_body(resp)
 
-    env = load_env()
-    for required in ("NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"):
-        if not env.get(required):
-            raise SystemExit(f"Missing {required} in .env.local")
+    headers = {
+        "User-Agent": UNDERSTAT_UA,
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Accept-Encoding": "gzip, deflate",
+        "Referer": f"{UNDERSTAT_BASE}/league/{slug}/{season_year}",
+    }
+    api = urllib.request.Request(
+        f"{UNDERSTAT_BASE}/getLeagueData/{slug}/{season_year}",
+        headers=headers,
+    )
+    with opener.open(api, timeout=60) as resp:
+        raw = _read_body(resp).decode("utf-8")
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Unexpected Understat payload for {slug}/{season_year}")
+    return {
+        "dates": data.get("dates") or data.get("datesData") or [],
+        "teams": data.get("teams") or data.get("teamsData") or {},
+        "players": data.get("players") or data.get("playersData") or [],
+    }
 
-    teams = rest(env, "GET", "glpm_teams?select=sm_id,name,official_name&limit=1000")
+
+def build_league_table(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Aggregate Understat team history into a season table.
+
+    History rows are per-match: sum xG/xGA/xpts/scored/missed/pts and count
+    results from the ``result`` field (w/d/l).
+    """
+    teams = payload.get("teams") or {}
+    team_iter = teams.values() if isinstance(teams, dict) else teams
+    rows: list[dict[str, Any]] = []
+    for team in team_iter:
+        title = str(team.get("title") or "")
+        history = team.get("history") or []
+        if not isinstance(history, list) or not history:
+            continue
+        wins = draws = loses = goals = ga = points = 0
+        xg = xga = xpts = 0.0
+        for h in history:
+            xg += float(h.get("xG") or 0)
+            xga += float(h.get("xGA") or 0)
+            xpts += float(h.get("xpts") or 0)
+            goals += int(h.get("scored") or 0)
+            ga += int(h.get("missed") or 0)
+            result = str(h.get("result") or "").lower()
+            if result == "w":
+                wins += 1
+                points += 3
+            elif result == "d":
+                draws += 1
+                points += 1
+            elif result == "l":
+                loses += 1
+            else:
+                # Fallback if result missing: use per-row pts/wins fields.
+                points += int(h.get("pts") or 0)
+                wins += int(h.get("wins") or 0)
+                draws += int(h.get("draws") or 0)
+                loses += int(h.get("loses") or 0)
+        rows.append(
+            {
+                "team": title,
+                "matches": len(history),
+                "wins": wins,
+                "draws": draws,
+                "loses": loses,
+                "goals": goals,
+                "ga": ga,
+                "points": points,
+                "xG": round(xg, 4),
+                "xGA": round(xga, 4),
+                "xPTS": round(xpts, 4),
+            }
+        )
+    rows.sort(key=lambda r: (-r["points"], -(r["goals"] - r["ga"]), -r["goals"]))
+    for i, r in enumerate(rows, start=1):
+        r["number"] = i
+    return rows
+
+
+def normalize_players(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    players = payload.get("players") or []
+    if isinstance(players, dict):
+        players = list(players.values())
+    out: list[dict[str, Any]] = []
+    for p in players:
+        if not isinstance(p, dict):
+            continue
+        out.append(
+            {
+                "id": p.get("id"),
+                "player_name": p.get("player_name") or p.get("name"),
+                "team": p.get("team_title") or p.get("team"),
+                "games": p.get("games"),
+                "time": p.get("time"),
+                "goals": p.get("goals"),
+                "xG": p.get("xG"),
+                "assists": p.get("assists"),
+                "xA": p.get("xA"),
+                "shots": p.get("shots"),
+                "key_passes": p.get("key_passes"),
+                "yellow_cards": p.get("yellow_cards"),
+                "red_cards": p.get("red_cards"),
+                "position": p.get("position"),
+                "npg": p.get("npg"),
+                "npxG": p.get("npxG"),
+                "xGChain": p.get("xGChain"),
+                "xGBuildup": p.get("xGBuildup"),
+            }
+        )
+    return out
+
+
+def import_league(
+    cfg: LeagueSeasonConfig,
+    *,
+    env: dict[str, str],
+    dry_run: bool,
+    from_cache: bool,
+    min_matches: int,
+) -> dict[str, Any]:
+    cfg.data_dir.mkdir(parents=True, exist_ok=True)
+    table_path = cfg.data_dir / "league-table.json"
+    players_path = cfg.data_dir / "players.json"
+    manifest_path = cfg.data_dir / "import-manifest.json"
+
+    if from_cache and table_path.exists() and players_path.exists():
+        table = json.loads(table_path.read_text(encoding="utf-8"))
+        players = json.loads(players_path.read_text(encoding="utf-8"))
+        scraped = False
+    else:
+        payload = fetch_understat_league(cfg.understat_slug, cfg.season_year)
+        table = build_league_table(payload)
+        players = normalize_players(payload)
+        scraped = True
+        table_path.write_text(json.dumps(table, indent=2), encoding="utf-8")
+        players_path.write_text(json.dumps(players, indent=2), encoding="utf-8")
+        # Mirror legacy PL path for older overlay checks.
+        if cfg.season_sm_id == 25583:
+            LEGACY_PL_DIR.mkdir(parents=True, exist_ok=True)
+            (LEGACY_PL_DIR / "league-table.json").write_text(
+                json.dumps(table, indent=2), encoding="utf-8"
+            )
+            (LEGACY_PL_DIR / "players.json").write_text(
+                json.dumps(players, indent=2), encoding="utf-8"
+            )
+
+    if not isinstance(table, list) or not table:
+        raise RuntimeError(f"{cfg.key}: empty league table")
+
+    # Skip very early seasons unless explicitly forced via low min_matches.
+    max_matches = max(int(r.get("matches") or 0) for r in table)
+    if max_matches < min_matches:
+        return {
+            "key": cfg.key,
+            "skipped": True,
+            "reason": f"only {max_matches} matches played (min {min_matches})",
+            "teams": len(table),
+        }
+
+    teams = rest(env, "GET", "glpm_teams?select=sm_id,name,official_name&limit=2000")
     by_name: dict[str, int] = {}
     for t in teams:
         by_name[str(t["name"]).strip().lower()] = int(t["sm_id"])
@@ -182,13 +426,13 @@ def main() -> int:
                 "matches": int(row["matches"]),
                 "wins": int(row["wins"]),
                 "draws": int(row["draws"]),
-                "losses": int(row["loses"]),
+                "losses": int(row.get("loses") or row.get("losses") or 0),
                 "goals_for": gf,
                 "goals_against": int(row["ga"]),
                 "points": int(row["points"]),
                 "xg": xg,
                 "xga": xga,
-                "xpts": float(row.get("xPTS") or 0),
+                "xpts": float(row.get("xPTS") or row.get("xpts") or 0),
                 "xg_p90": xg / matches,
                 "xga_p90": xga / matches,
                 "goals_minus_xg": gf - xg,
@@ -197,9 +441,11 @@ def main() -> int:
         )
 
     if unmatched:
-        raise SystemExit(f"Unmatched Understat teams: {unmatched}")
-    if len(rows) != 20:
-        raise SystemExit(f"Expected 20 PL teams, got {len(rows)}")
+        raise RuntimeError(f"{cfg.key}: unmatched Understat teams: {unmatched}")
+    if abs(len(rows) - cfg.expected_teams) > 2:
+        raise RuntimeError(
+            f"{cfg.key}: expected ~{cfg.expected_teams} teams, got {len(rows)}"
+        )
 
     attack_scores = percentile_scores([r["xg"] for r in rows], higher_is_better=True)
     defence_scores = percentile_scores([r["xga"] for r in rows], higher_is_better=False)
@@ -207,23 +453,36 @@ def main() -> int:
         [r["goals_minus_xg"] for r in rows], higher_is_better=True
     )
 
-    players_by_team: dict[str, list[dict[str, Any]]] = {}
-    for p in players:
-        players_by_team.setdefault(str(p["team"]), []).append(p)
-
-    existing = rest(
-        env,
-        "GET",
-        (
-            f"glpm_team_rating_vectors?season_id=eq.{SEASON_SM_ID}"
-            f"&as_of_date=eq.{AS_OF_DATE}"
-            "&select=team_sm_id,r_goalkeeper,r_build_up,r_possession,r_pressing,metadata"
-        ),
-    ) or []
-    existing_by_id = {int(x["team_sm_id"]): x for x in existing}
+    existing = (
+        rest(
+            env,
+            "GET",
+            (
+                f"glpm_team_rating_vectors?season_id=eq.{cfg.season_sm_id}"
+                "&select=team_sm_id,as_of_date,r_goalkeeper,r_build_up,r_possession,r_pressing,metadata"
+                "&order=as_of_date.desc"
+            ),
+        )
+        or []
+    )
+    existing_by_id: dict[int, dict[str, Any]] = {}
+    as_of_date = cfg.as_of_date
+    for x in existing:
+        tid = int(x["team_sm_id"])
+        if tid not in existing_by_id:
+            existing_by_id[tid] = x
+        prev_as_of = str(x.get("as_of_date") or "")
+        if prev_as_of > as_of_date:
+            as_of_date = prev_as_of
 
     now = datetime.now(timezone.utc).isoformat()
     upserts: list[dict[str, Any]] = []
+    players_by_team: dict[str, list[dict[str, Any]]] = {}
+    for p in players:
+        team = p.get("team")
+        if isinstance(team, str):
+            players_by_team.setdefault(team, []).append(p)
+
     for i, r in enumerate(rows):
         r_attack = attack_scores[i]
         r_defence = defence_scores[i]
@@ -236,7 +495,6 @@ def main() -> int:
         r_build_up = float(prev.get("r_build_up") or 60.0)
         r_possession = float(prev.get("r_possession") or 60.0)
         r_pressing = float(prev.get("r_pressing") or 60.0)
-        # Replace neutral 50 defaults with 60 so style dims don't drag quality Overall down.
         if r_goalkeeper == 50.0:
             r_goalkeeper = 60.0
         if r_build_up == 50.0:
@@ -250,9 +508,12 @@ def main() -> int:
         meta = {
             **prev_meta,
             "source": "understat_season_import",
-            "season_label": SEASON_LABEL,
+            "season_label": cfg.season_label,
             "imported_at": now,
             "understat": {
+                "league": cfg.label,
+                "slug": cfg.understat_slug,
+                "season_year": cfg.season_year,
                 "league_rank": r["league_rank"],
                 "points": r["points"],
                 "xg": r["xg"],
@@ -262,9 +523,6 @@ def main() -> int:
                 "goals_against": r["goals_against"],
                 "goals_minus_xg": round(r["goals_minus_xg"], 4),
                 "player_rows": len(team_players),
-                "player_xg_sum": round(
-                    sum(float(p.get("xG") or 0) for p in team_players), 4
-                ),
             },
             "derived": {
                 "r_attack": r_attack,
@@ -278,8 +536,8 @@ def main() -> int:
         upserts.append(
             {
                 "team_sm_id": r["team_sm_id"],
-                "season_id": SEASON_SM_ID,
-                "as_of_date": AS_OF_DATE,
+                "season_id": cfg.season_sm_id,
+                "as_of_date": as_of_date,
                 "r_attack": r_attack,
                 "r_defence": r_defence,
                 "r_goalkeeper": r_goalkeeper,
@@ -299,29 +557,17 @@ def main() -> int:
 
     ranked = sorted(rows, key=lambda x: -x["quality_overall"])
     manifest = {
-        "season_label": SEASON_LABEL,
-        "season_sm_id": SEASON_SM_ID,
-        "competition_sm_id": COMPETITION_SM_ID,
-        "as_of_date": AS_OF_DATE,
+        "key": cfg.key,
+        "season_label": cfg.season_label,
+        "season_sm_id": cfg.season_sm_id,
+        "competition_sm_id": cfg.competition_sm_id,
+        "as_of_date": as_of_date,
         "model_version": MODEL_VERSION,
+        "scraped": scraped,
+        "from_cache": from_cache and not scraped,
         "teams_imported": len(rows),
         "players_imported": len(players),
-        "player_teams_in_file": len({p["team"] for p in players}),
-        "sufficient_for": [
-            "PL Attack / Defence / Finishing season priors",
-            "League Hub ranking sanity for PL 2025/26",
-            "Finishing over/under-performance (Goals − xG)",
-        ],
-        "not_sufficient_for": [
-            "Match-level GLPM training (needs per-match xG/xGA)",
-            "Pressing / Build-up / Possession / GK dimensions",
-            "Other leagues (Serie A, Bundesliga, …)",
-            "Live in-play prediction features",
-        ],
-        "note": (
-            "Season aggregates only. Updated Attack/Defence/Finishing from "
-            "xG/xGA/Goals−xG percentiles within PL."
-        ),
+        "max_matches": max_matches,
         "leaderboard_preview": [
             {
                 "rank": i + 1,
@@ -336,31 +582,29 @@ def main() -> int:
             }
             for i, r in enumerate(ranked)
         ],
-        "dry_run": bool(args.dry_run),
+        "dry_run": dry_run,
+        "not_covered": [
+            "Championship (no Understat)",
+            "Eredivisie (no Understat)",
+        ],
     }
-
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    (DATA_DIR / "teams-normalized.json").write_text(
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (cfg.data_dir / "teams-normalized.json").write_text(
         json.dumps(rows, indent=2), encoding="utf-8"
     )
-    (DATA_DIR / "players-normalized.json").write_text(
-        json.dumps(players, indent=2), encoding="utf-8"
-    )
 
-    print(f"Mapped {len(rows)} teams, {len(players)} players")
-    print("Quality leaderboard (Understat season xG → A/D/FR):")
-    for row in manifest["leaderboard_preview"][:10]:
+    print(f"\n=== {cfg.label} {cfg.season_label} (sm {cfg.season_sm_id}) ===")
+    print(f"Mapped {len(rows)} teams, {len(players)} players (max MP={max_matches})")
+    for row in manifest["leaderboard_preview"][:5]:
         print(
             f"  {row['rank']:2d}. {row['team']:<28} "
             f"A {row['r_attack']:5.1f} D {row['r_defence']:5.1f} FR {row['r_finishing']:5.1f}  "
-            f"qual {row['quality_overall']:5.1f}  "
-            f"(xG {row['xg']:.1f} xGA {row['xga']:.1f}, {row['points']} pts)"
+            f"qual {row['quality_overall']:5.1f}"
         )
 
-    if args.dry_run:
-        print("Dry run — no Supabase writes")
-        return 0
+    if dry_run:
+        print("Dry run - no Supabase writes")
+        return manifest
 
     rest(
         env,
@@ -369,8 +613,83 @@ def main() -> int:
         upserts,
         prefer="resolution=merge-duplicates,return=minimal",
     )
-    print(f"Upserted {len(upserts)} rating vectors for season {SEASON_SM_ID} @ {AS_OF_DATE}")
-    print(f"Manifest: {MANIFEST_PATH}")
+    print(f"Upserted {len(upserts)} vectors @ {as_of_date}")
+    return manifest
+
+
+def resolve_configs(args: argparse.Namespace) -> list[LeagueSeasonConfig]:
+    if args.season_id is not None:
+        out = [c for c in LEAGUE_SEASONS if c.season_sm_id == args.season_id]
+        if not out:
+            raise SystemExit(f"No config for season-id {args.season_id}")
+        return out
+
+    if args.all:
+        return list(LEAGUE_SEASONS)
+
+    if args.league is None and args.season is None:
+        # Default: completed Understat seasons only (skip early current year).
+        return [c for c in LEAGUE_SEASONS if c.season_year == 2025]
+
+    out: list[LeagueSeasonConfig] = []
+    for cfg in LEAGUE_SEASONS:
+        if args.league:
+            league = args.league.lower().replace("-", "_")
+            if league not in cfg.key and league not in cfg.understat_slug.lower():
+                continue
+        if args.season is not None and cfg.season_year != args.season:
+            continue
+        out.append(cfg)
+
+    if not out:
+        raise SystemExit("No matching league/season configs")
+    return out
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--from-cache", action="store_true")
+    parser.add_argument("--all", action="store_true", help="Import every configured league/season")
+    parser.add_argument("--league", type=str, default=None, help="epl | serie_a | bundesliga")
+    parser.add_argument("--season", type=int, default=None, help="Understat season start year e.g. 2025")
+    parser.add_argument("--season-id", type=int, default=None, help="SportMonks season id")
+    parser.add_argument(
+        "--min-matches",
+        type=int,
+        default=10,
+        help="Skip seasons with fewer than N matches played per club (default 10)",
+    )
+    args = parser.parse_args()
+
+    env = load_env()
+    for required in ("NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"):
+        if not env.get(required):
+            raise SystemExit(f"Missing {required} in .env.local")
+
+    configs = resolve_configs(args)
+    results = []
+    for cfg in configs:
+        try:
+            results.append(
+                import_league(
+                    cfg,
+                    env=env,
+                    dry_run=args.dry_run,
+                    from_cache=args.from_cache,
+                    min_matches=args.min_matches,
+                )
+            )
+        except Exception as exc:
+            print(f"FAILED {cfg.key}: {exc}")
+            results.append({"key": cfg.key, "ok": False, "error": str(exc)})
+
+    ok = sum(1 for r in results if r.get("ok", True) and not r.get("skipped"))
+    skipped = sum(1 for r in results if r.get("skipped"))
+    failed = sum(1 for r in results if r.get("ok") is False)
+    print(f"\nDone: imported={ok} skipped={skipped} failed={failed}")
+    if failed:
+        return 1
     return 0
 
 

@@ -17,7 +17,7 @@ import {
   type GlpmLeagueStandings,
 } from "@/lib/glpm/load-standings";
 import { loadPredictionHistoryFeed } from "@/lib/prediction/load-history-feed";
-import { pickFixtureSeasonId } from "@/lib/glpm/season-ready";
+import { pickFixtureSeasonId, pickRatingSeasonId } from "@/lib/glpm/season-ready";
 
 /** Live scores use request-time kickoff windows; do not prerender a stale board. */
 export const dynamic = "force-dynamic";
@@ -40,6 +40,8 @@ const HOME_UPCOMING_LIMIT = 48;
 type HomeLeagueBlock = {
   leagueName: string;
   payload: GlpmHubPayload | null;
+  /** Rating-ready season leaders (may differ from fixture season). */
+  ratingPayload: GlpmHubPayload | null;
 };
 
 function getClient() {
@@ -55,24 +57,47 @@ async function loadLeagueBlocks(): Promise<HomeLeagueBlock[]> {
         (item) => item.name.toLowerCase() === name.toLowerCase()
       );
       if (!competition) {
-        return { leagueName: name, payload: null };
+        return { leagueName: name, payload: null, ratingPayload: null };
       }
 
-      const seasonId = pickFixtureSeasonId(
+      const fixtureSeasonId = pickFixtureSeasonId(
+        catalog.seasonList,
+        catalog.readiness,
+        competition.smId
+      );
+      const ratingSeasonId = pickRatingSeasonId(
         catalog.seasonList,
         catalog.readiness,
         competition.smId
       );
 
-      const payload = await loadGlpmHubPayloadCached({
-        competitionId: competition.smId,
-        seasonId,
-        preferFixtures: true,
-        upcomingLimit: HOME_UPCOMING_LIMIT,
-        includeWeather: false,
-        includeRecent: false,
-      });
-      return { leagueName: name, payload };
+      const [payload, ratingPayload] = await Promise.all([
+        loadGlpmHubPayloadCached({
+          competitionId: competition.smId,
+          seasonId: fixtureSeasonId,
+          preferFixtures: true,
+          upcomingLimit: HOME_UPCOMING_LIMIT,
+          includeWeather: false,
+          includeRecent: false,
+        }),
+        ratingSeasonId != null && ratingSeasonId !== fixtureSeasonId
+          ? loadGlpmHubPayloadCached({
+              competitionId: competition.smId,
+              seasonId: ratingSeasonId,
+              preferFixtures: false,
+              upcomingLimit: 0,
+              includeWeather: false,
+              includeRecent: false,
+            })
+          : Promise.resolve(null),
+      ]);
+
+      return {
+        leagueName: name,
+        payload,
+        // When seasons match, reuse fixture payload leaders.
+        ratingPayload: ratingPayload ?? payload,
+      };
     })
   );
 }
@@ -117,6 +142,7 @@ async function loadStandingsBlocks(
 const EMPTY_LEAGUE_BLOCKS: HomeLeagueBlock[] = TARGET_LEAGUES.map((name) => ({
   leagueName: name,
   payload: null,
+  ratingPayload: null,
 }));
 
 const EMPTY_STANDINGS_BLOCKS: GlpmLeagueStandings[] = TARGET_LEAGUES.map((name) => ({
@@ -181,17 +207,18 @@ export default async function HomePage() {
 
   const topTeamsSnapshot = leagueBlocks
     .flatMap((block) => {
-      const competitionId = block.payload?.competition?.smId ?? null;
+      const rating = block.ratingPayload ?? block.payload;
+      const competitionId = rating?.competition?.smId ?? null;
       const leagueOmega =
         competitionId != null ? getGlpmLeagueStrength(competitionId) : 0.75;
-      return (block.payload?.ratingLeaders ?? []).map((leader) => ({
+      return (rating?.ratingLeaders ?? []).map((leader) => ({
         league: block.leagueName,
         team: leader.teamName,
         overall: leader.overall,
         leagueOmega,
         adjustedOverall: leader.overall * leagueOmega,
         teamSmId: leader.teamSmId,
-        seasonId: block.payload?.season?.smId ?? null,
+        seasonId: rating?.season?.smId ?? null,
       }));
     })
     .sort((a, b) => b.adjustedOverall - a.adjustedOverall)
@@ -245,7 +272,8 @@ export default async function HomePage() {
             <div className="min-w-0">
               <h3 className="text-lg font-bold text-foreground">Top Teams Snapshot</h3>
               <p className="mt-0.5 text-xs text-muted">
-                Ranked by overall × league strength vs Premier League (Ω). PL = 1.0×.
+                Ranked by overall × league strength (Ω vs PL). Uses completed
+                rating seasons when the fixture season is still early.
               </p>
             </div>
             <Link

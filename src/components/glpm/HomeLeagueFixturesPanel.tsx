@@ -144,8 +144,8 @@ export function HomeLeagueFixturesPanel({
       </div>
       <p className="mb-4 text-sm text-muted">
         Scroll sideways through the next two match days. Flip any card for O/U, BTTS, and fair
-        odds. When both seasons are trained, the main figure is 26/27 and the violet brackets are
-        25/26.
+        odds. When both seasons are trained, main figures use 25/26 ratings and violet brackets
+        show 26/27.
       </p>
 
       {tabs.length ? (

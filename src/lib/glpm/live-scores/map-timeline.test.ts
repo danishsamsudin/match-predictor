@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { SmEvent } from "@/lib/sportmonks/types";
 import {
+  detailEventsFromTimeline,
+  formatResultEventPlayerLabel,
+  formatResultEventSecondaryLabel,
   formatScorerLabel,
   goalScorersFromTimeline,
   mapFixtureTimeline,
@@ -100,5 +103,41 @@ describe("live score timeline mapping", () => {
       "Colwill (OG) 40'",
       "Havertz (Pen) 70'",
     ]);
+  });
+
+  it("keeps cards and subs for the expanded detail panel only", () => {
+    const timeline = mapFixtureTimeline(
+      [
+        {
+          id: 1,
+          type_id: 14,
+          participant_id: 19,
+          player_name: "Saka",
+          minute: 12,
+        },
+        {
+          id: 2,
+          type_id: 19,
+          participant_id: 18,
+          player_name: "Caicedo",
+          minute: 28,
+        },
+        {
+          id: 3,
+          type_id: 18,
+          participant_id: 19,
+          player_name: "Trossard",
+          related_player_name: "Martinelli",
+          minute: 58,
+        },
+      ] as never,
+      19,
+      18
+    );
+    const detail = detailEventsFromTimeline(timeline);
+    expect(detail.map((e) => e.kind)).toEqual(["yellow_card", "substitution"]);
+    expect(formatResultEventPlayerLabel(detail[0]!)).toBe("Caicedo");
+    expect(formatResultEventPlayerLabel(detail[1]!)).toBe("Trossard");
+    expect(formatResultEventSecondaryLabel(detail[1]!)).toBe("for Martinelli");
   });
 });

@@ -5,9 +5,11 @@ import { countryFlagUrl } from "@/lib/glpm/live-scores/league-meta";
 import {
   formatScorerLabel,
   goalScorersFromTimeline,
+  type GoalScorerLine,
 } from "@/lib/glpm/live-scores/map-timeline";
 import type { LiveScoreMatch } from "@/lib/glpm/live-scores/types";
 import { formatCalendarDateLongLocal } from "@/lib/utils/kickoff-display";
+import { TimelineEventIcon } from "./live-scores/TimelineEventIcon";
 import { PredictedVsActualPanel } from "./PredictedVsActualPanel";
 
 function MiniCrest({
@@ -60,17 +62,24 @@ function ScorerColumn({
   lines,
   align,
 }: {
-  lines: string[];
+  lines: GoalScorerLine[];
   align: "left" | "right";
 }) {
   if (lines.length === 0) {
     return <div className={align === "right" ? "text-right" : undefined} />;
   }
+  const isRight = align === "right";
   return (
-    <ul className={`space-y-0.5 ${align === "right" ? "text-right" : ""}`}>
+    <ul className="space-y-1">
       {lines.map((line) => (
-        <li key={line} className="text-[11px] leading-snug text-foreground">
-          {line}
+        <li
+          key={`${line.side}-${line.clockLabel}-${line.playerName}-${line.kind}`}
+          className={`flex items-start gap-1.5 text-[11px] leading-snug text-foreground ${
+            isRight ? "flex-row-reverse text-right" : ""
+          }`}
+        >
+          <TimelineEventIcon kind={line.kind} size="sm" />
+          <span>{formatScorerLabel(line)}</span>
         </li>
       ))}
     </ul>
@@ -81,12 +90,8 @@ function FinishedMatchSummary({ match }: { match: LiveScoreMatch }) {
   const [open, setOpen] = useState(false);
   const detailsId = useId();
   const scorers = goalScorersFromTimeline(match.timeline);
-  const homeScorers = scorers
-    .filter((line) => line.side === "home")
-    .map(formatScorerLabel);
-  const awayScorers = scorers
-    .filter((line) => line.side === "away")
-    .map(formatScorerLabel);
+  const homeScorers = scorers.filter((line) => line.side === "home");
+  const awayScorers = scorers.filter((line) => line.side === "away");
   const goalless = match.homeScore === 0 && match.awayScore === 0;
 
   return (
@@ -140,12 +145,11 @@ function FinishedMatchSummary({ match }: { match: LiveScoreMatch }) {
           )}
         </div>
 
-        <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-muted">
-          <span aria-hidden className="text-[10px]">
-            {open ? "▴" : "▾"}
+        <span className="mt-3 inline-flex w-full items-center justify-center">
+          <span className="rounded-full border border-glass-border bg-surface px-3.5 py-1.5 text-[11px] font-semibold text-foreground shadow-sm">
+            {open ? "Hide prediction vs outcome" : "Compare prediction vs outcome"}
           </span>
-          {open ? "Hide prediction vs outcome" : "Compare prediction vs outcome"}
-        </p>
+        </span>
       </button>
 
       {open ? (

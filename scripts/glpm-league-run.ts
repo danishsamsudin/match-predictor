@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { SM_SEASON_2025_26, SM_SEASON_2026_27 } from "../src/lib/sportmonks/constants";
 import { tryCreateServiceClient } from "../src/lib/supabase";
+import { reapplySeasonRatingOverlay, seasonRatingOverlayAvailable } from "../src/lib/glpm/understat-season-overlay";
 
 const ROOT = process.cwd();
 
@@ -547,6 +548,34 @@ async function main() {
     }
   } else {
     skipStep(tracker, "Bayesian temporal smoothing", "--skip-bayesian");
+  }
+
+  // ── Season A/D/FR overlay (Understat or standings GF/GA) ─────────────
+  if (!seasonRatingOverlayAvailable(Number(seasonId))) {
+    skipStep(tracker, "Season A/D/FR overlay", "no overlay for this season");
+  } else {
+    const t0 = beginStep(
+      tracker,
+      "Season A/D/FR overlay",
+      "Replace Attack/Defence/Finishing with season xG or GF/GA percentiles"
+    );
+    const overlay = await reapplySeasonRatingOverlay(Number(seasonId), ROOT);
+    if (!overlay.ok) {
+      console.warn(
+        "  · Season rating overlay failed (non-fatal) - rankings may stay proxy-inverted."
+      );
+      trainSummaries["glpm:season-rating-overlay"] = {
+        ok: false,
+        detail: overlay.detail,
+      };
+      endStep(tracker, t0, "continued after warning");
+    } else {
+      trainSummaries["glpm:season-rating-overlay"] = {
+        ok: true,
+        detail: overlay.detail,
+      };
+      endStep(tracker, t0);
+    }
   }
 
   // ── Vs-style Layer-2 (CX insights) ──────────────────────────────────

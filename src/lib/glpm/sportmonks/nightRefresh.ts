@@ -20,6 +20,7 @@ import {
 import { formatDateInTimeZone, resolveMatchdayTimeZone } from "./matchday";
 import { loadDailySyncWindow, patchDailySyncWindow } from "./dailySyncWindow";
 import { runGlpmUpcomingPredictionSnapshots } from "../run-upcoming-prediction-snapshots";
+import { reapplySeasonRatingOverlay } from "../understat-season-overlay";
 
 export { resolveTrainSeasonId };
 
@@ -260,6 +261,24 @@ export async function runGlpmNightRefresh(
             : `warning: ${(bayes.stderr || bayes.stdout).slice(-300)}`,
       });
       // Bayesian failure is non-fatal (same as league-run).
+
+      // Proxy-only SportMonks xG trains invert A/D/FR. Re-apply season overlays
+      // (Understat for Big-5 covered leagues; GF/GA for Championship/Eredivisie).
+      const overlay = await reapplySeasonRatingOverlay(seasonId, cwd);
+      if (overlay.attempted) {
+        trainLog.push({
+          seasonId,
+          script: "glpm:season-rating-overlay",
+          ok: overlay.ok,
+          detail: overlay.detail,
+        });
+        if (!overlay.ok) {
+          notes.push(`FAILED season rating overlay for ${seasonId}`);
+        } else {
+          notes.push(`Re-applied season A/D/FR overlay for season ${seasonId}`);
+        }
+      }
+
       seasonsTrained.push(seasonId);
     }
   }

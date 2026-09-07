@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCompetitionMeanVector,
+  meanPrimaryRatings,
+  PRIMARY_OVERALL_WEIGHTS,
   predictionSourceFromResolved,
   resolveHubTeamVector,
 } from "@/lib/glpm/hub-vector-resolve";
@@ -28,6 +30,37 @@ function fakeVector(
     teamName: null,
   };
 }
+
+describe("meanPrimaryRatings", () => {
+  it("uses weighted overall shares that sum to 1", () => {
+    const weightSum = PRIMARY_ORDER.reduce(
+      (s, k) => s + PRIMARY_OVERALL_WEIGHTS[k],
+      0
+    );
+    expect(weightSum).toBeCloseTo(1, 10);
+
+    const ratings = {
+      attack: 100,
+      defence: 80,
+      goalkeeper: 60,
+      build_up: 40,
+      possession: 20,
+      pressing: 0,
+      finishing: 40,
+    } as Record<PrimaryKey, number>;
+
+    expect(meanPrimaryRatings(ratings)).toBeCloseTo(
+      100 * 0.25 +
+        80 * 0.25 +
+        60 * 0.125 +
+        40 * 0.1 +
+        20 * 0.05 +
+        0 * 0.1 +
+        40 * 0.125,
+      10
+    );
+  });
+});
 
 describe("hub-vector-resolve", () => {
   it("prefers season vector over any-season and prior", () => {

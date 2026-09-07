@@ -8,6 +8,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase";
 import { seasonVectorsAreCollapsed } from "@/lib/glpm/rating-discrimination";
+import { TRAIN_FALLBACK_BY_LEAGUE } from "@/lib/glpm/resolve-train-season";
 
 type Client = SupabaseClient<Database>;
 
@@ -43,25 +44,15 @@ export async function loadGlpmSeasonReadiness(
 ): Promise<Map<number, GlpmSeasonReadiness>> {
   const map = new Map<number, GlpmSeasonReadiness>();
 
-  const [{ data: vectorRows }, { data: finishedRows }, { data: upcomingRows }] =
-    await Promise.all([
-      client
-        .from("glpm_team_rating_vectors")
-        .select(
-          "season_id,team_sm_id,r_attack,r_defence,r_build_up,r_possession,r_pressing,r_finishing,as_of_date"
-        )
-        .order("as_of_date", { ascending: false }),
-      client
-        .from("glpm_matches")
-        .select("season_id")
-        .not("home_score", "is", null)
-        .limit(5000),
-      client
-        .from("glpm_matches")
-        .select("season_id")
-        .or("home_score.is.null,away_score.is.null")
-        .limit(5000),
-    ]);
+  const [{ data: vectorRows }, { data: seasonRows }] = await Promise.all([
+    client
+      .from("glpm_team_rating_vectors")
+      .select(
+        "season_id,team_sm_id,r_attack,r_defence,r_build_up,r_possession,r_pressing,r_finishing,as_of_date"
+      )
+      .order("as_of_date", { ascending: false }),
+    client.from("glpm_seasons").select("sm_id"),
+  ]);
 
   const latestBySeasonTeam = new Map<
     number,
@@ -100,19 +91,37 @@ export async function loadGlpmSeasonReadiness(
     map.set(seasonId, cur);
   }
 
-  for (const row of finishedRows ?? []) {
-    if (row.season_id == null) continue;
-    const cur = map.get(row.season_id) ?? emptyReadiness();
-    cur.hasFinishedMatches = true;
-    map.set(row.season_id, cur);
-  }
-
-  for (const row of upcomingRows ?? []) {
-    if (row.season_id == null) continue;
-    const cur = map.get(row.season_id) ?? emptyReadiness();
-    cur.hasUpcomingMatches = true;
-    map.set(row.season_id, cur);
-  }
+  // Per-season head counts: a global limit(5000) on glpm_matches under-samples
+  // finished seasons once the DB has more than ~max-rows finished fixtures,
+  // which made home Top Teams fall back to early current-season vectors.
+  const seasonIds = [
+    ...new Set(
+      (seasonRows ?? [])
+        .map((s) => s.sm_id)
+        .filter((id): id is number => typeof id === "number")
+    ),
+  ];
+  await Promise.all(
+    seasonIds.map(async (seasonId) => {
+      const [{ count: finishedCount }, { count: upcomingCount }] =
+        await Promise.all([
+          client
+            .from("glpm_matches")
+            .select("sm_id", { count: "exact", head: true })
+            .eq("season_id", seasonId)
+            .not("home_score", "is", null),
+          client
+            .from("glpm_matches")
+            .select("sm_id", { count: "exact", head: true })
+            .eq("season_id", seasonId)
+            .or("home_score.is.null,away_score.is.null"),
+        ]);
+      const cur = map.get(seasonId) ?? emptyReadiness();
+      if ((finishedCount ?? 0) > 0) cur.hasFinishedMatches = true;
+      if ((upcomingCount ?? 0) > 0) cur.hasUpcomingMatches = true;
+      map.set(seasonId, cur);
+    })
+  );
 
   return map;
 }
@@ -146,6 +155,56 @@ export function pickDefaultGlpmSeasonId(
     if (readiness.get(s.smId)?.hasFinishedMatches) return s.smId;
   }
   return null;
+}
+
+/**
+ * Prefer a completed, discriminating season for cross-league rating snapshots.
+ * Falls back to the mapped prior train season, then pickDefaultGlpmSeasonId.
+ */
+export function pickRatingSeasonId(
+  seasons: GlpmSeasonRef[],
+  readiness: Map<number, GlpmSeasonReadiness>,
+  competitionId?: number | null
+): number | null {
+  const pool =
+    competitionId != null
+      ? seasons.filter((s) => s.competitionId === competitionId)
+      : seasons;
+  if (!pool.length) return null;
+
+  for (const s of pool) {
+    const r = readiness.get(s.smId);
+    if (
+      r?.hasDiscriminatingVectors &&
+      r.hasFinishedMatches &&
+      !r.hasUpcomingMatches
+    ) {
+      return s.smId;
+    }
+  }
+
+  // Early current seasons often look "predict-ready" after a few matchdays but
+  // are too noisy for a cross-league Top Teams Snapshot. Prefer the mapped
+  // prior season when it still has discriminating vectors.
+  if (competitionId != null) {
+    const fallback = TRAIN_FALLBACK_BY_LEAGUE[competitionId];
+    if (
+      fallback != null &&
+      pool.some((s) => s.smId === fallback) &&
+      readiness.get(fallback)?.hasDiscriminatingVectors
+    ) {
+      return fallback;
+    }
+  }
+
+  for (const s of pool) {
+    const r = readiness.get(s.smId);
+    if (r?.hasDiscriminatingVectors && r.hasFinishedMatches) {
+      return s.smId;
+    }
+  }
+
+  return pickDefaultGlpmSeasonId(seasons, readiness, competitionId);
 }
 
 /**

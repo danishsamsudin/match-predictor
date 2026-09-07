@@ -4,7 +4,7 @@ import {
   createSportmonksClient,
   DEFAULT_GLPM_LEAGUE_IDS,
 } from "@/lib/sportmonks/client";
-import type { SmFixture, SmScore } from "@/lib/sportmonks/types";
+import type { SmFixture } from "@/lib/sportmonks/types";
 import { mapSportmonksEvents } from "@/lib/glpm/layer1/sportmonks/upsertFixture";
 import {
   isFinishedFixture,
@@ -17,6 +17,7 @@ import {
   PLAN_LIVESCORE_INCLUDE,
   SM_FIXTURE_STATE_LIVE_WINDOW,
 } from "./constants";
+import { currentGoalsFromScores } from "./score-from-payload";
 
 type Client = SupabaseClient<Database>;
 
@@ -29,21 +30,6 @@ export type LivescoreSyncResult = {
   matchSmIds: number[];
   syncedAt: string;
 };
-
-function currentGoals(scores: SmScore[] | undefined, participantId: number): number | null {
-  if (!scores?.length) return null;
-  const preferred = scores.find(
-    (s) =>
-      s.participant_id === participantId &&
-      (s.description === "CURRENT" ||
-        s.description === "2ND_HALF" ||
-        s.description === "FULLTIME" ||
-        s.description === "1ST_HALF")
-  );
-  const any = preferred ?? scores.find((s) => s.participant_id === participantId);
-  const g = any?.score?.goals;
-  return typeof g === "number" ? g : null;
-}
 
 function homeAwayIds(fixture: SmFixture): { homeId: number; awayId: number } | null {
   const parts = fixture.participants ?? [];
@@ -157,8 +143,8 @@ export async function syncInplayLivescores(
     const sides = homeAwayIds(fixture);
     if (!sides) continue;
 
-    const homeScore = currentGoals(fixture.scores, sides.homeId);
-    const awayScore = currentGoals(fixture.scores, sides.awayId);
+    const homeScore = currentGoalsFromScores(fixture.scores, sides.homeId);
+    const awayScore = currentGoalsFromScores(fixture.scores, sides.awayId);
     const stateId = fixture.state_id ?? fixture.state?.id ?? null;
     const status = fixture.state?.name ?? fixture.state?.short_name ?? null;
     const venue = fixture.venue?.name ?? null;

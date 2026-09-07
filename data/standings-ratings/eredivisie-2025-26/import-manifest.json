@@ -1,0 +1,174 @@
+{
+  "key": "eredivisie-2025",
+  "season_sm_id": 25597,
+  "competition_sm_id": 72,
+  "as_of_date": "2026-05-24",
+  "model_version": "standings_goals_season_v1",
+  "teams_imported": 18,
+  "max_matches": 36,
+  "leaderboard_preview": [
+    {
+      "rank": 1,
+      "team": "PSV",
+      "quality_overall": 92.75,
+      "r_attack": 100.0,
+      "r_defence": 78.24,
+      "r_finishing": 100.0,
+      "points": 84
+    },
+    {
+      "rank": 2,
+      "team": "Ajax",
+      "quality_overall": 86.41,
+      "r_attack": 81.57,
+      "r_defence": 94.12,
+      "r_finishing": 83.53,
+      "points": 62
+    },
+    {
+      "rank": 3,
+      "team": "Feyenoord",
+      "quality_overall": 86.14,
+      "r_attack": 85.49,
+      "r_defence": 83.53,
+      "r_finishing": 89.41,
+      "points": 64
+    },
+    {
+      "rank": 4,
+      "team": "FC Twente",
+      "quality_overall": 83.04,
+      "r_attack": 76.76,
+      "r_defence": 94.12,
+      "r_finishing": 78.24,
+      "points": 58
+    },
+    {
+      "rank": 5,
+      "team": "NEC Nijmegen",
+      "quality_overall": 80.29,
+      "r_attack": 89.41,
+      "r_defence": 67.94,
+      "r_finishing": 83.53,
+      "points": 59
+    },
+    {
+      "rank": 6,
+      "team": "FC Utrecht",
+      "quality_overall": 76.57,
+      "r_attack": 70.88,
+      "r_defence": 83.53,
+      "r_finishing": 75.29,
+      "points": 57
+    },
+    {
+      "rank": 7,
+      "team": "AZ Alkmaar",
+      "quality_overall": 71.86,
+      "r_attack": 70.88,
+      "r_defence": 72.35,
+      "r_finishing": 72.35,
+      "points": 52
+    },
+    {
+      "rank": 8,
+      "team": "SC Heerenveen",
+      "quality_overall": 67.45,
+      "r_attack": 76.76,
+      "r_defence": 56.18,
+      "r_finishing": 69.41,
+      "points": 51
+    },
+    {
+      "rank": 9,
+      "team": "FC Groningen",
+      "quality_overall": 67.45,
+      "r_attack": 60.59,
+      "r_defence": 75.29,
+      "r_finishing": 66.47,
+      "points": 48
+    },
+    {
+      "rank": 10,
+      "team": "Go Ahead Eagles",
+      "quality_overall": 65.98,
+      "r_attack": 66.47,
+      "r_defence": 67.94,
+      "r_finishing": 63.53,
+      "points": 38
+    },
+    {
+      "rank": 11,
+      "team": "Telstar",
+      "quality_overall": 61.08,
+      "r_attack": 60.59,
+      "r_defence": 62.06,
+      "r_finishing": 60.59,
+      "points": 37
+    },
+    {
+      "rank": 12,
+      "team": "Excelsior",
+      "quality_overall": 55.2,
+      "r_attack": 51.76,
+      "r_defence": 56.18,
+      "r_finishing": 57.65,
+      "points": 38
+    },
+    {
+      "rank": 13,
+      "team": "Fortuna Sittard",
+      "quality_overall": 53.27,
+      "r_attack": 60.59,
+      "r_defence": 44.51,
+      "r_finishing": 54.71,
+      "points": 39
+    },
+    {
+      "rank": 14,
+      "team": "FC Volendam",
+      "quality_overall": 51.47,
+      "r_attack": 40.59,
+      "r_defence": 62.06,
+      "r_finishing": 51.76,
+      "points": 32
+    },
+    {
+      "rank": 15,
+      "team": "Sparta Rotterdam",
+      "quality_overall": 48.43,
+      "r_attack": 48.43,
+      "r_defence": 48.43,
+      "r_finishing": 48.43,
+      "points": 43
+    },
+    {
+      "rank": 16,
+      "team": "NAC Breda",
+      "quality_overall": 45.62,
+      "r_attack": 40.59,
+      "r_defence": 51.76,
+      "r_finishing": 44.51,
+      "points": 29
+    },
+    {
+      "rank": 17,
+      "team": "PEC Zwolle",
+      "quality_overall": 45.3,
+      "r_attack": 54.71,
+      "r_defence": 40.59,
+      "r_finishing": 40.59,
+      "points": 37
+    },
+    {
+      "rank": 18,
+      "team": "Heracles Almelo",
+      "quality_overall": 26.86,
+      "r_attack": 40.59,
+      "r_defence": 20.0,
+      "r_finishing": 20.0,
+      "points": 19
+    }
+  ],
+  "dry_run": false
+}

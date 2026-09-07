@@ -16,8 +16,22 @@ import type { GlpmHubPredictionSource } from "@/lib/glpm/hub-types";
 import { remapRatingVectorAcrossCompetitions } from "@/lib/glpm/league-strength";
 import { buildPromotionPriorVector } from "@/lib/glpm/promotion";
 
+/** Weights for the hub / snapshot overall composite (must sum to 1). */
+export const PRIMARY_OVERALL_WEIGHTS: Record<PrimaryKey, number> = {
+  attack: 0.25,
+  defence: 0.25,
+  goalkeeper: 0.125,
+  build_up: 0.1,
+  possession: 0.05,
+  pressing: 0.1,
+  finishing: 0.125,
+};
+
 export function meanPrimaryRatings(r: Record<PrimaryKey, number>): number {
-  return PRIMARY_ORDER.reduce((s, k) => s + r[k], 0) / PRIMARY_ORDER.length;
+  return PRIMARY_ORDER.reduce(
+    (s, k) => s + r[k] * PRIMARY_OVERALL_WEIGHTS[k],
+    0
+  );
 }
 
 export function buildCompetitionMeanVector(

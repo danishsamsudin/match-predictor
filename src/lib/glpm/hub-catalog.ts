@@ -104,7 +104,7 @@ const loadCachedCatalogPayload = unstable_cache(
       seasonsForPayload: catalog.seasonsForPayload,
     };
   },
-  ["glpm-hub-catalog-v2"],
+  ["glpm-hub-catalog-v3"],
   { revalidate: 60, tags: ["glpm-hub", "glpm-hub-catalog"] }
 );
 

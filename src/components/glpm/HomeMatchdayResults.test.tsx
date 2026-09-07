@@ -4,7 +4,7 @@ import { placeholderLiveScoresBoard } from "@/lib/glpm/live-scores/placeholders"
 import { HomeMatchdayResults } from "./HomeMatchdayResults";
 
 describe("HomeMatchdayResults", () => {
-  it("renders today's scorers and a horizontal yesterday rail", () => {
+  it("renders today's goalscorers with icons and a compare pill", () => {
     const board = placeholderLiveScoresBoard();
     const html = renderToStaticMarkup(
       <HomeMatchdayResults
@@ -16,7 +16,14 @@ describe("HomeMatchdayResults", () => {
     ).replaceAll("&#x27;", "'");
 
     expect(html).toContain("Today's results");
-    expect(html).toContain("Salah 18'");
+    expect(html).toContain("Salah");
+    expect(html).toContain("18'");
+    expect(html).toContain("Compare prediction vs outcome");
+    expect(html).not.toContain("▾");
+    expect(html).not.toContain("▴");
+    // Cards/subs stay out of the compact scoreline
+    expect(html).not.toContain("Gueye");
+    expect(html).not.toContain("Gakpo");
     expect(html).toContain("Yesterday");
     expect(html).toContain("home-results-rail");
     expect(html).toContain("Leeds");
