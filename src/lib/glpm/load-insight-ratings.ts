@@ -34,7 +34,7 @@ async function latestDomainMap(
 ): Promise<{ asOfDate: string | null; domains: DomainRatingMap }> {
   const { data } = await client
     .from("glpm_team_domain_ratings")
-    .select("domain,rating,as_of_date,rating_type")
+    .select("domain,rating,as_of_date")
     .eq("team_sm_id", teamSmId)
     .eq("season_id", seasonId)
     .order("as_of_date", { ascending: false })
@@ -58,7 +58,7 @@ async function latestComponentMap(
 ): Promise<ComponentRatingMap> {
   const { data } = await client
     .from("glpm_team_component_ratings")
-    .select("component,rating,as_of_date,rating_type")
+    .select("component,rating,as_of_date")
     .eq("team_sm_id", teamSmId)
     .eq("season_id", seasonId)
     .order("as_of_date", { ascending: false })
