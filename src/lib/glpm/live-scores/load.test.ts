@@ -1,17 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { emptyLiveScoresBoard, loadLiveScoresBoard } from "./load";
 
-function mockClient(result: { data: unknown; error: { message: string } | null }) {
-  const chain = {
-    select: () => chain,
-    gte: () => chain,
-    lte: () => chain,
-    lt: () => chain,
-    in: () => chain,
-    order: () => chain,
-    limit: () => Promise.resolve(result),
+function mockClient(matchesResult: { data: unknown; error: { message: string } | null }) {
+  const empty = { data: [], error: null };
+  const makeChain = (result: { data: unknown; error: { message: string } | null }) => {
+    const chain: Record<string, unknown> = {};
+    const self = () => chain;
+    chain.select = self;
+    chain.gte = self;
+    chain.lte = self;
+    chain.lt = self;
+    chain.eq = self;
+    chain.neq = self;
+    chain.not = self;
+    chain.or = self;
+    chain.in = self;
+    chain.order = self;
+    chain.limit = () => Promise.resolve(result);
+    // Supabase builders are thenable even without .limit()
+    chain.then = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+      Promise.resolve(result).then(resolve, reject);
+    return chain;
   };
-  return { from: () => chain } as never;
+
+  return {
+    from: (table: string) => {
+      if (table === "glpm_matches") return makeChain(matchesResult);
+      return makeChain(empty);
+    },
+  } as never;
 }
 
 describe("loadLiveScoresBoard", () => {
@@ -42,6 +59,7 @@ describe("loadLiveScoresBoard", () => {
     const row = {
       sm_id: 99,
       league_sm_id: 8,
+      season_id: 25583,
       home_team_sm_id: 19,
       away_team_sm_id: 18,
       home_score: 2,
@@ -80,7 +98,8 @@ describe("loadLiveScoresBoard", () => {
       awayTeamName: "Chelsea",
       homeScore: 2,
       awayScore: 1,
-      statusLabel: "FT",
+      prediction: null,
+      predictionSource: null,
     });
   });
 });

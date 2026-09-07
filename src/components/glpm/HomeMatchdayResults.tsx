@@ -1,3 +1,6 @@
+"use client";
+
+import { useId, useState } from "react";
 import { countryFlagUrl } from "@/lib/glpm/live-scores/league-meta";
 import {
   formatScorerLabel,
@@ -5,6 +8,7 @@ import {
 } from "@/lib/glpm/live-scores/map-timeline";
 import type { LiveScoreMatch } from "@/lib/glpm/live-scores/types";
 import { formatCalendarDateLongLocal } from "@/lib/utils/kickoff-display";
+import { PredictedVsActualPanel } from "./PredictedVsActualPanel";
 
 function MiniCrest({
   name,
@@ -74,6 +78,8 @@ function ScorerColumn({
 }
 
 function FinishedMatchSummary({ match }: { match: LiveScoreMatch }) {
+  const [open, setOpen] = useState(false);
+  const detailsId = useId();
   const scorers = goalScorersFromTimeline(match.timeline);
   const homeScorers = scorers
     .filter((line) => line.side === "home")
@@ -88,53 +94,89 @@ function FinishedMatchSummary({ match }: { match: LiveScoreMatch }) {
       className="rounded-2xl border border-glass-border bg-surface/50 px-3.5 py-3 sm:px-4"
       aria-label={`${match.homeTeamName} ${match.homeScore} - ${match.awayScore} ${match.awayTeamName}, ${match.statusLabel}`}
     >
-      <header className="mb-2 flex items-center justify-center gap-1.5">
-        <LeagueFlag iso={match.countryIso} />
-        <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted">
-          {match.leagueName}
-        </p>
-        <span className="rounded-full bg-slate-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-          {match.statusLabel}
-        </span>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-          <p className="truncate text-right text-sm font-semibold text-foreground">
-            {match.homeTeamName}
+      <button
+        type="button"
+        className="w-full text-left"
+        aria-expanded={open}
+        aria-controls={detailsId}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <header className="mb-2 flex items-center justify-center gap-1.5">
+          <LeagueFlag iso={match.countryIso} />
+          <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted">
+            {match.leagueName}
           </p>
-          <MiniCrest name={match.homeTeamName} logoUrl={match.homeLogoUrl} />
-        </div>
-        <p className="shrink-0 font-mono text-xl font-bold tabular-nums text-foreground sm:text-2xl">
-          {match.homeScore}
-          <span className="mx-1 text-muted">-</span>
-          {match.awayScore}
-        </p>
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <MiniCrest name={match.awayTeamName} logoUrl={match.awayLogoUrl} />
-          <p className="truncate text-sm font-semibold text-foreground">{match.awayTeamName}</p>
-        </div>
-      </div>
+          <span className="rounded-full bg-slate-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            {match.statusLabel}
+          </span>
+        </header>
 
-      <div className="mt-2 border-t border-glass-border/70 pt-2">
-        {goalless && scorers.length === 0 ? (
-          <p className="text-center text-[11px] text-muted">No goals</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <ScorerColumn lines={homeScorers} align="left" />
-            <ScorerColumn lines={awayScorers} align="right" />
+        <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <p className="truncate text-right text-sm font-semibold text-foreground">
+              {match.homeTeamName}
+            </p>
+            <MiniCrest name={match.homeTeamName} logoUrl={match.homeLogoUrl} />
           </div>
-        )}
-      </div>
+          <p className="shrink-0 font-mono text-xl font-bold tabular-nums text-foreground sm:text-2xl">
+            {match.homeScore}
+            <span className="mx-1 text-muted">-</span>
+            {match.awayScore}
+          </p>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <MiniCrest name={match.awayTeamName} logoUrl={match.awayLogoUrl} />
+            <p className="truncate text-sm font-semibold text-foreground">{match.awayTeamName}</p>
+          </div>
+        </div>
+
+        <div className="mt-2 border-t border-glass-border/70 pt-2">
+          {goalless && scorers.length === 0 ? (
+            <p className="text-center text-[11px] text-muted">No goals</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <ScorerColumn lines={homeScorers} align="left" />
+              <ScorerColumn lines={awayScorers} align="right" />
+            </div>
+          )}
+        </div>
+
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-muted">
+          <span aria-hidden className="text-[10px]">
+            {open ? "▴" : "▾"}
+          </span>
+          {open ? "Hide prediction vs outcome" : "Compare prediction vs outcome"}
+        </p>
+      </button>
+
+      {open ? (
+        <div id={detailsId} className="mt-3 border-t border-glass-border/70 pt-3">
+          <PredictedVsActualPanel match={match} />
+        </div>
+      ) : null}
     </article>
   );
 }
 
-function YesterdayScoreChip({ match }: { match: LiveScoreMatch }) {
+function YesterdayScoreChip({
+  match,
+  selected,
+  onSelect,
+}: {
+  match: LiveScoreMatch;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   return (
-    <article
-      className="h-full rounded-2xl border border-glass-border bg-surface/50 px-3 py-3"
-      aria-label={`${match.leagueName}: ${match.homeTeamName} ${match.homeScore} - ${match.awayScore} ${match.awayTeamName}`}
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`h-full w-full rounded-2xl border px-3 py-3 text-left transition ${
+        selected
+          ? "border-primary/50 bg-primary/10 ring-1 ring-primary/30"
+          : "border-glass-border bg-surface/50 hover:bg-surface/80"
+      }`}
+      aria-label={`${match.leagueName}: ${match.homeTeamName} ${match.homeScore} - ${match.awayScore} ${match.awayTeamName}. Compare prediction vs outcome.`}
     >
       <p className="flex items-center justify-center gap-1 truncate text-[10px] font-semibold uppercase tracking-wide text-muted">
         <LeagueFlag iso={match.countryIso} />
@@ -153,7 +195,7 @@ function YesterdayScoreChip({ match }: { match: LiveScoreMatch }) {
         {match.homeTeamName}
       </p>
       <p className="truncate text-center text-[11px] leading-snug text-muted">{match.awayTeamName}</p>
-    </article>
+    </button>
   );
 }
 
@@ -168,14 +210,20 @@ export function HomeMatchdayResults({
   todayDate: string;
   yesterdayDate: string;
 }) {
+  const [selectedYesterdayId, setSelectedYesterdayId] = useState<number | null>(null);
+  const selectedYesterday =
+    yesterday.find((m) => m.matchSmId === selectedYesterdayId) ?? null;
+
   if (finishedToday.length === 0 && yesterday.length === 0) return null;
 
   return (
     <div className="mt-6 space-y-6 border-t border-glass-border/80 pt-5">
+      <p className="text-xs text-muted">Tap a result to compare prediction vs outcome.</p>
+
       {finishedToday.length > 0 ? (
         <section aria-label="Today's finished matches">
           <div className="mb-3">
-            <h3 className="text-base font-bold text-foreground">Today's results</h3>
+            <h3 className="text-base font-bold text-foreground">Today&apos;s results</h3>
             <p className="text-xs text-muted">{formatCalendarDateLongLocal(todayDate)}</p>
           </div>
           <div className="grid gap-2.5">
@@ -197,10 +245,23 @@ export function HomeMatchdayResults({
           <ul className="home-results-rail list-none">
             {yesterday.map((match) => (
               <li key={match.matchSmId} className="home-results-rail-card">
-                <YesterdayScoreChip match={match} />
+                <YesterdayScoreChip
+                  match={match}
+                  selected={selectedYesterdayId === match.matchSmId}
+                  onSelect={() =>
+                    setSelectedYesterdayId((cur) =>
+                      cur === match.matchSmId ? null : match.matchSmId
+                    )
+                  }
+                />
               </li>
             ))}
           </ul>
+          {selectedYesterday ? (
+            <div className="mt-3 rounded-2xl border border-glass-border bg-surface/50 px-3.5 py-3 sm:px-4">
+              <PredictedVsActualPanel match={selectedYesterday} />
+            </div>
+          ) : null}
         </section>
       ) : null}
     </div>

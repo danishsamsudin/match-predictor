@@ -7,6 +7,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase";
+import { seasonVectorsAreCollapsed } from "@/lib/glpm/rating-discrimination";
 
 type Client = SupabaseClient<Database>;
 
@@ -23,6 +24,8 @@ export type GlpmSeasonReadiness = {
   hasFinishedMatches: boolean;
   hasUpcomingMatches: boolean;
   isPredictReady: boolean;
+  /** Primaries separate clubs (not early-season calibrator collapse). */
+  hasDiscriminatingVectors: boolean;
 };
 
 function emptyReadiness(): GlpmSeasonReadiness {
@@ -31,6 +34,7 @@ function emptyReadiness(): GlpmSeasonReadiness {
     hasFinishedMatches: false,
     hasUpcomingMatches: false,
     isPredictReady: false,
+    hasDiscriminatingVectors: false,
   };
 }
 
@@ -39,10 +43,14 @@ export async function loadGlpmSeasonReadiness(
 ): Promise<Map<number, GlpmSeasonReadiness>> {
   const map = new Map<number, GlpmSeasonReadiness>();
 
-  // Parallel scans; season_id alone is enough for picker readiness flags.
   const [{ data: vectorRows }, { data: finishedRows }, { data: upcomingRows }] =
     await Promise.all([
-      client.from("glpm_team_rating_vectors").select("season_id"),
+      client
+        .from("glpm_team_rating_vectors")
+        .select(
+          "season_id,team_sm_id,r_attack,r_defence,r_build_up,r_possession,r_pressing,r_finishing,as_of_date"
+        )
+        .order("as_of_date", { ascending: false }),
       client
         .from("glpm_matches")
         .select("season_id")
@@ -55,11 +63,41 @@ export async function loadGlpmSeasonReadiness(
         .limit(5000),
     ]);
 
+  const latestBySeasonTeam = new Map<
+    number,
+    Map<
+      number,
+      {
+        r_attack: number | null;
+        r_defence: number | null;
+        r_build_up: number | null;
+        r_possession: number | null;
+        r_pressing: number | null;
+        r_finishing: number | null;
+      }
+    >
+  >();
   for (const row of vectorRows ?? []) {
-    const cur = map.get(row.season_id) ?? emptyReadiness();
+    const seasonId = row.season_id;
+    const teamId = row.team_sm_id;
+    let byTeam = latestBySeasonTeam.get(seasonId);
+    if (!byTeam) {
+      byTeam = new Map();
+      latestBySeasonTeam.set(seasonId, byTeam);
+    }
+    if (byTeam.has(teamId)) continue;
+    byTeam.set(teamId, row);
+    const cur = map.get(seasonId) ?? emptyReadiness();
     cur.hasVectors = true;
-    cur.isPredictReady = true;
-    map.set(row.season_id, cur);
+    map.set(seasonId, cur);
+  }
+
+  for (const [seasonId, byTeam] of latestBySeasonTeam) {
+    const cur = map.get(seasonId) ?? emptyReadiness();
+    const discriminating = !seasonVectorsAreCollapsed([...byTeam.values()]);
+    cur.hasDiscriminatingVectors = discriminating;
+    cur.isPredictReady = discriminating;
+    map.set(seasonId, cur);
   }
 
   for (const row of finishedRows ?? []) {
@@ -81,7 +119,8 @@ export async function loadGlpmSeasonReadiness(
 
 /**
  * Seasons are assumed newest-first (start_date desc).
- * Prefer the latest season with vectors, else upcoming fixtures, else finished matches.
+ * Prefer the latest season with discriminating vectors, else any vectors,
+ * else upcoming fixtures, else finished matches.
  */
 export function pickDefaultGlpmSeasonId(
   seasons: GlpmSeasonRef[],
@@ -94,6 +133,9 @@ export function pickDefaultGlpmSeasonId(
       : seasons;
   if (!pool.length) return null;
 
+  for (const s of pool) {
+    if (readiness.get(s.smId)?.hasDiscriminatingVectors) return s.smId;
+  }
   for (const s of pool) {
     if (readiness.get(s.smId)?.hasVectors) return s.smId;
   }
@@ -139,6 +181,7 @@ export function annotateSeasonReadiness(
       hasFinishedMatches: r?.hasFinishedMatches ?? false,
       hasUpcomingMatches: r?.hasUpcomingMatches ?? false,
       isPredictReady: r?.isPredictReady ?? false,
+      hasDiscriminatingVectors: r?.hasDiscriminatingVectors ?? false,
     };
   });
 }

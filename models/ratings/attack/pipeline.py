@@ -132,6 +132,12 @@ class AttackRatingPipeline:
             shots_by_match_team=shots,
             persist_artifacts=persist_artifacts,
         )
+        from models.ratings.discrimination import team_summary_discriminates
+
+        if not team_summary_discriminates(result.team_summary, "rating_attack"):
+            # Sparse early-season data: every club lands on the same calibrated
+            # score. Refuse to overwrite a healthy prior season.
+            return result
         upsert_attack_ratings(
             client,
             result.team_summary,

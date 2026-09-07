@@ -144,7 +144,8 @@ export function HomeLeagueFixturesPanel({
       </div>
       <p className="mb-4 text-sm text-muted">
         Scroll sideways through the next two match days. Flip any card for O/U, BTTS, and fair
-        odds - day posts mark where the calendar rolls over.
+        odds. When both seasons are trained, the main figure is 26/27 and the violet brackets are
+        25/26.
       </p>
 
       {tabs.length ? (

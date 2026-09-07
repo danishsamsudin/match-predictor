@@ -4,30 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { WeatherForecastIcon } from "@/components/prediction-charts/WeatherForecastIcon";
 import type { GlpmHubUpcomingMatch, GlpmHubWeather } from "@/lib/glpm/hub-types";
-import { fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
+import { buildGlpmCompareHref, fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
+import { SeasonCompareValue } from "@/components/glpm/SeasonCompareValue";
 import { formatKickoffCardLocal } from "@/lib/utils/kickoff-display";
 
-function buildCompareHref(match: GlpmHubUpcomingMatch, seasonId?: number | null): string {
-  const params = new URLSearchParams({
-    entity: "club",
-    mode: "compare",
-    home: String(match.homeTeamSmId),
-    away: String(match.awayTeamSmId),
-  });
-  if (seasonId != null) {
-    params.set("seasonId", String(seasonId));
-  }
-  return `/predict?${params.toString()}`;
-}
-
 function pctLabel(n: number): string {
-  return `${(n * 100).toFixed(0)}%`;
+  return `${(n * 100).toFixed(1)}%`;
 }
 
 function sourceChipLabel(
   source: GlpmHubUpcomingMatch["predictionSource"]
 ): string | null {
-  if (source === "stored") return "Cached";
+  if (source === "cx") return "GLPM-CX";
+  if (source === "stored") return "Base";
   if (source === "prior") return "Provisional";
   if (source === "live") return "Live";
   return null;
@@ -99,6 +88,14 @@ export function GlpmUpcomingFlipCard({
 }) {
   const [flipped, setFlipped] = useState(false);
   const p = match.prediction;
+  const prior = match.predictionPriorSeason;
+  const priorTitle =
+    match.predictionPriorSeasonLabel && match.predictionSeasonLabel
+      ? `${match.predictionPriorSeasonLabel} trained ratings`
+      : match.predictionPriorSeasonLabel
+        ? "Fixture-season trained ratings"
+        : "26/27 trained ratings";
+  const priorSeasonLabel = match.predictionPriorSeasonLabel;
   const kickoff = formatKickoffCardLocal(match.kickoffAt, match.date);
   const favorite =
     p == null
@@ -127,6 +124,12 @@ export function GlpmUpcomingFlipCard({
                 ) : (
                   <span className="glpm-card-badge">Upcoming</span>
                 )}
+                {chip ? <span className="glpm-card-badge">{chip}</span> : null}
+                {prior && match.predictionSeasonLabel && match.predictionPriorSeasonLabel ? (
+                  <span className="glpm-card-badge glpm-card-badge-compare">
+                    {match.predictionSeasonLabel} vs {match.predictionPriorSeasonLabel}
+                  </span>
+                ) : null}
                 <p className="glpm-card-kickoff truncate">{kickoff.fullLabel}</p>
               </div>
               {match.venue ? (
@@ -154,17 +157,38 @@ export function GlpmUpcomingFlipCard({
               <div className="glpm-card-win-row">
                 <div className={`glpm-win-pct-cell ${favorite === "home" ? "is-fav" : ""}`}>
                   <span className="glpm-win-pct-label">Home</span>
-                  <span className="glpm-win-pct-value text-primary">{pctLabel(p.homeWin)}</span>
+                  <span className="glpm-win-pct-value text-primary">
+                    <SeasonCompareValue
+                      current={pctLabel(p.homeWin)}
+                      prior={prior ? pctLabel(prior.homeWin) : null}
+                      priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                    />
+                  </span>
                 </div>
                 <div
                   className={`glpm-win-pct-cell glpm-win-pct-cell-muted ${favorite === "draw" ? "is-fav" : ""}`}
                 >
                   <span className="glpm-win-pct-label">Draw</span>
-                  <span className="glpm-win-pct-value">{pctLabel(p.draw)}</span>
+                  <span className="glpm-win-pct-value">
+                    <SeasonCompareValue
+                      current={pctLabel(p.draw)}
+                      prior={prior ? pctLabel(prior.draw) : null}
+                      priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                    />
+                  </span>
                 </div>
                 <div className={`glpm-win-pct-cell ${favorite === "away" ? "is-fav" : ""}`}>
                   <span className="glpm-win-pct-label">Away</span>
-                  <span className="glpm-win-pct-value text-accent">{pctLabel(p.awayWin)}</span>
+                  <span className="glpm-win-pct-value text-accent">
+                    <SeasonCompareValue
+                      current={pctLabel(p.awayWin)}
+                      prior={prior ? pctLabel(prior.awayWin) : null}
+                      priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                    />
+                  </span>
                 </div>
               </div>
 
@@ -178,20 +202,50 @@ export function GlpmUpcomingFlipCard({
                 <div className="glpm-stat-cell glpm-stat-cell-highlight">
                   <span className="glpm-stat-label">Pred xG</span>
                   <span className="glpm-stat-value">
-                    {p.homeXg.toFixed(2)} - {p.awayXg.toFixed(2)}
+                    <SeasonCompareValue
+                      current={`${p.homeXg.toFixed(2)} - ${p.awayXg.toFixed(2)}`}
+                      prior={
+                        prior
+                          ? `${prior.homeXg.toFixed(2)} - ${prior.awayXg.toFixed(2)}`
+                          : null
+                      }
+                      priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                    />
                   </span>
                 </div>
                 <div className="glpm-stat-cell">
                   <span className="glpm-stat-label">Over 2.5</span>
-                  <span className="glpm-stat-value">{pctLabel(p.over25)}</span>
+                  <span className="glpm-stat-value">
+                    <SeasonCompareValue
+                      current={pctLabel(p.over25)}
+                      prior={prior ? pctLabel(prior.over25) : null}
+                      priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                    />
+                  </span>
                 </div>
                 <div className="glpm-stat-cell">
                   <span className="glpm-stat-label">BTTS</span>
-                  <span className="glpm-stat-value">{pctLabel(p.bttsYes)}</span>
+                  <span className="glpm-stat-value">
+                    <SeasonCompareValue
+                      current={pctLabel(p.bttsYes)}
+                      prior={prior ? pctLabel(prior.bttsYes) : null}
+                      priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                    />
+                  </span>
                 </div>
                 <div className="glpm-stat-cell">
                   <span className="glpm-stat-label">Σ xG</span>
-                  <span className="glpm-stat-value">{(p.homeXg + p.awayXg).toFixed(2)}</span>
+                  <span className="glpm-stat-value">
+                    <SeasonCompareValue
+                      current={(p.homeXg + p.awayXg).toFixed(2)}
+                      prior={prior ? (prior.homeXg + prior.awayXg).toFixed(2) : null}
+                      priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                    />
+                  </span>
                 </div>
               </div>
             </>
@@ -201,7 +255,7 @@ export function GlpmUpcomingFlipCard({
             </p>
           )}
 
-          <span className="glpm-card-flip-btn mt-auto">Markets →</span>
+          <span className="glpm-card-flip-btn">Markets →</span>
         </button>
 
         <div className="glpm-flip-face glpm-flip-back liquid-glass-panel">
@@ -225,19 +279,47 @@ export function GlpmUpcomingFlipCard({
             <div className="glpm-card-back-metrics">
               <div className="glpm-stat-cell">
                 <span className="glpm-stat-label">Home xG</span>
-                <span className="glpm-stat-value text-primary">{p.homeXg.toFixed(2)}</span>
+                <span className="glpm-stat-value text-primary">
+                  <SeasonCompareValue
+                    current={p.homeXg.toFixed(2)}
+                    prior={prior ? prior.homeXg.toFixed(2) : null}
+                    priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                  />
+                </span>
               </div>
               <div className="glpm-stat-cell">
                 <span className="glpm-stat-label">Away xG</span>
-                <span className="glpm-stat-value text-accent">{p.awayXg.toFixed(2)}</span>
+                <span className="glpm-stat-value text-accent">
+                  <SeasonCompareValue
+                    current={p.awayXg.toFixed(2)}
+                    prior={prior ? prior.awayXg.toFixed(2) : null}
+                    priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                  />
+                </span>
               </div>
               <div className="glpm-stat-cell">
                 <span className="glpm-stat-label">O/U 2.5 over</span>
-                <span className="glpm-stat-value">{pctLabel(p.over25)}</span>
+                <span className="glpm-stat-value">
+                  <SeasonCompareValue
+                    current={pctLabel(p.over25)}
+                    prior={prior ? pctLabel(prior.over25) : null}
+                    priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                  />
+                </span>
               </div>
               <div className="glpm-stat-cell">
                 <span className="glpm-stat-label">BTTS yes</span>
-                <span className="glpm-stat-value">{pctLabel(p.bttsYes)}</span>
+                <span className="glpm-stat-value">
+                  <SeasonCompareValue
+                    current={pctLabel(p.bttsYes)}
+                    prior={prior ? pctLabel(prior.bttsYes) : null}
+                    priorTitle={priorTitle}
+                      priorSeasonLabel={priorSeasonLabel}
+                  />
+                </span>
               </div>
               <div className="glpm-card-fair-row">
                 <div className="glpm-stat-cell glpm-stat-cell-compact">
@@ -272,7 +354,7 @@ export function GlpmUpcomingFlipCard({
             </p>
           )}
 
-          <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+          <div className="flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setFlipped(false)}
@@ -281,7 +363,7 @@ export function GlpmUpcomingFlipCard({
               Flip back
             </button>
             <Link
-              href={buildCompareHref(match, seasonId)}
+              href={buildGlpmCompareHref(match, seasonId)}
               className="rounded-full bg-slate-950 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 dark:bg-white dark:text-slate-950"
             >
               Open compare
@@ -309,10 +391,18 @@ export function GlpmUpcomingFixturesSection({
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {matches.map((m) => (
-        <GlpmUpcomingFlipCard key={m.matchSmId} match={m} seasonId={seasonId} />
-      ))}
+    <div>
+      {matches.some((m) => m.predictionPriorSeason) ? (
+        <p className="mb-3 text-sm text-muted">
+          Main numbers use last season&apos;s trained ratings (25/26). Bracketed violet values are
+          this season&apos;s model (26/27) on the same fixture.
+        </p>
+      ) : null}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {matches.map((m) => (
+          <GlpmUpcomingFlipCard key={m.matchSmId} match={m} seasonId={seasonId} />
+        ))}
+      </div>
     </div>
   );
 }

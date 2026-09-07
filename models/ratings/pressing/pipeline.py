@@ -131,6 +131,10 @@ class PressingRatingPipeline:
             l2_frame=l2 if not l2.empty else None,
             persist_artifacts=persist_artifacts,
         )
+        from models.ratings.discrimination import team_summary_discriminates
+
+        if not team_summary_discriminates(result.team_summary, "rating_pressing"):
+            return result
         upsert_pressing_ratings(
             client,
             result.team_summary,

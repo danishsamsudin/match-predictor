@@ -10,6 +10,8 @@ from typing import Any, Optional
 
 import pandas as pd
 
+from models.ratings.match_status import finished_matches, is_finished_status
+
 PAGE_SIZE = 1000
 MODEL_VERSION = "gk_v1"
 
@@ -65,8 +67,7 @@ def _load_gk_proxy_frame_from_team_stats(
 
     rows: list[dict[str, Any]] = []
     for m in matches:
-        status = str(m.get("status") or "")
-        if status.lower() == "not started":
+        if not is_finished_status(m.get("status")):
             continue
         match_id = int(m["sm_id"])
         home_id = int(m["home_team_sm_id"])
@@ -159,11 +160,13 @@ def load_gk_player_frame(
     """
     Load GK player-match rows joined with match metadata and as-of Defence ratings.
     """
-    matches = _paginate(
-        client,
-        "glpm_matches",
-        "sm_id, season_id, match_date, kickoff_at, home_team_sm_id, away_team_sm_id, duration_minutes, status",
-        {"season_id": season_id} if season_id is not None else None,
+    matches = finished_matches(
+        _paginate(
+            client,
+            "glpm_matches",
+            "sm_id, season_id, match_date, kickoff_at, home_team_sm_id, away_team_sm_id, duration_minutes, status",
+            {"season_id": season_id} if season_id is not None else None,
+        )
     )
     if not matches:
         return pd.DataFrame()

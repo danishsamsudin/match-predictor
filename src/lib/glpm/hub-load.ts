@@ -19,7 +19,11 @@ import type {
   GlpmHubUpcomingMatch,
   GlpmHubWeather,
 } from "@/lib/glpm/hub-types";
-import { hubPredictionFromHistoryRow } from "@/lib/glpm/hub-prediction-map";
+import {
+  hubPredictionFromHistoryRow,
+  resolveUpcomingCardPrediction,
+  shortGlpmSeasonLabel,
+} from "@/lib/glpm/hub-prediction-map";
 import {
   buildCompetitionMeanVector,
   meanPrimaryRatings,
@@ -36,6 +40,7 @@ import {
   pickDefaultGlpmSeasonId,
   pickFixtureSeasonId,
 } from "@/lib/glpm/season-ready";
+import { TRAIN_FALLBACK_BY_LEAGUE } from "@/lib/glpm/resolve-train-season";
 
 export type {
   GlpmHubMatchSummaryStats,
@@ -225,6 +230,7 @@ export async function loadGlpmHubPayload(
         .select(MATCH_LIST_WITH_PAYLOAD)
         .eq("season_id", seasonId)
         .or("home_score.is.null,away_score.is.null")
+        .order("kickoff_at", { ascending: true, nullsFirst: false })
         .order("match_date", { ascending: true })
         .limit(upcomingLimit)
     : client
@@ -232,12 +238,25 @@ export async function loadGlpmHubPayload(
         .select(MATCH_LIST_SELECT)
         .eq("season_id", seasonId)
         .or("home_score.is.null,away_score.is.null")
+        .order("kickoff_at", { ascending: true, nullsFirst: false })
         .order("match_date", { ascending: true })
         .limit(upcomingLimit);
+
+  const priorSeasonIdRaw =
+    competitionId != null ? TRAIN_FALLBACK_BY_LEAGUE[competitionId] ?? null : null;
+  const priorSeasonId =
+    priorSeasonIdRaw != null && priorSeasonIdRaw !== seasonId ? priorSeasonIdRaw : null;
+  const priorSeasonMeta =
+    priorSeasonId != null ? seasonList.find((s) => s.smId === priorSeasonId) ?? null : null;
+  const currentSeasonLabel = shortGlpmSeasonLabel(seasonMeta?.name, seasonId);
+  const priorSeasonLabel = priorSeasonId
+    ? shortGlpmSeasonLabel(priorSeasonMeta?.name, priorSeasonId)
+    : null;
 
   const [
     { data: teams },
     { data: vectorRows },
+    { data: priorVectorRows },
     finishedMatchesResult,
     openMatchesResult,
   ] = await Promise.all([
@@ -247,6 +266,13 @@ export async function loadGlpmHubPayload(
       .select(VECTOR_SELECT)
       .eq("season_id", seasonId)
       .order("as_of_date", { ascending: false }),
+    priorSeasonId != null
+      ? client
+          .from("glpm_team_rating_vectors")
+          .select(VECTOR_SELECT)
+          .eq("season_id", priorSeasonId)
+          .order("as_of_date", { ascending: false })
+      : Promise.resolve({ data: [] as never[] }),
     includeRecent
       ? client
           .from("glpm_matches")
@@ -297,6 +323,19 @@ export async function loadGlpmHubPayload(
     });
   }
   ratingLeaders.sort((a, b) => b.overall - a.overall);
+
+  const priorLatestByTeam = new Map<number, NonNullable<typeof priorVectorRows>[number]>();
+  for (const row of priorVectorRows ?? []) {
+    if (!priorLatestByTeam.has(row.team_sm_id)) {
+      priorLatestByTeam.set(row.team_sm_id, row);
+    }
+  }
+  const priorSeasonVectors = new Map<number, LoadedRatingVector>();
+  for (const row of priorLatestByTeam.values()) {
+    const loaded = vectorFromRow(row);
+    loaded.teamName = teamName.get(row.team_sm_id) ?? `Team ${row.team_sm_id}`;
+    priorSeasonVectors.set(row.team_sm_id, loaded);
+  }
 
   let competitionVectorsForMean = [...seasonVectors.values()];
   if (competitionId != null && competitionVectorsForMean.length === 0) {
@@ -371,7 +410,7 @@ export async function loadGlpmHubPayload(
   const upcomingIds = upcomingRows.map((m) => m.sm_id);
   const historyIds = [...new Set([...recentIds, ...upcomingIds])];
 
-  const [anySeasonVectors, promotedTeamIds, statsRowsResult, predRowsResult] =
+  const [anySeasonVectors, promotedTeamIds, statsRowsResult, predRowsResult, cxPredRowsResult] =
     await Promise.all([
       loadLatestAnySeasonVectors(client, teamsNeedingFallback, teamName),
       competitionId != null
@@ -397,6 +436,15 @@ export async function loadGlpmHubPayload(
               "match_sm_id,home_win_pct,draw_pct,away_win_pct,home_xg,away_xg,btts_yes_pct,over_under,executed_at"
             )
             .in("match_sm_id", historyIds)
+            .order("executed_at", { ascending: false })
+        : Promise.resolve({ data: [] as never[] }),
+      upcomingIds.length > 0
+        ? client
+            .from("glpm_cx_prediction_history")
+            .select(
+              "match_sm_id,home_win_pct,draw_pct,away_win_pct,home_xg,away_xg,btts_yes_pct,over_under,executed_at"
+            )
+            .in("match_sm_id", upcomingIds)
             .order("executed_at", { ascending: false })
         : Promise.resolve({ data: [] as never[] }),
     ]);
@@ -430,8 +478,20 @@ export async function loadGlpmHubPayload(
 
   const predByMatch = new Map<number, NonNullable<typeof predRowsResult.data>[number]>();
   for (const p of predRowsResult.data ?? []) {
-    if (p.match_sm_id != null && !predByMatch.has(p.match_sm_id)) {
-      predByMatch.set(p.match_sm_id, p);
+    const id = Number(p.match_sm_id);
+    if (Number.isFinite(id) && !predByMatch.has(id)) {
+      predByMatch.set(id, p);
+    }
+  }
+
+  if ("error" in cxPredRowsResult && cxPredRowsResult.error) {
+    console.warn("[glpm-hub] cx history load failed", cxPredRowsResult.error);
+  }
+  const cxByMatch = new Map<number, NonNullable<typeof cxPredRowsResult.data>[number]>();
+  for (const p of cxPredRowsResult.data ?? []) {
+    const id = Number(p.match_sm_id);
+    if (Number.isFinite(id) && !cxByMatch.has(id)) {
+      cxByMatch.set(id, p);
     }
   }
 
@@ -557,18 +617,56 @@ export async function loadGlpmHubPayload(
 
   const upcoming: GlpmHubUpcomingMatch[] = upcomingRows.map((m) => {
     const stored = predByMatch.get(m.sm_id);
+    const cxStored = cxByMatch.get(m.sm_id);
     const { home, away } = resolvePair(m.home_team_sm_id, m.away_team_sm_id);
 
-    let prediction: GlpmHubUpcomingMatch["prediction"] = null;
-    let predictionSource: GlpmHubUpcomingMatch["predictionSource"] = null;
+    const homeCurrent = seasonVectors.get(m.home_team_sm_id) ?? null;
+    const awayCurrent = seasonVectors.get(m.away_team_sm_id) ?? null;
+    const liveFixtureSeason =
+      homeCurrent && awayCurrent
+        ? predictFromVectors(homeCurrent, awayCurrent)
+        : null;
 
-    if (stored) {
-      prediction = hubPredictionFromHistoryRow(stored);
-      predictionSource = "stored";
-    } else if (home && away) {
-      prediction = predictFromVectors(home.vector, away.vector);
-      predictionSource = predictionSourceFromResolved(home, away, false);
-    }
+    const homePrior = priorSeasonVectors.get(m.home_team_sm_id) ?? null;
+    const awayPrior = priorSeasonVectors.get(m.away_team_sm_id) ?? null;
+    // Main card markets prefer prior-season (25/26) trained vectors.
+    const liveMain =
+      homePrior && awayPrior
+        ? predictFromVectors(homePrior, awayPrior)
+        : liveFixtureSeason;
+    // Violet brackets = fixture-season (26/27) when it differs from main.
+    const predictionPriorSeason =
+      liveMain &&
+      liveFixtureSeason &&
+      (Math.abs(liveMain.homeXg - liveFixtureSeason.homeXg) > 0.005 ||
+        Math.abs(liveMain.awayXg - liveFixtureSeason.awayXg) > 0.005 ||
+        Math.abs(liveMain.homeWin - liveFixtureSeason.homeWin) > 0.0005 ||
+        Math.abs(liveMain.awayWin - liveFixtureSeason.awayWin) > 0.0005)
+        ? liveFixtureSeason
+        : null;
+
+    const live = liveMain ?? (home && away ? predictFromVectors(home.vector, away.vector) : null);
+    const liveSource =
+      liveMain != null
+        ? homePrior && awayPrior
+          ? ("prior" as const)
+          : ("live" as const)
+        : home && away
+          ? predictionSourceFromResolved(home, away, false)
+          : null;
+    const { prediction, predictionSource } = liveMain
+      ? {
+          prediction: liveMain,
+          predictionSource: (homePrior && awayPrior
+            ? "prior"
+            : "live") as const,
+        }
+      : resolveUpcomingCardPrediction({
+          cxRow: cxStored ?? null,
+          live,
+          liveSource,
+          baseRow: stored ?? null,
+        });
 
     return {
       matchSmId: m.sm_id,
@@ -581,6 +679,13 @@ export async function loadGlpmHubPayload(
       venue: m.venue,
       gameweek: m.gameweek,
       prediction,
+      predictionPriorSeason,
+      predictionSeasonLabel: liveMain
+        ? homePrior && awayPrior
+          ? priorSeasonLabel
+          : currentSeasonLabel
+        : null,
+      predictionPriorSeasonLabel: predictionPriorSeason ? currentSeasonLabel : null,
       predictionSource,
       weather: weatherByMatch.get(m.sm_id) ?? null,
     };

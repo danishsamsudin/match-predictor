@@ -2,7 +2,7 @@
  * Client-safe hub payload types.
  */
 
-export type GlpmHubPredictionSource = "stored" | "live" | "prior";
+export type GlpmHubPredictionSource = "cx" | "stored" | "live" | "prior";
 
 export type GlpmHubWeather = {
   /** available = real kickoff forecast; tbc = match too far out / not yet forecastable */
@@ -78,6 +78,18 @@ export type GlpmHubUpcomingMatch = {
     over25: number;
     bttsYes: number;
   } | null;
+  /** Same markets from the prior-season trained vectors (e.g. 25/26 vs 26/27). */
+  predictionPriorSeason: {
+    homeWin: number;
+    draw: number;
+    awayWin: number;
+    homeXg: number;
+    awayXg: number;
+    over25: number;
+    bttsYes: number;
+  } | null;
+  predictionSeasonLabel: string | null;
+  predictionPriorSeasonLabel: string | null;
   predictionSource: GlpmHubPredictionSource | null;
   weather: GlpmHubWeather | null;
 };

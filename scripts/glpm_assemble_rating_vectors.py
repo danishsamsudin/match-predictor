@@ -188,6 +188,30 @@ def main() -> int:
         client=client,
         team_ids=team_ids,
     )
+
+    from models.ratings.discrimination import scores_discriminate
+    import math
+
+    attack_vals = [
+        float(v.get("attack"))
+        for v in vectors
+        if v.get("attack") is not None and math.isfinite(float(v.get("attack")))
+    ]
+    if len(attack_vals) >= 2 and not scores_discriminate(attack_vals):
+        print(
+            json.dumps(
+                {
+                    "season_id": args.season_id,
+                    "as_of": args.as_of,
+                    "n_vectors": len(vectors),
+                    "upsert": {"skipped": "collapsed_primary_ratings"},
+                    "dry_run": args.dry_run,
+                },
+                indent=2,
+            )
+        )
+        return 0
+
     counts = upsert_rating_vectors(client, vectors, dry_run=args.dry_run)
     print(
         json.dumps(

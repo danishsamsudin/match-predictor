@@ -1,6 +1,6 @@
 /**
  * Post-results GLPM refresh: full engine retrain for leagues that played,
- * then force-rescore upcoming fixtures (1X2, BTTS, O/U, xG).
+ * then force-rescore upcoming fixtures with GLPM-CX (1X2, BTTS, O/U, xG).
  */
 
 import { spawn } from "node:child_process";

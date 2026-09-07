@@ -1,11 +1,12 @@
 /**
- * Pre-score open GLPM fixtures into glpm_prediction_history for fast hub cards.
+ * Pre-score open GLPM fixtures into glpm_cx_prediction_history for hub cards.
+ * Uses the same GLPM-CX path as the Predict page (rest, travel, weather, lineup).
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase";
 import { tryCreateServiceClient } from "@/lib/supabase";
-import { runGlpmPredict } from "@/lib/glpm/run-predict";
+import { runGlpmCxPredict } from "@/lib/glpm-cx/run-cx-predict";
 import {
   loadGlpmSeasonReadiness,
   pickFixtureSeasonId,
@@ -117,6 +118,7 @@ export async function runGlpmUpcomingPredictionSnapshots(options?: {
       .select("sm_id,home_team_sm_id,away_team_sm_id,match_date,kickoff_at")
       .eq("season_id", seasonId)
       .or("home_score.is.null,away_score.is.null")
+      .order("kickoff_at", { ascending: true, nullsFirst: false })
       .order("match_date", { ascending: true })
       .limit(maxPer);
 
@@ -135,7 +137,7 @@ export async function runGlpmUpcomingPredictionSnapshots(options?: {
 
       if (!force) {
         const { data: existing } = await client
-          .from("glpm_prediction_history")
+          .from("glpm_cx_prediction_history")
           .select("id,executed_at")
           .eq("match_sm_id", match.sm_id)
           .gte("executed_at", freshAfter)
@@ -149,12 +151,13 @@ export async function runGlpmUpcomingPredictionSnapshots(options?: {
       }
 
       try {
-        const result = await runGlpmPredict(client, {
+        const result = await runGlpmCxPredict(client, {
           homeTeamSmId: match.home_team_sm_id,
           awayTeamSmId: match.away_team_sm_id,
           seasonId,
           matchSmId: match.sm_id,
           persist: true,
+          lite: true,
         });
         if (result.predictionId) {
           written += 1;

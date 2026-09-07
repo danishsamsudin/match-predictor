@@ -17,6 +17,11 @@ type Client = SupabaseClient<Database>;
 export type LoadedRatingVector = {
   teamSmId: number;
   seasonId: number;
+  /**
+   * DB season the rating row was loaded from. Differs from `seasonId` when
+   * predict borrows a prior season after calibrator collapse.
+   */
+  sourceSeasonId?: number;
   asOfDate: string;
   ratings: Record<PrimaryKey, number>;
   metadata: Partial<Record<PrimaryKey, GlpmRatingDimensionMetadata>>;

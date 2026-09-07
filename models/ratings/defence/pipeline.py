@@ -132,6 +132,10 @@ class DefenceRatingPipeline:
             shots_by_match_team=shots,
             persist_artifacts=persist_artifacts,
         )
+        from models.ratings.discrimination import team_summary_discriminates
+
+        if not team_summary_discriminates(result.team_summary, "rating_defence"):
+            return result
         upsert_defence_ratings(
             client,
             result.team_summary,

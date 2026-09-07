@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import {
   ResponsiveContainer,
   RadarChart as RRadarChart,
@@ -9,8 +10,6 @@ import {
   Radar,
   Legend,
   Tooltip,
-  PieChart,
-  Pie,
   Cell,
   BarChart,
   Bar,
@@ -20,6 +19,7 @@ import {
 } from "recharts";
 import { fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
 import type { FinishingDifferential } from "@/lib/glpm/load-insight-ratings";
+import { resolveTeamLogo } from "@/lib/data/team-logos";
 
 const HOME_COLOR = "var(--color-primary, #0ea5e9)";
 const AWAY_COLOR = "var(--color-accent, #f97316)";
@@ -34,6 +34,8 @@ export const CHART_COLORS = {
   positive: "#22c55e",
   negative: "#ef4444",
 } as const;
+
+const CHART_CURSOR = false;
 
 type RechartsTooltipPayload = {
   name?: string;
@@ -55,7 +57,15 @@ export function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="chart-float-tooltip min-w-[10rem] max-w-[16rem] rounded-2xl border border-glass-border bg-[color:var(--glass-bg)] px-3 py-2.5 text-xs shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+    <div
+      className="chart-float-tooltip min-w-[10rem] max-w-[16rem] rounded-xl px-3 py-2.5 text-xs"
+      style={{
+        background: "var(--chart-tooltip-bg)",
+        color: "var(--chart-tooltip-fg)",
+        border: "1px solid var(--chart-tooltip-border)",
+        boxShadow: "var(--chart-tooltip-shadow)",
+      }}
+    >
       {label != null && String(label).length > 0 ? (
         <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
           {label}
@@ -100,6 +110,78 @@ const RADAR_SHORT: Record<string, string> = {
 
 type DualRadarPoint = { dimension: string; home: number; away: number };
 
+function RadarProfileCompare({
+  data,
+  homeLabel,
+  awayLabel,
+  max,
+}: {
+  data: DualRadarPoint[];
+  homeLabel: string;
+  awayLabel: string;
+  max: number;
+}) {
+  const rows = data.map((row) => ({
+    ...row,
+    gap: Math.abs(row.home - row.away),
+    leader: row.home === row.away ? "even" : row.home > row.away ? "home" : "away",
+  }));
+  const homeLeads = rows.filter((r) => r.leader === "home").length;
+  const awayLeads = rows.filter((r) => r.leader === "away").length;
+  const biggest = [...rows].sort((a, b) => b.gap - a.gap)[0];
+  const headline =
+    homeLeads === awayLeads
+      ? `The profiles are closely matched, with ${homeLeads} skills each.`
+      : homeLeads > awayLeads
+        ? `${homeLabel} leads ${homeLeads} of ${rows.length} skills.`
+        : `${awayLabel} leads ${awayLeads} of ${rows.length} skills.`;
+  const gapNote =
+    biggest && biggest.gap >= 1
+      ? `Largest gap is ${biggest.dimension} (${
+          biggest.leader === "home" ? homeLabel : awayLabel
+        } +${biggest.gap.toFixed(1)}).`
+      : "No skill is more than a point apart.";
+
+  return (
+    <div className="rounded-xl border border-glass-border bg-surface/50 p-3 sm:p-4">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
+        Profile comparison
+      </p>
+      <p className="mt-1 text-sm leading-snug text-foreground">{headline}</p>
+      <p className="mt-0.5 text-[11px] leading-snug text-muted">{gapNote}</p>
+      <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
+        <span className="font-medium text-primary">{homeLabel}</span>
+        <span className="font-medium text-accent">{awayLabel}</span>
+      </div>
+      <div className="mt-2 space-y-2.5">
+        {rows.map((row) => (
+          <div key={row.dimension}>
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="tabular-nums text-primary">{row.home.toFixed(1)}</span>
+              <span className="font-medium text-foreground">{row.dimension}</span>
+              <span className="tabular-nums text-accent">{row.away.toFixed(1)}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              <div className="flex h-2 justify-end overflow-hidden rounded-l-full bg-foreground/10">
+                <div
+                  className="h-full rounded-l-full bg-primary"
+                  style={{ width: `${(row.home / max) * 100}%` }}
+                />
+              </div>
+              <div className="flex h-2 overflow-hidden rounded-r-full bg-foreground/10">
+                <div
+                  className="h-full rounded-r-full bg-accent"
+                  style={{ width: `${(row.away / max) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DualRadarChart({
   data,
   homeLabel,
@@ -116,97 +198,215 @@ export function DualRadarChart({
     axis: RADAR_SHORT[d.dimension] ?? d.dimension,
   }));
   return (
-    <div className="h-72 w-full sm:h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <RRadarChart data={plot} cx="50%" cy="52%" outerRadius="68%" margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
-          <PolarGrid stroke="currentColor" className="text-foreground/12" gridType="polygon" />
-          <PolarAngleAxis
-            dataKey="axis"
-            tick={{ fill: "currentColor", fontSize: 11, fontWeight: 600 }}
-            className="text-foreground/80"
-          />
-          <PolarRadiusAxis
-            angle={90}
-            domain={[0, max]}
-            tick={false}
-            axisLine={false}
-          />
-          <Radar
-            name={homeLabel}
-            dataKey="home"
-            stroke={HOME_COLOR}
-            fill={HOME_COLOR}
-            fillOpacity={0.18}
-            strokeWidth={2}
-          />
-          <Radar
-            name={awayLabel}
-            dataKey="away"
-            stroke={AWAY_COLOR}
-            fill={AWAY_COLOR}
-            fillOpacity={0.14}
-            strokeWidth={2}
-          />
-          <Legend
-            wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-            iconType="circle"
-            iconSize={8}
-          />
-          <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(1)} />} />
-        </RRadarChart>
-      </ResponsiveContainer>
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.9fr)] lg:items-start">
+      <div className="h-72 w-full sm:h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <RRadarChart data={plot} cx="50%" cy="52%" outerRadius="68%" margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
+            <PolarGrid stroke="currentColor" className="text-foreground/12" gridType="polygon" />
+            <PolarAngleAxis
+              dataKey="axis"
+              tick={{ fill: "currentColor", fontSize: 11, fontWeight: 600 }}
+              className="text-foreground/80"
+            />
+            <PolarRadiusAxis
+              angle={90}
+              domain={[0, max]}
+              tick={false}
+              axisLine={false}
+            />
+            <Radar
+              name={homeLabel}
+              dataKey="home"
+              stroke={HOME_COLOR}
+              fill={HOME_COLOR}
+              fillOpacity={0.18}
+              strokeWidth={2}
+            />
+            <Radar
+              name={awayLabel}
+              dataKey="away"
+              stroke={AWAY_COLOR}
+              fill={AWAY_COLOR}
+              fillOpacity={0.14}
+              strokeWidth={2}
+            />
+            <Legend
+              wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+              iconType="circle"
+              iconSize={8}
+            />
+            <Tooltip content={<ChartTooltip formatter={(v) => v.toFixed(1)} />} />
+          </RRadarChart>
+        </ResponsiveContainer>
+      </div>
+      <RadarProfileCompare
+        data={data}
+        homeLabel={homeLabel}
+        awayLabel={awayLabel}
+        max={max}
+      />
     </div>
   );
 }
 
-type DonutSlice = { name: string; value: number; color?: string };
+function outcomePct(p: number): string {
+  return `${(Math.max(0, p) * 100).toFixed(1)}%`;
+}
 
-export function OutcomeDonut({
-  slices,
-  centerLabel,
-}: {
-  slices: DonutSlice[];
-  centerLabel?: string;
-}) {
-  const total = slices.reduce((s, x) => s + x.value, 0);
+function outcomeOdds(p: number): string {
+  const odds = fairOddsFromProb(p);
+  return odds != null ? odds.toFixed(2) : "-";
+}
+
+function ClubCrest({ name, src }: { name: string; src: string }) {
+  const [broken, setBroken] = useState(false);
+  if (!src || broken) {
+    return (
+      <div
+        className="flex h-10 w-10 items-center justify-center rounded-full border border-glass-border bg-surface text-[10px] font-semibold text-muted sm:h-11 sm:w-11"
+        aria-hidden
+      >
+        {name.slice(0, 2).toUpperCase()}
+      </div>
+    );
+  }
   return (
-    <div className="relative mx-auto h-48 w-full max-w-xs">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={slices}
-            dataKey="value"
-            nameKey="name"
-            innerRadius="58%"
-            outerRadius="82%"
-            paddingAngle={2}
-          >
-            {slices.map((s, i) => (
-              <Cell
-                key={s.name}
-                fill={s.color ?? [HOME_COLOR, DRAW_COLOR, AWAY_COLOR][i % 3]}
-              />
-            ))}
-          </Pie>
-          <Tooltip
-            content={
-              <ChartTooltip
-                formatter={(value) =>
-                  `${((value / Math.max(total, 1e-9)) * 100).toFixed(1)}%`
-                }
-              />
-            }
-          />
-          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-        </PieChart>
-      </ResponsiveContainer>
-      {centerLabel ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <p className="max-w-[5.5rem] text-center text-[10px] font-medium uppercase tracking-wide text-muted">
-            {centerLabel}
-          </p>
-        </div>
+    // eslint-disable-next-line @next/next/no-img-element -- local /team-logos files
+    <img
+      src={src}
+      alt=""
+      width={44}
+      height={44}
+      className="h-10 w-10 object-contain sm:h-11 sm:w-11"
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
+function OutcomeTeamMark({
+  name,
+  teamId,
+  pct,
+  odds,
+  tone,
+  priorPct,
+  priorTitle,
+  priorSeasonLabel,
+}: {
+  name: string;
+  teamId: number;
+  pct: string;
+  odds: string;
+  tone: "home" | "away";
+  priorPct?: string | null;
+  priorTitle?: string | null;
+  priorSeasonLabel?: string | null;
+}) {
+  const src = resolveTeamLogo({ id: teamId, name }, "club");
+  const valueClass = tone === "home" ? "text-primary" : "text-accent";
+  return (
+    <div className="flex w-[6.5rem] flex-col items-center text-center sm:w-32">
+      <ClubCrest name={name} src={src} />
+      <p className={`mt-1.5 w-full truncate text-xs font-medium ${valueClass}`}>{name}</p>
+      <p className={`text-lg font-bold tabular-nums sm:text-xl ${valueClass}`}>{pct}</p>
+      {priorPct ? (
+        <p className="glpm-prior-season" title={priorTitle ?? undefined}>
+          ({priorSeasonLabel ? `${priorSeasonLabel} ` : ""}
+          {priorPct})
+        </p>
       ) : null}
+      <p className="text-[11px] tabular-nums text-muted">odds {odds}</p>
+    </div>
+  );
+}
+
+export function OutcomeBar({
+  home,
+  draw,
+  away,
+  homeLabel,
+  awayLabel,
+  homeTeamId,
+  awayTeamId,
+  priorHome,
+  priorDraw,
+  priorAway,
+  priorTitle,
+  priorSeasonLabel,
+}: {
+  home: number;
+  draw: number;
+  away: number;
+  homeLabel: string;
+  awayLabel: string;
+  homeTeamId: number;
+  awayTeamId: number;
+  priorHome?: number | null;
+  priorDraw?: number | null;
+  priorAway?: number | null;
+  priorTitle?: string | null;
+  priorSeasonLabel?: string | null;
+}) {
+  const h = Math.max(0, home) * 100;
+  const d = Math.max(0, draw) * 100;
+  const a = Math.max(0, away) * 100;
+  const showPrior =
+    priorHome != null &&
+    priorDraw != null &&
+    priorAway != null &&
+    (Math.abs(priorHome - home) > 0.0005 ||
+      Math.abs(priorDraw - draw) > 0.0005 ||
+      Math.abs(priorAway - away) > 0.0005);
+  return (
+    <div className="space-y-3">
+      <div className="relative h-[8.5rem] sm:h-[9rem]">
+        <div className="absolute left-1/4 top-0 -translate-x-1/2">
+          <OutcomeTeamMark
+            name={homeLabel}
+            teamId={homeTeamId}
+            pct={outcomePct(home)}
+            odds={outcomeOdds(home)}
+            tone="home"
+            priorPct={showPrior && priorHome != null ? outcomePct(priorHome) : null}
+            priorTitle={priorTitle}
+            priorSeasonLabel={priorSeasonLabel}
+          />
+        </div>
+        <div className="absolute left-1/2 top-0 flex h-full -translate-x-1/2 flex-col items-center justify-end pb-0.5 text-center">
+          <p className="text-xs font-medium text-muted">Draw</p>
+          <p className="text-lg font-semibold tabular-nums text-foreground">
+            {outcomePct(draw)}
+          </p>
+          {showPrior && priorDraw != null ? (
+            <p className="glpm-prior-season" title={priorTitle ?? undefined}>
+              ({priorSeasonLabel ? `${priorSeasonLabel} ` : ""}
+              {outcomePct(priorDraw)})
+            </p>
+          ) : null}
+          <p className="text-[11px] tabular-nums text-muted">odds {outcomeOdds(draw)}</p>
+        </div>
+        <div className="absolute left-3/4 top-0 -translate-x-1/2">
+          <OutcomeTeamMark
+            name={awayLabel}
+            teamId={awayTeamId}
+            pct={outcomePct(away)}
+            odds={outcomeOdds(away)}
+            tone="away"
+            priorPct={showPrior && priorAway != null ? outcomePct(priorAway) : null}
+            priorTitle={priorTitle}
+            priorSeasonLabel={priorSeasonLabel}
+          />
+        </div>
+      </div>
+      <div
+        className="flex h-3 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-800"
+        role="img"
+        aria-label={`${homeLabel} ${outcomePct(home)}, draw ${outcomePct(draw)}, ${awayLabel} ${outcomePct(away)}`}
+      >
+        <div className="bg-primary transition-all" style={{ width: `${h}%` }} />
+        <div className="bg-slate-400/70 transition-all dark:bg-slate-500" style={{ width: `${d}%` }} />
+        <div className="bg-accent transition-all" style={{ width: `${a}%` }} />
+      </div>
     </div>
   );
 }
@@ -236,6 +436,7 @@ export function GroupedCompareBars({
             tick={{ fontSize: 11 }}
           />
           <Tooltip
+            cursor={CHART_CURSOR}
             content={
               <ChartTooltip formatter={(v) => `${v.toFixed(1)}${valueSuffix}`} />
             }
@@ -712,7 +913,10 @@ export function OuLadderBars({
             domain={[0, 100]}
             tickFormatter={(v) => `${v}%`}
           />
-          <Tooltip content={<ChartTooltip formatter={(v) => `${v.toFixed(1)}%`} />} />
+          <Tooltip
+            cursor={CHART_CURSOR}
+            content={<ChartTooltip formatter={(v) => `${v.toFixed(1)}%`} />}
+          />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
           <Bar dataKey="over" name="Over" fill={HOME_COLOR} radius={4} />
           <Bar dataKey="under" name="Under" fill={MUTED_COLOR} radius={4} />
@@ -849,40 +1053,85 @@ export function TeamTotalsTable({
   );
 }
 
-export function StyleClashPills({
-  clashes,
-  formatLabel,
+function formatStyleMetric(
+  value: number | null | undefined,
+  digits: number,
+  suffix = ""
+): string {
+  if (value == null || !Number.isFinite(value)) return "-";
+  return `${value.toFixed(digits)}${suffix}`;
+}
+
+function StyleMetricBlock({
+  title,
+  explanation,
+  homeLabel,
+  awayLabel,
+  homeValue,
+  awayValue,
 }: {
-  clashes: Array<{ home: string; away: string; label: string }>;
-  formatLabel: (raw: string) => string;
+  title: string;
+  explanation: string;
+  homeLabel: string;
+  awayLabel: string;
+  homeValue: string;
+  awayValue: string;
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      {clashes.map((m) =>
-        m.home === m.away ? (
-          <div key={`${m.home}-${m.away}-${m.label}`} className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-glass-border bg-surface/70 px-2.5 py-0.5 text-[11px] text-foreground">
-              {formatLabel(m.home)}
-            </span>
-            <span className="text-[11px] text-muted">both sides</span>
-          </div>
-        ) : (
-          <div
-            key={`${m.home}-${m.away}-${m.label}`}
-            className="flex flex-wrap items-center gap-2"
-          >
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] text-primary">
-              {formatLabel(m.home)}
-            </span>
-            <span className="text-[11px] font-medium uppercase tracking-wide text-muted">
-              vs
-            </span>
-            <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-[11px] text-accent">
-              {formatLabel(m.away)}
-            </span>
-          </div>
-        )
-      )}
+    <div className="rounded-xl border border-glass-border bg-surface/50 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{title}</p>
+      <p className="mt-1 text-[11px] leading-snug text-muted">{explanation}</p>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div>
+          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-primary">
+            {homeLabel}
+          </p>
+          <p className="mt-0.5 text-2xl font-bold tabular-nums text-primary">{homeValue}</p>
+        </div>
+        <div className="text-right">
+          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-accent">
+            {awayLabel}
+          </p>
+          <p className="mt-0.5 text-2xl font-bold tabular-nums text-accent">{awayValue}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function StyleMetricsCompare({
+  homeLabel,
+  awayLabel,
+  homePossession,
+  awayPossession,
+  homePpda,
+  awayPpda,
+}: {
+  homeLabel: string;
+  awayLabel: string;
+  homePossession: number | null;
+  awayPossession: number | null;
+  homePpda: number | null;
+  awayPpda: number | null;
+}) {
+  return (
+    <div className="space-y-3">
+      <StyleMetricBlock
+        title="Possession"
+        explanation="Share of the ball over the season. Higher means the team typically controls more of the match."
+        homeLabel={homeLabel}
+        awayLabel={awayLabel}
+        homeValue={formatStyleMetric(homePossession, 0, "%")}
+        awayValue={formatStyleMetric(awayPossession, 0, "%")}
+      />
+      <StyleMetricBlock
+        title="PPDA"
+        explanation="Passes per defensive action: opponent passes allowed before a tackle, interception, or clearance. Lower means a more intense press."
+        homeLabel={homeLabel}
+        awayLabel={awayLabel}
+        homeValue={formatStyleMetric(homePpda, 1)}
+        awayValue={formatStyleMetric(awayPpda, 1)}
+      />
     </div>
   );
 }
@@ -903,7 +1152,10 @@ export function EdgeBars({
             tickFormatter={(v) => `${v}%`}
           />
           <YAxis type="category" dataKey="market" width={110} tick={{ fontSize: 10 }} />
-          <Tooltip content={<ChartTooltip formatter={(v) => `${v.toFixed(1)}%`} />} />
+          <Tooltip
+            cursor={CHART_CURSOR}
+            content={<ChartTooltip formatter={(v) => `${v.toFixed(1)}%`} />}
+          />
           <Bar dataKey="edgePct" name="Edge" radius={4}>
             {data.map((d, i) => (
               <Cell
@@ -925,7 +1177,7 @@ export function KpiMeter({
   accent = "primary",
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   hint?: string;
   accent?: "primary" | "accent" | "neutral";
 }) {

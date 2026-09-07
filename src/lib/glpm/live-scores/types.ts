@@ -3,6 +3,8 @@
  * Fields map to SportMonks livescores / fixtures includes on Starter + xG Basic.
  */
 
+import type { SideInteractions } from "@/lib/glpm/engine";
+import type { HubCardPrediction } from "@/lib/glpm/hub-prediction-map";
 import type { LiveTimelineKind } from "./event-types";
 
 export type LiveScoreSide = "home" | "away";
@@ -36,6 +38,30 @@ export type LiveScoreSideMetrics = {
   xg: number | null;
 };
 
+/** Authoritative finished-match stats (DB + payload fallbacks). */
+export type LiveScoreActualSideStats = {
+  xg: number | null;
+  shots: number | null;
+  shotsOnTarget: number | null;
+  possession: number | null;
+  ppda: number | null;
+  corners: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+};
+
+/** Pre-match expected match stats (satellites / season rates). */
+export type LiveScorePredictedSideStats = {
+  corners: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+  shots: number | null;
+  shotsOnTarget: number | null;
+  possession: number | null;
+};
+
+export type LiveScorePredictionSource = "cx" | "stored" | "live";
+
 export type LiveScoreMatch = {
   matchSmId: number;
   leagueName: string;
@@ -50,6 +76,10 @@ export type LiveScoreMatch = {
   awayTeamName: string;
   homeTeamSmId: number;
   awayTeamSmId: number;
+  /** Fixture season (SportMonks season id). */
+  seasonId?: number | null;
+  /** League / competition SportMonks id. */
+  leagueSmId?: number | null;
   /** SportMonks CDN or local `/team-logos/...` path. */
   homeLogoUrl: string | null;
   awayLogoUrl: string | null;
@@ -65,6 +95,17 @@ export type LiveScoreMatch = {
   timeline: LiveScoreTimelineEvent[];
   homeMetrics: LiveScoreSideMetrics;
   awayMetrics: LiveScoreSideMetrics;
+  /** Locked or reconstructed pre-match markets. */
+  prediction?: HubCardPrediction | null;
+  predictionSource?: LiveScorePredictionSource | null;
+  /** Actual team stats for pred-vs-actual compare. */
+  actualHomeStats?: LiveScoreActualSideStats | null;
+  actualAwayStats?: LiveScoreActualSideStats | null;
+  /** Predicted match stats (corners/cards/shots/possession). */
+  predictedHomeStats?: LiveScorePredictedSideStats | null;
+  predictedAwayStats?: LiveScorePredictedSideStats | null;
+  /** Matchup interaction deltas recomputed from rating vectors. */
+  interactions?: { home: SideInteractions; away: SideInteractions } | null;
   /** True when this row is demo UI only (no live API row). */
   isPlaceholder?: boolean;
 };

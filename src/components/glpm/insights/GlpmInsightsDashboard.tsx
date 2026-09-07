@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { InsightCard } from "@/components/glpm/insights/InsightCard";
 import {
-  CHART_COLORS,
   BttsPanel,
   CxFactorPanel,
   DomainCompareList,
@@ -14,16 +13,17 @@ import {
   GroupedCompareBars,
   KpiMeter,
   MatchupTugList,
-  OutcomeDonut,
+  OutcomeBar,
   OuLadderBars,
   RestDaysCompare,
-  StyleClashPills,
+  StyleMetricsCompare,
   TeamTotalsTable,
   type CxFactorStep,
 } from "@/components/glpm/insights/charts";
 import { InfoTip } from "@/components/ui/InfoTip";
 import type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";
 import { GLPM_CX_GLOSSARY, glossaryTipBody } from "@/lib/glpm-cx/glossary";
+import { SeasonCompareValue } from "@/components/glpm/SeasonCompareValue";
 import { fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
 import { PRIMARY_LABELS, PRIMARY_ORDER } from "@/lib/glpm/engine";
 import {
@@ -34,7 +34,6 @@ import {
 } from "@/lib/glpm/load-insight-ratings";
 import {
   deriveMarketsFromScoreMatrix,
-  inferStyleLabels,
   sliceScoreMatrix,
   SCORE_HEATMAP_MAX_GOALS,
 } from "@/lib/glpm-cx/derived-markets";
@@ -46,6 +45,11 @@ function pct(n: number): string {
 
 function fmt(n: number, d = 2): string {
   return n.toFixed(d);
+}
+
+function oddsLabel(p: number): string | null {
+  const odds = fairOddsFromProb(p);
+  return odds != null ? odds.toFixed(2) : null;
 }
 
 function formatStyle(raw: string): string {
@@ -354,6 +358,14 @@ export function GlpmInsightsDashboard({
     modelVersion: payload.base.predModelVersion,
   };
 
+  const prior = payload.priorSeasonCompare;
+  const seasonCompareNote = payload.seasonCompareNote;
+  const priorTitle = prior
+    ? `${prior.seasonLabel} trained ratings`
+    : null;
+  const priorSeasonLabel = prior?.seasonLabel ?? null;
+  const over25 = markets.overUnder["2.5"]?.over ?? 0;
+
   const radarData = PRIMARY_ORDER.map((key) => ({
     dimension: PRIMARY_LABELS[key],
     home: payload.base.homeTeam.ratings[key],
@@ -538,19 +550,6 @@ export function GlpmInsightsDashboard({
     })),
   ];
 
-  const homeStyleLabels = inferStyleLabels({
-    labels: payload.base.homeTeam.style?.labels ?? [],
-    ratings: payload.base.homeTeam.ratings,
-    avgPossession: payload.base.homeTeam.style?.avgPossession ?? null,
-    avgPpda: payload.base.homeTeam.style?.avgPpda ?? null,
-  });
-  const awayStyleLabels = inferStyleLabels({
-    labels: payload.base.awayTeam.style?.labels ?? [],
-    ratings: payload.base.awayTeam.ratings,
-    avgPossession: payload.base.awayTeam.style?.avgPossession ?? null,
-    avgPpda: payload.base.awayTeam.style?.avgPpda ?? null,
-  });
-
   const setPieceMissing =
     payload.insights.home.setPieceThreat == null &&
     payload.insights.away.setPieceThreat == null &&
@@ -574,50 +573,38 @@ export function GlpmInsightsDashboard({
 
   return (
     <div className="liquid-glass-panel overflow-hidden rounded-2xl sm:rounded-[2rem]">
-      <div className="border-b border-glass-border bg-gradient-to-r from-primary/10 via-transparent to-accent/10 px-4 py-4 sm:px-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-bold text-foreground sm:text-xl">
-            {homeLabel} <span className="font-normal text-muted">vs</span> {awayLabel}
-          </h2>
-          <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary-emphasis">
-            GLPM clubs
-          </span>
-          <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-            {payload.disclosure.title}
-          </span>
-          <InfoTip label={GLPM_CX_GLOSSARY.modelBadge.label}>
-            {glossaryTipBody("modelBadge")}
-          </InfoTip>
-        </div>
-        <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted">
-          {payload.disclosure.body}
+      <div className="border-b border-glass-border px-4 py-4 sm:px-6">
+        <h2 className="text-lg font-semibold text-foreground sm:text-xl">
+          {homeLabel} <span className="font-normal text-muted">vs</span> {awayLabel}
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          {useCx
+            ? "Includes rest, travel, weather, and lineup. Switch to the base model to ignore context."
+            : "Base ratings only. Switch to With context to include rest, travel, weather, and lineup."}
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex gap-5 text-sm">
           <button
             type="button"
             onClick={() => setUseCx(false)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+            className={`border-b-2 pb-0.5 transition ${
               !useCx
-                ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
-                : "bg-surface text-muted ring-1 ring-glass-border"
+                ? "border-foreground font-semibold text-foreground"
+                : "border-transparent text-muted hover:text-foreground"
             }`}
           >
-            GLPM base
+            Base model
           </button>
           <button
             type="button"
             onClick={() => setUseCx(true)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+            className={`border-b-2 pb-0.5 transition ${
               useCx
-                ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
-                : "bg-surface text-muted ring-1 ring-glass-border"
+                ? "border-foreground font-semibold text-foreground"
+                : "border-transparent text-muted hover:text-foreground"
             }`}
           >
-            GLPM-CX adjusted
+            With context
           </button>
-          <span className="text-[11px] text-muted">
-            Viewing {useCx ? payload.cx.modelVersion : payload.base.predModelVersion}
-          </span>
         </div>
       </div>
 
@@ -626,19 +613,40 @@ export function GlpmInsightsDashboard({
           title="Match overview"
           glossaryKey="homeAwayXg"
         >
-          <div className="grid gap-4 lg:grid-cols-2">
-            <OutcomeDonut
-              centerLabel="1X2"
-              slices={[
-                { name: homeLabel, value: markets.homeWin, color: CHART_COLORS.home },
-                { name: "Draw", value: markets.draw, color: CHART_COLORS.draw },
-                { name: awayLabel, value: markets.awayWin, color: CHART_COLORS.away },
-              ]}
+          <div className="space-y-4">
+            <OutcomeBar
+              home={markets.homeWin}
+              draw={markets.draw}
+              away={markets.awayWin}
+              homeLabel={homeLabel}
+              awayLabel={awayLabel}
+              homeTeamId={payload.base.homeTeam.smId}
+              awayTeamId={payload.base.awayTeam.smId}
+              priorHome={prior?.homeWin ?? null}
+              priorDraw={prior?.draw ?? null}
+              priorAway={prior?.awayWin ?? null}
+              priorTitle={priorTitle}
+              priorSeasonLabel={priorSeasonLabel}
             />
-            <div className="grid grid-cols-2 gap-3 content-center">
+            {prior ? (
+              <p className="text-xs text-muted">
+                Main figures are {prior.currentSeasonLabel} trained ratings. Violet brackets are{" "}
+                {prior.seasonLabel}.
+              </p>
+            ) : seasonCompareNote ? (
+              <p className="text-xs text-muted">{seasonCompareNote}</p>
+            ) : null}
+            <div className="grid grid-cols-2 gap-3">
               <KpiMeter
                 label={`${homeLabel} xG`}
-                value={fmt(markets.homeXg)}
+                value={
+                  <SeasonCompareValue
+                    current={fmt(markets.homeXg)}
+                    prior={prior ? fmt(prior.homeXg) : null}
+                    priorTitle={priorTitle}
+                    priorSeasonLabel={priorSeasonLabel}
+                  />
+                }
                 hint={
                   useCx
                     ? `Base ${fmt(payload.base.homeXg)} → CX`
@@ -648,7 +656,14 @@ export function GlpmInsightsDashboard({
               />
               <KpiMeter
                 label={`${awayLabel} xG`}
-                value={fmt(markets.awayXg)}
+                value={
+                  <SeasonCompareValue
+                    current={fmt(markets.awayXg)}
+                    prior={prior ? fmt(prior.awayXg) : null}
+                    priorTitle={priorTitle}
+                    priorSeasonLabel={priorSeasonLabel}
+                  />
+                }
                 hint={
                   useCx
                     ? `Base ${fmt(payload.base.awayXg)} → CX`
@@ -657,13 +672,50 @@ export function GlpmInsightsDashboard({
                 accent="accent"
               />
               <KpiMeter
+                label="Over 2.5"
+                value={
+                  <SeasonCompareValue
+                    current={pct(over25)}
+                    prior={prior ? pct(prior.over25) : null}
+                    priorTitle={priorTitle}
+                    priorSeasonLabel={priorSeasonLabel}
+                  />
+                }
+                hint="From this view's markets"
+              />
+              <KpiMeter
+                label="BTTS yes"
+                value={
+                  <SeasonCompareValue
+                    current={pct(markets.bttsYes)}
+                    prior={prior ? pct(prior.bttsYes) : null}
+                    priorTitle={priorTitle}
+                    priorSeasonLabel={priorSeasonLabel}
+                  />
+                }
+              />
+              <KpiMeter
                 label="Fair home"
-                value={fairOddsFromProb(markets.homeWin)?.toFixed(2) ?? "-"}
+                value={
+                  <SeasonCompareValue
+                    current={oddsLabel(markets.homeWin) ?? "-"}
+                    prior={prior ? oddsLabel(prior.homeWin) : null}
+                    priorTitle={priorTitle}
+                    priorSeasonLabel={priorSeasonLabel}
+                  />
+                }
                 hint="1 / model %"
               />
               <KpiMeter
                 label="Fair away"
-                value={fairOddsFromProb(markets.awayWin)?.toFixed(2) ?? "-"}
+                value={
+                  <SeasonCompareValue
+                    current={oddsLabel(markets.awayWin) ?? "-"}
+                    prior={prior ? oddsLabel(prior.awayWin) : null}
+                    priorTitle={priorTitle}
+                    priorSeasonLabel={priorSeasonLabel}
+                  />
+                }
                 hint="1 / model %"
                 accent="accent"
               />
@@ -771,70 +823,20 @@ export function GlpmInsightsDashboard({
           </InsightCard>
 
           <InsightCard title="Style confrontation" glossaryKey="styleMatchup">
-            <div className="mb-4 grid gap-3 sm:grid-cols-2">
-              <div>
-                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
-                  {homeLabel}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {homeStyleLabels.map((l) => (
-                    <span
-                      key={`h-${l}`}
-                      className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] text-primary"
-                    >
-                      {formatStyle(l)}
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-2 text-[11px] tabular-nums text-muted">
-                  Poss{" "}
-                  {payload.base.homeTeam.style?.avgPossession != null
-                    ? `${payload.base.homeTeam.style.avgPossession.toFixed(0)}%`
-                    : "-"}
-                  {" · "}
-                  PPDA{" "}
-                  {payload.base.homeTeam.style?.avgPpda != null
-                    ? payload.base.homeTeam.style.avgPpda.toFixed(1)
-                    : "-"}
-                </p>
-              </div>
-              <div>
-                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-accent">
-                  {awayLabel}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {awayStyleLabels.map((l) => (
-                    <span
-                      key={`a-${l}`}
-                      className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-[11px] text-accent"
-                    >
-                      {formatStyle(l)}
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-2 text-[11px] tabular-nums text-muted">
-                  Poss{" "}
-                  {payload.base.awayTeam.style?.avgPossession != null
-                    ? `${payload.base.awayTeam.style.avgPossession.toFixed(0)}%`
-                    : "-"}
-                  {" · "}
-                  PPDA{" "}
-                  {payload.base.awayTeam.style?.avgPpda != null
-                    ? payload.base.awayTeam.style.avgPpda.toFixed(1)
-                    : "-"}
-                </p>
-              </div>
-            </div>
-            <StyleClashPills
-              clashes={payload.insights.styleMatchups}
-              formatLabel={formatStyle}
-            />
-            {!hasStyleMetrics ? (
-              <p className="mt-3 text-[11px] text-muted">
-                Possession and PPDA were not on the match stats for this season, so
-                labels are inferred from primary ratings.
+            {hasStyleMetrics ? (
+              <StyleMetricsCompare
+                homeLabel={homeLabel}
+                awayLabel={awayLabel}
+                homePossession={payload.base.homeTeam.style?.avgPossession ?? null}
+                awayPossession={payload.base.awayTeam.style?.avgPossession ?? null}
+                homePpda={payload.base.homeTeam.style?.avgPpda ?? null}
+                awayPpda={payload.base.awayTeam.style?.avgPpda ?? null}
+              />
+            ) : (
+              <p className="text-xs text-muted">
+                Possession and PPDA were not on the match stats for this season.
               </p>
-            ) : null}
+            )}
           </InsightCard>
         </div>
 
@@ -1049,6 +1051,10 @@ export function GlpmInsightsDashboard({
             never retrain rating engines.
           </p>
         </InsightCard>
+
+        <p className="text-center text-[11px] text-muted">
+          {useCx ? payload.cx.modelVersion : payload.base.predModelVersion}
+        </p>
       </div>
     </div>
   );

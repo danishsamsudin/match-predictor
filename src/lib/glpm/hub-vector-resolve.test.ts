@@ -7,7 +7,7 @@ import {
 import type { LoadedRatingVector } from "@/lib/glpm/load-vectors";
 import { PRIMARY_ORDER, type PrimaryKey } from "@/lib/glpm/engine";
 import { extractVenueLocation } from "@/lib/glpm/hub-weather";
-import { fairOddsFromProb, hubPredictionFromHistoryRow } from "@/lib/glpm/hub-prediction-map";
+import { fairOddsFromProb, hubPredictionFromHistoryRow, resolveUpcomingCardPrediction, buildGlpmCompareHref, shortGlpmSeasonLabel } from "@/lib/glpm/hub-prediction-map";
 import { CROSS_LEAGUE_REMAP_MODEL } from "@/lib/glpm/league-strength";
 import { SM_LEAGUE } from "@/lib/sportmonks/constants";
 
@@ -215,5 +215,79 @@ describe("hub-prediction-map", () => {
     expect(p.over25).toBeCloseTo(0.48);
     expect(p.bttsYes).toBeCloseTo(0.55);
     expect(fairOddsFromProb(0.5)).toBe(2);
+  });
+
+  it("prefers CX history over live vectors and base GLPM rows", () => {
+    const cx = resolveUpcomingCardPrediction({
+      cxRow: {
+        home_win_pct: 0.4,
+        draw_pct: 0.3,
+        away_win_pct: 0.3,
+        home_xg: 1.2,
+        away_xg: 1.1,
+        btts_yes_pct: 0.5,
+        over_under: { "2.5": { over: 0.44, under: 0.56 } },
+      },
+      live: {
+        homeWin: 0.55,
+        draw: 0.25,
+        awayWin: 0.2,
+        homeXg: 1.8,
+        awayXg: 0.9,
+        over25: 0.6,
+        bttsYes: 0.52,
+      },
+      liveSource: "live",
+      baseRow: {
+        home_win_pct: 0.55,
+        draw_pct: 0.25,
+        away_win_pct: 0.2,
+        home_xg: 1.8,
+        away_xg: 0.9,
+        btts_yes_pct: 0.52,
+        over_under: { "2.5": { over: 0.6, under: 0.4 } },
+      },
+    });
+    expect(cx.predictionSource).toBe("cx");
+    expect(cx.prediction?.homeWin).toBeCloseTo(0.4);
+  });
+
+  it("uses live vectors when no CX snapshot exists", () => {
+    const live = resolveUpcomingCardPrediction({
+      live: {
+        homeWin: 0.55,
+        draw: 0.25,
+        awayWin: 0.2,
+        homeXg: 1.8,
+        awayXg: 0.9,
+        over25: 0.6,
+        bttsYes: 0.52,
+      },
+      liveSource: "live",
+      baseRow: {
+        home_win_pct: 0.7,
+        draw_pct: 0.2,
+        away_win_pct: 0.1,
+        home_xg: 2.1,
+        away_xg: 0.7,
+      },
+    });
+    expect(live.predictionSource).toBe("live");
+    expect(live.prediction?.homeWin).toBeCloseTo(0.55);
+  });
+
+  it("builds a predict URL that keeps the fixture id", () => {
+    expect(
+      buildGlpmCompareHref(
+        { homeTeamSmId: 11, awayTeamSmId: 22, matchSmId: 99 },
+        2026
+      )
+    ).toBe("/predict?entity=club&mode=compare&home=11&away=22&matchSmId=99&seasonId=2026");
+  });
+
+  it("shortens season names to 26/27 style labels", () => {
+    expect(shortGlpmSeasonLabel("2026/2027", 28083)).toBe("26/27");
+    expect(shortGlpmSeasonLabel("2025/2026", 25583)).toBe("25/26");
+    expect(shortGlpmSeasonLabel(null, 28083)).toBe("28083");
   });
 });

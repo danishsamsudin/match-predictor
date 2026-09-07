@@ -21,16 +21,16 @@ export const GLPM_CX_GLOSSARY = {
     how: "CX never retrains the seven rating engines or changes GLPM interaction weights. It multiplies base expected goals, then re-runs Dixon–Coles only.",
   },
   homeAwayXg: {
-    label: "Expected goals (xG)",
-    what: "Model projection of how many goals each side is expected to score in this matchup.",
-    how: "GLPM combines the seven primary ratings through a fixed interaction matrix and home advantage. CX may then scale those λ values with context multipliers.",
+    label: "Match overview",
+    what: "Win chance for home, draw, and away, with model fair odds under each outcome. The tiles are expected goals and fair home/away prices.",
+    how: "1X2 probabilities come from the Dixon-Coles score matrix. Fair odds = 1 / model probability. xG is the model projection of how many goals each side is expected to score. CX may then scale those λ values with context multipliers.",
     caveat:
       "For 2025/26 SportMonks seasons, many training rows use shot-based xG proxies when provider xG is missing. Ratings still train, but treat absolute xG as an estimate.",
   },
   winProbDonut: {
     label: "Match winner probabilities (1X2)",
-    what: "Chance of home win, draw, or away win according to the selected model.",
-    how: "Summed from the Dixon–Coles score probability matrix generated from home and away xG.",
+    what: "Chance of home win, draw, or away win according to the selected model, shown as a bar.",
+    how: "Summed from the Dixon-Coles score probability matrix generated from home and away xG.",
   },
   fairOdds: {
     label: "Model fair odds",
@@ -44,7 +44,7 @@ export const GLPM_CX_GLOSSARY = {
   },
   primaryRadar: {
     label: "Primary rating radar (0–100)",
-    what: "Side-by-side profile of the seven GLPM latent skills.",
+    what: "Radar on the left, skill-by-skill numbers on the right so you can compare without hovering.",
     how: "Attack, Defence, Goalkeeper, Build-up, Possession, Pressing, and Finishing are trained per season and calibrated to a 0–100 scale (center ~60).",
   },
   domainBars: {
@@ -80,8 +80,10 @@ export const GLPM_CX_GLOSSARY = {
   },
   styleMatchup: {
     label: "Style confrontation",
-    what: "How the two tactical profiles clash. Pills are season style labels; possession and PPDA sit underneath.",
-    how: "Labels and averages come from glpm_team_style_snapshots when present, otherwise season averages of possession_pct and ppda on glpm_match_team_stats.",
+    what: "Season-average possession and pressing (PPDA) for each side.",
+    how: "Averages come from glpm_team_style_snapshots when present, otherwise season averages of possession_pct and ppda on glpm_match_team_stats.",
+    caveat:
+      "PPDA here is a SportMonks proxy (opponent passes divided by tackles, interceptions, and clearances), not Wyscout event PPDA. Lower PPDA means a more intense press.",
   },
   vsStyleLift: {
     label: "Performance vs opponent style",

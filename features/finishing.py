@@ -100,6 +100,13 @@ def _as_float(value: Any) -> Optional[float]:
     return v if np.isfinite(v) else None
 
 
+def _as_int(value: Any) -> Optional[int]:
+    v = _as_float(value)
+    if v is None:
+        return None
+    return int(round(v))
+
+
 def _shot_distance(pos_x: Any, pos_y: Any) -> Optional[float]:
     if pos_x is None or pos_y is None:
         return None
@@ -263,8 +270,8 @@ class FinishingFeatureBuilder:
         shot_agg: Optional[FinishingShotAggregates] = None,
     ) -> dict[str, Optional[float]]:
         shot_agg = shot_agg or FinishingShotAggregates()
-        shots = stats.get("shots")
-        sot = stats.get("shots_on_target")
+        shots = _as_int(stats.get("shots"))
+        sot = _as_int(stats.get("shots_on_target"))
         if sot is None and shot_agg.n_shots:
             sot = shot_agg.n_on_target
         if shots is None and shot_agg.n_shots:
@@ -283,7 +290,7 @@ class FinishingFeatureBuilder:
         if denom > 0:
             placement = shot_agg.n_corner_on_target / denom
 
-        n_shots = int(shots) if shots is not None else shot_agg.n_shots
+        n_shots = shots if shots is not None else shot_agg.n_shots
         central_miss = safe_ratio(shot_agg.n_off_target_central, n_shots) if n_shots else None
         blocked = safe_ratio(shot_agg.n_blocked, n_shots) if n_shots else safe_ratio(
             stats.get("blocked_shots"), shots

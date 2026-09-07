@@ -93,7 +93,11 @@ export function GlpmHubSeasonPicker({
               <option key={s.smId} value={s.smId}>
                 {s.name ?? `Season ${s.smId}`}
                 {!s.isPredictReady && !s.hasFinishedMatches ? " (no data)" : ""}
-                {s.hasFinishedMatches && !s.isPredictReady ? " (not trained)" : ""}
+                {s.hasFinishedMatches && !s.isPredictReady
+                  ? s.hasVectors
+                    ? " (ratings not ready)"
+                    : " (not trained)"
+                  : ""}
               </option>
             ))
           )}

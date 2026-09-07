@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Seed glpm_prediction_history for upcoming home-league fixtures.
+ * Seed glpm_cx_prediction_history for upcoming home-league fixtures.
  *
  *   npx tsx scripts/glpm-upcoming-predictions.ts
  *   npx tsx scripts/glpm-upcoming-predictions.ts --force --max 12

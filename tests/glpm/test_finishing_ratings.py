@@ -102,6 +102,15 @@ def test_shot_accuracy_and_clinical_from_shots():
     assert row["pressure_conversion"] is not None
 
 
+def test_shot_accuracy_tolerates_nan_shots():
+    builder = FinishingFeatureBuilder()
+    row = builder.shot_accuracy(
+        {"shots": float("nan"), "shots_on_target": float("nan")}
+    )
+    assert row["shot_accuracy_pct"] is None
+    assert row["blocked_shot_rate"] is None
+
+
 def test_opponent_adjustment_stronger_defence_gk_lowers_overperformance():
     rows = []
     # Team 1 faces strong (2) and weak (3) opposition on alternating matches

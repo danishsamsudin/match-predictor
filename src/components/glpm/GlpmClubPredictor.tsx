@@ -35,6 +35,7 @@ export function GlpmClubPredictor({
   const prefillHome = searchParams.get("home");
   const prefillAway = searchParams.get("away");
   const prefillSeason = searchParams.get("seasonId");
+  const prefillMatch = searchParams.get("matchSmId");
 
   const [competitions, setCompetitions] = useState<CompetitionOption[]>([]);
   const [seasons, setSeasons] = useState<SeasonOption[]>([]);
@@ -43,6 +44,7 @@ export function GlpmClubPredictor({
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [homeTeamId, setHomeTeamId] = useState(prefillHome ?? "");
   const [awayTeamId, setAwayTeamId] = useState(prefillAway ?? "");
+  const [matchSmId, setMatchSmId] = useState(prefillMatch ?? "");
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -157,8 +159,19 @@ export function GlpmClubPredictor({
   }, [seasonId, loadTeams]);
 
   useEffect(() => {
+    const homeOk = Boolean(prefillHome && homeTeamId === prefillHome);
+    const awayOk = Boolean(prefillAway && awayTeamId === prefillAway);
+    const seasonOk = !prefillSeason || seasonId === prefillSeason;
+    if (homeOk && awayOk && seasonOk && prefillMatch) {
+      setMatchSmId(prefillMatch);
+    } else {
+      setMatchSmId("");
+    }
+  }, [homeTeamId, awayTeamId, seasonId, prefillHome, prefillAway, prefillSeason, prefillMatch]);
+
+  useEffect(() => {
     setResult(null);
-  }, [homeTeamId, awayTeamId, seasonId]);
+  }, [homeTeamId, awayTeamId, seasonId, matchSmId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -173,6 +186,7 @@ export function GlpmClubPredictor({
           homeTeamSmId: Number(homeTeamId),
           awayTeamSmId: Number(awayTeamId),
           seasonId: seasonId ? Number(seasonId) : null,
+          matchSmId: matchSmId ? Number(matchSmId) : null,
         }),
       });
       const data = await res.json();
@@ -185,7 +199,7 @@ export function GlpmClubPredictor({
       }
       setResult(data as GlpmCxPredictPayload);
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error - please try again.");
     } finally {
       setLoading(false);
     }
@@ -207,7 +221,7 @@ export function GlpmClubPredictor({
         <PageHero
           eyebrow="Graham League Prediction Model"
           title="Club matchup"
-          description="Compare two clubs with frozen GLPM ratings plus the Contextual Extension (rest, travel, weather, lineup) and insight charts."
+          description="Compare two clubs with frozen GLPM ratings plus the Contextual Extension (rest, travel, weather, lineup) and insight charts. Main figures use 25/26 trained ratings; violet brackets show 26/27 when that season is trained."
         />
       </div>
 
@@ -325,6 +339,13 @@ export function GlpmClubPredictor({
             <span className="text-primary">{homeName}</span>
             <span className="mx-2 text-muted">vs</span>
             <span className="text-accent">{awayName}</span>
+          </p>
+        ) : null}
+
+        {matchSmId ? (
+          <p className="text-center text-xs text-muted">
+            Using this fixture for rest, travel, weather, and lineup context so the
+            numbers match the homepage card.
           </p>
         ) : null}
 

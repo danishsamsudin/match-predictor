@@ -22,6 +22,7 @@ import {
   LIVE_POLL_LEAD_MS,
   SM_FIXTURE_STATE_INPLAY,
 } from "./constants";
+import { enrichFinishedMatches } from "./enrich-finished";
 import { formatRoundLabel, leagueMetaFromPayload } from "./league-meta";
 import { mapFixtureLiveExtras } from "./map-timeline";
 import { placeholderLiveScoresBoard } from "./placeholders";
@@ -45,6 +46,7 @@ type Client = SupabaseClient<Database>;
 type MatchRow = {
   sm_id: number;
   league_sm_id: number | null;
+  season_id: number | null;
   home_team_sm_id: number | null;
   away_team_sm_id: number | null;
   home_score: number | null;
@@ -61,7 +63,7 @@ type MatchRow = {
 };
 
 const MATCH_SELECT =
-  "sm_id,league_sm_id,home_team_sm_id,away_team_sm_id,home_score,away_score,venue,gameweek,status,state_id,kickoff_at,match_date,synced_at,duration_minutes,payload";
+  "sm_id,league_sm_id,season_id,home_team_sm_id,away_team_sm_id,home_score,away_score,venue,gameweek,status,state_id,kickoff_at,match_date,synced_at,duration_minutes,payload";
 
 function teamNameFromPayload(
   payload: unknown,
@@ -186,6 +188,8 @@ function mapRow(row: MatchRow, options?: { asResult?: boolean; nowMs?: number })
     awayTeamName,
     homeTeamSmId: row.home_team_sm_id,
     awayTeamSmId: row.away_team_sm_id,
+    seasonId: row.season_id,
+    leagueSmId: row.league_sm_id,
     homeLogoUrl: logoFromPayload(row.payload, row.home_team_sm_id, homeTeamName),
     awayLogoUrl: logoFromPayload(row.payload, row.away_team_sm_id, awayTeamName),
     homeScore: row.home_score ?? 0,
@@ -284,16 +288,21 @@ export async function loadLiveScoresBoard(
     nowMs,
   });
 
-  const finishedToday = mapRows(split.finishedToday, { asResult: true, nowMs });
-  const yesterday = mapRows(split.yesterday, { asResult: true, nowMs }).sort((a, b) => {
+  const finishedTodayRaw = mapRows(split.finishedToday, { asResult: true, nowMs });
+  const yesterdayRaw = mapRows(split.yesterday, { asResult: true, nowMs }).sort((a, b) => {
     const league = a.leagueName.localeCompare(b.leagueName);
     if (league !== 0) return league;
     return (a.kickoffAt ?? "").localeCompare(b.kickoffAt ?? "");
   });
 
-  if (live.length === 0 && finishedToday.length === 0 && yesterday.length === 0) {
+  if (live.length === 0 && finishedTodayRaw.length === 0 && yesterdayRaw.length === 0) {
     return includePlaceholders ? placeholderLiveScoresBoard() : empty();
   }
+
+  const [finishedToday, yesterday] = await Promise.all([
+    enrichFinishedMatches(client, finishedTodayRaw),
+    enrichFinishedMatches(client, yesterdayRaw),
+  ]);
 
   return {
     matches: live,

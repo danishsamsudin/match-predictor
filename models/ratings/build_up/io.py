@@ -10,6 +10,8 @@ from typing import Any, Optional
 
 import pandas as pd
 
+from models.ratings.match_status import drop_unrecorded_stat_rows, finished_matches
+
 PAGE_SIZE = 1000
 MODEL_VERSION = "build_up_v1"
 RATING_TYPE = "build_up"
@@ -61,11 +63,13 @@ def load_match_team_frame(
     *,
     season_id: Optional[int] = None,
 ) -> pd.DataFrame:
-    matches = _paginate(
-        client,
-        "glpm_matches",
-        "sm_id, season_id, match_date, kickoff_at, home_team_sm_id, away_team_sm_id, duration_minutes, status",
-        {"season_id": season_id} if season_id is not None else None,
+    matches = finished_matches(
+        _paginate(
+            client,
+            "glpm_matches",
+            "sm_id, season_id, match_date, kickoff_at, home_team_sm_id, away_team_sm_id, duration_minutes, status",
+            {"season_id": season_id} if season_id is not None else None,
+        )
     )
     if not matches:
         return pd.DataFrame()
@@ -77,6 +81,9 @@ def load_match_team_frame(
     if stats_df.empty:
         return pd.DataFrame()
     stats_df = stats_df[stats_df["match_sm_id"].astype(int).isin(match_ids)].copy()
+    stats_df = drop_unrecorded_stat_rows(stats_df)
+    if stats_df.empty:
+        return pd.DataFrame()
     merged = stats_df.merge(match_df, on="match_sm_id", how="left")
 
     def opponent_id(row: pd.Series) -> Any:

@@ -7,9 +7,13 @@ export const SM_LEAGUE = {
   BUNDESLIGA: 82,
 } as const;
 
-/** 2025/26 season IDs (SportMonks) — use for training while 2026/27 is unplayed. */
+/** 2025/26 season IDs (SportMonks) - prior-season training / comparison. */
 export const SM_SEASON_2025_26 = {
   PREMIER_LEAGUE: 25583,
+  EREDIVISIE: 25597,
+  CHAMPIONSHIP: 25648,
+  SERIE_A: 25533,
+  BUNDESLIGA: 25646,
 } as const;
 
 /** 2026/27 season IDs (SportMonks). */

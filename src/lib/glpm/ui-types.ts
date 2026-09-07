@@ -30,6 +30,8 @@ export type GlpmPredictUiPayload = {
     style: GlpmStyleSummary | null;
   };
   seasonId: number;
+  /** Season whose rating vectors were actually loaded (may differ when collapsed). */
+  vectorSeasonId: number;
   matchSmId: number | null;
   homeXg: number;
   awayXg: number;

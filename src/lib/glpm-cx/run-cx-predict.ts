@@ -25,10 +25,18 @@ import {
   styleMatchupBadges,
   type DerivedMarkets,
 } from "@/lib/glpm-cx/derived-markets";
-import { estimateEventMarkets } from "@/lib/glpm-cx/satellites/event-markets";
-import { estimatePlayerProps } from "@/lib/glpm-cx/satellites/player-props";
+import {
+  estimateEventMarkets,
+  type CxEventMarketsEstimate,
+} from "@/lib/glpm-cx/satellites/event-markets";
+import {
+  estimatePlayerProps,
+  type CxPlayerPropsEstimate,
+} from "@/lib/glpm-cx/satellites/player-props";
 import { aggregateVsStyleLift } from "@/lib/glpm-cx/vs-style";
-import { resolveStatsSeasonId } from "@/lib/glpm/resolve-train-season";
+import { resolveStatsSeasonId, TRAIN_FALLBACK_BY_LEAGUE } from "@/lib/glpm/resolve-train-season";
+import { resolveVectorSeasonId } from "@/lib/glpm/resolve-vector-season";
+import { shortGlpmSeasonLabel } from "@/lib/glpm/hub-prediction-map";
 
 type Client = SupabaseClient<Database>;
 
@@ -71,7 +79,55 @@ export type GlpmCxPredictPayload = {
   };
   executedAt: string;
   predictionId: string | null;
+  priorSeasonCompare: GlpmCxPriorSeasonCompare | null;
+  /** Why violet brackets are missing, when the fixture season has no distinct model. */
+  seasonCompareNote: string | null;
 };
+
+export type GlpmCxPriorSeasonCompare = {
+  seasonId: number;
+  seasonLabel: string;
+  currentSeasonLabel: string;
+  homeWin: number;
+  draw: number;
+  awayWin: number;
+  homeXg: number;
+  awayXg: number;
+  over25: number;
+  bttsYes: number;
+};
+
+const EMPTY_EVENT_MARKETS: CxEventMarketsEstimate = {
+  homeCorners: 0,
+  awayCorners: 0,
+  totalCorners: 0,
+  homeYellows: 0,
+  awayYellows: 0,
+  totalYellows: 0,
+  homeReds: 0,
+  awayReds: 0,
+  source: "satellite_v1",
+  statsSeasonId: null,
+  mlActive: false,
+};
+
+const EMPTY_PLAYER_PROPS: CxPlayerPropsEstimate = {
+  lines: [],
+  source: "satellite_v1",
+};
+
+function emptyInsight(teamSmId: number, seasonId: number): TeamInsightRatings {
+  return {
+    teamSmId,
+    seasonId,
+    asOfDate: null,
+    domains: {},
+    components: {},
+    setPieceThreat: null,
+    setPieceDefence: null,
+    setPieceSource: "missing",
+  };
+}
 
 function marketsFromPredict(
   homeXg: number,
@@ -111,50 +167,112 @@ export async function runGlpmCxPredict(
     seasonId?: number | null;
     matchSmId?: number | null;
     persist?: boolean;
+    /**
+     * Skip insight/satellite loads. Markets still apply rest, travel,
+     * weather, altitude, and lineup - used for hub card snapshots.
+     */
+    lite?: boolean;
   }
 ): Promise<GlpmCxPredictPayload> {
+  const fixtureSeasonId = input.seasonId ?? null;
+
+  let competitionId: number | null = null;
+  if (fixtureSeasonId != null) {
+    const { data: seasonRow } = await client
+      .from("glpm_seasons")
+      .select("competition_id")
+      .eq("sm_id", fixtureSeasonId)
+      .maybeSingle();
+    competitionId = seasonRow?.competition_id ?? null;
+  }
+
+  // Early-season product rule: main markets stay on the mapped prior season
+  // (25/26). Violet brackets show the fixture season (26/27) when trained.
+  const priorSeasonId =
+    fixtureSeasonId != null && competitionId != null
+      ? TRAIN_FALLBACK_BY_LEAGUE[competitionId] ?? null
+      : null;
+  const mainSeasonId =
+    priorSeasonId != null &&
+    fixtureSeasonId != null &&
+    priorSeasonId !== fixtureSeasonId
+      ? priorSeasonId
+      : fixtureSeasonId;
+
   // Frozen GLPM - never pass CX context into runGlpmPredict.
-  const base = await runGlpmPredict(client, {
+  const baseRaw = await runGlpmPredict(client, {
     homeTeamSmId: input.homeTeamSmId,
     awayTeamSmId: input.awayTeamSmId,
-    seasonId: input.seasonId,
+    seasonId: mainSeasonId,
     matchSmId: input.matchSmId,
     persist: false,
+    vectorSeasonFallback: false,
   });
+  // Keep fixture season id on the payload for match context / persistence.
+  const base = {
+    ...baseRaw,
+    seasonId: fixtureSeasonId ?? baseRaw.seasonId,
+  };
 
-  const seasonId = input.seasonId ?? base.seasonId;
+  const seasonId = fixtureSeasonId ?? base.seasonId;
 
   let statsSeasonId = seasonId;
   let statsSeasonIsCurrent = true;
   if (seasonId != null) {
-    const { data: seasonRow } = await client
-      .from("glpm_seasons")
-      .select("competition_id")
-      .eq("sm_id", seasonId)
-      .maybeSingle();
     const statsPick = await resolveStatsSeasonId(
       client,
       seasonId,
-      seasonRow?.competition_id ?? null
+      competitionId
     );
-    statsSeasonId = statsPick.seasonId;
-    statsSeasonIsCurrent = statsPick.mlEligible;
+    // Insight domains/components follow discriminating vectors: if the stats
+    // season collapsed (everyone ~same 0–100), borrow the prior season.
+    const vectorPick = await resolveVectorSeasonId(
+      client,
+      statsPick.seasonId,
+      competitionId
+    );
+    statsSeasonId = vectorPick.seasonId;
+    statsSeasonIsCurrent =
+      statsPick.mlEligible &&
+      !vectorPick.collapsedPreferred &&
+      vectorPick.seasonId === seasonId;
   }
 
-  const [context, lineup, homeInsight, awayInsight, homeFin, awayFin, events, props, homeVs, awayVs] =
-    await Promise.all([
-      buildCxContextFeatures(client, {
-        homeTeamSmId: input.homeTeamSmId,
-        awayTeamSmId: input.awayTeamSmId,
-        matchSmId: input.matchSmId,
-        seasonId,
-      }),
-      computeCxLineupImpact(client, {
-        homeTeamSmId: input.homeTeamSmId,
-        awayTeamSmId: input.awayTeamSmId,
-        seasonId: statsSeasonId,
-        matchSmId: input.matchSmId,
-      }),
+  const [context, lineup] = await Promise.all([
+    buildCxContextFeatures(client, {
+      homeTeamSmId: input.homeTeamSmId,
+      awayTeamSmId: input.awayTeamSmId,
+      matchSmId: input.matchSmId,
+      seasonId,
+    }),
+    computeCxLineupImpact(client, {
+      homeTeamSmId: input.homeTeamSmId,
+      awayTeamSmId: input.awayTeamSmId,
+      seasonId: statsSeasonId,
+      matchSmId: input.matchSmId,
+    }),
+  ]);
+
+  let homeInsight: TeamInsightRatings;
+  let awayInsight: TeamInsightRatings;
+  let homeFin: FinishingDifferential | null;
+  let awayFin: FinishingDifferential | null;
+  let events: CxEventMarketsEstimate;
+  let props: CxPlayerPropsEstimate;
+  let homeVs: Array<{ style: string; liftPct: number; n: number }>;
+  let awayVs: Array<{ style: string; liftPct: number; n: number }>;
+
+  if (input.lite) {
+    homeInsight = emptyInsight(input.homeTeamSmId, statsSeasonId);
+    awayInsight = emptyInsight(input.awayTeamSmId, statsSeasonId);
+    homeFin = null;
+    awayFin = null;
+    events = { ...EMPTY_EVENT_MARKETS, statsSeasonId };
+    props = EMPTY_PLAYER_PROPS;
+    homeVs = [];
+    awayVs = [];
+  } else {
+    const extras = await Promise.all([
       loadTeamInsightRatings(client, {
         teamSmId: input.homeTeamSmId,
         seasonId: statsSeasonId,
@@ -185,6 +303,15 @@ export async function runGlpmCxPredict(
       aggregateVsStyleLift(client, input.homeTeamSmId, statsSeasonId),
       aggregateVsStyleLift(client, input.awayTeamSmId, statsSeasonId),
     ]);
+    homeInsight = extras[0];
+    awayInsight = extras[1];
+    homeFin = extras[2];
+    awayFin = extras[3];
+    events = extras[4];
+    props = extras[5];
+    homeVs = extras[6];
+    awayVs = extras[7];
+  }
 
   const apply = applyCxToXg({
     homeXg: base.homeXg,
@@ -210,6 +337,101 @@ export async function runGlpmCxPredict(
   });
 
   const cx = marketsFromPredict(apply.homeXg, apply.awayXg, CX_MODEL_VERSION);
+
+  let priorSeasonCompare: GlpmCxPriorSeasonCompare | null = null;
+  let seasonCompareNote: string | null = null;
+
+  // Violet brackets = fixture-season (26/27) markets when that season has its
+  // own trained vectors. Main line above already used 25/26.
+  if (
+    !input.lite &&
+    fixtureSeasonId != null &&
+    priorSeasonId != null &&
+    priorSeasonId !== fixtureSeasonId
+  ) {
+    const { data: seasonNames } = await client
+      .from("glpm_seasons")
+      .select("sm_id,name")
+      .in("sm_id", [fixtureSeasonId, priorSeasonId]);
+    const fixtureName =
+      seasonNames?.find((s) => s.sm_id === fixtureSeasonId)?.name ?? null;
+    const priorName =
+      seasonNames?.find((s) => s.sm_id === priorSeasonId)?.name ?? null;
+    const fixtureLabel = shortGlpmSeasonLabel(fixtureName, fixtureSeasonId);
+    const priorLabel = shortGlpmSeasonLabel(priorName, priorSeasonId);
+
+    try {
+      const fixtureBase = await runGlpmPredict(client, {
+        homeTeamSmId: input.homeTeamSmId,
+        awayTeamSmId: input.awayTeamSmId,
+        seasonId: fixtureSeasonId,
+        matchSmId: input.matchSmId,
+        persist: false,
+        vectorSeasonFallback: false,
+      });
+      // Only show brackets when ratings actually came from the fixture season.
+      if (fixtureBase.vectorSeasonId !== fixtureSeasonId) {
+        seasonCompareNote = `Main figures use ${priorLabel} trained ratings. ${fixtureLabel} vectors are not ready yet, so violet brackets are hidden.`;
+      } else {
+        const fixtureApply = applyCxToXg({
+          homeXg: fixtureBase.homeXg,
+          awayXg: fixtureBase.awayXg,
+          home: {
+            restDays: context.home.restDays,
+            travelKm: context.home.travelKm,
+            restMult: context.home.restMult,
+            travelMult: context.home.travelMult,
+            altitudeMult: context.home.altitudeMult,
+            weatherMult: context.home.weatherMult,
+            lineupMult: lineup.homeMult,
+          },
+          away: {
+            restDays: context.away.restDays,
+            travelKm: context.away.travelKm,
+            restMult: context.away.restMult,
+            travelMult: context.away.travelMult,
+            altitudeMult: context.away.altitudeMult,
+            weatherMult: context.away.weatherMult,
+            lineupMult: lineup.awayMult,
+          },
+        });
+        const fixtureCx = marketsFromPredict(
+          fixtureApply.homeXg,
+          fixtureApply.awayXg,
+          CX_MODEL_VERSION
+        );
+        const compare: GlpmCxPriorSeasonCompare = {
+          seasonId: fixtureSeasonId,
+          seasonLabel: fixtureLabel,
+          currentSeasonLabel: priorLabel,
+          homeWin: fixtureCx.homeWin,
+          draw: fixtureCx.draw,
+          awayWin: fixtureCx.awayWin,
+          homeXg: fixtureCx.homeXg,
+          awayXg: fixtureCx.awayXg,
+          over25: fixtureCx.overUnder["2.5"]?.over ?? 0,
+          bttsYes: fixtureCx.bttsYes,
+        };
+        const sameMarkets =
+          Math.abs(compare.homeXg - cx.homeXg) < 0.005 &&
+          Math.abs(compare.awayXg - cx.awayXg) < 0.005 &&
+          Math.abs(compare.homeWin - cx.homeWin) < 0.0005 &&
+          Math.abs(compare.awayWin - cx.awayWin) < 0.0005 &&
+          Math.abs(compare.bttsYes - cx.bttsYes) < 0.0005 &&
+          Math.abs(compare.over25 - (cx.overUnder["2.5"]?.over ?? 0)) < 0.0005;
+        if (sameMarkets) {
+          seasonCompareNote = `Main figures use ${priorLabel} trained ratings. ${fixtureLabel} currently matches ${priorLabel}, so violet brackets are hidden.`;
+          priorSeasonCompare = null;
+        } else {
+          priorSeasonCompare = compare;
+        }
+      }
+    } catch (err) {
+      console.warn("[glpm-cx] fixture-season compare failed", err);
+      priorSeasonCompare = null;
+      seasonCompareNote = `Main figures use ${priorLabel} trained ratings. ${fixtureLabel} brackets unavailable for this matchup.`;
+    }
+  }
 
   // Also attach derived markets onto a copy of base for UI convenience
   const baseDerived = deriveMarketsFromScoreMatrix({
@@ -302,5 +524,7 @@ export async function runGlpmCxPredict(
     },
     executedAt: new Date().toISOString(),
     predictionId,
+    priorSeasonCompare,
+    seasonCompareNote,
   };
 }

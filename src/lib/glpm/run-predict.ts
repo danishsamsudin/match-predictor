@@ -25,10 +25,18 @@ import {
   type SeasonCompetitionRef,
 } from "@/lib/glpm/promotion";
 import type { GlpmPredictUiPayload, GlpmStyleSummary } from "@/lib/glpm/ui-types";
+import { resolveVectorSeasonId } from "@/lib/glpm/resolve-vector-season";
 
 export type { GlpmPredictUiPayload, GlpmStyleSummary } from "@/lib/glpm/ui-types";
 
 type Client = SupabaseClient<Database>;
+
+type PredictLoadCache = {
+  seasons?: SeasonCompetitionRef[];
+  promotedBySeason?: Map<number, Set<number>>;
+  /** Requested season → season whose vectors we actually load. */
+  vectorSeasonByPreferred?: Map<number, number>;
+};
 
 function styleSummary(
   row: Awaited<ReturnType<typeof loadStyleSnapshot>>
@@ -134,19 +142,57 @@ async function loadCompetitionDestinationAnchor(
  * Prefer the requested season vector; otherwise latest any-season vector,
  * remapped when the source competition differs; otherwise a promotion prior
  * for clubs new to the competition.
+ *
+ * When `vectorSeasonFallback` is true (default), calibrator-collapsed seasons
+ * borrow the mapped prior season. Insights season-compare turns this off so
+ * the main line stays on the fixture season and violet brackets can differ.
  */
 async function loadVectorForPredict(
   client: Client,
   teamSmId: number,
   seasonId?: number | null,
-  cache?: {
-    seasons?: SeasonCompetitionRef[];
-    promotedBySeason?: Map<number, Set<number>>;
-  }
+  cache?: PredictLoadCache,
+  opts?: { vectorSeasonFallback?: boolean }
 ): Promise<LoadedRatingVector | null> {
+  const allowFallback = opts?.vectorSeasonFallback !== false;
   if (seasonId != null) {
-    const scoped = await loadLatestRatingVector(client, { teamSmId, seasonId });
-    if (scoped) return scoped;
+    let vectorSeasonId = allowFallback
+      ? cache?.vectorSeasonByPreferred?.get(seasonId)
+      : seasonId;
+    if (vectorSeasonId == null) {
+      if (allowFallback) {
+        const competitionId =
+          cache?.seasons?.find((s) => s.smId === seasonId)?.competitionId ??
+          (await loadSeasonCompetition(client, seasonId));
+        const resolved = await resolveVectorSeasonId(
+          client,
+          seasonId,
+          competitionId
+        );
+        vectorSeasonId = resolved.seasonId;
+        if (cache) {
+          if (!cache.vectorSeasonByPreferred) {
+            cache.vectorSeasonByPreferred = new Map();
+          }
+          cache.vectorSeasonByPreferred.set(seasonId, vectorSeasonId);
+        }
+      } else {
+        vectorSeasonId = seasonId;
+      }
+    }
+
+    const scoped = await loadLatestRatingVector(client, {
+      teamSmId,
+      seasonId: vectorSeasonId,
+    });
+    if (scoped) {
+      // Keep the caller's season id on the payload when we borrowed prior
+      // vectors so UI season labels stay on the fixture season.
+      if (vectorSeasonId !== seasonId) {
+        return { ...scoped, seasonId, sourceSeasonId: vectorSeasonId };
+      }
+      return { ...scoped, sourceSeasonId: scoped.seasonId };
+    }
 
     const fallback = await loadLatestRatingVector(client, { teamSmId });
     if (fallback) {
@@ -160,7 +206,13 @@ async function loadVectorForPredict(
         sourceCompetitionId == null ||
         sourceCompetitionId === targetCompetitionId
       ) {
-        return fallback;
+        // No vector for the preferred season: keep fixture season on the
+        // payload, but record where the ratings actually came from.
+        return {
+          ...fallback,
+          seasonId,
+          sourceSeasonId: fallback.seasonId,
+        };
       }
 
       const destinationAnchor = await loadCompetitionDestinationAnchor(
@@ -169,7 +221,7 @@ async function loadVectorForPredict(
         teamSmId
       );
 
-      return remapRatingVectorAcrossCompetitions(
+      const remapped = remapRatingVectorAcrossCompetitions(
         fallback,
         sourceCompetitionId,
         targetCompetitionId,
@@ -178,6 +230,11 @@ async function loadVectorForPredict(
           targetSeasonId: seasonId,
         }
       );
+      return {
+        ...remapped,
+        seasonId,
+        sourceSeasonId: fallback.seasonId,
+      };
     }
 
     // No historical vector: use promotion prior when the club is new to this league.
@@ -238,24 +295,29 @@ export async function runGlpmPredict(
     matchSmId?: number | null;
     context?: MatchContext;
     persist?: boolean;
+    /**
+     * When true (default), collapsed fixture-season vectors borrow the prior
+     * trained season. Set false for season-vs-season UI compare.
+     */
+    vectorSeasonFallback?: boolean;
   }
 ): Promise<GlpmPredictUiPayload> {
-  const cache: {
-    seasons?: SeasonCompetitionRef[];
-    promotedBySeason?: Map<number, Set<number>>;
-  } = {};
+  const cache: PredictLoadCache = {};
+  const loadOpts = { vectorSeasonFallback: input.vectorSeasonFallback };
 
   const home = await loadVectorForPredict(
     client,
     input.homeTeamSmId,
     input.seasonId,
-    cache
+    cache,
+    loadOpts
   );
   const away = await loadVectorForPredict(
     client,
     input.awayTeamSmId,
     input.seasonId,
-    cache
+    cache,
+    loadOpts
   );
 
   if (!home) {
@@ -311,10 +373,16 @@ export async function runGlpmPredict(
     away: SideInteractions;
   };
 
+  const vectorSeasonId =
+    home.sourceSeasonId ??
+    away.sourceSeasonId ??
+    home.seasonId;
+
   return {
     homeTeam: teamBlock(home, styleSummary(homeStyleRow)),
     awayTeam: teamBlock(away, styleSummary(awayStyleRow)),
     seasonId,
+    vectorSeasonId,
     matchSmId: input.matchSmId ?? null,
     homeXg: pred.homeXg,
     awayXg: pred.awayXg,

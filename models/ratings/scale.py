@@ -61,6 +61,12 @@ class GlpmCalibrator:
         ) * 100.0
 
     def transform_one(self, score: float) -> float:
+        if self.reference_scores.size == 0:
+            raise RuntimeError("Calibrator is not fitted")
+        # Degenerate fit (everyone tied): do not map the whole league to 100.
+        # Return the GLPM "Average" band center so callers can detect collapse.
+        if float(self.reference_scores[-1] - self.reference_scores[0]) < 1e-12:
+            return 60.0
         pct = self.percentile_of(score)
         # Piecewise-linear map from percentile → GLPM score edges
         return float(np.interp(pct, PERCENTILE_EDGES, SCORE_EDGES))

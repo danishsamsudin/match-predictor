@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       message:
-        "POST or GET ?run=true with cron secret to precompute GLPM upcoming card predictions",
+        "POST or GET ?run=true with cron secret to precompute GLPM-CX upcoming card predictions",
     });
   }
   if (!isAuthorized(request)) {

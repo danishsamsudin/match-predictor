@@ -248,7 +248,7 @@ async function assertSeasonTrainable(seasonId: string): Promise<void> {
   if (statsErr) throw new Error(`Preflight stats query failed: ${statsErr.message}`);
 
   const withTarget = (stats ?? []).filter((s) => s.xg != null || s.shots != null);
-  const minSides = 40; // ~20 completed matches (home + away)
+  const minSides = 30; // early 2026/27 rounds (~15 completed matches)
   console.log(
     `  · ${withTarget.length}/${stats?.length ?? 0} team-rows have xG or shots ` +
       `(need ≥ ${minSides})`
