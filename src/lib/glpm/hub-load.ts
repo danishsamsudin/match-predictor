@@ -646,9 +646,10 @@ export async function loadGlpmHubPayload(
         : null;
 
     const live = liveMain ?? (home && away ? predictFromVectors(home.vector, away.vector) : null);
+    const usedPriorMain = Boolean(liveMain && homePrior && awayPrior);
     const liveSource =
       liveMain != null
-        ? homePrior && awayPrior
+        ? usedPriorMain
           ? ("prior" as const)
           : ("live" as const)
         : home && away
@@ -657,9 +658,9 @@ export async function loadGlpmHubPayload(
     const { prediction, predictionSource } = liveMain
       ? {
           prediction: liveMain,
-          predictionSource: (homePrior && awayPrior
-            ? "prior"
-            : "live") as const,
+          predictionSource: usedPriorMain
+            ? ("prior" as const)
+            : ("live" as const),
         }
       : resolveUpcomingCardPrediction({
           cxRow: cxStored ?? null,
