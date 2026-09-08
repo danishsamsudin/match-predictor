@@ -156,6 +156,11 @@ function ScoreHeatmap({
   );
 }
 
+function formatEhLine(line: number): string {
+  if (line > 0) return `+${line}`;
+  return String(line);
+}
+
 function ValueOpportunitiesPanel({
   payload,
   useCx,
@@ -163,6 +168,9 @@ function ValueOpportunitiesPanel({
   payload: GlpmCxPredictPayload;
   useCx: boolean;
 }) {
+  const homeLabel = payload.base.homeTeam.name;
+  const awayLabel = payload.base.awayTeam.name;
+
   const markets = useCx
     ? payload.cx
     : {
@@ -187,58 +195,133 @@ function ValueOpportunitiesPanel({
     });
   }, [useCx, payload]);
 
-  const [book, setBook] = useState({
-    home: "",
-    draw: "",
-    away: "",
-    bttsYes: "",
-    over25: "",
-    ahHome: "",
-  });
+  const [book, setBook] = useState<Record<string, string>>({});
 
-  const rows = useMemo(() => {
-    const parse = (s: string) => {
-      const n = Number(s.trim());
+  const setBookOdds = (id: string, value: string) => {
+    setBook((b) => ({ ...b, [id]: value }));
+  };
+
+  type ValueRow = {
+    id: string;
+    market: string;
+    modelProb: number;
+    fairOdds: number | null;
+    bookOdds: number | null;
+    edgePct: number | null;
+  };
+
+  type ValueSection = {
+    title: string;
+    hint?: string;
+    rows: ValueRow[];
+  };
+
+  const sections = useMemo((): ValueSection[] => {
+    const parse = (id: string): number | null => {
+      const n = Number((book[id] ?? "").trim());
       return Number.isFinite(n) && n > 1 ? n : null;
     };
-    const out: Array<{
-      market: string;
-      modelProb: number;
-      fairOdds: number | null;
-      bookOdds: number | null;
-      edgePct: number | null;
-    }> = [];
-
-    const push = (
-      market: string,
-      modelProb: number,
-      bookOdds: number | null
-    ) => {
+    const makeRow = (id: string, market: string, modelProb: number): ValueRow => {
+      const bookOdds = parse(id);
       const fairOdds = fairOddsFromProb(modelProb);
       const edgePct =
         bookOdds != null && modelProb > 0
           ? (modelProb * bookOdds - 1) * 100
           : null;
-      out.push({ market, modelProb, fairOdds, bookOdds, edgePct });
+      return { id, market, modelProb, fairOdds, bookOdds, edgePct };
     };
 
-    push("Home win", markets.homeWin, parse(book.home));
-    push("Draw", markets.draw, parse(book.draw));
-    push("Away win", markets.awayWin, parse(book.away));
-    push("BTTS yes", markets.bttsYes, parse(book.bttsYes));
-    const ou = markets.overUnder["2.5"];
-    push("Over 2.5", ou?.over ?? 0, parse(book.over25));
-    const ah = activeDerived.asianHandicap.find((l) => l.line === -0.5);
-    if (ah) push("AH home -0.5", ah.homeCover, parse(book.ahHome));
+    const ouLines = ["0.5", "1.5", "2.5", "3.5"];
+    const ouRows: ValueRow[] = [];
+    for (const line of ouLines) {
+      const ou = markets.overUnder[line];
+      ouRows.push(makeRow(`ou-over-${line}`, `Over ${line}`, ou?.over ?? 0));
+      ouRows.push(makeRow(`ou-under-${line}`, `Under ${line}`, ou?.under ?? 0));
+    }
 
-    return out;
-  }, [book, markets, activeDerived]);
+    const rangeSections: ValueSection[] = (
+      [
+        ["match", "Match total"],
+        ["home", homeLabel],
+        ["away", awayLabel],
+      ] as const
+    ).map(([scope, label]) => ({
+      title: `Goal range - ${label}`,
+      rows: (activeDerived.goalRanges?.[scope] ?? []).map((b) =>
+        makeRow(`range-${scope}-${b.label}`, `${label} ${b.label}`, b.probability)
+      ),
+    }));
+
+    const ehRows: ValueRow[] = [];
+    for (const line of activeDerived.europeanHandicap ?? []) {
+      const tag = formatEhLine(line.line);
+      ehRows.push(
+        makeRow(`eh-${line.line}-h`, `EH ${tag} Home`, line.home),
+        makeRow(`eh-${line.line}-d`, `EH ${tag} Draw`, line.draw),
+        makeRow(`eh-${line.line}-a`, `EH ${tag} Away`, line.away)
+      );
+    }
+
+    const ah = activeDerived.asianHandicap.find((l) => l.line === -0.5);
+    const shots = payload.satellites?.shots;
+    const shotRows: ValueRow[] = [];
+    for (const line of shots?.shotsOverUnder ?? []) {
+      shotRows.push(
+        makeRow(`shots-over-${line.line}`, `Shots Over ${line.line}`, line.over),
+        makeRow(`shots-under-${line.line}`, `Shots Under ${line.line}`, line.under)
+      );
+    }
+    for (const line of shots?.sotOver ?? []) {
+      shotRows.push(
+        makeRow(`sot-over-${line.line}`, `SoT Over ${line.line}`, line.over)
+      );
+    }
+
+    return [
+      {
+        title: "1X2",
+        rows: [
+          makeRow("1x2-home", "Home win", markets.homeWin),
+          makeRow("1x2-draw", "Draw", markets.draw),
+          makeRow("1x2-away", "Away win", markets.awayWin),
+        ],
+      },
+      {
+        title: "BTTS",
+        rows: [
+          makeRow("btts-yes", "BTTS yes", markets.bttsYes),
+          makeRow("btts-no", "BTTS no", markets.bttsNo),
+        ],
+      },
+      { title: "Goals O/U", rows: ouRows },
+      ...rangeSections,
+      { title: "European handicap", rows: ehRows },
+      {
+        title: "Asian handicap",
+        rows: ah
+          ? [makeRow("ah-home--0.5", "AH home -0.5", ah.homeCover)]
+          : [],
+      },
+      {
+        title: "Shots",
+        hint:
+          shots && shots.totalShots > 0
+            ? `Exp. shots ${fmt(shots.totalShots, 1)} (${homeLabel} ${fmt(shots.homeShots, 1)} / ${awayLabel} ${fmt(shots.awayShots, 1)}) · SoT ${fmt(shots.totalSot, 1)}`
+            : undefined,
+        rows: shots && shots.totalShots > 0 ? shotRows : [],
+      },
+    ].filter((s) => s.rows.length > 0);
+  }, [book, markets, activeDerived, homeLabel, awayLabel, payload.satellites?.shots]);
 
   const oneX2Edges = useMemo(() => {
-    const h = Number(book.home);
-    const d = Number(book.draw);
-    const a = Number(book.away);
-    if (!(h > 1 && d > 1 && a > 1)) return null;
+    const parse = (id: string): number | null => {
+      const n = Number((book[id] ?? "").trim());
+      return Number.isFinite(n) && n > 1 ? n : null;
+    };
+    const h = parse("1x2-home");
+    const d = parse("1x2-draw");
+    const a = parse("1x2-away");
+    if (h == null || d == null || a == null) return null;
     return computeValueEdges(
       {
         homeWinPct: markets.homeWin * 100,
@@ -249,7 +332,8 @@ function ValueOpportunitiesPanel({
     );
   }, [book, markets]);
 
-  const edgeChart = rows
+  const edgeChart = sections
+    .flatMap((s) => s.rows)
     .filter((r) => r.edgePct != null)
     .map((r) => ({ market: r.market, edgePct: r.edgePct as number }));
 
@@ -257,32 +341,8 @@ function ValueOpportunitiesPanel({
     <InsightCard
       title="Value opportunities"
       glossaryKey="valueEdge"
-      howToRead="Enter book decimal odds to compare with model fair odds. Positive edge means the book price is longer than the model."
+      howToRead="Enter book decimal odds on each row to compare with model fair odds. Positive edge means the book price is longer than the model."
     >
-      <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {(
-          [
-            ["home", "Home"],
-            ["draw", "Draw"],
-            ["away", "Away"],
-            ["bttsYes", "BTTS yes"],
-            ["over25", "Over 2.5"],
-            ["ahHome", "AH -0.5"],
-          ] as const
-        ).map(([key, label]) => (
-          <label key={key} className="block space-y-1">
-            <span className="text-[10px] uppercase tracking-wide text-muted">{label}</span>
-            <input
-              className="w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
-              inputMode="decimal"
-              placeholder="e.g. 2.10"
-              value={book[key]}
-              onChange={(e) => setBook((b) => ({ ...b, [key]: e.target.value }))}
-            />
-          </label>
-        ))}
-      </div>
-
       {oneX2Edges ? (
         <p className="mb-3 text-xs text-muted">
           1X2 MPTO edges: H {oneX2Edges.homeEdgePct.toFixed(1)}% · D{" "}
@@ -292,45 +352,64 @@ function ValueOpportunitiesPanel({
 
       {edgeChart.length ? <EdgeBars data={edgeChart} /> : null}
 
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[32rem] text-left text-sm">
-          <thead>
-            <tr className="border-b border-glass-border text-[11px] uppercase text-muted">
-              <th className="py-2 pr-2">Market</th>
-              <th className="py-2 pr-2">Model %</th>
-              <th className="py-2 pr-2">Fair odds</th>
-              <th className="py-2 pr-2">Book</th>
-              <th className="py-2">Edge</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.market} className="border-b border-glass-border/60">
-                <td className="py-2 pr-2 font-medium">{r.market}</td>
-                <td className="py-2 pr-2 tabular-nums">{pct(r.modelProb)}</td>
-                <td className="py-2 pr-2 tabular-nums">
-                  {r.fairOdds?.toFixed(2) ?? "-"}
-                </td>
-                <td className="py-2 pr-2 tabular-nums">
-                  {r.bookOdds?.toFixed(2) ?? "-"}
-                </td>
-                <td
-                  className={`py-2 tabular-nums font-semibold ${
-                    r.edgePct == null
-                      ? "text-muted"
-                      : r.edgePct >= 0
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-rose-600 dark:text-rose-400"
-                  }`}
-                >
-                  {r.edgePct == null
-                    ? "-"
-                    : `${r.edgePct >= 0 ? "+" : ""}${r.edgePct.toFixed(1)}%`}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="mt-3 space-y-6">
+        {sections.map((section) => (
+          <div key={section.title}>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              {section.title}
+            </p>
+            {section.hint ? (
+              <p className="mb-2 text-[11px] text-muted">{section.hint}</p>
+            ) : null}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[36rem] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-glass-border text-[11px] uppercase text-muted">
+                    <th className="py-2 pr-2">Market</th>
+                    <th className="py-2 pr-2">Model %</th>
+                    <th className="py-2 pr-2">Fair odds</th>
+                    <th className="py-2 pr-2">Book</th>
+                    <th className="py-2">Edge</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {section.rows.map((r) => (
+                    <tr key={r.id} className="border-b border-glass-border/60">
+                      <td className="py-2 pr-2 font-medium">{r.market}</td>
+                      <td className="py-2 pr-2 tabular-nums">{pct(r.modelProb)}</td>
+                      <td className="py-2 pr-2 tabular-nums">
+                        {r.fairOdds?.toFixed(2) ?? "-"}
+                      </td>
+                      <td className="py-2 pr-2">
+                        <input
+                          className="w-20 rounded-lg border border-glass-border bg-surface px-2 py-1 text-sm tabular-nums"
+                          inputMode="decimal"
+                          placeholder="e.g. 2.10"
+                          value={book[r.id] ?? ""}
+                          onChange={(e) => setBookOdds(r.id, e.target.value)}
+                          aria-label={`Book odds for ${r.market}`}
+                        />
+                      </td>
+                      <td
+                        className={`py-2 tabular-nums font-semibold ${
+                          r.edgePct == null
+                            ? "text-muted"
+                            : r.edgePct >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400"
+                        }`}
+                      >
+                        {r.edgePct == null
+                          ? "-"
+                          : `${r.edgePct >= 0 ? "+" : ""}${r.edgePct.toFixed(1)}%`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
       </div>
     </InsightCard>
   );

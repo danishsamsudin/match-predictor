@@ -8,6 +8,27 @@ import {
 } from "@/lib/prediction/handicap-probabilities";
 import { fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
 
+export type EuropeanHandicapLine = {
+  line: number;
+  home: number;
+  draw: number;
+  away: number;
+};
+
+export type GoalRangeBucket = {
+  label: string;
+  lo: number;
+  /** Inclusive upper bound; Infinity for open-ended buckets like 6+. */
+  hi: number;
+  probability: number;
+};
+
+export type GoalRanges = {
+  match: GoalRangeBucket[];
+  home: GoalRangeBucket[];
+  away: GoalRangeBucket[];
+};
+
 export type DerivedMarkets = {
   doubleChance: {
     homeOrDraw: number;
@@ -19,6 +40,8 @@ export type DerivedMarkets = {
     homeCover: number;
     awayCover: number;
   }>;
+  europeanHandicap: EuropeanHandicapLine[];
+  goalRanges: GoalRanges;
   teamTotals: Array<{
     line: number;
     homeOver: number;
@@ -40,6 +63,22 @@ export type DerivedMarkets = {
 
 const AH_LINES = [-1.5, -0.5, 0.5, 1.5] as const;
 const TEAM_TOTAL_LINES = [0.5, 1.5, 2.5] as const;
+export const EUROPEAN_HANDICAP_LINES = [-3, -2, -1, 1, 2, 3] as const;
+/** Match total goal bands (partition). */
+export const MATCH_GOAL_RANGE_BANDS = [
+  { label: "0-1", lo: 0, hi: 1 },
+  { label: "2-3", lo: 2, hi: 3 },
+  { label: "4-5", lo: 4, hi: 5 },
+  { label: "6+", lo: 6, hi: Number.POSITIVE_INFINITY },
+] as const;
+/** Per-team Toto goal bands (overlapping markets). */
+export const TEAM_GOAL_RANGE_BANDS = [
+  { label: "0", lo: 0, hi: 0 },
+  { label: "1-2", lo: 1, hi: 2 },
+  { label: "1-3", lo: 1, hi: 3 },
+  { label: "2-3", lo: 2, hi: 3 },
+  { label: "4+", lo: 4, hi: Number.POSITIVE_INFINITY },
+] as const;
 
 function matrixToScoreCells(matrix: number[][]): Array<{
   home: number;
@@ -64,6 +103,70 @@ function teamOverProb(matrix: number[][], side: "home" | "away", line: number): 
     }
   }
   return p;
+}
+
+function inGoalRange(goals: number, lo: number, hi: number): boolean {
+  return goals >= lo && goals <= hi;
+}
+
+/** Toto-style 3-way European handicap from the home perspective. */
+export function europeanHandicapFromMatrix(
+  matrix: number[][],
+  line: number
+): { home: number; draw: number; away: number } {
+  let home = 0;
+  let draw = 0;
+  let away = 0;
+  for (let h = 0; h < matrix.length; h++) {
+    for (let a = 0; a < (matrix[h]?.length ?? 0); a++) {
+      const p = matrix[h][a] ?? 0;
+      const margin = h - a + line;
+      if (margin > 0) home += p;
+      else if (margin === 0) draw += p;
+      else away += p;
+    }
+  }
+  return { home, draw, away };
+}
+
+export function goalRangesFromMatrix(matrix: number[][]): GoalRanges {
+  const sumBand = (
+    scope: "match" | "home" | "away",
+    lo: number,
+    hi: number
+  ): number => {
+    let probability = 0;
+    for (let h = 0; h < matrix.length; h++) {
+      for (let a = 0; a < (matrix[h]?.length ?? 0); a++) {
+        const goals = scope === "match" ? h + a : scope === "home" ? h : a;
+        if (inGoalRange(goals, lo, hi)) {
+          probability += matrix[h][a] ?? 0;
+        }
+      }
+    }
+    return probability;
+  };
+
+  return {
+    match: MATCH_GOAL_RANGE_BANDS.map((band) => ({
+      label: band.label,
+      lo: band.lo,
+      hi: band.hi,
+      probability: sumBand("match", band.lo, band.hi),
+    })),
+    home: TEAM_GOAL_RANGE_BANDS.map((band) => ({
+      label: band.label,
+      lo: band.lo,
+      hi: band.hi,
+      probability: sumBand("home", band.lo, band.hi),
+    })),
+    away: TEAM_GOAL_RANGE_BANDS.map((band) => ({
+      label: band.label,
+      lo: band.lo,
+      hi: band.hi,
+      probability: sumBand("away", band.lo, band.hi),
+    })),
+  };
 }
 
 export function deriveMarketsFromScoreMatrix(args: {
@@ -104,6 +207,11 @@ export function deriveMarketsFromScoreMatrix(args: {
         awayCover: 1 - homeCover,
       };
     }),
+    europeanHandicap: EUROPEAN_HANDICAP_LINES.map((line) => ({
+      line,
+      ...europeanHandicapFromMatrix(matrix, line),
+    })),
+    goalRanges: goalRangesFromMatrix(matrix),
     teamTotals: TEAM_TOTAL_LINES.map((line) => {
       const homeOver = teamOverProb(matrix, "home", line);
       const awayOver = teamOverProb(matrix, "away", line);

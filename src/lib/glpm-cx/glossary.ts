@@ -106,6 +106,16 @@ export const GLPM_CX_GLOSSARY = {
     what: "Cover probabilities for common handicap lines from the home perspective.",
     how: "Derived from the score matrix margins (including half and quarter lines). Presentation only - not a separate rating model.",
   },
+  europeanHandicap: {
+    label: "European handicap (3-way)",
+    what: "Home / Draw / Away on a handicap-adjusted score. Toto lines from -3 to -1 and +1 to +3 (no EH 0).",
+    how: "For each scoreline, margin = home goals - away goals + line. Positive margin is Home, zero is Draw, negative is Away. Same active score matrix as 1X2.",
+  },
+  goalRanges: {
+    label: "Goal ranges",
+    what: "Match totals use 0-1 / 2-3 / 4-5 / 6+. Team markets use Toto bands 0, 1-2, 1-3, 2-3, 4+ (overlapping).",
+    how: "Sums of Dixon-Coles score-matrix cells whose goal count falls in each band. Same active markets block as O/U.",
+  },
   doubleChance: {
     label: "Double chance",
     what: "Three combined 1X2 bets: Home or Draw (1X), either team wins (12), and Draw or Away (X2). The 12 market is home or away - it wins unless the match is a draw.",
@@ -168,6 +178,11 @@ export const GLPM_CX_GLOSSARY = {
     label: "Player shots / SoT props (satellite)",
     what: "Simple shot and shot-on-target lines for outfield players.",
     how: "Minutes-weighted rates from the stats season (prior season until 20 current-season results). Satellite only - not part of GLPM.",
+  },
+  shotMarkets: {
+    label: "Match shots / SoT (satellite)",
+    what: "Expected total shots (Over/Under) and shots on target (Over only), with Poisson lines for book comparison.",
+    how: "Recent team rates from glpm_match_team_stats on the same stats season as corners/cards (prior season until 20 current-season finished matches). Satellite only - does not feed GLPM ratings.",
   },
   seasonSim: {
     label: "Season Monte Carlo outrights",

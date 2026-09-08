@@ -40,8 +40,11 @@ function round3(v: number): number {
   return Math.round(v * 1000) / 1000;
 }
 
-/** Poisson-ish P(X > line) via cumulative 1 - F(floor(line)). */
-export function poissonOverProb(lambda: number, line: 0.5 | 1.5 | 2.5): number {
+/**
+ * Poisson P(X > line) via cumulative 1 - F(floor(line)).
+ * Works for half-lines (0.5, 20.5, …): floor(line) is the last integer still under.
+ */
+export function poissonOverProb(lambda: number, line: number): number {
   const lam = Math.max(0, lambda);
   if (lam <= 0) return 0;
   const kMax = Math.floor(line);

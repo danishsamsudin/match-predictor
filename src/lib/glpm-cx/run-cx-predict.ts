@@ -33,6 +33,11 @@ import {
   estimatePlayerProps,
   type CxPlayerPropsEstimate,
 } from "@/lib/glpm-cx/satellites/player-props";
+import {
+  EMPTY_SHOT_MARKETS,
+  estimateShotMarkets,
+  type CxShotMarketsEstimate,
+} from "@/lib/glpm-cx/satellites/shot-markets";
 import { aggregateVsStyleLift } from "@/lib/glpm-cx/vs-style";
 import { resolveStatsSeasonId, TRAIN_FALLBACK_BY_LEAGUE } from "@/lib/glpm/resolve-train-season";
 import { resolveVectorSeasonId } from "@/lib/glpm/resolve-vector-season";
@@ -72,6 +77,7 @@ export type GlpmCxPredictPayload = {
   satellites: {
     events: Awaited<ReturnType<typeof estimateEventMarkets>>;
     playerProps: Awaited<ReturnType<typeof estimatePlayerProps>>;
+    shots: Awaited<ReturnType<typeof estimateShotMarkets>>;
   };
   disclosure: {
     title: string;
@@ -259,6 +265,7 @@ export async function runGlpmCxPredict(
   let awayFin: FinishingDifferential | null;
   let events: CxEventMarketsEstimate;
   let props: CxPlayerPropsEstimate;
+  let shots: CxShotMarketsEstimate;
   let homeVs: Array<{ style: string; liftPct: number; n: number }>;
   let awayVs: Array<{ style: string; liftPct: number; n: number }>;
 
@@ -269,6 +276,7 @@ export async function runGlpmCxPredict(
     awayFin = null;
     events = { ...EMPTY_EVENT_MARKETS, statsSeasonId };
     props = EMPTY_PLAYER_PROPS;
+    shots = { ...EMPTY_SHOT_MARKETS, statsSeasonId };
     homeVs = [];
     awayVs = [];
   } else {
@@ -300,6 +308,12 @@ export async function runGlpmCxPredict(
         awayTeamSmId: input.awayTeamSmId,
         seasonId: statsSeasonId,
       }),
+      estimateShotMarkets(client, {
+        homeTeamSmId: input.homeTeamSmId,
+        awayTeamSmId: input.awayTeamSmId,
+        seasonId: statsSeasonId,
+        statsSeasonIsCurrent,
+      }),
       aggregateVsStyleLift(client, input.homeTeamSmId, statsSeasonId),
       aggregateVsStyleLift(client, input.awayTeamSmId, statsSeasonId),
     ]);
@@ -309,8 +323,9 @@ export async function runGlpmCxPredict(
     awayFin = extras[3];
     events = extras[4];
     props = extras[5];
-    homeVs = extras[6];
-    awayVs = extras[7];
+    shots = extras[6];
+    homeVs = extras[7];
+    awayVs = extras[8];
   }
 
   const apply = applyCxToXg({
@@ -517,6 +532,7 @@ export async function runGlpmCxPredict(
     satellites: {
       events,
       playerProps: props,
+      shots,
     },
     disclosure: {
       title: "GLPM Contextual Extension",
