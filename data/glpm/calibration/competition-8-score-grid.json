@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "competition_id": 8,
+  "competition_name": "Premier League",
+  "season_ids": [
+    25583,
+    28083
+  ],
+  "params": {
+    "mu": 1.2,
+    "rho": 0.04,
+    "goal_overdispersion_k": 12.0,
+    "lambda_gap_scale": 1.0,
+    "attenuate_rho_for_gap": true,
+    "gap_positive_rho": true
+  },
+  "baseline": {
+    "n": 380.0,
+    "scoreline_ll": 2.943106564439232,
+    "brier_1x2": 0.6381348982892129,
+    "log_loss_1x2": 1.0554584792261807,
+    "mode_11_rate": 0.8522905707325257,
+    "mean_p11": 0.12211003023543511,
+    "mean_abs_gap": 0.5619103586145908
+  },
+  "calibrated": {
+    "n": 380.0,
+    "scoreline_ll": 2.9696426630704846,
+    "brier_1x2": 0.6392617123723381,
+    "log_loss_1x2": 1.0595466092460994,
+    "mode_11_rate": 0.24438304067146885,
+    "mean_p11": 0.10498574347051676,
+    "mean_abs_gap": 0.499475874324081
+  },
+  "half_life_days": 220.0,
+  "n_matches": 380,
+  "fitted_at": "2026-09-10T17:32:52.120365Z",
+  "search": {
+    "grid": {
+      "mu": [
+        1.2,
+        1.28,
+        1.35,
+        1.42,
+        1.5,
+        1.58
+      ],
+      "rho": [
+        -0.13,
+        -0.08,
+        -0.04,
+        0.0,
+        0.04
+      ],
+      "goal_overdispersion_k": [
+        0.0,
+        12.0,
+        25.0
+      ],
+      "lambda_gap_scale": [
+        1.0,
+        1.6,
+        2.2,
+        2.8
+      ]
+    },
+    "candidates_tried": 360,
+    "brier_guardrail": 0.025,
+    "mode_11_penalty": 0.12,
+    "mu0": 1.35,
+    "best_objective": 2.998968627951061
+  }
+}

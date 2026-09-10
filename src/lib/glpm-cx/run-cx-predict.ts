@@ -5,8 +5,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase";
 import { predictMatch } from "@/lib/glpm/engine";
+import type { PredictionConfig } from "@/lib/glpm/engine/predictions";
 import { runGlpmPredict } from "@/lib/glpm/run-predict";
 import type { GlpmPredictUiPayload } from "@/lib/glpm/ui-types";
+import {
+  loadScoreGridCalibration,
+  predictionConfigFromCalibration,
+} from "@/lib/glpm/score-grid-calibration";
 import {
   loadFinishingDifferential,
   loadTeamInsightRatings,
@@ -138,9 +143,10 @@ function emptyInsight(teamSmId: number, seasonId: number): TeamInsightRatings {
 function marketsFromPredict(
   homeXg: number,
   awayXg: number,
-  modelVersion: string
+  modelVersion: string,
+  predConfig?: Partial<PredictionConfig>
 ): GlpmCxMarketBlock {
-  const pred = predictMatch(homeXg, awayXg);
+  const pred = predictMatch(homeXg, awayXg, predConfig);
   const derived = deriveMarketsFromScoreMatrix({
     scoreMatrix: pred.scoreMatrix,
     homeWin: pred.homeWin,
@@ -191,6 +197,9 @@ export async function runGlpmCxPredict(
       .maybeSingle();
     competitionId = seasonRow?.competition_id ?? null;
   }
+
+  const calibration = loadScoreGridCalibration(competitionId);
+  const predConfig = predictionConfigFromCalibration(calibration);
 
   // Early-season product rule: main markets stay on the mapped prior season
   // (25/26). Violet brackets show the fixture season (26/27) when trained.
@@ -351,7 +360,12 @@ export async function runGlpmCxPredict(
     },
   });
 
-  const cx = marketsFromPredict(apply.homeXg, apply.awayXg, CX_MODEL_VERSION);
+  const cx = marketsFromPredict(
+    apply.homeXg,
+    apply.awayXg,
+    CX_MODEL_VERSION,
+    predConfig
+  );
 
   let priorSeasonCompare: GlpmCxPriorSeasonCompare | null = null;
   let seasonCompareNote: string | null = null;
@@ -413,7 +427,8 @@ export async function runGlpmCxPredict(
         const fixtureCx = marketsFromPredict(
           fixtureApply.homeXg,
           fixtureApply.awayXg,
-          CX_MODEL_VERSION
+          CX_MODEL_VERSION,
+          predConfig
         );
         const compare: GlpmCxPriorSeasonCompare = {
           seasonId: fixtureSeasonId,

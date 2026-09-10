@@ -12,6 +12,13 @@ import {
   type SideInteractions,
 } from "@/lib/glpm/engine";
 import {
+  loadScoreGridCalibration,
+  predictionConfigFromCalibration,
+  competitionMuFromCalibration,
+  applyLambdaGapScale,
+  lambdaGapScaleFromCalibration,
+} from "@/lib/glpm/score-grid-calibration";
+import {
   loadLatestRatingVector,
   loadStyleSnapshot,
   toRatingVectorInput,
@@ -334,6 +341,12 @@ export async function runGlpmPredict(
   }
 
   const seasonId = input.seasonId ?? home.seasonId;
+  const competitionId =
+    seasonId != null ? await loadSeasonCompetition(client, seasonId) : null;
+  const calibration = loadScoreGridCalibration(competitionId);
+  const calibratedMu = competitionMuFromCalibration(calibration);
+  const predConfig = predictionConfigFromCalibration(calibration);
+
   const [homeStyleRow, awayStyleRow] = await Promise.all([
     loadStyleSnapshot(client, {
       teamSmId: input.homeTeamSmId,
@@ -345,12 +358,25 @@ export async function runGlpmPredict(
     }),
   ]);
 
+  const baseContext: MatchContext = {
+    isNeutralVenue: false,
+    ...(input.context ?? {}),
+  };
+  if (calibratedMu != null && baseContext.competitionMu == null) {
+    baseContext.competitionMu = calibratedMu;
+  }
+
   const xg = estimateExpectedGoals(
     toRatingVectorInput(home),
     toRatingVectorInput(away),
-    input.context ?? { isNeutralVenue: false }
+    baseContext
   );
-  const pred = predictMatch(xg);
+  const scaled = applyLambdaGapScale(
+    xg.homeXg,
+    xg.awayXg,
+    lambdaGapScaleFromCalibration(calibration)
+  );
+  const pred = predictMatch(scaled.homeXg, scaled.awayXg, predConfig);
 
   let predictionId: string | null = null;
   if (input.persist !== false) {

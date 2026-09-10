@@ -6,6 +6,7 @@ import { WeatherForecastIcon } from "@/components/prediction-charts/WeatherForec
 import type { GlpmHubUpcomingMatch, GlpmHubWeather } from "@/lib/glpm/hub-types";
 import { buildGlpmCompareHref, fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
 import { SeasonCompareValue } from "@/components/glpm/SeasonCompareValue";
+import { PromotedTeamWarningIcon } from "@/components/glpm/PromotedTeamWarningIcon";
 import { formatKickoffCardLocal } from "@/lib/utils/kickoff-display";
 
 function pctLabel(n: number): string {
@@ -143,12 +144,26 @@ export function GlpmUpcomingFlipCard({
           <MatchWeather weather={match.weather} />
 
           <div className="glpm-card-matchup">
-            <p className="glpm-team-name text-primary" title={match.homeName}>
-              {match.homeName}
+            <p className="glpm-team-name text-primary">
+              <span className="inline-flex max-w-full items-center justify-center gap-1">
+                <span className="min-w-0" title={match.homeName}>
+                  {match.homeName}
+                </span>
+                {match.homePromotedWarning ? (
+                  <PromotedTeamWarningIcon variant="title" />
+                ) : null}
+              </span>
             </p>
             <span className="glpm-card-vs">vs</span>
-            <p className="glpm-team-name text-accent" title={match.awayName}>
-              {match.awayName}
+            <p className="glpm-team-name text-accent">
+              <span className="inline-flex max-w-full items-center justify-center gap-1">
+                <span className="min-w-0" title={match.awayName}>
+                  {match.awayName}
+                </span>
+                {match.awayPromotedWarning ? (
+                  <PromotedTeamWarningIcon variant="title" />
+                ) : null}
+              </span>
             </p>
           </div>
 
@@ -265,9 +280,19 @@ export function GlpmUpcomingFlipCard({
                 GLPM markets
               </p>
               <p className="mt-1 text-sm font-semibold text-foreground">
-                <span className="text-primary">{match.homeName}</span>
+                <span className="inline-flex items-center gap-1 text-primary">
+                  {match.homeName}
+                  {match.homePromotedWarning ? (
+                    <PromotedTeamWarningIcon variant="title" />
+                  ) : null}
+                </span>
                 <span className="mx-1 text-muted">vs</span>
-                <span className="text-accent">{match.awayName}</span>
+                <span className="inline-flex items-center gap-1 text-accent">
+                  {match.awayName}
+                  {match.awayPromotedWarning ? (
+                    <PromotedTeamWarningIcon variant="title" />
+                  ) : null}
+                </span>
               </p>
             </div>
             {chip ? <span className="glpm-card-badge">{chip}</span> : null}

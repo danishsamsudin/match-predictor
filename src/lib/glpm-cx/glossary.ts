@@ -149,7 +149,7 @@ export const GLPM_CX_GLOSSARY = {
   weather: {
     label: "Weather context",
     what: "Forecast conditions at the home venue around kickoff.",
-    how: "Open-Meteo forecast (same source as hub weather). CX may nudge total goals for heavy rain or high wind.",
+    how: "Open-Meteo forecast (same source as hub weather). CX nudges total goals for light rain (≥0.5 mm/h), heavier rain (≥2 mm/h), or high wind (≥35 km/h).",
     caveat: "Weather is contextual display + CX only. Frozen GLPM predictions ignore weather.",
   },
   lineupImpact: {
@@ -160,7 +160,7 @@ export const GLPM_CX_GLOSSARY = {
   xgWaterfall: {
     label: "Base xG to CX-adjusted xG",
     what: "Five context multipliers (rest, travel, altitude, weather, lineup) scale base xG. 1.000 means that factor does not move the projection.",
-    how: "Starts from frozen GLPM xG, then multiplies rest, travel, altitude, weather, and lineup independently per side. Typical PL compares with ~7 days rest, travel under 500 km, and no confirmed XI stay at 1.000 on every factor.",
+    how: "Starts from frozen GLPM xG, then multiplies rest, travel, altitude, weather, and lineup independently per side. Typical dry PL compares with ~7 days rest, travel under 500 km, and no confirmed XI stay at 1.000 on every factor; measurable rain or high wind moves the weather step.",
   },
   finishingDelta: {
     label: "Finishing differential (Goals vs xG)",

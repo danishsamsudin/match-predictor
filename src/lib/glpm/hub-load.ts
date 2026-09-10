@@ -10,6 +10,13 @@ import {
   PRIMARY_ORDER,
   type PrimaryKey,
 } from "@/lib/glpm/engine";
+import {
+  applyLambdaGapScale,
+  competitionMuFromCalibration,
+  lambdaGapScaleFromCalibration,
+  loadScoreGridCalibration,
+  predictionConfigFromCalibration,
+} from "@/lib/glpm/score-grid-calibration";
 import { toRatingVectorInput, type LoadedRatingVector } from "@/lib/glpm/load-vectors";
 import type {
   GlpmHubMatchSummaryStats,
@@ -40,7 +47,10 @@ import {
   pickDefaultGlpmSeasonId,
   pickFixtureSeasonId,
 } from "@/lib/glpm/season-ready";
-import { TRAIN_FALLBACK_BY_LEAGUE } from "@/lib/glpm/resolve-train-season";
+import {
+  shouldWarnPromotedTeam,
+  TRAIN_FALLBACK_BY_LEAGUE,
+} from "@/lib/glpm/resolve-train-season";
 
 export type {
   GlpmHubMatchSummaryStats,
@@ -112,14 +122,26 @@ function vectorFromRow(row: {
 
 function predictFromVectors(
   home: LoadedRatingVector,
-  away: LoadedRatingVector
+  away: LoadedRatingVector,
+  competitionId?: number | null
 ) {
+  const calibration = loadScoreGridCalibration(competitionId);
+  const calibratedMu = competitionMuFromCalibration(calibration);
+  const predConfig = predictionConfigFromCalibration(calibration);
   const xg = estimateExpectedGoals(
     toRatingVectorInput(home),
     toRatingVectorInput(away),
-    { isNeutralVenue: false }
+    {
+      isNeutralVenue: false,
+      ...(calibratedMu != null ? { competitionMu: calibratedMu } : {}),
+    }
   );
-  const pred = predictMatch(xg);
+  const scaled = applyLambdaGapScale(
+    xg.homeXg,
+    xg.awayXg,
+    lambdaGapScaleFromCalibration(calibration)
+  );
+  const pred = predictMatch(scaled.homeXg, scaled.awayXg, predConfig);
   return {
     homeWin: pred.homeWin,
     draw: pred.draw,
@@ -528,7 +550,7 @@ export async function loadGlpmHubPayload(
     } else {
       const { home, away } = resolvePair(m.home_team_sm_id, m.away_team_sm_id);
       if (home && away) {
-        const p = predictFromVectors(home.vector, away.vector);
+        const p = predictFromVectors(home.vector, away.vector, competitionId);
         model = {
           homeWin: p.homeWin,
           draw: p.draw,
@@ -624,7 +646,7 @@ export async function loadGlpmHubPayload(
     const awayCurrent = seasonVectors.get(m.away_team_sm_id) ?? null;
     const liveFixtureSeason =
       homeCurrent && awayCurrent
-        ? predictFromVectors(homeCurrent, awayCurrent)
+        ? predictFromVectors(homeCurrent, awayCurrent, competitionId)
         : null;
 
     const homePrior = priorSeasonVectors.get(m.home_team_sm_id) ?? null;
@@ -632,7 +654,7 @@ export async function loadGlpmHubPayload(
     // Main card markets prefer prior-season (25/26) trained vectors.
     const liveMain =
       homePrior && awayPrior
-        ? predictFromVectors(homePrior, awayPrior)
+        ? predictFromVectors(homePrior, awayPrior, competitionId)
         : liveFixtureSeason;
     // Violet brackets = fixture-season (26/27) when it differs from main.
     const predictionPriorSeason =
@@ -645,7 +667,7 @@ export async function loadGlpmHubPayload(
         ? liveFixtureSeason
         : null;
 
-    const live = liveMain ?? (home && away ? predictFromVectors(home.vector, away.vector) : null);
+    const live = liveMain ?? (home && away ? predictFromVectors(home.vector, away.vector, competitionId) : null);
     const usedPriorMain = Boolean(liveMain && homePrior && awayPrior);
     const liveSource =
       liveMain != null
@@ -688,6 +710,18 @@ export async function loadGlpmHubPayload(
         : null,
       predictionPriorSeasonLabel: predictionPriorSeason ? currentSeasonLabel : null,
       predictionSource,
+      homePromotedWarning: shouldWarnPromotedTeam({
+        isPromoted: promotedTeamIds.has(m.home_team_sm_id),
+        priorSeasonId,
+        seasonId,
+        hasPriorSeasonVector: priorSeasonVectors.has(m.home_team_sm_id),
+      }),
+      awayPromotedWarning: shouldWarnPromotedTeam({
+        isPromoted: promotedTeamIds.has(m.away_team_sm_id),
+        priorSeasonId,
+        seasonId,
+        hasPriorSeasonVector: priorSeasonVectors.has(m.away_team_sm_id),
+      }),
       weather: weatherByMatch.get(m.sm_id) ?? null,
     };
   });

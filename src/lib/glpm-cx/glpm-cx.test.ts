@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { applyCxToXg, cxRestDaysMultiplier, cxTravelMultiplier } from "@/lib/glpm-cx/apply-cx";
+import {
+  applyCxToXg,
+  cxRestDaysMultiplier,
+  cxTravelMultiplier,
+  cxWeatherMultiplier,
+} from "@/lib/glpm-cx/apply-cx";
 import { deriveMarketsFromScoreMatrix, europeanHandicapFromMatrix, inferStyleLabels, sliceScoreMatrix, styleMatchupBadges } from "@/lib/glpm-cx/derived-markets";
 import { predictMatch } from "@/lib/glpm/engine";
 import { GLPM_CX_GLOSSARY, glossaryTipBody } from "@/lib/glpm-cx/glossary";
@@ -69,6 +74,27 @@ describe("glpm-cx applyCxToXg", () => {
     expect(cxRestDaysMultiplier(125)).toBeLessThan(1);
     expect(cxTravelMultiplier(100)).toBe(1);
     expect(cxTravelMultiplier(2000)).toBeLessThan(1);
+  });
+
+  it("applies weather multipliers for light rain, heavy rain, and high wind", () => {
+    expect(cxWeatherMultiplier(null)).toBe(1);
+    expect(cxWeatherMultiplier({ precipitationMm: 0.2, windSpeedKph: 10 })).toBe(1);
+    expect(cxWeatherMultiplier({ precipitationMm: 0.6, windSpeedKph: 10 })).toBeCloseTo(
+      0.99,
+      5
+    );
+    expect(cxWeatherMultiplier({ precipitationMm: 2.5, windSpeedKph: 10 })).toBeCloseTo(
+      0.96,
+      5
+    );
+    expect(cxWeatherMultiplier({ precipitationMm: 0, windSpeedKph: 36 })).toBeCloseTo(
+      0.97,
+      5
+    );
+    expect(cxWeatherMultiplier({ precipitationMm: 3, windSpeedKph: 40 })).toBeCloseTo(
+      0.96 * 0.97,
+      5
+    );
   });
 });
 

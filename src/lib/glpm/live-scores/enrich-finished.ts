@@ -13,6 +13,13 @@ import {
   type SideInteractions,
 } from "@/lib/glpm/engine";
 import {
+  applyLambdaGapScale,
+  competitionMuFromCalibration,
+  lambdaGapScaleFromCalibration,
+  loadScoreGridCalibration,
+  predictionConfigFromCalibration,
+} from "@/lib/glpm/score-grid-calibration";
+import {
   hubPredictionFromHistoryRow,
   type HubCardPrediction,
   type HubHistoryMarketRow,
@@ -131,16 +138,35 @@ function ratingInputFromVector(row: VectorDbRow) {
 
 function predictCardFromVectors(
   home: VectorDbRow,
-  away: VectorDbRow
+  away: VectorDbRow,
+  competitionId?: number | null
 ): {
   prediction: HubCardPrediction;
   interactions: { home: SideInteractions; away: SideInteractions };
 } {
-  const cfg = defaultXgEngineConfig();
+  const calibration = loadScoreGridCalibration(competitionId);
+  const calibratedMu = competitionMuFromCalibration(calibration);
+  const predConfig = predictionConfigFromCalibration(calibration);
+  const cfg = defaultXgEngineConfig(
+    calibratedMu != null ? { mu: calibratedMu } : undefined
+  );
   const homeIn = ratingInputFromVector(home);
   const awayIn = ratingInputFromVector(away);
-  const xg = estimateExpectedGoals(homeIn, awayIn, { isNeutralVenue: false }, cfg);
-  const pred = predictMatch(xg);
+  const xg = estimateExpectedGoals(
+    homeIn,
+    awayIn,
+    {
+      isNeutralVenue: false,
+      ...(calibratedMu != null ? { competitionMu: calibratedMu } : {}),
+    },
+    cfg
+  );
+  const scaled = applyLambdaGapScale(
+    xg.homeXg,
+    xg.awayXg,
+    lambdaGapScaleFromCalibration(calibration)
+  );
+  const pred = predictMatch(scaled.homeXg, scaled.awayXg, predConfig);
   const matrix = computeInteractionMatrix(homeIn, awayIn, cfg);
   return {
     prediction: {
@@ -437,7 +463,7 @@ export async function enrichFinishedMatches(
 
     let interactions: { home: SideInteractions; away: SideInteractions } | null = null;
     if (homeVec && awayVec) {
-      const rebuilt = predictCardFromVectors(homeVec, awayVec);
+      const rebuilt = predictCardFromVectors(homeVec, awayVec, match.leagueSmId);
       interactions = rebuilt.interactions;
       const lockedIsCollapsed =
         prediction == null || isCollapsedCardPrediction(prediction);

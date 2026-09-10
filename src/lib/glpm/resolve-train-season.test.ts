@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   GLPM_BAYESIAN_MATCH_CONFIDENCE_N,
   pickStatsSeasonId,
+  seasonUsesThinCurrentData,
+  shouldWarnPromotedTeam,
 } from "@/lib/glpm/resolve-train-season";
 
 describe("pickStatsSeasonId", () => {
@@ -33,5 +35,84 @@ describe("pickStatsSeasonId", () => {
     });
     expect(none.seasonId).toBe(28083);
     expect(none.reason).toBe("preferred_no_finished_yet");
+  });
+});
+
+describe("seasonUsesThinCurrentData", () => {
+  it("is thin before the Bayesian floor when a prior season exists", () => {
+    expect(
+      seasonUsesThinCurrentData({
+        seasonId: 28083,
+        priorSeasonId: 25583,
+        finishedCount: 8,
+      })
+    ).toBe(true);
+  });
+
+  it("clears once finished matches hit the floor and vectors are not collapsed", () => {
+    expect(
+      seasonUsesThinCurrentData({
+        seasonId: 28083,
+        priorSeasonId: 25583,
+        finishedCount: GLPM_BAYESIAN_MATCH_CONFIDENCE_N,
+        vectorsCollapsed: false,
+      })
+    ).toBe(false);
+  });
+
+  it("stays thin while vectors are collapsed even after the floor", () => {
+    expect(
+      seasonUsesThinCurrentData({
+        seasonId: 28083,
+        priorSeasonId: 25583,
+        finishedCount: 40,
+        vectorsCollapsed: true,
+      })
+    ).toBe(true);
+  });
+
+  it("is not thin when viewing the prior season itself", () => {
+    expect(
+      seasonUsesThinCurrentData({
+        seasonId: 25583,
+        priorSeasonId: 25583,
+        finishedCount: 0,
+      })
+    ).toBe(false);
+  });
+});
+
+describe("shouldWarnPromotedTeam", () => {
+  it("warns for promoted clubs while a distinct prior season is the fallback", () => {
+    expect(
+      shouldWarnPromotedTeam({
+        isPromoted: true,
+        priorSeasonId: 25583,
+        seasonId: 28083,
+        hasPriorSeasonVector: false,
+      })
+    ).toBe(true);
+  });
+
+  it("does not warn for established clubs", () => {
+    expect(
+      shouldWarnPromotedTeam({
+        isPromoted: false,
+        priorSeasonId: 25583,
+        seasonId: 28083,
+        hasPriorSeasonVector: true,
+      })
+    ).toBe(false);
+  });
+
+  it("does not warn once the prior fallback is no longer distinct", () => {
+    expect(
+      shouldWarnPromotedTeam({
+        isPromoted: true,
+        priorSeasonId: null,
+        seasonId: 28083,
+        hasPriorSeasonVector: false,
+      })
+    ).toBe(false);
   });
 });

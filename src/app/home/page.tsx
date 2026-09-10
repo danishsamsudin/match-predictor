@@ -79,7 +79,7 @@ async function loadLeagueBlocks(): Promise<HomeLeagueBlock[]> {
           seasonId: fixtureSeasonId,
           preferFixtures: true,
           upcomingLimit: HOME_UPCOMING_LIMIT,
-          includeWeather: false,
+          includeWeather: true,
           includeRecent: false,
         }),
         ratingSeasonId != null && ratingSeasonId !== fixtureSeasonId

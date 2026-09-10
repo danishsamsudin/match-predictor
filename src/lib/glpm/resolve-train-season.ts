@@ -51,6 +51,45 @@ export function pickStatsSeasonId(opts: {
   return { seasonId: opts.preferredSeasonId, reason: "preferred_no_finished_yet" };
 }
 
+/**
+ * True while the preferred (current) season still falls back to prior-season
+ * ratings: fewer than the Bayesian floor of finished matches, or collapsed
+ * early-season vectors. Used by CX / stats season pickers.
+ */
+export function seasonUsesThinCurrentData(opts: {
+  seasonId: number;
+  priorSeasonId: number | null | undefined;
+  finishedCount: number;
+  vectorsCollapsed?: boolean;
+  minFinished?: number;
+}): boolean {
+  const prior = opts.priorSeasonId;
+  if (prior == null || prior === opts.seasonId) return false;
+  if (opts.vectorsCollapsed) return true;
+  const min = opts.minFinished ?? GLPM_BAYESIAN_MATCH_CONFIDENCE_N;
+  return opts.finishedCount < min;
+}
+
+/**
+ * Promoted / newly arrived clubs lack prior-season vectors in the destination
+ * league. Warn while a distinct prior season is still the mapped fallback
+ * (hub/predict still prefer 25/26-style ratings over thin current-season data).
+ */
+export function shouldWarnPromotedTeam(opts: {
+  isPromoted: boolean;
+  priorSeasonId: number | null | undefined;
+  seasonId: number;
+  hasPriorSeasonVector?: boolean;
+}): boolean {
+  if (!opts.isPromoted) return false;
+  const prior = opts.priorSeasonId;
+  if (prior == null || prior === opts.seasonId) return false;
+  // Promoted sides almost never have a prior vector in this competition; if
+  // one somehow exists, they are not in the thin-data failure mode.
+  if (opts.hasPriorSeasonVector === true) return false;
+  return true;
+}
+
 export async function countFinishedMatches(
   client: Client,
   seasonId: number

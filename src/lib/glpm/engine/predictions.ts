@@ -9,11 +9,23 @@ export const DEFAULT_RHO = -0.13;
 export const DEFAULT_MAX_GOALS = 9;
 export const DEFAULT_OU_LINES = [0.5, 1.5, 2.5, 3.5, 4.5] as const;
 
+/** Dixon–Coles ρ fades toward 0 as |λH−λA| grows. */
+export const RHO_GAP_ATTENUATION_START = 0.35;
+export const RHO_GAP_ATTENUATION_SPAN = 1.0;
+export const RHO_GAP_POSITIVE_MID = 0.06;
+export const RHO_GAP_POSITIVE_WIDE = 0.1;
+export const RHO_GAP_POSITIVE_MID_START = 0.75;
+export const RHO_GAP_POSITIVE_WIDE_START = 1.25;
+
 export type PredictionConfig = {
   rho: number;
   maxGoals: number;
   ouLines: readonly number[];
   modelVersion: string;
+  /** NB dispersion k (0 = Poisson). */
+  goalOverdispersionK: number;
+  attenuateRhoForGap: boolean;
+  gapPositiveRho: boolean;
 };
 
 export function defaultPredictionConfig(
@@ -24,6 +36,9 @@ export function defaultPredictionConfig(
     maxGoals: DEFAULT_MAX_GOALS,
     ouLines: DEFAULT_OU_LINES,
     modelVersion: PRED_MODEL_VERSION,
+    goalOverdispersionK: 0,
+    attenuateRhoForGap: true,
+    gapPositiveRho: true,
     ...overrides,
   };
 }
@@ -41,6 +56,8 @@ export type GlpmPredictionResult = {
   bttsNo: number;
   overUnder: Record<string, OverUnderLine>;
   rho: number;
+  effectiveRho: number;
+  goalOverdispersionK: number;
   modelVersion: string;
   executedAt: string;
 };
@@ -56,6 +73,63 @@ export function poissonPmf(k: number, lam: number): number {
   if (k < 0) return 0;
   if (lam === 0) return k === 0 ? 1 : 0;
   return Math.exp(-lam) * lam ** k / factorial(k);
+}
+
+function logCombination(n: number, k: number): number {
+  if (k < 0) return -Infinity;
+  if (k === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < k; i += 1) {
+    sum += Math.log(n - i) - Math.log(i + 1);
+  }
+  return sum;
+}
+
+/** Negative binomial PMF with mean λ and dispersion k (variance = λ + λ²/k). */
+export function goalMarginalPmf(k: number, lambda: number, kDisp = 0): number {
+  if (k < 0) return 0;
+  if (kDisp <= 0 || !Number.isFinite(kDisp)) {
+    return poissonPmf(k, lambda);
+  }
+  const r = Math.max(kDisp, 1e-6);
+  const safeLambda = Math.max(lambda, 1e-9);
+  const p = r / (r + safeLambda);
+  const logPmf =
+    logCombination(k + r - 1, k) + r * Math.log(p) + k * Math.log(1 - p);
+  return Math.exp(logPmf);
+}
+
+export function attenuateRhoForExpectedGoalGap(
+  rho: number,
+  homeXg: number,
+  awayXg: number
+): number {
+  const xgDiff = Math.abs(homeXg - awayXg);
+  if (xgDiff <= RHO_GAP_ATTENUATION_START) return rho;
+  const attenuation = Math.max(
+    0,
+    1 - (xgDiff - RHO_GAP_ATTENUATION_START) / RHO_GAP_ATTENUATION_SPAN
+  );
+  return rho * attenuation;
+}
+
+export function resolveEffectiveRho(
+  baseRho: number,
+  homeXg: number,
+  awayXg: number,
+  opts: { attenuateForGap?: boolean; gapPositiveRho?: boolean } = {}
+): number {
+  const attenuate = opts.attenuateForGap !== false;
+  const gapPositive = opts.gapPositiveRho !== false;
+  let rho = attenuate
+    ? attenuateRhoForExpectedGoalGap(baseRho, homeXg, awayXg)
+    : baseRho;
+  if (gapPositive) {
+    const diff = Math.abs(homeXg - awayXg);
+    if (diff >= RHO_GAP_POSITIVE_WIDE_START) rho = Math.max(rho, RHO_GAP_POSITIVE_WIDE);
+    else if (diff >= RHO_GAP_POSITIVE_MID_START) rho = Math.max(rho, RHO_GAP_POSITIVE_MID);
+  }
+  return rho;
 }
 
 export function dixonColesTau(
@@ -77,9 +151,12 @@ export function scoreProbability(
   awayGoals: number,
   homeXg: number,
   awayXg: number,
-  rho = 0
+  rho = 0,
+  goalOverdispersionK = 0
 ): number {
-  const base = poissonPmf(homeGoals, homeXg) * poissonPmf(awayGoals, awayXg);
+  const base =
+    goalMarginalPmf(homeGoals, homeXg, goalOverdispersionK) *
+    goalMarginalPmf(awayGoals, awayXg, goalOverdispersionK);
   if (rho === 0) return base;
   return base * dixonColesTau(homeGoals, awayGoals, homeXg, awayXg, rho);
 }
@@ -87,17 +164,32 @@ export function scoreProbability(
 export function buildScoreMatrix(
   homeXg: number,
   awayXg: number,
-  opts: { maxGoals?: number; rho?: number } = {}
+  opts: {
+    maxGoals?: number;
+    rho?: number;
+    goalOverdispersionK?: number;
+    attenuateRhoForGap?: boolean;
+    gapPositiveRho?: boolean;
+    applyEffectiveRho?: boolean;
+  } = {}
 ): number[][] {
   const maxGoals = opts.maxGoals ?? DEFAULT_MAX_GOALS;
-  const rho = opts.rho ?? DEFAULT_RHO;
+  const baseRho = opts.rho ?? DEFAULT_RHO;
+  const kDisp = opts.goalOverdispersionK ?? 0;
+  const applyEffective = opts.applyEffectiveRho !== false;
+  const rho = applyEffective
+    ? resolveEffectiveRho(baseRho, homeXg, awayXg, {
+        attenuateForGap: opts.attenuateRhoForGap !== false,
+        gapPositiveRho: opts.gapPositiveRho !== false,
+      })
+    : baseRho;
   if (maxGoals < 0) throw new Error(`max_goals must be >= 0, got ${maxGoals}`);
   const n = maxGoals + 1;
   const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
   let total = 0;
   for (let h = 0; h < n; h++) {
     for (let a = 0; a < n; a++) {
-      const p = scoreProbability(h, a, homeXg, awayXg, rho);
+      const p = scoreProbability(h, a, homeXg, awayXg, rho, kDisp);
       matrix[h][a] = p;
       total += p;
     }
@@ -184,9 +276,15 @@ export function predictMatch(
     throw new Error(`expected goals must be non-negative, got home=${hx}, away=${ax}`);
   }
 
+  const effectiveRho = resolveEffectiveRho(cfg.rho, hx, ax, {
+    attenuateForGap: cfg.attenuateRhoForGap,
+    gapPositiveRho: cfg.gapPositiveRho,
+  });
   const matrix = buildScoreMatrix(hx, ax, {
     maxGoals: cfg.maxGoals,
-    rho: cfg.rho,
+    rho: effectiveRho,
+    goalOverdispersionK: cfg.goalOverdispersionK,
+    applyEffectiveRho: false,
   });
   const { homeWin, draw, awayWin } = derive1x2(matrix);
   const btts = deriveBtts(matrix);
@@ -203,6 +301,8 @@ export function predictMatch(
     bttsNo: btts.no,
     overUnder,
     rho: cfg.rho,
+    effectiveRho,
+    goalOverdispersionK: cfg.goalOverdispersionK,
     modelVersion: cfg.modelVersion,
     executedAt: executedAt ?? nowIso(),
   };
@@ -231,7 +331,7 @@ export function toPredictionHistoryRow(
     btts_no_pct: result.bttsNo,
     over_under: result.overUnder,
     score_matrix: result.scoreMatrix,
-    rho: result.rho,
+    rho: result.effectiveRho,
     model_version: result.modelVersion,
     executed_at: result.executedAt,
   };

@@ -104,6 +104,7 @@
     "glpm:sync-venues": "npx tsx scripts/glpm-sync-venues.ts",
     "glpm:validate": "bash scripts/ml/run-validation.sh",
     "glpm:validate:dry": "python3 scripts/glpm_run_validation.py --dry-run",
+    "glpm:calibrate-score-grid": "python3 scripts/glpm_calibrate_score_grid.py",
     "glpm:league-run": "npx tsx scripts/glpm-league-run.ts",
     "glpm:backfill-vs-style": "npx tsx scripts/glpm-backfill-vs-style.ts",
     "glpm:backfill-sm-proxies": "npx tsx scripts/glpm-backfill-sm-proxies.ts",

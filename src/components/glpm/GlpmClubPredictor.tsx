@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ModeToolbar } from "@/components/match-predictor/ModeToolbar";
 import { PageHero } from "@/components/match-predictor/PageHero";
 import { GlpmInsightsDashboard } from "@/components/glpm/insights/GlpmInsightsDashboard";
+import { PromotedTeamWarningIcon } from "@/components/glpm/PromotedTeamWarningIcon";
 import type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";
 import type { EntityType } from "@/lib/types/football-lookup";
 import { sanitizeUserFacingMessage } from "@/lib/api/user-facing-messages";
@@ -22,7 +23,12 @@ type SeasonOption = {
   isPredictReady?: boolean;
   hasFinishedMatches?: boolean;
 };
-type TeamOption = { id: number; name: string; shortName: string | null };
+type TeamOption = {
+  id: number;
+  name: string;
+  shortName: string | null;
+  promotedWarning?: boolean;
+};
 
 export function GlpmClubPredictor({
   entityType,
@@ -205,8 +211,10 @@ export function GlpmClubPredictor({
     }
   }
 
-  const homeName = teams.find((t) => String(t.id) === homeTeamId)?.name;
-  const awayName = teams.find((t) => String(t.id) === awayTeamId)?.name;
+  const homeTeam = teams.find((t) => String(t.id) === homeTeamId);
+  const awayTeam = teams.find((t) => String(t.id) === awayTeamId);
+  const homeName = homeTeam?.name;
+  const awayName = awayTeam?.name;
   const submitDisabled =
     loading ||
     loadingMeta ||
@@ -335,10 +343,16 @@ export function GlpmClubPredictor({
         </div>
 
         {homeName && awayName ? (
-          <p className="text-center text-sm font-medium text-foreground">
-            <span className="text-primary">{homeName}</span>
-            <span className="mx-2 text-muted">vs</span>
-            <span className="text-accent">{awayName}</span>
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm font-medium text-foreground">
+            <span className="inline-flex items-center gap-1 text-primary">
+              {homeName}
+              {homeTeam?.promotedWarning ? <PromotedTeamWarningIcon /> : null}
+            </span>
+            <span className="text-muted">vs</span>
+            <span className="inline-flex items-center gap-1 text-accent">
+              {awayName}
+              {awayTeam?.promotedWarning ? <PromotedTeamWarningIcon /> : null}
+            </span>
           </p>
         ) : null}
 

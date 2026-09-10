@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { tryCreateServiceClient, createServerClient } from "@/lib/supabase";
+import { loadPromotedTeamIds } from "@/lib/glpm/promotion";
+import {
+  shouldWarnPromotedTeam,
+  TRAIN_FALLBACK_BY_LEAGUE,
+} from "@/lib/glpm/resolve-train-season";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +24,8 @@ export async function GET(req: Request) {
     const client = getClient();
 
     let teamIds: number[] | null = null;
+    let promotedWarningIds = new Set<number>();
+
     if (seasonIdParam) {
       const seasonId = Number(seasonIdParam);
       const { data: vectors, error } = await client
@@ -43,6 +50,64 @@ export async function GET(req: Request) {
         }
         teamIds = [...ids];
       }
+
+      const { data: seasonMeta } = await client
+        .from("glpm_seasons")
+        .select("sm_id,competition_id")
+        .eq("sm_id", seasonId)
+        .maybeSingle();
+      const competitionId = seasonMeta?.competition_id ?? null;
+
+      if (competitionId != null && teamIds.length > 0) {
+        const priorSeasonIdRaw = TRAIN_FALLBACK_BY_LEAGUE[competitionId] ?? null;
+        const priorSeasonId =
+          priorSeasonIdRaw != null && priorSeasonIdRaw !== seasonId
+            ? priorSeasonIdRaw
+            : null;
+
+        if (priorSeasonId != null) {
+          const [{ data: seasonRows }, { data: priorVectorRows }] =
+            await Promise.all([
+              client
+                .from("glpm_seasons")
+                .select("sm_id,competition_id,start_date")
+                .eq("competition_id", competitionId)
+                .order("start_date", { ascending: false }),
+              client
+                .from("glpm_team_rating_vectors")
+                .select("team_sm_id")
+                .eq("season_id", priorSeasonId),
+            ]);
+
+          const seasons = (seasonRows ?? []).map((s) => ({
+            smId: s.sm_id,
+            competitionId: s.competition_id,
+            startDate: s.start_date,
+          }));
+          const priorVectorIds = new Set(
+            (priorVectorRows ?? []).map((r) => r.team_sm_id)
+          );
+          const promoted = await loadPromotedTeamIds(client, {
+            seasonId,
+            competitionId,
+            currentTeamIds: teamIds,
+            seasons,
+          });
+
+          for (const id of promoted) {
+            if (
+              shouldWarnPromotedTeam({
+                isPromoted: true,
+                priorSeasonId,
+                seasonId,
+                hasPriorSeasonVector: priorVectorIds.has(id),
+              })
+            ) {
+              promotedWarningIds.add(id);
+            }
+          }
+        }
+      }
     }
 
     let query = client.from("glpm_teams").select("sm_id,name,official_name").order("name");
@@ -61,6 +126,7 @@ export async function GET(req: Request) {
       id: t.sm_id,
       name: t.name,
       shortName: t.official_name,
+      promotedWarning: promotedWarningIds.has(t.sm_id),
     }));
     if (q) {
       teams = teams.filter(

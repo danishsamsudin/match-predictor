@@ -91,6 +91,12 @@ export type GlpmHubUpcomingMatch = {
   predictionSeasonLabel: string | null;
   predictionPriorSeasonLabel: string | null;
   predictionSource: GlpmHubPredictionSource | null;
+  /**
+   * Newly promoted / newly arrived club while prior-season ratings are still
+   * the mapped fallback (no prior-season vector in this competition).
+   */
+  homePromotedWarning?: boolean;
+  awayPromotedWarning?: boolean;
   weather: GlpmHubWeather | null;
 };
 

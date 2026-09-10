@@ -4,7 +4,7 @@
  * so frozen GLPM predict path is never wired to these features.
  */
 
-export const CX_MODEL_VERSION = "glpm_cx_v1";
+export const CX_MODEL_VERSION = "glpm_cx_v1.1";
 
 export type CxContextConfig = {
   restBaselineDays: number;
@@ -19,7 +19,14 @@ export type CxContextConfig = {
   travelModerateMult: number;
   altitudeThresholdM: number;
   altitudeAwayPenalty: number;
+  /** Hourly precip (mm) at/above which light rain dampens xG. */
+  weatherLightRainMm: number;
+  weatherLightRainMult: number;
+  /** Hourly precip (mm) at/above which heavier rain dampens xG further. */
+  weatherHeavyRainMm: number;
   weatherHeavyRainMult: number;
+  /** 10 m wind (km/h) at/above which high wind dampens xG. */
+  weatherHighWindKph: number;
   weatherHighWindMult: number;
   xgFloor: number;
   xgCeiling: number;
@@ -37,7 +44,12 @@ export const DEFAULT_CX_CONTEXT_CONFIG: CxContextConfig = {
   travelModerateMult: 0.98,
   altitudeThresholdM: 1000,
   altitudeAwayPenalty: 0.97,
+  // Open-Meteo hourly precip is usually <1 mm for drizzle; 5 mm/h almost never fires.
+  weatherLightRainMm: 0.5,
+  weatherLightRainMult: 0.99,
+  weatherHeavyRainMm: 2,
   weatherHeavyRainMult: 0.96,
+  weatherHighWindKph: 35,
   weatherHighWindMult: 0.97,
   xgFloor: 0.15,
   xgCeiling: 4.5,
@@ -92,8 +104,10 @@ export function cxWeatherMultiplier(
   let m = 1;
   const rain = weather.precipitationMm ?? 0;
   const wind = weather.windSpeedKph ?? 0;
-  if (rain >= 5) m *= config.weatherHeavyRainMult;
-  if (wind >= 40) m *= config.weatherHighWindMult;
+  // Heavier rain replaces light rain (do not stack both precip tiers).
+  if (rain >= config.weatherHeavyRainMm) m *= config.weatherHeavyRainMult;
+  else if (rain >= config.weatherLightRainMm) m *= config.weatherLightRainMult;
+  if (wind >= config.weatherHighWindKph) m *= config.weatherHighWindMult;
   return m;
 }
 

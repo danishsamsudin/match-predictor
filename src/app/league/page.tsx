@@ -27,7 +27,7 @@ export default async function LeagueHubPage({
     payload = await loadGlpmHubPayloadCached({
       seasonId,
       competitionId,
-      includeWeather: false,
+      includeWeather: true,
     });
   } catch (err) {
     loadError = err instanceof Error ? err.message : "Failed to load league hub";
