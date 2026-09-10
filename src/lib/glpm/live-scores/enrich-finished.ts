@@ -20,7 +20,6 @@ import {
 import { resolveVectorSeasonId } from "@/lib/glpm/resolve-vector-season";
 import {
   avgOrHeuristic,
-  estimateEventMarkets,
   heuristicCorners,
   heuristicReds,
   heuristicYellows,
@@ -36,6 +35,9 @@ import type {
 } from "./types";
 
 type Client = SupabaseClient<Database>;
+
+/** Soft cap so one scoreboard request cannot fan into unbounded DB work. */
+const MAX_ENRICH_MATCHES = 48;
 
 const HISTORY_MARKET_SELECT =
   "match_sm_id,home_win_pct,draw_pct,away_win_pct,home_xg,away_xg,btts_yes_pct,over_under,executed_at";
@@ -222,28 +224,13 @@ function asTeamSample(row: {
   };
 }
 
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>
-): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  async function worker() {
-    while (next < items.length) {
-      const i = next;
-      next += 1;
-      out[i] = await fn(items[i]);
-    }
-  }
-  const n = Math.max(1, Math.min(concurrency, items.length || 1));
-  await Promise.all(Array.from({ length: n }, () => worker()));
-  return out;
-}
-
 /**
  * Attach locked/reconstructed predictions, actual stats, predicted satellites,
  * and matchup interactions to finished scoreboard rows.
+ *
+ * Satellite corners/cards are derived from the already-batched recent team
+ * stats below. Avoid per-matchup `estimateEventMarkets` awaits: sequential
+ * worker chains blow Next.js dev `visitAsyncNode` (Maximum call stack size).
  */
 export async function enrichFinishedMatches(
   client: Client,
@@ -251,16 +238,20 @@ export async function enrichFinishedMatches(
 ): Promise<LiveScoreMatch[]> {
   if (matches.length === 0) return matches;
 
-  const matchIds = [...new Set(matches.map((m) => m.matchSmId))].filter((id) => id > 0);
-  const teamIds = [
-    ...new Set(matches.flatMap((m) => [m.homeTeamSmId, m.awayTeamSmId])),
-  ].filter((id) => Number.isFinite(id) && id > 0);
+  const enrichTargets =
+    matches.length > MAX_ENRICH_MATCHES ? matches.slice(0, MAX_ENRICH_MATCHES) : matches;
+  const skippedTail =
+    matches.length > MAX_ENRICH_MATCHES ? matches.slice(MAX_ENRICH_MATCHES) : [];
 
+  const matchIds = [...new Set(enrichTargets.map((m) => m.matchSmId))].filter((id) => id > 0);
+  const teamIds = [
+    ...new Set(enrichTargets.flatMap((m) => [m.homeTeamSmId, m.awayTeamSmId])),
+  ].filter((id) => Number.isFinite(id) && id > 0);
   if (matchIds.length === 0) return matches;
 
   const seasonIds = [
     ...new Set(
-      matches.map((m) => m.seasonId).filter((id): id is number => id != null && id > 0)
+      enrichTargets.map((m) => m.seasonId).filter((id): id is number => id != null && id > 0)
     ),
   ];
 
@@ -364,7 +355,7 @@ export async function enrichFinishedMatches(
   await Promise.all(
     seasonIds.map(async (seasonId) => {
       const competitionId =
-        matches.find((m) => m.seasonId === seasonId)?.leagueSmId ?? null;
+        enrichTargets.find((m) => m.seasonId === seasonId)?.leagueSmId ?? null;
       try {
         const resolved = await resolveVectorSeasonId(client, seasonId, competitionId);
         vectorSeasonByFixtureSeason.set(seasonId, resolved.seasonId);
@@ -410,46 +401,7 @@ export async function enrichFinishedMatches(
     }
   }
 
-  const eventKeys = new Map<
-    string,
-    { homeTeamSmId: number; awayTeamSmId: number; seasonId: number | null }
-  >();
-  for (const m of matches) {
-    const seasonId =
-      m.seasonId != null
-        ? (vectorSeasonByFixtureSeason.get(m.seasonId) ?? m.seasonId)
-        : null;
-    const key = `${m.homeTeamSmId}:${m.awayTeamSmId}:${seasonId ?? "x"}`;
-    if (!eventKeys.has(key)) {
-      eventKeys.set(key, {
-        homeTeamSmId: m.homeTeamSmId,
-        awayTeamSmId: m.awayTeamSmId,
-        seasonId,
-      });
-    }
-  }
-
-  const eventEntries = [...eventKeys.entries()];
-  const eventResults = await mapWithConcurrency(eventEntries, 4, async ([, args]) => {
-    try {
-      return await estimateEventMarkets(client, {
-        homeTeamSmId: args.homeTeamSmId,
-        awayTeamSmId: args.awayTeamSmId,
-        seasonId: args.seasonId,
-        statsSeasonIsCurrent: false,
-      });
-    } catch (err) {
-      console.warn("[live-scores] event markets failed", err);
-      return null;
-    }
-  });
-  const eventsByKey = new Map<string, NonNullable<(typeof eventResults)[number]>>();
-  eventEntries.forEach(([key], i) => {
-    const ev = eventResults[i];
-    if (ev) eventsByKey.set(key, ev);
-  });
-
-  return matches.map((match) => {
+  const enriched = enrichTargets.map((match) => {
     const cx = cxByMatch.get(match.matchSmId);
     const base = baseByMatch.get(match.matchSmId);
 
@@ -527,8 +479,6 @@ export async function enrichFinishedMatches(
       red: totals.awayRed,
     });
 
-    const eventKey = `${match.homeTeamSmId}:${match.awayTeamSmId}:${vectorSeasonId ?? "x"}`;
-    const events = eventsByKey.get(eventKey);
     const homeRecent = recentByTeam.get(match.homeTeamSmId) ?? [];
     const awayRecent = recentByTeam.get(match.awayTeamSmId) ?? [];
 
@@ -549,24 +499,20 @@ export async function enrichFinishedMatches(
       meanFinite(awayRecent.map((r) => r.shotsOnTarget)) ??
       (awayShots != null ? awayShots * 0.35 : null);
 
-    const homeCorners =
-      events?.homeCorners ??
-      (homeRecent.length ? avgOrHeuristic(homeRecent, "corners", heuristicCorners) * 1.04 : null);
-    const awayCorners =
-      events?.awayCorners ??
-      (awayRecent.length ? avgOrHeuristic(awayRecent, "corners", heuristicCorners) / 1.04 : null);
-    const homeYellow =
-      events?.homeYellows ??
-      (homeRecent.length ? avgOrHeuristic(homeRecent, "yellow_cards", heuristicYellows) : null);
-    const awayYellow =
-      events?.awayYellows ??
-      (awayRecent.length ? avgOrHeuristic(awayRecent, "yellow_cards", heuristicYellows) : null);
-    const homeRed =
-      events?.homeReds ??
-      (homeYellow != null ? heuristicReds(homeYellow) : null);
-    const awayRed =
-      events?.awayReds ??
-      (awayYellow != null ? heuristicReds(awayYellow) : null);
+    const homeCorners = homeRecent.length
+      ? avgOrHeuristic(homeRecent, "corners", heuristicCorners) * 1.04
+      : null;
+    const awayCorners = awayRecent.length
+      ? avgOrHeuristic(awayRecent, "corners", heuristicCorners) / 1.04
+      : null;
+    const homeYellow = homeRecent.length
+      ? avgOrHeuristic(homeRecent, "yellow_cards", heuristicYellows)
+      : null;
+    const awayYellow = awayRecent.length
+      ? avgOrHeuristic(awayRecent, "yellow_cards", heuristicYellows)
+      : null;
+    const homeRed = homeYellow != null ? heuristicReds(homeYellow) : null;
+    const awayRed = awayYellow != null ? heuristicReds(awayYellow) : null;
 
     const predictedHomeStats: LiveScorePredictedSideStats = {
       corners: homeCorners != null ? round1(homeCorners) : null,
@@ -596,4 +542,6 @@ export async function enrichFinishedMatches(
       interactions,
     };
   });
+
+  return skippedTail.length ? [...enriched, ...skippedTail] : enriched;
 }

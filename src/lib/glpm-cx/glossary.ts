@@ -52,7 +52,7 @@ export const GLPM_CX_GLOSSARY = {
     what: "Attack, defence, and goalkeeper sub-skills on the 0-100 scale. Home is left, away is right.",
     how: "Loaded from glpm_team_domain_ratings produced by the rating trainers. Display-only; not re-fit at predict time.",
     caveat:
-      "A domain is hidden when every club is scored 100. That happens when the training feature had no variance, most often because shot-level set-piece flags are missing.",
+      "A domain is hidden when every club is scored 100. That happens when the training feature had no variance. Progression/situational/protection now use SportMonks proxies (field-tilt composite, corners×0.035 or xGSP, opp shots-in-box rates) when Wyscout/Understat overlays are missing.",
   },
   componentGauge: {
     label: "Component ratings",
@@ -64,7 +64,7 @@ export const GLPM_CX_GLOSSARY = {
     what: "How one side's set-piece attack compares with the other's set-piece defence.",
     how: "Compares component ratings set_piece_threat vs set_piece_defence when both are available.",
     caveat:
-      "If every club lands on 100, the trainer had no set-piece shot tags to learn from. That is missing data, not a real 100 vs 100 matchup.",
+      "If every club lands on 100, the trainer had no set-piece signal. SportMonks now stores set_piece_xg from xGSP when present, else corners×0.035; Understat overlays still win when available.",
   },
   interactions: {
     label: "Matchup interactions (Δ)",

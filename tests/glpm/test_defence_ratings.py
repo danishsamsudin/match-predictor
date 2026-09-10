@@ -57,6 +57,18 @@ def test_pressing_and_box_protection():
     assert box["blocks_per_box_entry"] == pytest.approx(12 / 18)
     assert box["clearances_per_box_entry"] == pytest.approx(24 / 18)
 
+    # SportMonks path: blocks/clearances missing → defensive_actions / box_entries_allowed
+    proxy_box = builder.box_protection(
+        {
+            "defensive_actions": 36,
+            "tackles": 14,
+            "interceptions": 10,
+            "box_entries_allowed": 12,
+        }
+    )
+    assert proxy_box["blocks_per_box_entry"] == pytest.approx(36 / 12)
+    assert proxy_box["clearances_per_box_entry"] == pytest.approx(36 / 12)
+
 
 def test_conceded_shot_aggregates():
     shots = [

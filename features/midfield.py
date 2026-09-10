@@ -275,11 +275,11 @@ class BuildUpFeatureBuilder:
         l2: Optional[Mapping[str, Any]] = None,
     ) -> dict[str, Optional[float]]:
         l2 = l2 or {}
-        prog_pass = l2.get("progressive_pass_rate")
+        prog_pass = _as_float(l2.get("progressive_pass_rate"))
         if prog_pass is None:
             prog_pass = safe_ratio(stats.get("progressive_passes"), stats.get("passes"))
         return {
-            "prog_pass_rate": _as_float(prog_pass),
+            "prog_pass_rate": prog_pass,
             "prog_carry_rate": safe_ratio(
                 stats.get("progressive_carries"), stats.get("passes")
             ),

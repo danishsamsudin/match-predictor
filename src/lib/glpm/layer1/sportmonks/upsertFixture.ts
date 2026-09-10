@@ -10,11 +10,13 @@ import { upsertSportmonksGkStats } from "./mapLineupPlayerStats";
 import {
   computeBallRecoveriesProxy,
   computeDefensiveActions,
+  computeFieldTiltProxy,
   computeFinalThirdEntriesProxy,
   computeHighTurnoversProxy,
   computePpdaProxy,
   computeProgressivePassesProxy,
   mergeXgFixtureIntoMaps,
+  resolveSetPieceXgSplit,
   statsForParticipant,
   sumLineupGkSavesByTeam,
 } from "./proxies";
@@ -37,9 +39,19 @@ type UnderstatOverlayRow = {
   open_play_xg?: number | null;
   set_piece_xg?: number | null;
   field_tilt?: number | null;
+  payload?: unknown;
 };
 
-/** Keep Understat overlays when SportMonks re-ingest would otherwise null them. */
+function overlaySource(
+  payload: unknown,
+  key: (typeof UNDERSTAT_OVERLAY_KEYS)[number]
+): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const raw = (payload as Record<string, unknown>)[`${key}_source`];
+  return typeof raw === "string" ? raw : null;
+}
+
+/** Keep Understat/Wyscout overlays when SportMonks re-ingest would overwrite with proxies. */
 export function preserveUnderstatOverlays(
   incoming: StatsInsert[],
   existing: UnderstatOverlayRow[]
@@ -49,8 +61,18 @@ export function preserveUnderstatOverlays(
     const prev = byTeam.get(row.team_sm_id);
     if (!prev) return row;
     const next = { ...row };
+    const nextPayload =
+      next.payload && typeof next.payload === "object"
+        ? (next.payload as Record<string, unknown>)
+        : {};
     for (const key of UNDERSTAT_OVERLAY_KEYS) {
-      if (next[key] == null && prev[key] != null) {
+      if (prev[key] == null) continue;
+      const prevSource = overlaySource(prev.payload, key);
+      const nextSource = overlaySource(nextPayload, key);
+      const nextIsProxy =
+        next[key] == null || nextSource === "sportmonks_proxy";
+      const prevIsProtected = prevSource !== "sportmonks_proxy";
+      if (nextIsProxy && prevIsProtected) {
         next[key] = prev[key];
       }
     }
@@ -185,6 +207,27 @@ export function mapSportmonksTeamStats(args: {
     const ballRecoveries = computeBallRecoveriesProxy(map);
     const highTurnovers = computeHighTurnoversProxy(map);
     const teamGkSaves = map.get(SM_STAT_TYPE.SAVES) ?? lineupGkSaves.get(teamId) ?? null;
+    const ownSib = map.get(SM_STAT_TYPE.SHOTS_INSIDE_BOX) ?? null;
+    const oppSib = oppMap.get(SM_STAT_TYPE.SHOTS_INSIDE_BOX) ?? null;
+    const possessionPct = map.get(SM_STAT_TYPE.BALL_POSSESSION) ?? null;
+    const oppFinalThird = computeFinalThirdEntriesProxy(oppMap);
+    const fieldTilt = computeFieldTiltProxy({
+      ownDangerousAttacks: finalThirdEntries,
+      oppDangerousAttacks: oppFinalThird,
+      ownShotsInsideBox: ownSib,
+      oppShotsInsideBox: oppSib,
+      possessionPct,
+    });
+    const setPieceSplit = resolveSetPieceXgSplit({ map, teamXg: xg });
+    const corners = map.get(SM_STAT_TYPE.CORNERS) ?? null;
+    const daShare =
+      finalThirdEntries != null &&
+      oppFinalThird != null &&
+      finalThirdEntries + oppFinalThird > 0
+        ? Math.round(
+            (100 * finalThirdEntries) / (finalThirdEntries + oppFinalThird) * 100
+          ) / 100
+        : null;
     const xgFromFixture = (fixture.xGFixture ?? []).some(
       (r) => r.participant_id === teamId && r.type_id === SM_STAT_TYPE.EXPECTED_GOALS
     );
@@ -199,12 +242,12 @@ export function mapSportmonksTeamStats(args: {
       goals: currentGoals(fixture.scores, teamId),
       xg,
       npxg: npxgProvider ?? xg,
-      open_play_xg: null,
-      set_piece_xg: null,
+      open_play_xg: setPieceSplit.openPlayXg,
+      set_piece_xg: setPieceSplit.setPieceXg,
       shots,
       shots_on_target: sot,
       big_chances: map.get(SM_STAT_TYPE.BIG_CHANCES) ?? null,
-      box_entries: map.get(SM_STAT_TYPE.SHOTS_INSIDE_BOX) ?? null,
+      box_entries: ownSib,
       touches_in_box: null,
       progressive_passes: progressivePasses,
       progressive_carries: null,
@@ -216,7 +259,7 @@ export function mapSportmonksTeamStats(args: {
       xg_conceded: map.get(SM_STAT_TYPE.EXPECTED_GOALS_AGAINST) ?? oppXg ?? null,
       shots_conceded: oppMap.get(SM_STAT_TYPE.SHOTS_TOTAL) ?? null,
       big_chances_conceded: oppMap.get(SM_STAT_TYPE.BIG_CHANCES) ?? null,
-      box_entries_allowed: oppMap.get(SM_STAT_TYPE.SHOTS_INSIDE_BOX) ?? null,
+      box_entries_allowed: oppSib,
       blocks: map.get(SM_STAT_TYPE.BLOCKS) ?? null,
       interceptions: map.get(SM_STAT_TYPE.INTERCEPTIONS) ?? null,
       tackles: map.get(SM_STAT_TYPE.TACKLES) ?? null,
@@ -228,11 +271,11 @@ export function mapSportmonksTeamStats(args: {
       ball_recoveries: ballRecoveries,
       high_turnovers: highTurnovers,
       defensive_actions: defensiveActions,
-      possession_pct: map.get(SM_STAT_TYPE.BALL_POSSESSION) ?? null,
+      possession_pct: possessionPct,
       pass_completion_pct:
         passes != null && succ != null && passes > 0 ? (succ / passes) * 100 : null,
-      field_tilt: null,
-      territory_pct: null,
+      field_tilt: fieldTilt,
+      territory_pct: daShare,
       psxg_faced: psxgFaced,
       gk_saves: teamGkSaves != null ? Math.round(teamGkSaves) : null,
       goals_prevented:
@@ -240,6 +283,7 @@ export function mapSportmonksTeamStats(args: {
         (psxgFaced != null && currentGoals(fixture.scores, oppId) != null
           ? psxgFaced - (currentGoals(fixture.scores, oppId) as number)
           : null),
+      corners: corners != null ? Math.round(corners) : null,
       xg_source: xg != null && !xgRes.fromProxy ? "sportmonks" : null,
       psxg_source: psxgFaced != null && !psxgRes.fromProxy ? "sportmonks" : null,
       ppda_source: ppdaSource,
@@ -252,9 +296,14 @@ export function mapSportmonksTeamStats(args: {
         psxg_proxy: psxgRes.fromProxy,
         xg_from_xgfixture: xgFromFixture,
         psxg_from_xgfixture: psxgFromFixture,
+        field_tilt_source: fieldTilt != null ? "sportmonks_proxy" : null,
+        set_piece_xg_source: setPieceSplit.source,
+        open_play_xg_source: setPieceSplit.source,
         plan_note:
-          "SportMonks xG Basic + proxies: Expected from statistics/xGFixture when present; PPDA from passes/defensive actions; build-up from key+long passes and dangerous attacks",
+          "SportMonks xG Basic + proxies: Expected from statistics/xGFixture when present; PPDA from passes/defensive actions; build-up from key+long passes and dangerous attacks; field_tilt from DA/SIB/possession shares; set_piece_xg from xGSP or corners×0.035",
         build_up_proxy: progressivePasses != null || finalThirdEntries != null,
+        field_tilt_proxy: fieldTilt != null,
+        set_piece_xg_proxy: setPieceSplit.source === "sportmonks_proxy",
       } as unknown,
       synced_at: new Date().toISOString(),
     };
@@ -378,7 +427,7 @@ export async function upsertSportmonksFixtureBundle(
   });
   const { data: existingStats } = await supabase
     .from("glpm_match_team_stats")
-    .select("team_sm_id, open_play_xg, set_piece_xg, field_tilt")
+    .select("team_sm_id, open_play_xg, set_piece_xg, field_tilt, payload")
     .eq("match_sm_id", fixture.id);
   const stats = preserveUnderstatOverlays(mapped, existingStats ?? []);
   const { error: statsErr } = await supabase

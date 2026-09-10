@@ -106,6 +106,7 @@
     "glpm:validate:dry": "python3 scripts/glpm_run_validation.py --dry-run",
     "glpm:league-run": "npx tsx scripts/glpm-league-run.ts",
     "glpm:backfill-vs-style": "npx tsx scripts/glpm-backfill-vs-style.ts",
+    "glpm:backfill-sm-proxies": "npx tsx scripts/glpm-backfill-sm-proxies.ts",
     "glpm:import-event-stats": "npx tsx scripts/glpm-import-event-stats-csv.ts",
     "glpm:ingest-statz": "npx tsx scripts/glpm-ingest-statz-html.ts",
     "glpm:introspect": "bash scripts/ml/run-introspect.sh",

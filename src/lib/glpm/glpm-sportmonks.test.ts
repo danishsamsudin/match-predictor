@@ -30,10 +30,13 @@ import advancedMock from "../wyscout/mock/match_advancedstats.json";
 import {
   computeBallRecoveriesProxy,
   computeDefensiveActions,
+  computeFieldTiltProxy,
   computeFinalThirdEntriesProxy,
   computeHighTurnoversProxy,
   computePpdaProxy,
   computeProgressivePassesProxy,
+  resolveSetPieceXgSplit,
+  SET_PIECE_XG_PER_CORNER,
 } from "./layer1/sportmonks/proxies";
 import { listAdvancedStatsSides } from "./layer1/upsertMatchTeamStats";
 
@@ -117,6 +120,96 @@ describe("GLPM SportMonks primary mappers", () => {
     expect(home.open_play_xg).toBeCloseTo(1.2);
     expect(home.set_piece_xg).toBeCloseTo(0.4);
     expect(home.field_tilt).toBeCloseTo(62.5);
+  });
+
+  it("computes field_tilt and set_piece proxies from SportMonks team stats", () => {
+    const withExtras: SmFixture = {
+      ...fixture,
+      statistics: [
+        ...(fixture.statistics ?? []),
+        { type_id: 44, participant_id: 19, data: { value: 60 } },
+        { type_id: 44, participant_id: 18, data: { value: 40 } },
+        { type_id: 49, participant_id: 19, data: { value: 10 } },
+        { type_id: 49, participant_id: 18, data: { value: 5 } },
+        { type_id: 34, participant_id: 19, data: { value: 8 } },
+        { type_id: 34, participant_id: 18, data: { value: 3 } },
+      ],
+    };
+    const stats = mapSportmonksTeamStats({
+      fixture: withExtras,
+      homeId: 19,
+      awayId: 18,
+    });
+    const home = stats.find((s) => s.is_home)!;
+    const away = stats.find((s) => !s.is_home)!;
+    expect(home.field_tilt).toBeGreaterThan(50);
+    expect(away.field_tilt).toBeLessThan(50);
+    expect((home.field_tilt ?? 0) + (away.field_tilt ?? 0)).toBeCloseTo(100, 0);
+    expect(home.corners).toBe(8);
+    expect(home.set_piece_xg).toBeCloseTo(8 * 0.035);
+    expect(home.open_play_xg).toBeCloseTo(1.87 - 8 * 0.035);
+    expect((home.payload as { field_tilt_source?: string }).field_tilt_source).toBe(
+      "sportmonks_proxy"
+    );
+    expect((home.payload as { set_piece_xg_source?: string }).set_piece_xg_source).toBe(
+      "sportmonks_proxy"
+    );
+  });
+
+  it("prefers SportMonks set-play xG over corner proxy when present", () => {
+    const withSp: SmFixture = {
+      ...fixture,
+      statistics: [
+        ...(fixture.statistics ?? []),
+        { type_id: 34, participant_id: 19, data: { value: 8 } },
+        { type_id: 7944, participant_id: 19, data: { value: 0.42 } },
+        { type_id: 7945, participant_id: 19, data: { value: 1.45 } },
+      ],
+    };
+    const stats = mapSportmonksTeamStats({
+      fixture: withSp,
+      homeId: 19,
+      awayId: 18,
+    });
+    const home = stats.find((s) => s.is_home)!;
+    expect(home.set_piece_xg).toBeCloseTo(0.42);
+    expect(home.open_play_xg).toBeCloseTo(1.45);
+    expect((home.payload as { set_piece_xg_source?: string }).set_piece_xg_source).toBe(
+      "sportmonks"
+    );
+  });
+
+  it("does not let SportMonks proxies overwrite stored Understat overlays", () => {
+    const withExtras: SmFixture = {
+      ...fixture,
+      statistics: [
+        ...(fixture.statistics ?? []),
+        { type_id: 44, participant_id: 19, data: { value: 60 } },
+        { type_id: 44, participant_id: 18, data: { value: 40 } },
+        { type_id: 49, participant_id: 19, data: { value: 10 } },
+        { type_id: 49, participant_id: 18, data: { value: 5 } },
+        { type_id: 34, participant_id: 19, data: { value: 8 } },
+      ],
+    };
+    const incoming = mapSportmonksTeamStats({
+      fixture: withExtras,
+      homeId: 19,
+      awayId: 18,
+    });
+    expect(incoming.find((s) => s.is_home)!.field_tilt).not.toBeNull();
+    const preserved = preserveUnderstatOverlays(incoming, [
+      {
+        team_sm_id: 19,
+        open_play_xg: 1.55,
+        set_piece_xg: 0.33,
+        field_tilt: 71.2,
+        payload: { field_tilt_source: "understat" },
+      },
+    ]);
+    const home = preserved.find((s) => s.is_home)!;
+    expect(home.field_tilt).toBeCloseTo(71.2);
+    expect(home.set_piece_xg).toBeCloseTo(0.33);
+    expect(home.open_play_xg).toBeCloseTo(1.55);
   });
 
   it("uses xGFixture when statistics lack Expected Goals", () => {
@@ -215,6 +308,26 @@ describe("GLPM SportMonks PPDA proxy edge cases", () => {
     ]);
     const opp = new Map<number, number>();
     expect(computePpdaProxy(own, opp)).toBeNull();
+  });
+
+  it("weights field tilt toward dangerous attacks and box shots", () => {
+    const tilt = computeFieldTiltProxy({
+      ownDangerousAttacks: 60,
+      oppDangerousAttacks: 40,
+      ownShotsInsideBox: 10,
+      oppShotsInsideBox: 5,
+      possessionPct: 55,
+    });
+    // 0.55*60 + 0.30*(10/15*100) + 0.15*55 = 33 + 20 + 8.25 = 61.25
+    expect(tilt).toBeCloseTo(61.25, 2);
+  });
+
+  it("resolves set-piece xG from corners when provider split is missing", () => {
+    const map = new Map<number, number>([[34, 6]]);
+    const split = resolveSetPieceXgSplit({ map, teamXg: 1.5 });
+    expect(split.source).toBe("sportmonks_proxy");
+    expect(split.setPieceXg).toBeCloseTo(6 * SET_PIECE_XG_PER_CORNER);
+    expect(split.openPlayXg).toBeCloseTo(1.5 - 6 * SET_PIECE_XG_PER_CORNER);
   });
 });
 

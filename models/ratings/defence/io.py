@@ -93,11 +93,14 @@ def load_match_team_frame(
     merged["opponent_team_sm_id"] = merged.apply(opponent_id, axis=1)
 
     # Opponent attacking proxies for adjustment
-    opp_att = merged[["match_sm_id", "team_sm_id", "xg", "shots"]].rename(
+    opp_att = merged[
+        ["match_sm_id", "team_sm_id", "xg", "shots", "set_piece_xg"]
+    ].rename(
         columns={
             "team_sm_id": "opponent_team_sm_id",
             "xg": "opp_xg",
             "shots": "opp_shots",
+            "set_piece_xg": "set_piece_xg_conceded",
         }
     )
     merged = merged.merge(opp_att, on=["match_sm_id", "opponent_team_sm_id"], how="left")

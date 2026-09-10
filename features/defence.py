@@ -329,9 +329,29 @@ class DefenceFeatureBuilder:
     ) -> dict[str, Optional[float]]:
         conceded = conceded or ConcededShotAggregates()
         box_allowed = stats.get("box_entries_allowed")
+        blocks = stats.get("blocks")
+        clearances = stats.get("clearances")
+        # SportMonks often omits blocks/clearances; fall back to defensive_actions
+        # so Protection domains still discriminate via opp shots-inside-box rates.
+        def_actions = _as_float(stats.get("defensive_actions"))
+        if def_actions is None:
+            parts = [
+                _as_float(stats.get("tackles")),
+                _as_float(stats.get("interceptions")),
+                _as_float(blocks),
+                _as_float(clearances),
+            ]
+            known = [p for p in parts if p is not None]
+            def_actions = float(sum(known)) if known else None
+        blocks_rate = safe_ratio(blocks, box_allowed)
+        if blocks_rate is None:
+            blocks_rate = safe_ratio(def_actions, box_allowed)
+        clearances_rate = safe_ratio(clearances, box_allowed)
+        if clearances_rate is None:
+            clearances_rate = safe_ratio(def_actions, box_allowed)
         return {
-            "blocks_per_box_entry": safe_ratio(stats.get("blocks"), box_allowed),
-            "clearances_per_box_entry": safe_ratio(stats.get("clearances"), box_allowed),
+            "blocks_per_box_entry": blocks_rate,
+            "clearances_per_box_entry": clearances_rate,
             "close_range_xga_suppression": _invert_rate(conceded.close_range_xg),
         }
 
@@ -359,10 +379,14 @@ class DefenceFeatureBuilder:
             ]
             known = [p for p in parts if p is not None]
             def_actions = float(sum(known)) if known else None
+        aerial = safe_ratio(clearances, def_actions)
+        if aerial is None and def_actions is not None:
+            # Weak proxy when clearances are missing: defensive density vs box shots faced
+            aerial = safe_ratio(def_actions, stats.get("box_entries_allowed"))
         return {
             "set_piece_xga_suppression": _invert_rate(sp_xga),
             "corner_xga_suppression": _invert_rate(corner_xga),
-            "aerial_duel_proxy": safe_ratio(clearances, def_actions),
+            "aerial_duel_proxy": aerial,
         }
 
     def pressing(
@@ -374,10 +398,10 @@ class DefenceFeatureBuilder:
     ) -> dict[str, Optional[float]]:
         m = minutes if minutes is not None else self.default_minutes
         l2 = l2 or {}
-        ppda = l2.get("ppda")
-        if ppda is None:
-            ppda = stats.get("ppda")
-        ppda_f = _as_float(ppda)
+        # Prefer L2 PPDA when present; treat NaN as missing so Layer-1 proxies apply.
+        ppda_f = _as_float(l2.get("ppda"))
+        if ppda_f is None:
+            ppda_f = _as_float(stats.get("ppda"))
         ppda_inv = (1.0 / ppda_f) if ppda_f is not None and ppda_f > 0 else None
         press_duels = stats.get("pressing_duels")
         pressures = stats.get("pressures")
@@ -396,10 +420,11 @@ class DefenceFeatureBuilder:
         l2: Optional[Mapping[str, Any]] = None,
     ) -> dict[str, Optional[float]]:
         l2 = l2 or {}
-        field_tilt = l2.get("field_tilt")
+        # Empty L2 field_tilt (NaN) must not block SportMonks / proxy match stats.
+        field_tilt = _as_float(l2.get("field_tilt"))
         if field_tilt is None:
-            field_tilt = stats.get("field_tilt")
-        ft = _as_float(field_tilt)
+            field_tilt = _as_float(stats.get("field_tilt"))
+        ft = field_tilt
         # Field tilt against: if field_tilt is own share, against = 100 - own (or 1 - own)
         if ft is not None:
             if ft > 1.0:

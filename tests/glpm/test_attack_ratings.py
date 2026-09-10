@@ -44,6 +44,26 @@ def test_chance_volume_features():
     assert abs(cv["shots_per_poss"] - 18 / 0.6) < 1e-9
 
 
+def test_territorial_control_falls_back_when_l2_field_tilt_is_nan():
+    """Empty L2 overlays (NaN) must not block SportMonks match-stat field tilt."""
+    builder = AttackFeatureBuilder()
+    stats = {
+        "field_tilt": 62.5,
+        "territory_pct": 58.0,
+        "possession_pct": 55.0,
+    }
+    row = builder.territorial_control(stats, l2={"field_tilt": float("nan")})
+    assert row["field_tilt"] == pytest.approx(62.5)
+    assert row["final_third_occupancy"] == pytest.approx(0.625 * 0.55)
+
+
+def test_territorial_control_prefers_real_l2_field_tilt():
+    builder = AttackFeatureBuilder()
+    stats = {"field_tilt": 40.0, "territory_pct": 45.0, "possession_pct": 50.0}
+    row = builder.territorial_control(stats, l2={"field_tilt": 70.0})
+    assert row["field_tilt"] == pytest.approx(70.0)
+
+
 def test_chance_quality_and_shots():
     builder = AttackFeatureBuilder()
     stats = {"xg": 1.8, "shots": 12, "big_chances": 3}

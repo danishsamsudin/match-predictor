@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { HomeLeagueFixturesPanel } from "@/components/glpm/HomeLeagueFixturesPanel";
 import { HomeLeagueStandingsPanel } from "@/components/glpm/HomeLeagueStandingsPanel";
-import { HomeLiveScoresPanel } from "@/components/glpm/HomeLiveScoresPanel";
+import {
+  HomeLiveScoresFallback,
+  HomeLiveScoresSection,
+} from "@/components/glpm/HomeLiveScoresSection";
 import { createServerClient, tryCreateServiceClient } from "@/lib/supabase";
 import { BRAND_HERO_EYEBROW, BRAND_HERO_SUBTITLE, BRAND_NAME } from "@/lib/brand";
 import { loadGlpmHubCatalogCached } from "@/lib/glpm/hub-catalog";
 import { loadGlpmHubPayloadCached } from "@/lib/glpm/hub-load-cached";
 import type { GlpmHubPayload } from "@/lib/glpm/hub-load";
 import { getGlpmLeagueStrength } from "@/lib/glpm/league-strength";
-import { emptyLiveScoresBoard, loadLiveScoresBoard } from "@/lib/glpm/live-scores/load";
-import type { LiveScoresBoardPayload } from "@/lib/glpm/live-scores/types";
 import {
   loadGlpmStandingsForCompetition,
   type GlpmLeagueStandings,
@@ -157,17 +159,15 @@ export default async function HomePage() {
   let leagueBlocks: HomeLeagueBlock[] = EMPTY_LEAGUE_BLOCKS;
   let standingsBlocks: GlpmLeagueStandings[] = EMPTY_STANDINGS_BLOCKS;
   let history = [] as Awaited<ReturnType<typeof loadPredictionHistoryFeed>>;
-  let liveScores: LiveScoresBoardPayload = emptyLiveScoresBoard();
   let updatedAt: string | null = null;
 
   try {
     const client = getClient();
-    // Isolate live scores from hub/history failures so a catalog error
-    // cannot replace the board with demo placeholder cards.
-    const [blocksResult, historyResult, liveResult] = await Promise.allSettled([
+    // Live scores load in a separate Suspense child so their await graph does
+    // not merge with hub/history (Next.js visitAsyncNode stack overflows).
+    const [blocksResult, historyResult] = await Promise.allSettled([
       loadLeagueBlocks(),
       loadPredictionHistoryFeed(client, 6),
-      loadLiveScoresBoard(client),
     ]);
 
     if (blocksResult.status === "fulfilled") {
@@ -187,12 +187,6 @@ export default async function HomePage() {
       history = historyResult.value;
     } else {
       console.warn("[home] history load failed", historyResult.reason);
-    }
-
-    if (liveResult.status === "fulfilled") {
-      liveScores = liveResult.value;
-    } else {
-      console.warn("[home] live scores load failed", liveResult.reason);
     }
   } catch (error) {
     console.warn("[home] load failed", error);
@@ -255,7 +249,9 @@ export default async function HomePage() {
       </section>
 
       <section className="mt-8">
-        <HomeLiveScoresPanel board={liveScores} />
+        <Suspense fallback={<HomeLiveScoresFallback />}>
+          <HomeLiveScoresSection />
+        </Suspense>
       </section>
 
       <section className="mt-8">

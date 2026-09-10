@@ -233,15 +233,17 @@ class AttackFeatureBuilder:
     ) -> dict[str, Optional[float]]:
         l2 = l2 or {}
         shot_agg = shot_agg or ShotAggregates()
-        xg_per_shot = l2.get("xg_per_shot")
+        # Prefer L2 overlays when present; treat NaN/null as missing so Layer-1
+        # SportMonks (or derived) values are used instead of shadowing them.
+        xg_per_shot = _as_float(l2.get("xg_per_shot"))
         if xg_per_shot is None:
             xg_per_shot = safe_ratio(stats.get("xg"), stats.get("shots"))
-        big_chance_pct = l2.get("big_chance_rate")
+        big_chance_pct = _as_float(l2.get("big_chance_rate"))
         if big_chance_pct is None:
             big_chance_pct = safe_ratio(stats.get("big_chances"), stats.get("shots"))
         return {
-            "xg_per_shot": _as_float(xg_per_shot),
-            "big_chance_pct": _as_float(big_chance_pct),
+            "xg_per_shot": xg_per_shot,
+            "big_chance_pct": big_chance_pct,
             "central_shot_pct": shot_agg.central_shot_pct,
             "avg_shot_distance": shot_agg.avg_shot_distance,
         }
@@ -253,11 +255,11 @@ class AttackFeatureBuilder:
         l2: Optional[Mapping[str, Any]] = None,
     ) -> dict[str, Optional[float]]:
         l2 = l2 or {}
-        prog_pass = l2.get("progressive_pass_rate")
+        prog_pass = _as_float(l2.get("progressive_pass_rate"))
         if prog_pass is None:
             prog_pass = safe_ratio(stats.get("progressive_passes"), stats.get("passes"))
         return {
-            "prog_pass_rate": _as_float(prog_pass),
+            "prog_pass_rate": prog_pass,
             "prog_carry_rate": safe_ratio(
                 stats.get("progressive_carries"), stats.get("passes")
             ),
@@ -274,14 +276,14 @@ class AttackFeatureBuilder:
         l2: Optional[Mapping[str, Any]] = None,
     ) -> dict[str, Optional[float]]:
         l2 = l2 or {}
-        field_tilt = l2.get("field_tilt")
+        field_tilt = _as_float(l2.get("field_tilt"))
         if field_tilt is None:
-            field_tilt = stats.get("field_tilt")
+            field_tilt = _as_float(stats.get("field_tilt"))
         territory = stats.get("territory_pct")
         poss = stats.get("possession_pct")
         # Final-third occupancy proxy: possession share × field tilt (both 0–1 or %)
         occupancy = None
-        ft = _as_float(field_tilt)
+        ft = field_tilt
         p = _as_float(poss)
         if ft is not None and p is not None:
             ft_n = ft / 100.0 if ft > 1.0 else ft
@@ -290,7 +292,7 @@ class AttackFeatureBuilder:
         elif stats.get("final_third_entries") is not None and p is not None:
             occupancy = per_poss(stats.get("final_third_entries"), p)
         return {
-            "field_tilt": _as_float(field_tilt),
+            "field_tilt": field_tilt,
             "territory_pct": _as_float(territory),
             "final_third_occupancy": occupancy,
         }
@@ -306,11 +308,12 @@ class AttackFeatureBuilder:
         shot_agg = shot_agg or ShotAggregates()
         recoveries = stats.get("ball_recoveries")
         transition_xg = shot_agg.counter_xg
+        counter_eff = _as_float(l2.get("counter_efficiency"))
+        if counter_eff is None:
+            counter_eff = safe_ratio(transition_xg, shot_agg.counter_shots)
         return {
             "transition_xg_per_recovery": safe_ratio(transition_xg, recoveries),
-            "counter_efficiency": _as_float(l2.get("counter_efficiency"))
-            if l2.get("counter_efficiency") is not None
-            else safe_ratio(transition_xg, shot_agg.counter_shots),
+            "counter_efficiency": counter_eff,
             "fast_break_rate": safe_ratio(shot_agg.counter_shots, stats.get("shots")),
         }
 
@@ -348,9 +351,10 @@ class AttackFeatureBuilder:
         feats.update(self.transition_threat(stats, l2=l2, shot_agg=shot_agg))
         feats.update(self.set_piece_threat(stats, shot_agg=shot_agg))
         # Supervisory / target helpers carried alongside features
-        feats["npxg"] = _as_float(
-            (l2 or {}).get("npxg") if l2 and l2.get("npxg") is not None else stats.get("npxg")
-        )
+        npxg = _as_float((l2 or {}).get("npxg")) if l2 else None
+        if npxg is None:
+            npxg = _as_float(stats.get("npxg"))
+        feats["npxg"] = npxg
         feats["open_play_xg"] = _as_float(stats.get("open_play_xg"))
         feats["xg"] = _as_float(stats.get("xg"))
         feats["npxg_p90"] = per_90(feats["npxg"], minutes or self.default_minutes)
