@@ -14,6 +14,7 @@ const productLinks = [
   { href: "/home", label: "App home" },
   { href: "/predict", label: "Predict" },
   { href: "/league", label: "League" },
+  { href: "/world-cup", label: "World Cup" },
   { href: "/predictions", label: "History" },
 ];
 

@@ -220,7 +220,7 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <section className="liquid-glass-panel rounded-2xl p-6 sm:rounded-[2rem] sm:p-10">
+      <section className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-5 sm:rounded-[2rem] sm:p-10">
         <div className="space-y-4">
           <p className="page-hero-eyebrow text-xs font-bold uppercase text-indigo-600 dark:text-cyan-400">
             {BRAND_HERO_EYEBROW}
@@ -228,19 +228,19 @@ export default async function HomePage() {
           <h1>
             <BrandLogo size="hero" />
           </h1>
-          <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-300 sm:text-base">
+          <p className="max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
             {BRAND_HERO_SUBTITLE}
           </p>
-          <div className="flex flex-wrap gap-2.5 pt-2">
+          <div className="flex flex-col gap-2.5 pt-2 min-[400px]:flex-row min-[400px]:flex-wrap">
             <Link
               href="/predict"
-              className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-slate-950"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-slate-950"
             >
               Go to Predict
             </Link>
             <Link
               href="/league"
-              className="rounded-full border border-glass-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-glass-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground"
             >
               Explore League Hub
             </Link>
@@ -263,7 +263,7 @@ export default async function HomePage() {
       </section>
 
       <section className="mt-10 grid gap-4 sm:grid-cols-2">
-        <div className="liquid-glass-panel rounded-2xl p-4 sm:p-5">
+        <div className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h3 className="text-lg font-bold text-foreground">Top Teams Snapshot</h3>
@@ -307,10 +307,10 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="liquid-glass-panel rounded-2xl p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-lg font-bold text-foreground">Recent Community Predictions</h3>
-            <Link href="/predictions" className="text-xs font-semibold text-primary hover:underline">
+        <div className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <h3 className="min-w-0 text-lg font-bold text-foreground">Recent Community Predictions</h3>
+            <Link href="/predictions" className="shrink-0 text-xs font-semibold text-primary hover:underline">
               Open history →
             </Link>
           </div>
@@ -322,10 +322,10 @@ export default async function HomePage() {
                   href={item.href}
                   className="block rounded-xl border border-glass-border bg-surface/60 px-3 py-2.5"
                 >
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="truncate text-sm font-semibold text-foreground">
                     {item.homeTeamName} <span className="text-muted">vs</span> {item.awayTeamName}
                   </p>
-                  <p className="mt-0.5 text-xs text-muted">
+                  <p className="mt-0.5 truncate text-xs text-muted">
                     {item.homeWinPct}% / {item.drawPct}% / {item.awayWinPct}% · {item.kind.label}
                   </p>
                 </Link>

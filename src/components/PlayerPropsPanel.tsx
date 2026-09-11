@@ -43,11 +43,11 @@ function TeamSotTable({
   }
 
   return (
-    <div className="liquid-glass-pill overflow-x-auto rounded-2xl">
+    <div className="liquid-glass-pill table-h-scroll rounded-2xl">
       <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
         {teamLabel}
       </p>
-      <table className="mt-1 w-full min-w-[520px] text-sm">
+      <table className="mt-1 w-full min-w-[32rem] text-sm sm:min-w-[520px]">
         <thead>
           <tr className="text-left text-xs text-slate-500">
             <th className="px-4 py-2">#</th>
@@ -231,11 +231,11 @@ function TeamPropsTable({
   }
 
   return (
-    <div className="liquid-glass-pill overflow-x-auto rounded-2xl">
+    <div className="liquid-glass-pill table-h-scroll rounded-2xl">
       <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
         {teamLabel}
       </p>
-      <table className="mt-1 w-full min-w-[520px] text-sm">
+      <table className="mt-1 w-full min-w-[32rem] text-sm sm:min-w-[520px]">
         <thead>
           <tr className="text-left text-xs text-slate-500">
             <th className="px-4 py-2">#</th>

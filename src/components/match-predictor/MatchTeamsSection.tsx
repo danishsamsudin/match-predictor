@@ -51,7 +51,7 @@ export function MatchTeamsSection({
       />
 
       <div
-        className="mx-auto grid w-full max-w-3xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-6 sm:max-w-4xl sm:gap-10 md:gap-16 lg:gap-20"
+        className="mx-auto grid w-full max-w-3xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 min-[400px]:gap-4 sm:max-w-4xl sm:gap-10 md:gap-16 lg:gap-20"
         aria-label="Select teams"
       >
         <TeamPodColumn
@@ -65,7 +65,7 @@ export function MatchTeamsSection({
         />
 
         <span
-          className="self-center pt-8 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 sm:pt-10"
+          className="self-center pt-8 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 min-[400px]:text-sm min-[400px]:tracking-[0.2em] sm:pt-10"
           aria-hidden
         >
           vs

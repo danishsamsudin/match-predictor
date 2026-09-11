@@ -53,11 +53,11 @@ export default async function PredictionDetailPage({
         Back to history
       </Link>
 
-      <div className="liquid-glass-panel mb-8 rounded-[2rem] p-6 sm:p-8">
+      <div className="liquid-glass-panel mb-8 min-w-0 overflow-hidden rounded-2xl p-4 sm:rounded-[2rem] sm:p-8">
         <p className="page-hero-eyebrow text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-cyan-400">
           Match detail
         </p>
-        <h1 className="hero-title-glow mt-2 text-3xl font-extrabold tracking-tighter sm:text-4xl">
+        <h1 className="hero-title-glow mt-2 break-words text-2xl font-extrabold tracking-tighter sm:text-4xl">
           {homeTeamName}{" "}
           <span className="font-medium text-slate-400 dark:text-slate-600">vs</span>{" "}
           {awayTeamName}

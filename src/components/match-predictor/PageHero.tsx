@@ -12,11 +12,13 @@ export function PageHero({
       <p className="page-hero-eyebrow mb-2 text-xs font-bold uppercase text-indigo-600 dark:text-cyan-400">
         {eyebrow}
       </p>
-      <h1 className="hero-title-glow text-3xl font-extrabold tracking-tighter sm:text-4xl md:text-5xl">
+      <h1 className="hero-title-glow break-words text-3xl font-extrabold tracking-tighter sm:text-4xl md:text-5xl">
         {title}
       </h1>
       {description && (
-        <p className="mt-3 max-w-xl text-sm text-slate-500 dark:text-slate-400">{description}</p>
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+          {description}
+        </p>
       )}
     </div>
   );

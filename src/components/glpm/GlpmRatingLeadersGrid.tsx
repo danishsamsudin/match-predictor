@@ -20,7 +20,7 @@ export function GlpmRatingLeadersGrid({
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-glass-border">
+    <div className="table-h-scroll rounded-2xl border border-glass-border">
       <table className="w-full min-w-[640px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-glass-border bg-surface/80 text-left text-[11px] uppercase tracking-wide text-muted">
@@ -46,7 +46,7 @@ export function GlpmRatingLeadersGrid({
               <td className="px-3 py-2.5 font-semibold text-foreground">
                 <Link
                   href={`/predict?entity=club&mode=compare&home=${t.teamSmId}${seasonId != null ? `&seasonId=${seasonId}` : ""}`}
-                  className="hover:underline"
+                  className="whitespace-nowrap hover:underline"
                 >
                   {t.teamName}
                 </Link>

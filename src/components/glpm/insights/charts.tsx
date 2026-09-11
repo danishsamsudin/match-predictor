@@ -639,7 +639,7 @@ export function CxFactorPanel({
           Context is neutral. Every multiplier is 1.000, so CX xG matches the base model.
         </p>
       ) : null}
-      <div className="overflow-x-auto">
+      <div className="table-h-scroll">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-glass-border text-[11px] font-medium uppercase tracking-wide text-muted">
@@ -1009,7 +1009,7 @@ export function TeamTotalsTable({
   awayLabel: string;
 }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="table-h-scroll">
       <table className="w-full min-w-[28rem] text-sm">
         <thead>
           <tr className="border-b border-glass-border text-[11px] font-medium uppercase tracking-wide text-muted">

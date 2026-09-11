@@ -80,7 +80,7 @@ export function MarketComparisonPanel({ result }: { result: PredictionResult }) 
       </div>
 
       {analysis && analysis.fair.method !== "invalid" && (
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4 table-h-scroll">
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-slate-500">

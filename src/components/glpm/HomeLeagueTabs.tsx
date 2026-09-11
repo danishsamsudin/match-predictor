@@ -18,7 +18,7 @@ export function HomeLeagueTabs({
 }) {
   return (
     <div
-      className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1"
+      className="touch-scroll-x -mx-1 flex gap-1.5 px-1 pb-1"
       role="tablist"
       aria-label={ariaLabel}
     >

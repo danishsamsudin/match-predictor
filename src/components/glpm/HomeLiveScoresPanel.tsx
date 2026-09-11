@@ -56,7 +56,7 @@ function TeamSide({
           </div>
         )}
       </div>
-      <p className="max-w-[9.5rem] text-center text-sm font-semibold leading-snug text-foreground sm:max-w-[11rem] sm:text-base">
+      <p className="max-w-[7.5rem] text-center text-sm font-semibold leading-snug text-foreground sm:max-w-[11rem] sm:text-base">
         {name}
       </p>
     </div>
@@ -472,10 +472,10 @@ function LiveScoreCard({ match }: { match: LiveScoreMatch }) {
       <div className="mt-5 flex items-start gap-2 sm:gap-4">
         <TeamSide name={match.homeTeamName} logoUrl={match.homeLogoUrl} />
 
-        <div className="flex w-[7.5rem] shrink-0 flex-col items-center justify-center gap-2 pt-1 sm:w-36">
-          <p className="font-mono text-3xl font-bold tabular-nums tracking-tight text-foreground sm:text-4xl">
+        <div className="flex w-[6.5rem] shrink-0 flex-col items-center justify-center gap-2 pt-1 sm:w-36">
+          <p className="font-mono text-2xl font-bold tabular-nums tracking-tight text-foreground sm:text-4xl">
             {match.homeScore}
-            <span className="mx-1.5 text-muted sm:mx-2">-</span>
+            <span className="mx-1 text-muted sm:mx-2">-</span>
             {match.awayScore}
           </p>
           <span className="live-status-pill inline-flex max-w-full items-center justify-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide">
@@ -585,7 +585,7 @@ export function HomeLiveScoresPanel({ board: initialBoard }: { board: LiveScores
           : "No live matches right now. Check back around kickoff for scorers, cards, and live stats.";
 
   return (
-    <div className="liquid-glass-panel rounded-2xl p-4 sm:p-5">
+    <div className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <h2 className="text-xl font-bold text-foreground">Live Scores</h2>

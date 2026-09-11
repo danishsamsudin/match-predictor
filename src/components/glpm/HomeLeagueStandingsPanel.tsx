@@ -159,7 +159,7 @@ function StandingsTable({
         showEuropean={showEuropean}
         showRelegation={showRelegation}
       />
-      <div className="overflow-x-auto">
+      <div className="table-h-scroll">
         <table className="w-full min-w-[36rem] text-left text-xs sm:text-sm">
           <thead>
             <tr className="border-b border-glass-border text-muted">
@@ -203,7 +203,7 @@ function StandingsTable({
                   <td className="py-2 pr-3">
                     <Link
                       href={compareHref}
-                      className="font-semibold text-foreground hover:text-primary hover:underline"
+                      className="whitespace-nowrap font-semibold text-foreground hover:text-primary hover:underline"
                     >
                       {row.teamName}
                     </Link>
@@ -241,7 +241,7 @@ export function HomeLeagueStandingsPanel({
   const active = leagues.find((l) => l.leagueName === activeId) ?? leagues[0] ?? null;
 
   return (
-    <div className="liquid-glass-panel rounded-2xl p-4 sm:p-5">
+    <div className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-bold text-foreground">League Standings</h2>
         {active?.seasonName ? (

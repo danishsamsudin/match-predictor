@@ -7,7 +7,7 @@ const ENTITY_TIPS = {
   club: (
     <>
       Pick <strong>club</strong> teams from GLPM competitions (Premier League, Eredivisie, etc.).
-      Forecasts use the seven-dimensional rating vector, interaction xG, and Dixon–Coles markets.
+      Forecasts use the seven-dimensional rating vector, interaction xG, and Dixon-Coles markets.
     </>
   ),
   national: (
@@ -34,38 +34,76 @@ const MODE_TIPS = {
   ),
 } as const;
 
-function Segment({
-  label,
-  value,
-  current,
-  onSelect,
-  disabled,
-  tip,
-}: {
+type SegmentOption = {
   label: string;
   value: string;
-  current: string;
-  onSelect: (v: string) => void;
-  disabled?: boolean;
   tip: React.ReactNode;
+  disabled?: boolean;
+};
+
+function SlidingSegmentGroup({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: readonly SegmentOption[];
+  value: string;
+  onSelect: (value: string) => void;
 }) {
-  const active = current === value;
+  const activeIndex = Math.max(
+    0,
+    options.findIndex((option) => option.value === value)
+  );
+  const count = options.length;
 
   return (
-    <Tooltip label={label} content={tip} side="bottom" clickToPin={false}>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onSelect(value)}
-        className={`min-h-9 flex-1 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide transition-colors sm:text-sm ${
-          active
-            ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-            : "text-slate-600 hover:bg-slate-200/80 dark:text-slate-400 dark:hover:bg-slate-800/80"
-        } disabled:cursor-not-allowed disabled:opacity-40`}
-      >
+    <div className="min-w-0 flex-1 space-y-1.5">
+      <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
         {label}
-      </button>
-    </Tooltip>
+      </p>
+      <div
+        className="liquid-glass-pill relative flex w-full items-center rounded-full p-1"
+        role="group"
+        aria-label={label}
+      >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-1 left-1 rounded-full bg-slate-950 shadow-sm transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark:bg-white"
+          style={{
+            width: `calc((100% - 0.5rem) / ${count})`,
+            transform: `translateX(${activeIndex * 100}%)`,
+          }}
+        />
+        {options.map((option) => {
+          const active = option.value === value;
+          return (
+            <Tooltip
+              key={option.value}
+              label={option.label}
+              content={option.tip}
+              side="bottom"
+              clickToPin={false}
+            >
+              <button
+                type="button"
+                disabled={option.disabled}
+                aria-pressed={active}
+                onClick={() => onSelect(option.value)}
+                className={`relative z-10 min-h-10 flex-1 rounded-full px-3.5 py-2 text-center text-sm font-semibold transition-colors duration-300 ${
+                  active
+                    ? "text-white dark:text-slate-950"
+                    : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                } disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:text-slate-500 dark:disabled:hover:text-slate-400`}
+              >
+                {option.label}
+              </button>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -92,49 +130,31 @@ export function ModeToolbar({
     );
 
   return (
-    <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
-      <div
-        className="flex w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80"
-        role="group"
-        aria-label="Team type"
-      >
-        <Segment
-          label="Clubs"
-          value="club"
-          current={entityType}
-          onSelect={(v) => onEntityTypeChange(v as EntityType)}
-          tip={ENTITY_TIPS.club}
-        />
-        <Segment
-          label="National"
-          value="national"
-          current={entityType}
-          onSelect={(v) => onEntityTypeChange(v as EntityType)}
-          tip={ENTITY_TIPS.national}
-        />
-      </div>
+    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+      <SlidingSegmentGroup
+        label="Teams"
+        value={entityType}
+        onSelect={(v) => onEntityTypeChange(v as EntityType)}
+        options={[
+          { label: "Clubs", value: "club", tip: ENTITY_TIPS.club },
+          { label: "National", value: "national", tip: ENTITY_TIPS.national },
+        ]}
+      />
 
-      <div
-        className="flex w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80"
-        role="group"
-        aria-label="Input mode"
-      >
-        <Segment
-          label="Fixture"
-          value="fixture"
-          current={inputMode}
-          onSelect={(v) => onInputModeChange(v as "fixture" | "compare")}
-          disabled={fixtureDisabled}
-          tip={fixtureTip}
-        />
-        <Segment
-          label="Compare"
-          value="compare"
-          current={inputMode}
-          onSelect={(v) => onInputModeChange(v as "fixture" | "compare")}
-          tip={MODE_TIPS.compare}
-        />
-      </div>
+      <SlidingSegmentGroup
+        label="Mode"
+        value={inputMode}
+        onSelect={(v) => onInputModeChange(v as "fixture" | "compare")}
+        options={[
+          {
+            label: "Fixture",
+            value: "fixture",
+            tip: fixtureTip,
+            disabled: fixtureDisabled,
+          },
+          { label: "Compare", value: "compare", tip: MODE_TIPS.compare },
+        ]}
+      />
     </div>
   );
 }

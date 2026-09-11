@@ -47,9 +47,9 @@ export function PredictionHistoryCard({ item }: { item: HistoryFeedItem }) {
   const styles = KIND_STYLES[item.kind.kind];
   const scoreLine =
     item.predictedScoreHome != null && item.predictedScoreAway != null
-      ? `Score ${item.predictedScoreHome}–${item.predictedScoreAway}`
+      ? `Score ${item.predictedScoreHome} - ${item.predictedScoreAway}`
       : item.homeXg != null && item.awayXg != null
-        ? `xG ${item.homeXg} – ${item.awayXg}`
+        ? `xG ${item.homeXg} - ${item.awayXg}`
         : null;
 
   return (

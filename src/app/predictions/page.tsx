@@ -20,7 +20,7 @@ export default async function PredictionsPage() {
       <PageHero
         eyebrow="Archive"
         title="Prediction History"
-        description="Latest model runs from anyone using the site — league fixtures, head-to-head comparisons, and World Cup matches."
+        description="Latest model runs from anyone using the site - league fixtures, head-to-head comparisons, and World Cup matches."
       />
 
       {items.length === 0 ? (

@@ -83,7 +83,7 @@ function ScoreHeatmap({
         <p className="mb-2 text-[11px] text-muted">
           Home goals down the side, away across the top.
         </p>
-        <div className="overflow-x-auto">
+        <div className="table-h-scroll">
           <table className="mx-auto border-collapse text-[10px] sm:text-xs">
             <thead>
               <tr>
@@ -233,8 +233,9 @@ function ValueOpportunitiesPanel({
 
     const ouLines = ["0.5", "1.5", "2.5", "3.5"];
     const ouRows: ValueRow[] = [];
+    const overUnder = markets.overUnder ?? {};
     for (const line of ouLines) {
-      const ou = markets.overUnder[line];
+      const ou = overUnder[line];
       ouRows.push(makeRow(`ou-over-${line}`, `Over ${line}`, ou?.over ?? 0));
       ouRows.push(makeRow(`ou-under-${line}`, `Under ${line}`, ou?.under ?? 0));
     }
@@ -262,7 +263,7 @@ function ValueOpportunitiesPanel({
       );
     }
 
-    const ah = activeDerived.asianHandicap.find((l) => l.line === -0.5);
+    const ah = (activeDerived.asianHandicap ?? []).find((l) => l.line === -0.5);
     const shots = payload.satellites?.shots;
     const shotRows: ValueRow[] = [];
     for (const line of shots?.shotsOverUnder ?? []) {
@@ -337,18 +338,48 @@ function ValueOpportunitiesPanel({
     .filter((r) => r.edgePct != null)
     .map((r) => ({ market: r.market, edgePct: r.edgePct as number }));
 
+  const quickBookFields = [
+    ["1x2-home", "Home"],
+    ["1x2-draw", "Draw"],
+    ["1x2-away", "Away"],
+    ["btts-yes", "BTTS yes"],
+    ["ou-over-2.5", "Over 2.5"],
+    ["ah-home--0.5", "AH -0.5"],
+  ] as const;
+
   return (
     <InsightCard
       title="Value opportunities"
       glossaryKey="valueEdge"
-      howToRead="Enter book decimal odds on each row to compare with model fair odds. Positive edge means the book price is longer than the model."
+      howToRead="Enter book decimal odds below or on each row to compare with model fair odds. Positive edge means the book price is longer than the model."
     >
+      <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {quickBookFields.map(([id, label]) => (
+          <label key={id} className="block space-y-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted">{label}</span>
+            <input
+              className="w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
+              inputMode="decimal"
+              placeholder="e.g. 2.10"
+              value={book[id] ?? ""}
+              onChange={(e) => setBookOdds(id, e.target.value)}
+              aria-label={`Book odds for ${label}`}
+            />
+          </label>
+        ))}
+      </div>
+
       {oneX2Edges ? (
         <p className="mb-3 text-xs text-muted">
           1X2 MPTO edges: H {oneX2Edges.homeEdgePct.toFixed(1)}% · D{" "}
           {oneX2Edges.drawEdgePct.toFixed(1)}% · A {oneX2Edges.awayEdgePct.toFixed(1)}%
         </p>
-      ) : null}
+      ) : (
+        <p className="mb-3 text-xs text-muted">
+          Fill Home / Draw / Away above for 1X2 MPTO edges, or type a book price on any row
+          below to see that market&apos;s edge.
+        </p>
+      )}
 
       {edgeChart.length ? <EdgeBars data={edgeChart} /> : null}
 
@@ -361,8 +392,8 @@ function ValueOpportunitiesPanel({
             {section.hint ? (
               <p className="mb-2 text-[11px] text-muted">{section.hint}</p>
             ) : null}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[36rem] text-left text-sm">
+            <div className="table-h-scroll">
+              <table className="w-full min-w-[28rem] text-left text-sm sm:min-w-[36rem]">
                 <thead>
                   <tr className="border-b border-glass-border text-[11px] uppercase text-muted">
                     <th className="py-2 pr-2">Market</th>
@@ -651,7 +682,7 @@ export function GlpmInsightsDashboard({
     payload.base.awayTeam.style?.avgPpda != null;
 
   return (
-    <div className="liquid-glass-panel overflow-hidden rounded-2xl sm:rounded-[2rem]">
+    <div className="liquid-glass-panel min-w-0 max-w-full overflow-x-auto rounded-2xl sm:rounded-[2rem]">
       <div className="border-b border-glass-border px-4 py-4 sm:px-6">
         <h2 className="text-lg font-semibold text-foreground sm:text-xl">
           {homeLabel} <span className="font-normal text-muted">vs</span> {awayLabel}
@@ -1017,7 +1048,7 @@ export function GlpmInsightsDashboard({
         </InsightCard>
 
         <InsightCard title="Asian handicap & team totals" glossaryKey="asianHandicap">
-          <div className="overflow-x-auto">
+          <div className="table-h-scroll">
             <table className="w-full min-w-[28rem] text-sm">
               <thead>
                 <tr className="border-b border-glass-border text-[11px] font-medium uppercase tracking-wide text-muted">
@@ -1089,8 +1120,8 @@ export function GlpmInsightsDashboard({
 
         {payload.satellites.playerProps.lines.length ? (
           <InsightCard title="Player shots props (satellite)" glossaryKey="playerProps">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[36rem] text-left text-sm">
+            <div className="table-h-scroll">
+              <table className="w-full min-w-[28rem] text-left text-sm sm:min-w-[36rem]">
                 <thead>
                   <tr className="border-b border-glass-border text-[11px] uppercase text-muted">
                     <th className="py-2 pr-2">Player</th>

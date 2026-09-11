@@ -20,9 +20,9 @@ function StatBar({
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
-        <span className="tabular-nums text-primary">{home ?? "—"}</span>
+        <span className="tabular-nums text-primary">{home ?? "-"}</span>
         <span className="text-muted">{label}</span>
-        <span className="tabular-nums text-accent">{away ?? "—"}</span>
+        <span className="tabular-nums text-accent">{away ?? "-"}</span>
       </div>
       <div className="flex h-1.5 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-800">
         <div className="bg-primary" style={{ width: `${(h / total) * 100}%` }} />
@@ -65,10 +65,10 @@ export function GlpmRecentResultsSection({
                   <span className="mx-1.5 text-muted">vs</span>
                   <span className="text-accent">{m.awayName}</span>
                 </p>
-                <p className="text-xs text-muted">{m.date ?? "—"}</p>
+                <p className="text-xs text-muted">{m.date ?? "-"}</p>
               </div>
               <p className="shrink-0 text-lg font-bold tabular-nums">
-                {m.homeGoals ?? "–"}–{m.awayGoals ?? "–"}
+                {m.homeGoals ?? "-"} - {m.awayGoals ?? "-"}
               </p>
             </button>
             {open ? (

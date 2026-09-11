@@ -142,7 +142,7 @@ export function HandicapMarketPanel({ result }: { result: PredictionResult }) {
           <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Winning margin
           </h4>
-          <div className="mt-2 overflow-x-auto">
+          <div className="mt-2 table-h-scroll">
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-slate-500">
@@ -184,7 +184,7 @@ export function HandicapMarketPanel({ result }: { result: PredictionResult }) {
           <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Asian Handicap
           </h4>
-          <div className="mt-2 overflow-x-auto">
+          <div className="mt-2 table-h-scroll">
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-slate-500">

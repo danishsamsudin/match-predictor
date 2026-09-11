@@ -18,7 +18,7 @@ const LINEUP_SOURCE_OPTIONS: Array<{
   {
     value: "model_xi",
     label: "Model squad (team xG)",
-    description: "Team structural xG only — ignores manual XI selection",
+    description: "Team structural xG only - ignores manual XI selection",
   },
 ];
 
@@ -209,7 +209,7 @@ export function FooterPill({
             <div
               role="listbox"
               aria-label="Lineup source"
-              className="absolute bottom-full right-0 z-50 mb-2 w-72 overflow-hidden rounded-xl border border-white/30 bg-white/95 shadow-lg backdrop-blur-sm dark:border-slate-800/60 dark:bg-slate-950/95"
+              className="absolute bottom-full right-0 z-50 mb-2 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-white/30 bg-white/95 shadow-lg backdrop-blur-sm dark:border-slate-800/60 dark:bg-slate-950/95"
             >
               <ul className="py-1">
                 {LINEUP_SOURCE_OPTIONS.map((option) => (

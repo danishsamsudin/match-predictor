@@ -235,7 +235,7 @@ export function GlpmClubPredictor({
 
       <form
         onSubmit={handleSubmit}
-        className="liquid-glass-panel mx-auto max-w-6xl space-y-5 rounded-2xl p-4 sm:rounded-[2rem] sm:p-6"
+        className="liquid-glass-panel mx-auto min-w-0 max-w-6xl space-y-5 overflow-hidden rounded-2xl p-4 sm:rounded-[2rem] sm:p-6"
       >
         <ModeToolbar
           entityType={entityType}
@@ -248,7 +248,7 @@ export function GlpmClubPredictor({
 
         <p className="text-xs text-muted">
           Clubs use the GLPM stack (SportMonks / Wyscout ratings). Fixture pickers from the legacy
-          club API are disabled — choose a competition season and two teams with rating vectors.
+          club API are disabled - choose a competition season and two teams with rating vectors.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">

@@ -35,7 +35,7 @@ export function InsightCard({
 
   return (
     <div
-      className={`liquid-glass-pill min-w-0 max-w-full overflow-hidden rounded-2xl p-4 sm:p-5 ${className}`}
+      className={`liquid-glass-pill min-w-0 max-w-full overflow-x-auto overflow-y-visible rounded-2xl p-4 sm:p-5 ${className}`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
