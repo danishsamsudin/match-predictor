@@ -14,7 +14,7 @@ import { DISPLAY_LOCALE } from "@/lib/utils/kickoff-display";
 import { HomeMatchdayResults } from "./HomeMatchdayResults";
 import { TimelineEventIcon } from "./live-scores/TimelineEventIcon";
 
-const LIVE_POLL_MS = 60_000;
+const LIVE_POLL_MS = 30_000;
 
 /** Fixed locale + 24h clock so SSR and client hydration match. */
 function formatSyncedAt(iso: string): string {

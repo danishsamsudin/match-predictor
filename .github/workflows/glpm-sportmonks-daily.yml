@@ -122,3 +122,39 @@ jobs:
             EXTRA+=(--match-date "${{ inputs.match_date }}")
           fi
           npx tsx scripts/glpm-sportmonks-daily-sync.ts --phase "$PHASE" "${EXTRA[@]}"
+
+      - name: Refresh home hub packs after night/results work
+        if: ${{ steps.phase.outputs.phase == 'refresh' || steps.phase.outputs.phase == 'results' || steps.phase.outputs.phase == 'auto' }}
+        env:
+          APP_URL_SECRET: ${{ secrets.APP_URL }}
+          APP_URL_VAR: ${{ vars.APP_URL }}
+          SYNC_CRON_SECRET: ${{ secrets.SYNC_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          APP_URL="${APP_URL_SECRET:-}"
+          if [ -z "$APP_URL" ]; then
+            APP_URL="${APP_URL_VAR:-}"
+          fi
+          APP_URL="${APP_URL%/}"
+          SECRET="${SYNC_CRON_SECRET:-}"
+          if [ -z "$SECRET" ]; then
+            SECRET="${CRON_SECRET:-}"
+          fi
+          if [ -z "$APP_URL" ] || [ -z "$SECRET" ]; then
+            echo "Skipping home hub pack refresh (APP_URL or cron secret not set)"
+            exit 0
+          fi
+          URL="${APP_URL}/api/cron/glpm-home-hub-refresh?run=true"
+          echo "POST ${URL%%\?*}"
+          HTTP_CODE=$(curl -sS -o /tmp/glpm-home-hub.json -w "%{http_code}" \
+            --max-time 300 \
+            -X POST \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Accept: application/json" \
+            "$URL")
+          echo "HTTP ${HTTP_CODE}"
+          cat /tmp/glpm-home-hub.json || true
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Home hub pack refresh returned HTTP ${HTTP_CODE}"
+          fi

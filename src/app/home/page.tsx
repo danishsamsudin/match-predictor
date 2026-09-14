@@ -13,6 +13,11 @@ import { BRAND_HERO_EYEBROW, BRAND_HERO_SUBTITLE, BRAND_NAME } from "@/lib/brand
 import { loadGlpmHubCatalogCached } from "@/lib/glpm/hub-catalog";
 import { loadGlpmHubPayloadCached } from "@/lib/glpm/hub-load-cached";
 import type { GlpmHubPayload } from "@/lib/glpm/hub-load";
+import { refreshGlpmHomeHubPacks } from "@/lib/glpm/home-hub-refresh";
+import {
+  isGlpmHomeHubStale,
+  loadGlpmHomeHubSnapshot,
+} from "@/lib/glpm/home-hub-snapshot";
 import { getGlpmLeagueStrength } from "@/lib/glpm/league-strength";
 import {
   loadGlpmStandingsForCompetition,
@@ -50,10 +55,22 @@ function getClient() {
   return tryCreateServiceClient() ?? createServerClient();
 }
 
-async function loadLeagueBlocks(): Promise<HomeLeagueBlock[]> {
-  const catalog = await loadGlpmHubCatalogCached();
+let homePackRebuildScheduled = false;
 
-  return Promise.all(
+function scheduleHomePackRebuildIfNeeded(staleOrMissing: boolean): void {
+  if (!staleOrMissing || homePackRebuildScheduled) return;
+  homePackRebuildScheduled = true;
+  void refreshGlpmHomeHubPacks().catch((err) => {
+    console.warn("[home] background hub pack rebuild failed", err);
+  });
+}
+
+async function loadLeagueBlocks(): Promise<HomeLeagueBlock[]> {
+  const client = getClient();
+  const catalog = await loadGlpmHubCatalogCached();
+  let anyStaleOrMissing = false;
+
+  const blocks = await Promise.all(
     TARGET_LEAGUES.map(async (name) => {
       const competition = catalog.competitionList.find(
         (item) => item.name.toLowerCase() === name.toLowerCase()
@@ -73,35 +90,78 @@ async function loadLeagueBlocks(): Promise<HomeLeagueBlock[]> {
         competition.smId
       );
 
-      const [payload, ratingPayload] = await Promise.all([
-        loadGlpmHubPayloadCached({
+      let payload: GlpmHubPayload | null = null;
+      let ratingPayload: GlpmHubPayload | null = null;
+
+      if (fixtureSeasonId != null) {
+        const snap = await loadGlpmHomeHubSnapshot(client, {
+          competitionSmId: competition.smId,
+          seasonSmId: fixtureSeasonId,
+          kind: "fixtures",
+        });
+        if (snap?.payload) {
+          payload = snap.payload;
+          if (isGlpmHomeHubStale(snap.computed_at)) anyStaleOrMissing = true;
+        } else {
+          anyStaleOrMissing = true;
+        }
+      }
+
+      if (
+        ratingSeasonId != null &&
+        ratingSeasonId !== fixtureSeasonId
+      ) {
+        const snap = await loadGlpmHomeHubSnapshot(client, {
+          competitionSmId: competition.smId,
+          seasonSmId: ratingSeasonId,
+          kind: "ratings",
+        });
+        if (snap?.payload) {
+          ratingPayload = snap.payload;
+          if (isGlpmHomeHubStale(snap.computed_at)) anyStaleOrMissing = true;
+        } else {
+          anyStaleOrMissing = true;
+        }
+      }
+
+      // Cold start / missing pack: fall back to live cached hub (stored preds).
+      if (!payload && fixtureSeasonId != null) {
+        payload = await loadGlpmHubPayloadCached({
           competitionId: competition.smId,
           seasonId: fixtureSeasonId,
           preferFixtures: true,
           upcomingLimit: HOME_UPCOMING_LIMIT,
           includeWeather: true,
           includeRecent: false,
-        }),
-        ratingSeasonId != null && ratingSeasonId !== fixtureSeasonId
-          ? loadGlpmHubPayloadCached({
-              competitionId: competition.smId,
-              seasonId: ratingSeasonId,
-              preferFixtures: false,
-              upcomingLimit: 0,
-              includeWeather: false,
-              includeRecent: false,
-            })
-          : Promise.resolve(null),
-      ]);
+          preferStoredPredictions: true,
+        });
+      }
+      if (
+        !ratingPayload &&
+        ratingSeasonId != null &&
+        ratingSeasonId !== fixtureSeasonId
+      ) {
+        ratingPayload = await loadGlpmHubPayloadCached({
+          competitionId: competition.smId,
+          seasonId: ratingSeasonId,
+          preferFixtures: false,
+          upcomingLimit: 0,
+          includeWeather: false,
+          includeRecent: false,
+          preferStoredPredictions: true,
+        });
+      }
 
       return {
         leagueName: name,
         payload,
-        // When seasons match, reuse fixture payload leaders.
         ratingPayload: ratingPayload ?? payload,
       };
     })
   );
+
+  scheduleHomePackRebuildIfNeeded(anyStaleOrMissing);
+  return blocks;
 }
 
 async function loadStandingsBlocks(

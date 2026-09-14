@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       hint: HINT,
       notes: [
-        "Designed for cron-job.org every 60s during match windows.",
+        "Designed for Supabase Cron every 30s during Europe/Berlin match windows (see docs/SUPABASE_CRON_LIVESCORES.md).",
         "When no GLPM fixtures are in the local live poll window, the handler returns skipped=true and does not call SportMonks.",
         "Use force=true only for manual smoke tests.",
       ],

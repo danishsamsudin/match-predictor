@@ -16,6 +16,7 @@ const productLinks = [
   { href: "/league", label: "League" },
   { href: "/world-cup", label: "World Cup" },
   { href: "/predictions", label: "History" },
+  { href: "/reports", label: "Reports" },
 ];
 
 const legalLinks = [

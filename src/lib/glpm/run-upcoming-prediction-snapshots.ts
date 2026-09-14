@@ -205,3 +205,15 @@ export async function runGlpmUpcomingPredictionSnapshots(options?: {
     byCompetition,
   };
 }
+
+/** After kickoff refresh: only score fixtures still missing a same-day CX row. */
+export async function runGlpmMissingUpcomingPredictionCatchUp(options?: {
+  client?: Client;
+  competitionNames?: readonly string[];
+  maxPerCompetition?: number;
+}): Promise<UpcomingPredictionSnapshotResult> {
+  return runGlpmUpcomingPredictionSnapshots({
+    ...options,
+    force: false,
+  });
+}

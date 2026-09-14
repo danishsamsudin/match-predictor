@@ -6,6 +6,7 @@ import {
   parseSeasonIdsParam,
 } from "@/lib/glpm/sportmonks/cronRoute";
 import { refreshGlpmStandings } from "@/lib/glpm/refresh-standings";
+import { refreshGlpmHomeHubPacks } from "@/lib/glpm/home-hub-refresh";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -40,7 +41,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await run(request);
-    return NextResponse.json(result);
+    const packs = await refreshGlpmHomeHubPacks();
+    return NextResponse.json({ ...result, homeHubPacks: packs });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });
@@ -65,7 +67,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await run(request);
-    return NextResponse.json(result);
+    const packs = await refreshGlpmHomeHubPacks();
+    return NextResponse.json({ ...result, homeHubPacks: packs });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });

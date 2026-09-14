@@ -51,6 +51,12 @@ import {
   shouldWarnPromotedTeam,
   TRAIN_FALLBACK_BY_LEAGUE,
 } from "@/lib/glpm/resolve-train-season";
+import { chunkIds } from "@/lib/sportmonks/constants";
+import {
+  groupByWeatherKey,
+  uniquePositiveIds,
+  weatherDedupeKey,
+} from "@/lib/glpm/hub-query-helpers";
 
 export type {
   GlpmHubMatchSummaryStats,
@@ -195,7 +201,40 @@ export type LoadGlpmHubPayloadOpts = {
   upcomingLimit?: number;
   /** Reuse a preloaded catalog (avoids N+1 readiness scans on home). */
   catalog?: GlpmHubCatalog;
+  /**
+   * Home/hub cards: prefer CX / base history only - skip live vector recompute.
+   * Predict page should leave this false.
+   */
+  preferStoredPredictions?: boolean;
 };
+
+async function loadTeamsByIds(
+  client: Client,
+  teamIds: number[]
+): Promise<Array<{ sm_id: number; name: string; city: string | null }>> {
+  const ids = uniquePositiveIds(teamIds);
+  if (!ids.length) return [];
+  const rows: Array<{ sm_id: number; name: string; city: string | null }> = [];
+  for (const chunk of chunkIds(ids, 100)) {
+    const { data } = await client
+      .from("glpm_teams")
+      .select("sm_id,name,city")
+      .in("sm_id", chunk);
+    for (const row of data ?? []) rows.push(row);
+  }
+  return rows;
+}
+
+async function loadSeasonTeamIds(client: Client, seasonId: number): Promise<number[]> {
+  const { data } = await client
+    .from("glpm_matches")
+    .select("home_team_sm_id,away_team_sm_id")
+    .eq("season_id", seasonId)
+    .limit(800);
+  return uniquePositiveIds(
+    (data ?? []).flatMap((m) => [m.home_team_sm_id, m.away_team_sm_id])
+  );
+}
 
 export async function loadGlpmHubPayload(
   client: Client,
@@ -204,7 +243,8 @@ export async function loadGlpmHubPayload(
   const updatedAt = new Date().toISOString();
   const includeWeather = opts.includeWeather === true;
   const includeRecent = opts.includeRecent !== false;
-  const upcomingLimit = Math.max(1, opts.upcomingLimit ?? 24);
+  const upcomingLimit = Math.max(0, opts.upcomingLimit ?? 24);
+  const preferStoredPredictions = opts.preferStoredPredictions === true;
 
   const catalog = opts.catalog ?? (await loadGlpmHubCatalog(client));
   const { seasonList, readiness, competitionList, seasonsForPayload } = catalog;
@@ -246,23 +286,27 @@ export async function loadGlpmHubPayload(
     };
   }
 
-  const openMatchesQuery = includeWeather
-    ? client
-        .from("glpm_matches")
-        .select(MATCH_LIST_WITH_PAYLOAD)
-        .eq("season_id", seasonId)
-        .or("home_score.is.null,away_score.is.null")
-        .order("kickoff_at", { ascending: true, nullsFirst: false })
-        .order("match_date", { ascending: true })
-        .limit(upcomingLimit)
-    : client
-        .from("glpm_matches")
-        .select(MATCH_LIST_SELECT)
-        .eq("season_id", seasonId)
-        .or("home_score.is.null,away_score.is.null")
-        .order("kickoff_at", { ascending: true, nullsFirst: false })
-        .order("match_date", { ascending: true })
-        .limit(upcomingLimit);
+  // Prefer light columns; only pull payload when weather may need SportMonks venue/weather.
+  const openMatchesQuery =
+    upcomingLimit <= 0
+      ? Promise.resolve({ data: [] as HubMatchListRow[] })
+      : includeWeather
+        ? client
+            .from("glpm_matches")
+            .select(MATCH_LIST_WITH_PAYLOAD)
+            .eq("season_id", seasonId)
+            .or("home_score.is.null,away_score.is.null")
+            .order("kickoff_at", { ascending: true, nullsFirst: false })
+            .order("match_date", { ascending: true })
+            .limit(upcomingLimit)
+        : client
+            .from("glpm_matches")
+            .select(MATCH_LIST_SELECT)
+            .eq("season_id", seasonId)
+            .or("home_score.is.null,away_score.is.null")
+            .order("kickoff_at", { ascending: true, nullsFirst: false })
+            .order("match_date", { ascending: true })
+            .limit(upcomingLimit);
 
   const priorSeasonIdRaw =
     competitionId != null ? TRAIN_FALLBACK_BY_LEAGUE[competitionId] ?? null : null;
@@ -275,26 +319,8 @@ export async function loadGlpmHubPayload(
     ? shortGlpmSeasonLabel(priorSeasonMeta?.name, priorSeasonId)
     : null;
 
-  const [
-    { data: teams },
-    { data: vectorRows },
-    { data: priorVectorRows },
-    finishedMatchesResult,
-    openMatchesResult,
-  ] = await Promise.all([
-    client.from("glpm_teams").select("sm_id,name,city"),
-    client
-      .from("glpm_team_rating_vectors")
-      .select(VECTOR_SELECT)
-      .eq("season_id", seasonId)
-      .order("as_of_date", { ascending: false }),
-    priorSeasonId != null
-      ? client
-          .from("glpm_team_rating_vectors")
-          .select(VECTOR_SELECT)
-          .eq("season_id", priorSeasonId)
-          .order("as_of_date", { ascending: false })
-      : Promise.resolve({ data: [] as never[] }),
+  const [seasonTeamIds, finishedMatchesResult, openMatchesResult] = await Promise.all([
+    loadSeasonTeamIds(client, seasonId),
     includeRecent
       ? client
           .from("glpm_matches")
@@ -309,10 +335,43 @@ export async function loadGlpmHubPayload(
   ]);
 
   const openMatches = (openMatchesResult.data ?? []) as HubMatchListRow[];
+  const finished = (finishedMatchesResult.data ?? []) as HubMatchListRow[];
+  const fixtureTeamIds = uniquePositiveIds([
+    ...seasonTeamIds,
+    ...finished.flatMap((m) => [m.home_team_sm_id, m.away_team_sm_id]),
+    ...openMatches.flatMap((m) => [m.home_team_sm_id, m.away_team_sm_id]),
+  ]);
 
-  const teamName = new Map((teams ?? []).map((t) => [t.sm_id, t.name] as const));
+  const vectorLimit = Math.max(fixtureTeamIds.length * 5, 40);
+  const [
+    teams,
+    { data: vectorRows },
+    { data: priorVectorRows },
+  ] = await Promise.all([
+    loadTeamsByIds(client, fixtureTeamIds),
+    fixtureTeamIds.length
+      ? client
+          .from("glpm_team_rating_vectors")
+          .select(VECTOR_SELECT)
+          .eq("season_id", seasonId)
+          .in("team_sm_id", fixtureTeamIds.slice(0, 120))
+          .order("as_of_date", { ascending: false })
+          .limit(vectorLimit)
+      : Promise.resolve({ data: [] as never[] }),
+    priorSeasonId != null && fixtureTeamIds.length
+      ? client
+          .from("glpm_team_rating_vectors")
+          .select(VECTOR_SELECT)
+          .eq("season_id", priorSeasonId)
+          .in("team_sm_id", fixtureTeamIds.slice(0, 120))
+          .order("as_of_date", { ascending: false })
+          .limit(vectorLimit)
+      : Promise.resolve({ data: [] as never[] }),
+  ]);
+
+  const teamName = new Map(teams.map((t) => [t.sm_id, t.name] as const));
   const teamCity = new Map(
-    (teams ?? [])
+    teams
       .filter((t) => t.city != null && String(t.city).trim())
       .map((t) => [t.sm_id, String(t.city)] as const)
   );
@@ -414,18 +473,18 @@ export async function loadGlpmHubPayload(
     ? meanPrimaryRatings(competitionMean.ratings)
     : null;
 
-  const finished = (finishedMatchesResult.data ?? []) as HubMatchListRow[];
   const upcomingRows = [...openMatches].sort((a, b) => {
     const da = a.kickoff_at ?? a.match_date ?? "";
     const db = b.kickoff_at ?? b.match_date ?? "";
     return da.localeCompare(db);
   });
 
-  const fixtureTeamIds = [
-    ...finished.flatMap((m) => [m.home_team_sm_id, m.away_team_sm_id]),
-    ...upcomingRows.flatMap((m) => [m.home_team_sm_id, m.away_team_sm_id]),
-  ];
-  const teamsNeedingFallback = fixtureTeamIds.filter((id) => !seasonVectors.has(id));
+  const teamsNeedingFallback = uniquePositiveIds(
+    [
+      ...finished.flatMap((m) => [m.home_team_sm_id, m.away_team_sm_id]),
+      ...upcomingRows.flatMap((m) => [m.home_team_sm_id, m.away_team_sm_id]),
+    ].filter((id) => !seasonVectors.has(id))
+  );
 
   const recentSlice = includeRecent ? finished.slice(0, 12) : [];
   const recentIds = recentSlice.map((m) => m.sm_id);
@@ -609,12 +668,22 @@ export async function loadGlpmHubPayload(
     }
 
     await Promise.all(
-      upcomingRows.map(async (m) => {
-        // Match venue_sm_id is the home ground — never use away-team location.
+      groupByWeatherKey(upcomingRows, (m) => {
         const stored =
           m.venue_sm_id != null ? venuesById.get(m.venue_sm_id) ?? null : null;
+        return weatherDedupeKey({
+          matchDate: m.match_date,
+          cityName: stored?.city_name ?? teamCity.get(m.home_team_sm_id) ?? null,
+          venueName: m.venue ?? stored?.name ?? null,
+          venueSmId: m.venue_sm_id,
+        });
+      }).map(async (group) => {
+        const m = group.items[0];
+        const stored =
+          m.venue_sm_id != null ? venuesById.get(m.venue_sm_id) ?? null : null;
+        let weather: GlpmHubWeather;
         try {
-          const weather = await resolveHubMatchWeather({
+          weather = await resolveHubMatchWeather({
             payload: m.payload ?? null,
             venueName: m.venue ?? stored?.name ?? null,
             homeTeamCity: teamCity.get(m.home_team_sm_id) ?? null,
@@ -622,16 +691,18 @@ export async function loadGlpmHubPayload(
             kickoffAt: m.kickoff_at,
             storedVenue: stored,
           });
-          weatherByMatch.set(m.sm_id, weather);
         } catch {
-          weatherByMatch.set(m.sm_id, {
+          weather = {
             status: "tbc",
             condition: "TBC",
             tempC: null,
             source: "pending",
             venueName: m.venue ?? stored?.name ?? null,
             cityName: stored?.city_name ?? teamCity.get(m.home_team_sm_id) ?? null,
-          });
+          };
+        }
+        for (const row of group.items) {
+          weatherByMatch.set(row.sm_id, weather);
         }
       })
     );
@@ -640,6 +711,50 @@ export async function loadGlpmHubPayload(
   const upcoming: GlpmHubUpcomingMatch[] = upcomingRows.map((m) => {
     const stored = predByMatch.get(m.sm_id);
     const cxStored = cxByMatch.get(m.sm_id);
+
+    if (preferStoredPredictions) {
+      const { prediction, predictionSource } = resolveUpcomingCardPrediction({
+        cxRow: cxStored ?? null,
+        live: null,
+        liveSource: null,
+        baseRow: stored ?? null,
+      });
+      if (!cxStored && !stored) {
+        console.warn(
+          `[glpm-hub] missing stored prediction for match ${m.sm_id} (preferStoredPredictions)`
+        );
+      }
+      return {
+        matchSmId: m.sm_id,
+        homeName: teamName.get(m.home_team_sm_id) ?? `Team ${m.home_team_sm_id}`,
+        awayName: teamName.get(m.away_team_sm_id) ?? `Team ${m.away_team_sm_id}`,
+        homeTeamSmId: m.home_team_sm_id,
+        awayTeamSmId: m.away_team_sm_id,
+        date: m.match_date,
+        kickoffAt: m.kickoff_at,
+        venue: m.venue,
+        gameweek: m.gameweek,
+        prediction,
+        predictionPriorSeason: null,
+        predictionSeasonLabel: null,
+        predictionPriorSeasonLabel: null,
+        predictionSource,
+        homePromotedWarning: shouldWarnPromotedTeam({
+          isPromoted: promotedTeamIds.has(m.home_team_sm_id),
+          priorSeasonId,
+          seasonId,
+          hasPriorSeasonVector: priorSeasonVectors.has(m.home_team_sm_id),
+        }),
+        awayPromotedWarning: shouldWarnPromotedTeam({
+          isPromoted: promotedTeamIds.has(m.away_team_sm_id),
+          priorSeasonId,
+          seasonId,
+          hasPriorSeasonVector: priorSeasonVectors.has(m.away_team_sm_id),
+        }),
+        weather: weatherByMatch.get(m.sm_id) ?? null,
+      };
+    }
+
     const { home, away } = resolvePair(m.home_team_sm_id, m.away_team_sm_id);
 
     const homeCurrent = seasonVectors.get(m.home_team_sm_id) ?? null;

@@ -252,11 +252,14 @@ export async function loadLiveScoresBoard(
     .order("kickoff_at", { ascending: true })
     .limit(24);
 
+  // Same league scope as the live strip so Postgres can use
+  // (league_sm_id, kickoff_at) instead of a wide kickoff-only scan.
   const dayQuery = client
     .from("glpm_matches")
     .select(MATCH_SELECT)
     .gte("kickoff_at", dayStart)
     .lt("kickoff_at", dayEnd)
+    .in("league_sm_id", DEFAULT_GLPM_LEAGUE_IDS)
     .order("kickoff_at", { ascending: true })
     .limit(160);
 

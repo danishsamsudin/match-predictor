@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSyncCronSecret } from "@/lib/config/data-source";
 import { refreshGlpmHomeHubPacks } from "@/lib/glpm/home-hub-refresh";
-import { runGlpmUpcomingPredictionSnapshots } from "@/lib/glpm/run-upcoming-prediction-snapshots";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -19,31 +18,16 @@ function isAuthorized(request: NextRequest): boolean {
   return provided === secret;
 }
 
-async function run(request: NextRequest) {
-  const maxRaw = request.nextUrl.searchParams.get("maxPerCompetition");
-  const maxPerCompetition = maxRaw ? Number(maxRaw) : undefined;
-  const force = request.nextUrl.searchParams.get("force") === "true";
-
-  const result = await runGlpmUpcomingPredictionSnapshots({
-    maxPerCompetition:
-      maxPerCompetition != null && Number.isFinite(maxPerCompetition)
-        ? maxPerCompetition
-        : undefined,
-    force,
-  });
-
-  const packs = await refreshGlpmHomeHubPacks();
-  return NextResponse.json(
-    { ...result, homeHubPacks: packs },
-    { status: result.ok && packs.ok ? 200 : 500 }
-  );
+async function run() {
+  const result = await refreshGlpmHomeHubPacks();
+  return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 }
 
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return run(request);
+  return run();
 }
 
 export async function GET(request: NextRequest) {
@@ -51,11 +35,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       message:
-        "POST or GET ?run=true with cron secret to precompute GLPM-CX upcoming card predictions",
+        "POST or GET ?run=true with cron secret to rebuild GLPM home hub snapshot packs",
     });
   }
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return run(request);
+  return run();
 }

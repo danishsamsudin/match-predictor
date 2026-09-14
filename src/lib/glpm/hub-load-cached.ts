@@ -22,6 +22,7 @@ export type CachedHubOpts = {
   includeWeather?: boolean;
   includeRecent?: boolean;
   upcomingLimit?: number;
+  preferStoredPredictions?: boolean;
 };
 
 /**
@@ -37,15 +38,17 @@ export async function loadGlpmHubPayloadCached(
   const preferFixtures = opts.preferFixtures === true;
   const includeWeather = opts.includeWeather === true;
   const includeRecent = opts.includeRecent !== false;
-  const upcomingLimit = Math.max(1, opts.upcomingLimit ?? 24);
+  const upcomingLimit = Math.max(0, opts.upcomingLimit ?? 24);
 
+  const preferStoredPredictions = opts.preferStoredPredictions === true;
   const cacheKey = [
-    "glpm-hub-payload-v9",
+    "glpm-hub-payload-v10",
     seasonKey,
     competitionKey,
     preferFixtures ? "1" : "0",
     includeWeather ? "1" : "0",
     includeRecent ? "1" : "0",
+    preferStoredPredictions ? "1" : "0",
     String(upcomingLimit),
   ];
 
@@ -58,6 +61,7 @@ export async function loadGlpmHubPayloadCached(
         preferFixtures,
         includeWeather,
         includeRecent,
+        preferStoredPredictions,
         upcomingLimit,
         catalog,
       };

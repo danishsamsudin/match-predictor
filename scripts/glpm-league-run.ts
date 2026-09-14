@@ -12,8 +12,25 @@ import path from "node:path";
 import { SM_SEASON_2025_26, SM_SEASON_2026_27 } from "../src/lib/sportmonks/constants";
 import { tryCreateServiceClient } from "../src/lib/supabase";
 import { reapplySeasonRatingOverlay, seasonRatingOverlayAvailable } from "../src/lib/glpm/understat-season-overlay";
+import {
+  createReportsServiceClientFromEnv,
+  uploadProductReportFiles,
+} from "../src/lib/product-reports";
 
 const ROOT = process.cwd();
+
+const SEASON_COMPETITION_NAME: Record<string, string> = {
+  [String(SM_SEASON_2025_26.PREMIER_LEAGUE)]: "Premier League",
+  [String(SM_SEASON_2025_26.EREDIVISIE)]: "Eredivisie",
+  [String(SM_SEASON_2025_26.CHAMPIONSHIP)]: "Championship",
+  [String(SM_SEASON_2025_26.SERIE_A)]: "Serie A",
+  [String(SM_SEASON_2025_26.BUNDESLIGA)]: "Bundesliga",
+  [String(SM_SEASON_2026_27.PREMIER_LEAGUE)]: "Premier League",
+  [String(SM_SEASON_2026_27.EREDIVISIE)]: "Eredivisie",
+  [String(SM_SEASON_2026_27.CHAMPIONSHIP)]: "Championship",
+  [String(SM_SEASON_2026_27.SERIE_A)]: "Serie A",
+  [String(SM_SEASON_2026_27.BUNDESLIGA)]: "Bundesliga",
+};
 
 /** Default training season: 2025/26 PL until 2026/27 has finished matches. */
 const DEFAULT_TRAIN_SEASON_ID = String(SM_SEASON_2025_26.PREMIER_LEAGUE);
@@ -735,6 +752,49 @@ async function main() {
       endStep(tracker, t0, "failed (non-fatal)");
     } else {
       endStep(tracker, t0, pdfPath);
+    }
+  }
+
+  // ── Upload to Supabase Storage + catalog ────────────────────────────
+  {
+    const t0 = beginStep(
+      tracker,
+      "Upload report to Storage",
+      "product-reports bucket + product_reports row"
+    );
+    const reportsClient =
+      createReportsServiceClientFromEnv() ?? tryCreateServiceClient();
+    if (!reportsClient) {
+      endStep(tracker, t0, "skipped (no service client)");
+    } else {
+      const competitionName = SEASON_COMPETITION_NAME[seasonId] ?? null;
+
+      const stamp = timestamp;
+      const mdStorage = `glpm/${seasonId}/${stamp}.md`;
+      const pdfStorage = `glpm/${seasonId}/${stamp}.pdf`;
+      const mdBody = fs.existsSync(reportPath)
+        ? fs.readFileSync(reportPath)
+        : null;
+      const pdfBody =
+        fs.existsSync(pdfPath) ? fs.readFileSync(pdfPath) : null;
+
+      const uploaded = await uploadProductReportFiles(reportsClient, {
+        kind: "glpm-league-run",
+        title: `GLPM league run · season ${seasonId}`,
+        seasonId: Number(seasonId),
+        competitionName,
+        summary: `Generated ${new Date().toISOString()}`,
+        storagePathMd: mdBody ? mdStorage : null,
+        storagePathPdf: pdfBody ? pdfStorage : null,
+        mdBody,
+        pdfBody,
+      });
+      if (uploaded.error) {
+        console.warn(`  · Storage upload failed: ${uploaded.error}`);
+        endStep(tracker, t0, "failed (non-fatal)");
+      } else {
+        endStep(tracker, t0, uploaded.id ?? "ok");
+      }
     }
   }
 
