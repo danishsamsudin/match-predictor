@@ -8,23 +8,17 @@ import {
   resolveWc2026SofifaTeamLabel,
 } from "@/lib/data/parse-sofifa-squad-html";
 
-const SOFIFA_DIR = path.join(
-  process.cwd(),
-  "data/world-cup-2026/WC Squads - SoFIFA"
-);
-const ENGLAND_HTML = path.join(
-  SOFIFA_DIR,
-  "England - FC 26 - Jun 10, 2026 _ SoFIFA.html"
-);
-const BELGIUM_HTML = path.join(
-  SOFIFA_DIR,
-  "Belgium - FC 26 - Jun 10, 2026 _ SoFIFA.html"
-);
+const FIXTURE_DIR = path.join(process.cwd(), "src/lib/data/__fixtures__/sofifa");
+const ENGLAND_HTML = path.join(FIXTURE_DIR, "england-squad.fixture.html");
+const BELGIUM_HTML = path.join(FIXTURE_DIR, "belgium-squad.fixture.html");
 
 describe("parseSofifaSquadHtml", () => {
   it("parses England squad ratings and key players", () => {
     const html = readFileSync(ENGLAND_HTML, "utf-8");
-    const squad = parseSofifaSquadHtml(html, path.basename(ENGLAND_HTML));
+    const squad = parseSofifaSquadHtml(
+      html,
+      "England - FC 26 - Jun 10, 2026 _ SoFIFA.html"
+    );
 
     expect(squad.teamName).toBe("England");
     expect(squad.sofifaTeamId).toBe(1318);
@@ -47,7 +41,10 @@ describe("parseSofifaSquadHtml", () => {
 
   it("Belgium Squad table: first 11 non-SUB in order, 12th is bench", () => {
     const html = readFileSync(BELGIUM_HTML, "utf-8");
-    const squad = parseSofifaSquadHtml(html, path.basename(BELGIUM_HTML));
+    const squad = parseSofifaSquadHtml(
+      html,
+      "Belgium - FC 26 - Jun 10, 2026 _ SoFIFA.html"
+    );
     const xi = extractSofifaStartingXi(squad.players);
 
     expect(xi).toHaveLength(11);

@@ -71,6 +71,4 @@ Imported FBref data lives in `teams`, `players`, `matches`, `player_season_stats
 
 1. `.env.local`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 2. Apply migration `013_fbref_public_read.sql`
-3. `npm run dev` → [http://localhost:3000/dev/fbref](http://localhost:3000/dev/fbref)
-
-API: `/api/fbref/teams`, `/api/fbref/teams/{id}/players`, `/api/fbref/matches`
+3. Query via API: `/api/fbref/teams`, `/api/fbref/teams/{id}/players`, `/api/fbref/matches`

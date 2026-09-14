@@ -25,6 +25,21 @@
 /data/imports/scoutlyst/incoming/**/*.csv
 /data/imports/scoutlyst/archive/**/*.csv
 
+# Local GLPM training / report artifacts (regenerable)
+/data/reports/**
+!/data/reports/.gitkeep
+/data/knowledge/
+/docs/*.pdf
+/export/*.pdf
+/export/glpm-league-run-*.html
+/export/wc-graham-model-algorithm.pdf
+
+# Local squad HTML re-import dumps (runtime uses sofifa-squads.json + Supabase)
+/data/world-cup-2026/WC Squads/**
+!/data/world-cup-2026/WC Squads/.gitkeep
+/data/world-cup-2026/WC Squads - SoFIFA/**
+!/data/world-cup-2026/WC Squads - SoFIFA/.gitkeep
+
 # Local Opta HTML saves (ingest input — parsed data lives in Supabase after wc:postmatch)
 /data/world-cup-2026/WC-Opta-Results/**
 /data/world-cup-2026/WC-Opta-Player-Stats/**
@@ -63,8 +78,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Local GLPM training / report artifacts (regenerable)
-/data/reports/.glpm-artifact-snapshots/
-/data/reports/.glpm-introspection-*.json
-/data/reports/.glpm-league-run-*-summaries.json
-/export/glpm-league-run-*.html
+# Supabase CLI temp
+/supabase/.temp/

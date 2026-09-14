@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { BarChart3, Goal, TrendingUp } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import type { PredictionAnalytics, PredictionResult } from "@/lib/types/prediction";
 import {
   formatPairedStatValue,
@@ -1012,24 +1012,5 @@ function FormTrendSection({
         </div>
       </div>
     </ChartCard>
-  );
-}
-
-export function PredictionChartsIconRow() {
-  return (
-    <div className="flex flex-wrap gap-2 text-[10px] text-muted">
-      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary-emphasis">
-        <Goal className="h-3 w-3" />
-        Score markets
-      </span>
-      <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-accent-emphasis">
-        <BarChart3 className="h-3 w-3" />
-        Goals O/U
-      </span>
-      <span className="inline-flex items-center gap-1 rounded-full bg-foreground/5 px-2 py-0.5">
-        <TrendingUp className="h-3 w-3" />
-        Form & xG
-      </span>
-    </div>
   );
 }

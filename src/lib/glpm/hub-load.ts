@@ -854,5 +854,3 @@ export async function loadGlpmHubPayload(
     updatedAt,
   };
 }
-
-export { meanPrimaryRatings as meanRatings, PRIMARY_ORDER };

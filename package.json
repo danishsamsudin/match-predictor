@@ -77,7 +77,6 @@
     "glpm:sm-refresh-players": "npx tsx scripts/glpm-sportmonks-refresh-players.ts",
     "glpm:sm-refresh-coaches": "npx tsx scripts/glpm-sportmonks-refresh-coaches.ts",
     "glpm:wy-enrich": "npx tsx scripts/glpm-wyscout-enrich-match.ts",
-    "glpm:wyscout-ingest": "npx tsx scripts/glpm-wyscout-ingest-match.ts",
     "glpm:wyscout-backfill": "npx tsx scripts/glpm-wyscout-backfill-season.ts",
     "glpm:attack-train": "bash scripts/ml/run-attack-train.sh",
     "glpm:attack-train:synthetic": "python3 scripts/glpm_train_attack_ratings.py --synthetic",

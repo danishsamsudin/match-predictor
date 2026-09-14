@@ -132,23 +132,6 @@ export function formatStrengthExplanationLine(
   return `League strength vs Premier League (Ω) — ${homeName}: ${homeOmega.toFixed(2)}, ${awayName}: ${awayOmega.toFixed(2)}. Team rates normalized to PL benchmark before xG.`;
 }
 
-/** @deprecated Use applyBenchmarkToPerformanceScore with full context. */
-export function applyLeagueBenchmarkToPerformanceScoreCompat(
-  score: number | null,
-  leagueId: number | undefined,
-  entityType?: EntityType,
-  teamId?: number,
-  teamName?: string
-): number | null {
-  if (leagueId == null && teamId == null) return score == null ? null : Math.round(score);
-  return applyBenchmarkToPerformanceScore(score, {
-    entityType,
-    teamId: teamId ?? 0,
-    teamName,
-    leagueId: leagueId ?? 0,
-  });
-}
-
 export {
   applyLeagueBenchmarkToPerformanceScore,
   normalizeTeamStatsToPremierLeague,
