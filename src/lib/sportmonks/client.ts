@@ -374,11 +374,11 @@ export class SportmonksClient {
     return Array.isArray(res.data) ? res.data : [];
   }
 
-  getFixturesBetween(
+  async getFixturesBetween(
     start: string,
     end: string,
     options?: { leagueIds?: number[]; include?: string; maxPages?: number }
-  ) {
+  ): Promise<SmFixture[]> {
     const leagueIds = options?.leagueIds ?? DEFAULT_GLPM_LEAGUE_IDS;
     const include = options?.include;
     if (include) {
@@ -391,9 +391,13 @@ export class SportmonksClient {
         { maxPages: options?.maxPages }
       );
     }
-    return this.get<SmApiResponse<SmFixture[]>>(`/fixtures/between/${start}/${end}`, {
-      filters: `fixtureLeagues:${leagueIds.join(",")}`,
-    });
+    const res = await this.get<SmApiResponse<SmFixture[]>>(
+      `/fixtures/between/${start}/${end}`,
+      {
+        filters: `fixtureLeagues:${leagueIds.join(",")}`,
+      }
+    );
+    return Array.isArray(res.data) ? res.data : [];
   }
 }
 
