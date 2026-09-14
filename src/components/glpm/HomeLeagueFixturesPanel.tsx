@@ -5,6 +5,7 @@ import Link from "next/link";
 import { GlpmUpcomingFlipCard } from "@/components/glpm/GlpmUpcomingFixturesSection";
 import { HomeLeagueTabs } from "@/components/glpm/HomeLeagueTabs";
 import type { GlpmHubUpcomingMatch } from "@/lib/glpm/hub-types";
+import { matchLocalYmd, upcomingWeekWindow } from "@/lib/glpm/home-fixtures-window";
 import { DISPLAY_LOCALE, formatCalendarDateLongLocal } from "@/lib/utils/kickoff-display";
 
 export type HomeFixturesLeague = {
@@ -13,42 +14,6 @@ export type HomeFixturesLeague = {
   seasonId: number | null;
   matches: GlpmHubUpcomingMatch[];
 };
-
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-/** Local calendar YYYY-MM-DD. */
-function localYmd(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function matchLocalYmd(match: GlpmHubUpcomingMatch): string | null {
-  if (match.kickoffAt) {
-    const kickoff = new Date(match.kickoffAt);
-    if (!Number.isNaN(kickoff.getTime())) return localYmd(kickoff);
-  }
-  if (match.date) return match.date.slice(0, 10);
-  return null;
-}
-
-/**
- * First two local calendar days that actually have upcoming matches.
- * Returns fewer than two when the league has fewer match days loaded.
- */
-export function upcomingTwoDayWindow(
-  matches: GlpmHubUpcomingMatch[],
-  now = new Date()
-): string[] {
-  const today = localYmd(now);
-  const days = new Set<string>();
-  for (const m of matches) {
-    const ymd = matchLocalYmd(m);
-    if (!ymd || ymd < today) continue;
-    days.add(ymd);
-  }
-  return [...days].sort().slice(0, 2);
-}
 
 function parseLocalYmd(ymd: string): Date {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -104,7 +69,7 @@ export function HomeLeagueFixturesPanel({
   const active = leagues.find((l) => l.leagueName === activeId) ?? leagues[0] ?? null;
 
   const dayWindow = useMemo(
-    () => (active ? upcomingTwoDayWindow(active.matches) : []),
+    () => (active ? upcomingWeekWindow(active.matches) : []),
     [active]
   );
 
@@ -143,7 +108,7 @@ export function HomeLeagueFixturesPanel({
         </Link>
       </div>
       <p className="mb-4 text-sm text-muted">
-        Scroll sideways through the next two match days. Flip any card for O/U, BTTS, and fair
+        Scroll sideways through the next week of fixtures. Flip any card for O/U, BTTS, and fair
         odds. When both seasons are trained, main figures use 25/26 ratings and violet brackets
         show 26/27.
       </p>
@@ -170,7 +135,7 @@ export function HomeLeagueFixturesPanel({
           <div className="glpm-fixtures-rail" role="list" aria-label="Upcoming fixtures by match day">
             {dayWindow.map((day, dayIndex) => {
               const matches = byDay.get(day) ?? [];
-              const dayTone = (dayIndex === 0 ? 0 : 1) as 0 | 1;
+              const dayTone = (dayIndex % 2 === 0 ? 0 : 1) as 0 | 1;
               return (
                 <Fragment key={day}>
                   <MatchdaySpine day={day} dayTone={dayTone} isFirst={dayIndex === 0} />

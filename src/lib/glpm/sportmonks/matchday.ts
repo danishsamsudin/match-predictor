@@ -156,12 +156,52 @@ export type MatchdayWindowPlan = {
 
 export function parseKickoffMs(startingAt: string | null | undefined): number | null {
   if (!startingAt) return null;
-  // SportMonks often returns "YYYY-MM-DD HH:mm:ss" (UTC). Normalize.
-  const normalized = startingAt.includes("T")
-    ? startingAt
-    : startingAt.replace(" ", "T") + (startingAt.endsWith("Z") ? "" : "Z");
-  const ms = Date.parse(normalized);
+  const trimmed = startingAt.trim();
+  if (!trimmed) return null;
+  // Already UTC / offset-aware.
+  if (/[zZ]$/.test(trimmed) || /[+-]\d{2}:\d{2}$/.test(trimmed)) {
+    const ms = Date.parse(trimmed);
+    return Number.isFinite(ms) ? ms : null;
+  }
+  // SportMonks naive "YYYY-MM-DD HH:mm:ss" (and ISO without zone) is UTC.
+  const normalized = trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T");
+  const ms = Date.parse(`${normalized}Z`);
   return Number.isFinite(ms) ? ms : null;
+}
+
+export type SportmonksKickoffSource = {
+  starting_at?: string | null;
+  starting_at_timestamp?: number | null;
+};
+
+/**
+ * Canonical UTC kickoff from a SportMonks fixture.
+ * Prefer starting_at_timestamp (unix seconds) so naive local strings cannot shift the day.
+ */
+export function resolveSportmonksKickoff(fixture: SportmonksKickoffSource): {
+  matchDate: string | null;
+  kickoffAt: string | null;
+} {
+  const ts = fixture.starting_at_timestamp;
+  if (typeof ts === "number" && Number.isFinite(ts) && ts > 0) {
+    const ms = ts > 1e12 ? ts : ts * 1000;
+    const iso = new Date(ms).toISOString();
+    if (Number.isFinite(Date.parse(iso))) {
+      return { matchDate: iso.slice(0, 10), kickoffAt: iso };
+    }
+  }
+
+  const ms = parseKickoffMs(fixture.starting_at ?? null);
+  if (ms != null) {
+    const iso = new Date(ms).toISOString();
+    return { matchDate: iso.slice(0, 10), kickoffAt: iso };
+  }
+
+  const dateOnly = fixture.starting_at?.trim().slice(0, 10) ?? "";
+  return {
+    matchDate: /^\d{4}-\d{2}-\d{2}$/.test(dateOnly) ? dateOnly : null,
+    kickoffAt: null,
+  };
 }
 
 export function filterFixturesOnMatchDate(

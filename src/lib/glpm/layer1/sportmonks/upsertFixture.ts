@@ -22,6 +22,7 @@ import {
 } from "./proxies";
 import { upsertProviderPayload } from "../upsertPayload";
 import { currentGoalsFromScores } from "@/lib/glpm/live-scores/score-from-payload";
+import { resolveSportmonksKickoff } from "@/lib/glpm/sportmonks/matchday";
 
 type Client = SupabaseClient<Database>;
 type StatsInsert = Database["public"]["Tables"]["glpm_match_team_stats"]["Insert"];
@@ -130,11 +131,7 @@ function resolvePsxgFaced(
 
 export function mapSportmonksFixture(fixture: SmFixture): MatchInsert {
   const { home, away } = resolveParticipants(fixture);
-  const starting = fixture.starting_at;
-  const matchDate = starting ? starting.slice(0, 10) : null;
-  const kickoff = starting
-    ? new Date(starting.includes("T") ? starting : starting.replace(" ", "T") + "Z").toISOString()
-    : null;
+  const { matchDate, kickoffAt: kickoff } = resolveSportmonksKickoff(fixture);
 
   const roundName = fixture.round?.name;
   const gameweek =

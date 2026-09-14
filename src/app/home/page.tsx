@@ -36,7 +36,7 @@ const TARGET_LEAGUES = [
   "Championship",
 ] as const;
 
-/** Enough open fixtures to cover a busy two-day Championship slate. */
+/** Enough open fixtures to cover a full upcoming week on a 24-team Championship slate. */
 const HOME_UPCOMING_LIMIT = 48;
 
 type HomeLeagueBlock = {

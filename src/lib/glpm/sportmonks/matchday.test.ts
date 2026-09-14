@@ -7,6 +7,7 @@ import {
   parseKickoffMs,
   resolveAutoPhase,
   resolveMatchdayTimeZone,
+  resolveSportmonksKickoff,
   zonedWallTimeToUtc,
 } from "./matchday";
 
@@ -41,6 +42,18 @@ describe("matchday timezone helpers", () => {
     expect(parseKickoffMs("2026-07-22 15:00:00")).toBe(
       Date.parse("2026-07-22T15:00:00.000Z")
     );
+    expect(parseKickoffMs("2026-09-14T16:30:00")).toBe(
+      Date.parse("2026-09-14T16:30:00.000Z")
+    );
+  });
+
+  it("prefers starting_at_timestamp over a stale naive starting_at string", () => {
+    const kick = resolveSportmonksKickoff({
+      starting_at: "2026-09-13 10:30:00",
+      starting_at_timestamp: 1789403400,
+    });
+    expect(kick.kickoffAt).toBe("2026-09-14T16:30:00.000Z");
+    expect(kick.matchDate).toBe("2026-09-14");
   });
 
   it("builds lineup/results/refresh due times from first/last kickoff", () => {

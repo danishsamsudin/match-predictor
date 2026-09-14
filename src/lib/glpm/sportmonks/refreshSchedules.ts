@@ -2,6 +2,7 @@ import { tryCreateServiceClient } from "../../supabase";
 import { ingestMatchFromSportmonks } from "../ingestMatch";
 import { createSportmonksClient } from "../../sportmonks/client";
 import { DEFAULT_GLPM_SEASON_IDS_2026_27 } from "../../sportmonks/constants";
+import { parseKickoffMs } from "./matchday";
 
 type ScheduledFixtureRef = {
   id: number;
@@ -107,8 +108,8 @@ function filterFixturesByWindow(args: {
 
   return args.fixtures.filter((f) => {
     if (!f.startingAt) return true;
-    const ms = Date.parse(f.startingAt);
-    if (!Number.isFinite(ms)) return true;
+    const ms = parseKickoffMs(f.startingAt);
+    if (ms == null) return true;
     return ms >= minMs && ms <= maxMs;
   });
 }

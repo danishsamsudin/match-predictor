@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { runGlpmCxPredict } from "@/lib/glpm-cx/run-cx-predict";
+import { refreshUpcomingFixtureTimes } from "@/lib/glpm/sportmonks/refreshUpcomingTimes";
 import {
   loadGlpmSeasonReadiness,
   pickFixtureSeasonId,
@@ -66,6 +67,19 @@ export async function runGlpmUpcomingPredictionSnapshots(options?: {
   const maxPer = options?.maxPerCompetition ?? 48;
   const force = options?.force === true;
   const freshAfter = startOfUtcDayIso();
+
+  try {
+    const times = await refreshUpcomingFixtureTimes({ supabase: client });
+    if (times.failed) {
+      errors.push(
+        `kickoff refresh: updated ${times.updated}, ingested ${times.ingested}, failed ${times.failed}`
+      );
+    }
+  } catch (err) {
+    errors.push(
+      `kickoff refresh failed: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
 
   const { data: competitions } = await client
     .from("glpm_competitions")

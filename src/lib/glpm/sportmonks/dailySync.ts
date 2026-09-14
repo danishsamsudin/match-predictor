@@ -36,6 +36,7 @@ import {
   ingestFixturesByIds,
   type BatchIngestSummary,
 } from "./ingestFixturesBatch";
+import { refreshUpcomingFixtureTimes } from "./refreshUpcomingTimes";
 import { refreshGlpmStandings } from "../refresh-standings";
 import { runGlpmFetchPpda, type FetchPpdaSummary } from "../fetchPpda";
 import { runGlpmFetchUnderstatShots, type FetchUnderstatShotsSummary } from "../fetchUnderstatShots";
@@ -149,12 +150,35 @@ export async function runMorningPhase(options: DailySyncOptions = {}): Promise<D
     dryRun,
   });
 
+  // Morning only loads yesterday + today. Also refresh kickoffs for the next
+  // week so postponed / TV-time moves show on the home rail the same day.
+  let kickoffRefresh: Awaited<ReturnType<typeof refreshUpcomingFixtureTimes>> | null = null;
+  try {
+    kickoffRefresh = await refreshUpcomingFixtureTimes({
+      timeZone,
+      startYmd: matchDate,
+      endYmd: addCalendarDays(matchDate, 8),
+      leagueIds,
+      dryRun,
+      client: sm,
+      supabase,
+    });
+    notes.push(
+      `Upcoming kickoffs ${kickoffRefresh.startYmd} -> ${kickoffRefresh.endYmd}: fetched ${kickoffRefresh.fetched}, updated ${kickoffRefresh.updated}, ingested ${kickoffRefresh.ingested}`
+    );
+  } catch (error) {
+    notes.push(
+      `Upcoming kickoff refresh failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
   const morningSummary = {
     fetchedToday: todayFixtures.length,
     fetchedYesterday: ydayFixtures.length,
     slate: plan.fixtureIds.length,
     catchUpExtra: catchUpExtra.length,
     ingest,
+    kickoffRefresh,
     firstKickoffAt: plan.firstKickoffAt,
     lastKickoffAt: plan.lastKickoffAt,
     lineupDueAt: plan.lineupDueAt,

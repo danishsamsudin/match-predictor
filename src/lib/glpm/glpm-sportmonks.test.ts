@@ -57,6 +57,8 @@ describe("GLPM SportMonks primary mappers", () => {
     expect(row.league_sm_id).toBe(8);
     expect(row.home_score).toBe(2);
     expect(row.away_score).toBe(1);
+    expect(row.match_date).toBe("2024-11-10");
+    expect(row.kickoff_at).toBe("2024-11-10T17:30:00.000Z");
   });
 
   it("maps statistics including xG and xGoT→psxg_faced", () => {

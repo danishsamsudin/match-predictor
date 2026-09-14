@@ -131,6 +131,8 @@ export type SmFixture = {
   venue_id?: number;
   name?: string;
   starting_at?: string;
+  /** Unix seconds (UTC). Prefer this over naive starting_at strings. */
+  starting_at_timestamp?: number;
   result_info?: string | null;
   leg?: string;
   length?: number;

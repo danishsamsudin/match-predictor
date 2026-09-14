@@ -65,6 +65,7 @@
     "glpm:sm-backfill-team-stats": "npx tsx scripts/glpm-sportmonks-backfill-team-stats.ts",
     "glpm:sm-ensure-gk-players": "npx tsx scripts/glpm-sportmonks-ensure-gk-players.ts",
     "glpm:sm-refresh-schedules": "npx tsx scripts/glpm-sportmonks-refresh-schedules.ts",
+    "glpm:sm-refresh-kickoffs": "npx tsx scripts/glpm-refresh-upcoming-kickoffs.ts",
     "glpm:sm-daily-sync": "npx tsx scripts/glpm-sportmonks-daily-sync.ts",
     "glpm:night-refresh": "npx tsx scripts/glpm-night-refresh.ts",
     "glpm:fetch-ppda": "npx tsx scripts/glpm-fetch-ppda.ts",

@@ -7,7 +7,7 @@
  */
 
 import type { SmApiResponse, SmCoach, SmFixture, SmPagination, SmPlayer, SmTeam } from "./types";
-import { DEFAULT_GLPM_LEAGUE_IDS, SM_LEAGUE } from "./constants";
+import { DEFAULT_GLPM_LEAGUE_IDS } from "./constants";
 
 export {
   SM_LEAGUE,
@@ -75,6 +75,21 @@ export const PLAN_FIXTURE_INCLUDE = [
 ].join(";");
 
 const PLAN_FIXTURE_INCLUDE_SET = new Set(PLAN_FIXTURE_INCLUDE.split(";"));
+
+/** SportMonks sometimes returns next_cursor as a full URL instead of the token. */
+export function sportmonksNextCursorToken(raw: string | null | undefined): string | undefined {
+  if (!raw) return undefined;
+  const value = raw.trim();
+  if (!value) return undefined;
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    try {
+      return new URL(value).searchParams.get("cursor") ?? undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return value;
+}
 
 /** Drop unknown includes; allow nested lineup/events paths and xGFixture. */
 export function sanitizeFixtureInclude(include: string): string {
@@ -270,8 +285,9 @@ export class SportmonksClient {
       pages += 1;
 
       const pagination: SmPagination | undefined = res.pagination;
-      if (!pagination?.has_more || !pagination.next_cursor) break;
-      cursor = pagination.next_cursor;
+      const next = sportmonksNextCursorToken(pagination?.next_cursor);
+      if (!pagination?.has_more || !next) break;
+      cursor = next;
     }
 
     return rows;
@@ -363,9 +379,7 @@ export class SportmonksClient {
     end: string,
     options?: { leagueIds?: number[]; include?: string; maxPages?: number }
   ) {
-    const leagueIds =
-      options?.leagueIds ??
-      ([SM_LEAGUE.PREMIER_LEAGUE, SM_LEAGUE.EREDIVISIE] as number[]);
+    const leagueIds = options?.leagueIds ?? DEFAULT_GLPM_LEAGUE_IDS;
     const include = options?.include;
     if (include) {
       return this.listAllPages<SmFixture>(
