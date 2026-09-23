@@ -1,4 +1,6 @@
 import type { EntityType, TeamOption } from "@/lib/types/football-lookup";
+import { isNationalTeamId } from "@/lib/data/national-team-geography";
+import { NATIONS_LEAGUE_2026_TEAMS } from "@/lib/data/nations-league-2026-teams";
 import { TEAM_LOGO_ID_TO_NAME, TEAM_LOGO_NAME_TO_ID } from "@/lib/data/team-logo-manifest";
 import {
   normalizeNationalTeamName,
@@ -16,46 +18,85 @@ export function apiSportsTeamLogoUrl(teamId: number): string {
   return `https://media.api-sports.io/football/teams/${teamId}.png`;
 }
 
-/** ISO 3166-1 alpha-2 for national sides (flagcdn). */
+/**
+ * ISO 3166-1 alpha-2 (or flagcdn regional codes) for national sides.
+ * Includes World Cup 2026 + UEFA Nations League 2026/27 nations.
+ */
 const NATIONAL_NAME_TO_ISO: Record<string, string> = {
+  Albania: "al",
   Algeria: "dz",
+  Andorra: "ad",
   Argentina: "ar",
+  Armenia: "am",
   Australia: "au",
   Austria: "at",
+  Azerbaijan: "az",
+  Belarus: "by",
   Belgium: "be",
   "Bosnia & Herzegovina": "ba",
   Brazil: "br",
+  Bulgaria: "bg",
   "Cabo Verde": "cv",
   Canada: "ca",
   Colombia: "co",
   "Côte d'Ivoire": "ci",
   Croatia: "hr",
   Curaçao: "cw",
+  Cyprus: "cy",
   Czechia: "cz",
+  Denmark: "dk",
   "DR Congo": "cd",
   Ecuador: "ec",
   Egypt: "eg",
   England: "gb-eng",
+  Estonia: "ee",
+  "Faroe Islands": "fo",
+  Finland: "fi",
   France: "fr",
+  Georgia: "ge",
   Germany: "de",
   Ghana: "gh",
+  Gibraltar: "gi",
+  Greece: "gr",
   Haiti: "ht",
+  Hungary: "hu",
+  Iceland: "is",
   Iran: "ir",
   Iraq: "iq",
+  Israel: "il",
+  Italy: "it",
   Japan: "jp",
   Jordan: "jo",
+  Kazakhstan: "kz",
+  Kosovo: "xk",
+  Latvia: "lv",
+  Liechtenstein: "li",
+  Lithuania: "lt",
+  Luxembourg: "lu",
+  Malta: "mt",
   Mexico: "mx",
+  Moldova: "md",
+  Montenegro: "me",
   Morocco: "ma",
   Netherlands: "nl",
   "New Zealand": "nz",
+  "North Macedonia": "mk",
+  "Northern Ireland": "gb-nir",
   Norway: "no",
   Panama: "pa",
   Paraguay: "py",
+  Poland: "pl",
   Portugal: "pt",
   Qatar: "qa",
+  "Republic of Ireland": "ie",
+  Romania: "ro",
+  "San Marino": "sm",
   "Saudi Arabia": "sa",
   Scotland: "gb-sct",
   Senegal: "sn",
+  Serbia: "rs",
+  Slovakia: "sk",
+  Slovenia: "si",
   "South Africa": "za",
   "South Korea": "kr",
   Spain: "es",
@@ -64,6 +105,7 @@ const NATIONAL_NAME_TO_ISO: Record<string, string> = {
   Tunisia: "tn",
   Türkiye: "tr",
   Turkey: "tr",
+  Ukraine: "ua",
   Uruguay: "uy",
   USA: "us",
   "United States": "us",
@@ -71,37 +113,57 @@ const NATIONAL_NAME_TO_ISO: Record<string, string> = {
   Wales: "gb-wls",
 };
 
+const NATIONAL_ISO_BY_NORMALIZED_NAME: Map<string, string> = (() => {
+  const map = new Map<string, string>();
+  for (const [name, iso] of Object.entries(NATIONAL_NAME_TO_ISO)) {
+    map.set(normalizeNationalTeamName(name), iso);
+  }
+  return map;
+})();
+
+const ALL_NATIONAL_TEAMS = [...WORLD_CUP_2026_TEAMS, ...NATIONS_LEAGUE_2026_TEAMS];
+
 /** Nations whose flags are legally square (1:1), not 2:3 or 3:2. */
 const SQUARE_NATIONAL_FLAG_NAMES = new Set([
   "Switzerland",
   "Vatican City",
 ]);
 
-export function isSquareNationalFlag(teamName: string): boolean {
+function findCanonicalNationalTeamName(teamName: string): string | undefined {
   const key = normalizeNationalTeamName(teamName);
-  const team = WORLD_CUP_2026_TEAMS.find(
-    (t) => normalizeNationalTeamName(t.name) === key
-  );
-  if (team && SQUARE_NATIONAL_FLAG_NAMES.has(team.name)) return true;
-  return SQUARE_NATIONAL_FLAG_NAMES.has(teamName.trim());
+  return ALL_NATIONAL_TEAMS.find((t) => normalizeNationalTeamName(t.name) === key)?.name;
+}
+
+function resolveNationalIso(teamName: string): string | undefined {
+  const trimmed = teamName.trim();
+  if (!trimmed) return undefined;
+
+  const direct = NATIONAL_NAME_TO_ISO[trimmed];
+  if (direct) return direct;
+
+  const key = normalizeNationalTeamName(trimmed);
+  const byNormalized = NATIONAL_ISO_BY_NORMALIZED_NAME.get(key);
+  if (byNormalized) return byNormalized;
+
+  const canonical = findCanonicalNationalTeamName(trimmed);
+  if (canonical) return NATIONAL_NAME_TO_ISO[canonical];
+
+  return undefined;
+}
+
+export function isSquareNationalFlag(teamName: string): boolean {
+  const canonical = findCanonicalNationalTeamName(teamName) ?? teamName.trim();
+  return SQUARE_NATIONAL_FLAG_NAMES.has(canonical);
 }
 
 export function nationalFlagUrl(teamName: string): string | undefined {
-  const iso = NATIONAL_NAME_TO_ISO[teamName.trim()];
+  const iso = resolveNationalIso(teamName);
   if (!iso) return undefined;
   return `https://flagcdn.com/w160/${iso}.png`;
 }
 
 /** Flag for FBref / FIFA display names (resolves Korea Republic → South Korea, etc.). */
 export function resolveNationalFlagUrl(displayName: string): string | undefined {
-  const key = normalizeNationalTeamName(displayName);
-  const team = WORLD_CUP_2026_TEAMS.find(
-    (t) => normalizeNationalTeamName(t.name) === key
-  );
-  if (team) {
-    const flag = nationalFlagUrl(team.name);
-    if (flag) return flag;
-  }
   return nationalFlagUrl(displayName);
 }
 
@@ -165,8 +227,11 @@ export function resolveLogoIdForTeam(team: TeamOption): number | null {
 }
 
 export function resolveTeamLogo(team: TeamOption, entityType?: EntityType): string {
-  if (entityType === "national") {
-    const flag = nationalFlagUrl(team.name);
+  const treatAsNational =
+    entityType === "national" || (team.id != null && isNationalTeamId(team.id));
+
+  if (treatAsNational) {
+    const flag = resolveNationalFlagUrl(team.name);
     if (flag) return flag;
     const id = resolveLogoIdForTeam(team);
     return id ? localTeamLogoPath(id) : "";

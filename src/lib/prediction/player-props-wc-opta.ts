@@ -180,22 +180,32 @@ export function aggregateWcPlayerMatchStats(rows: MatchStatRow[]): Map<
   return byPlayer;
 }
 
-export async function loadWcPlayerPropOverlays(
+export async function loadTournamentPlayerPropOverlays(
   supabase: SupabaseClient,
-  teamApiIds: number[]
+  teamApiIds: number[],
+  source: "world_cup" | "nations_league" = "world_cup"
 ): Promise<Map<string, WcPlayerPropOverlay>> {
   const uniqueTeams = [...new Set(teamApiIds.filter((id) => id > 0))];
   if (!uniqueTeams.length) return new Map();
 
+  const formTable =
+    source === "nations_league"
+      ? "nations_league_player_tournament_form"
+      : "world_cup_player_tournament_form";
+  const statsTable =
+    source === "nations_league"
+      ? "nations_league_player_match_stats"
+      : "world_cup_player_match_stats";
+
   const [formRes, statsRes] = await Promise.all([
     supabase
-      .from("world_cup_player_tournament_form")
+      .from(formTable)
       .select(
         "team_api_id, opta_player_id, player_name, matches_played, minutes_total, chance_index_per90, was_last_starter, availability_factor"
       )
       .in("team_api_id", uniqueTeams),
     supabase
-      .from("world_cup_player_match_stats")
+      .from(statsTable)
       .select("opta_player_id, player_name, team_api_id, minutes, stats")
       .in("team_api_id", uniqueTeams),
   ]);
@@ -305,6 +315,20 @@ export async function loadWcPlayerPropOverlays(
   }
 
   return overlays;
+}
+
+export async function loadWcPlayerPropOverlays(
+  supabase: SupabaseClient,
+  teamApiIds: number[]
+): Promise<Map<string, WcPlayerPropOverlay>> {
+  return loadTournamentPlayerPropOverlays(supabase, teamApiIds, "world_cup");
+}
+
+export async function loadNlPlayerPropOverlays(
+  supabase: SupabaseClient,
+  teamApiIds: number[]
+): Promise<Map<string, WcPlayerPropOverlay>> {
+  return loadTournamentPlayerPropOverlays(supabase, teamApiIds, "nations_league");
 }
 
 export function resolveWcOverlayForPlayer(

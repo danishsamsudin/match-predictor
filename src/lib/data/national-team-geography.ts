@@ -1,4 +1,5 @@
 import { WORLD_CUP_2026_TEAMS, normalizeNationalTeamName } from "@/lib/data/world-cup-2026-teams";
+import { NATIONS_LEAGUE_2026_TEAMS } from "@/lib/data/nations-league-2026-teams";
 
 /**
  * Principal base city for travel-fatigue (capital or main FA / stadium hub).
@@ -53,12 +54,54 @@ export const NATIONAL_TEAM_BASE_CITY_BY_ID: Record<number, string> = {
   4725: "Montevideo",
   4724: "Washington",
   4723: "Tashkent",
+  // Nations League expansions
+  4707: "Rome",
+  6355: "Belgrade",
+  4710: "Athens",
+  4476: "Copenhagen",
+  4702: "Cardiff",
+  4484: "Ljubljana",
+  4777: "Skopje",
+  4709: "Budapest",
+  4701: "Kyiv",
+  4763: "Tbilisi",
+  4786: "Belfast",
+  4480: "Tel Aviv",
+  4693: "Dublin",
+  154426: "Pristina",
+  4703: "Warsaw",
+  4477: "Bucharest",
+  4690: "Tirana",
+  4712: "Helsinki",
+  4743: "Minsk",
+  4833: "San Marino",
+  7139: "Podgorica",
+  4740: "Yerevan",
+  4482: "Nicosia",
+  4706: "Riga",
+  4772: "Astana",
+  4697: "Bratislava",
+  4760: "Tórshavn",
+  4782: "Chișinău",
+  4708: "Reykjavik",
+  4716: "Sofia",
+  4759: "Tallinn",
+  4478: "Luxembourg",
+  129264: "Gibraltar",
+  4483: "Valletta",
+  4818: "Andorra la Vella",
+  4776: "Vilnius",
+  4742: "Baku",
+  4830: "Vaduz",
 };
 
-const NATIONAL_TEAM_IDS = new Set(WORLD_CUP_2026_TEAMS.map((t) => t.id));
+const NATIONAL_TEAM_IDS = new Set([
+  ...WORLD_CUP_2026_TEAMS.map((t) => t.id),
+  ...NATIONS_LEAGUE_2026_TEAMS.map((t) => t.id),
+]);
 
 const BASE_CITY_BY_NORMALIZED_NAME: Record<string, string> = Object.fromEntries(
-  WORLD_CUP_2026_TEAMS.map((t) => [
+  [...WORLD_CUP_2026_TEAMS, ...NATIONS_LEAGUE_2026_TEAMS].map((t) => [
     normalizeNationalTeamName(t.name),
     NATIONAL_TEAM_BASE_CITY_BY_ID[t.id] ?? "",
   ])

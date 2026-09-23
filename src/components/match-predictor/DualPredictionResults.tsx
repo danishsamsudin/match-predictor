@@ -48,11 +48,14 @@ export function DualPredictionResults({
   loading,
   onRerunWithLineups,
   matchKey,
+  referenceLeagueId,
 }: {
   resultsBySource: Partial<Record<PredictionLineupSource, PredictionResult>>;
   loading?: boolean;
   onRerunWithLineups?: (lineups: FixtureLineup[]) => void;
   matchKey?: string;
+  /** National tournament id (e.g. Nations League = 5) for result UI variants. */
+  referenceLeagueId?: number;
 }) {
   const manual = resultsBySource.manual_xi;
   const model = resultsBySource.model_xi;
@@ -75,6 +78,7 @@ export function DualPredictionResults({
           }
           loading={loading}
           matchKey={matchKey}
+          referenceLeagueId={referenceLeagueId}
         />
       </div>
     );
@@ -93,6 +97,7 @@ export function DualPredictionResults({
             onRerunWithLineups={onRerunWithLineups}
             loading={loading}
             compact
+            referenceLeagueId={referenceLeagueId}
           />
         </div>
         <div className="min-w-0 space-y-2">
@@ -103,6 +108,7 @@ export function DualPredictionResults({
             result={model!}
             loading={loading}
             compact
+            referenceLeagueId={referenceLeagueId}
           />
         </div>
       </div>

@@ -36,7 +36,11 @@ const DEFAULT_CLUB_LEAGUE_ID = 39;
 const DEFAULT_AWAY_CLUB_COUNTRY = "Netherlands";
 const DEFAULT_AWAY_CLUB_LEAGUE_ID = 88;
 const DEFAULT_NATIONAL_COUNTRY = "International";
-const DEFAULT_NATIONAL_LEAGUE_ID = 1;
+const DEFAULT_NATIONAL_LEAGUE_ID = 5;
+const DEFAULT_NATIONAL_HOME_TEAM_ID = "4481"; // France
+const DEFAULT_NATIONAL_AWAY_TEAM_ID = "4705"; // Netherlands
+const DEFAULT_NATIONAL_CITY = "Paris";
+const EMPTY_XI_SLOTS: (number | null)[] = Array(11).fill(null);
 
 function resolveLeagueIdForCountry(
   leagues: LeagueOption[],
@@ -45,13 +49,24 @@ function resolveLeagueIdForCountry(
   if (leagues.some((l) => String(l.id) === currentLeagueId)) return currentLeagueId;
   return leagues.length ? String(leagues[0].id) : undefined;
 }
-const DEFAULT_NATIONAL_HOME_TEAM_ID = "4748";
-const DEFAULT_NATIONAL_AWAY_TEAM_ID = "4705";
-const EMPTY_XI_SLOTS: (number | null)[] = Array(11).fill(null);
+
+function pickFallbackTeamId(
+  teams: TeamOption[],
+  preferredId: string,
+  excludeId?: string
+): string | undefined {
+  if (teams.some((t) => String(t.id) === preferredId) && preferredId !== excludeId) {
+    return preferredId;
+  }
+  const other = teams.find((t) => String(t.id) !== excludeId);
+  return other ? String(other.id) : teams.length ? String(teams[0].id) : undefined;
+}
 
 async function fetchTeamSquad(input: {
   teamId: number;
   teamName?: string;
+  opponentName?: string;
+  side?: "home" | "away";
   leagueId: number;
   entityType: EntityType;
 }): Promise<SquadRosterData> {
@@ -61,6 +76,8 @@ async function fetchTeamSquad(input: {
     entityType: input.entityType,
   });
   if (input.teamName) params.set("teamName", input.teamName);
+  if (input.opponentName) params.set("opponentName", input.opponentName);
+  if (input.side) params.set("side", input.side);
   const res = await fetch(`/api/teams/squad?${params}`);
   const data = await res.json();
   if (!res.ok) {
@@ -167,13 +184,14 @@ export function usePredictionForm() {
       setMatchId(String(fixture.id));
       setHomeTeamId(String(fixture.home.id));
       setAwayTeamId(String(fixture.away.id));
+      setPrefillHomeName(fixture.home.name);
+      setPrefillAwayName(fixture.away.name);
       setHomeCountry(matchCountry);
       setAwayCountry(matchCountry);
       setHomeLeagueId(String(fixture.league.id));
       setAwayLeagueId(String(fixture.league.id));
-      if (fixture.venueCity) {
-        setCity(fixture.venueCity);
-      }
+      setMatchLeagueId(String(fixture.league.id));
+      setCity(fixture.venueCity?.trim() || "TBD");
       const { date: d, time: t } = parseFixtureDateTime(fixture.date);
       setDate(d);
       setTime(t);
@@ -209,9 +227,19 @@ export function usePredictionForm() {
       setMatchCountry(PREDICTOR_PREFILL_DEFAULTS.nationalCountry);
       setHomeCountry(PREDICTOR_PREFILL_DEFAULTS.nationalCountry);
       setAwayCountry(PREDICTOR_PREFILL_DEFAULTS.nationalCountry);
-      setMatchLeagueId(String(PREDICTOR_PREFILL_DEFAULTS.nationalLeagueId));
-      setHomeLeagueId(String(PREDICTOR_PREFILL_DEFAULTS.nationalLeagueId));
-      setAwayLeagueId(String(PREDICTOR_PREFILL_DEFAULTS.nationalLeagueId));
+      const league =
+        urlPrefill.homeLeagueId != null && Number.isFinite(urlPrefill.homeLeagueId)
+          ? urlPrefill.homeLeagueId
+          : PREDICTOR_PREFILL_DEFAULTS.nationalLeagueId;
+      const awayLeague =
+        urlPrefill.awayLeagueId != null && Number.isFinite(urlPrefill.awayLeagueId)
+          ? urlPrefill.awayLeagueId
+          : league;
+      setMatchLeagueId(String(league));
+      setHomeLeagueId(String(league));
+      setAwayLeagueId(String(awayLeague));
+      // National Graham paths work without a full manual XI (Model XI / structural).
+      setLineupSource("model_xi");
     }
     setHomeTeamId(String(urlPrefill.homeTeamId));
     setAwayTeamId(String(urlPrefill.awayTeamId));
@@ -237,7 +265,9 @@ export function usePredictionForm() {
       setAwayLeagueId(String(DEFAULT_NATIONAL_LEAGUE_ID));
       setHomeTeamId(DEFAULT_NATIONAL_HOME_TEAM_ID);
       setAwayTeamId(DEFAULT_NATIONAL_AWAY_TEAM_ID);
-      setInputMode("compare");
+      setCity(DEFAULT_NATIONAL_CITY);
+      setInputMode("fixture");
+      setLineupSource("model_xi");
     } else {
       setMatchCountry(DEFAULT_CLUB_COUNTRY);
       setHomeCountry(DEFAULT_CLUB_COUNTRY);
@@ -247,6 +277,7 @@ export function usePredictionForm() {
       setAwayLeagueId(String(DEFAULT_AWAY_CLUB_LEAGUE_ID));
       setHomeTeamId("33");
       setAwayTeamId("2953");
+      setLineupSource("manual_xi");
     }
     setMatchId("");
     setSelectedFixtureId("");
@@ -334,12 +365,9 @@ export function usePredictionForm() {
       .then((teams) => {
         if (cancelled) return;
         setHomeTeams(teams);
-        if (
-          !prefillAppliedRef.current &&
-          !teams.some((t) => String(t.id) === homeTeamId) &&
-          teams.length
-        ) {
-          setHomeTeamId(String(teams[0].id));
+        if (!teams.some((t) => String(t.id) === homeTeamId) && teams.length) {
+          const next = pickFallbackTeamId(teams, DEFAULT_NATIONAL_HOME_TEAM_ID, awayTeamId);
+          if (next) setHomeTeamId(next);
         }
       })
       .catch(() => {
@@ -348,7 +376,7 @@ export function usePredictionForm() {
     return () => {
       cancelled = true;
     };
-  }, [homeLeagueId, fetchTeams, homeTeamId, entityType, homeCountry]);
+  }, [homeLeagueId, fetchTeams, homeTeamId, awayTeamId, entityType, homeCountry]);
 
   useEffect(() => {
     const leagueId = Number(awayLeagueId);
@@ -358,12 +386,9 @@ export function usePredictionForm() {
       .then((teams) => {
         if (cancelled) return;
         setAwayTeams(teams);
-        if (
-          !prefillAppliedRef.current &&
-          !teams.some((t) => String(t.id) === awayTeamId) &&
-          teams.length
-        ) {
-          setAwayTeamId(String(teams[0].id));
+        if (!teams.some((t) => String(t.id) === awayTeamId) && teams.length) {
+          const next = pickFallbackTeamId(teams, DEFAULT_NATIONAL_AWAY_TEAM_ID, homeTeamId);
+          if (next) setAwayTeamId(next);
         }
       })
       .catch(() => {
@@ -372,7 +397,14 @@ export function usePredictionForm() {
     return () => {
       cancelled = true;
     };
-  }, [awayLeagueId, fetchTeams, awayTeamId, entityType, awayCountry]);
+  }, [awayLeagueId, fetchTeams, awayTeamId, homeTeamId, entityType, awayCountry]);
+
+  useEffect(() => {
+    if (inputMode !== "fixture" || entityType !== "national") return;
+    if (homeLeagueId && homeLeagueId !== matchLeagueId) {
+      setMatchLeagueId(homeLeagueId);
+    }
+  }, [inputMode, entityType, homeLeagueId, matchLeagueId]);
 
   useEffect(() => {
     if (inputMode !== "fixture") return;
@@ -453,6 +485,15 @@ export function usePredictionForm() {
     }
   }
 
+  function handleNationalTournamentChange(leagueId: string) {
+    setMatchLeagueId(leagueId);
+    setHomeLeagueId(leagueId);
+    setAwayLeagueId(leagueId);
+    setMatchId("");
+    setSelectedFixtureId("");
+    setFixtures([]);
+  }
+
   const homeLeagueName = homeLeagues.find((l) => String(l.id) === homeLeagueId)?.name;
   const awayLeagueName = awayLeagues.find((l) => String(l.id) === awayLeagueId)?.name;
   const matchLeagueName = matchLeagues.find((l) => String(l.id) === matchLeagueId)?.name;
@@ -500,12 +541,16 @@ export function usePredictionForm() {
       fetchTeamSquad({
         teamId: Number(homeTeamId),
         teamName: homeName,
+        opponentName: awayName,
+        side: "home",
         leagueId: Number(homeLeagueId),
         entityType,
       }),
       fetchTeamSquad({
         teamId: Number(awayTeamId),
         teamName: awayName,
+        opponentName: homeName,
+        side: "away",
         leagueId: Number(awayLeagueId),
         entityType,
       }),
@@ -738,6 +783,7 @@ export function usePredictionForm() {
     handleFixtureChange,
     handleHomeTeamChange,
     handleAwayTeamChange,
+    handleNationalTournamentChange,
     applyFixture,
     submitDisabled,
     handleSubmit,

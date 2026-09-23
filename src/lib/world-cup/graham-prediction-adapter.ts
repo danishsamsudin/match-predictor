@@ -1,4 +1,5 @@
 import { resolveFormMomentumOutcomeDisplayRates } from "@/lib/prediction/form-momentum";
+import { deriveClubMarketsFromGraham } from "@/lib/prediction/derive-graham-club-markets";
 import { computeMarketAnalytics } from "@/lib/prediction/market-probabilities";
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import {
@@ -107,13 +108,28 @@ export function grahamHubRowToPredictionResult(input: {
       input.calibration
     );
 
+  const homeWinPct = Math.round(pred.home_win_pct * 1000) / 10;
+  const drawPct = Math.round(pred.draw_pct * 1000) / 10;
+  const awayWinPct = Math.round(pred.away_win_pct * 1000) / 10;
+
+  const derivedMarkets = deriveClubMarketsFromGraham({
+    homeWinPct,
+    drawPct,
+    awayWinPct,
+    homeXg,
+    awayXg,
+    rho,
+    mutualDraw,
+    analytics,
+  });
+
   return {
     modelVersion: pred.model_version,
     homeTeamName: homeName,
     awayTeamName: awayName,
-    homeWinPct: Math.round(pred.home_win_pct * 1000) / 10,
-    drawPct: Math.round(pred.draw_pct * 1000) / 10,
-    awayWinPct: Math.round(pred.away_win_pct * 1000) / 10,
+    homeWinPct,
+    drawPct,
+    awayWinPct,
     expectedGoals: { home: homeXg, away: awayXg },
     estimated: clampEstimatedMatchStats(
       input.estimated ?? {
@@ -126,7 +142,7 @@ export function grahamHubRowToPredictionResult(input: {
     explanation:
       input.explanation ??
       [
-        `Graham World Cup model (${pred.model_version}): λ=${homeXg.toFixed(2)}, μ=${awayXg.toFixed(2)}, ρ=${rho.toFixed(3)}. Most likely ${outcomes.predictedHome}–${outcomes.predictedAway}.`,
+        `Graham World Cup model (${pred.model_version}): λ=${homeXg.toFixed(2)}, μ=${awayXg.toFixed(2)}, ρ=${rho.toFixed(3)}. Most likely ${outcomes.predictedHome}-${outcomes.predictedAway}.`,
         weatherCondition ? `Kickoff forecast: ${weatherCondition}.` : null,
         lineupNotes.length ? "" : null,
         lineupNotes.length ? "## Lineup Impact" : null,
@@ -135,6 +151,7 @@ export function grahamHubRowToPredictionResult(input: {
         .filter((line): line is string => line != null && line.length > 0)
         .join("\n"),
     analytics,
+    derivedMarkets,
     teamComparison: input.analyticsContext?.teamComparison,
     mode: "compare",
     entityType: "national",

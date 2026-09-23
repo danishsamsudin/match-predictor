@@ -11,11 +11,12 @@ import {
   Users,
 } from "lucide-react";
 import { MarketComparisonPanel } from "./MarketComparisonPanel";
+import { NationalClubStyleOddsPanel } from "./NationalClubStyleOddsPanel";
 import { PlayerPropsPanel } from "./PlayerPropsPanel";
-import { HandicapMarketPanel } from "./HandicapMarketPanel";
 import { PredictionCharts } from "./prediction-charts/PredictionCharts";
 import { LineupWhatIfEditor } from "./LineupWhatIfEditor";
 import { TeamComparisonPanel } from "./TeamComparisonPanel";
+import { NationsLeagueInsightsDashboard } from "./nations-league/NationsLeagueInsightsDashboard";
 import type { FixtureLineup } from "@/lib/types/football";
 import { InfoTip } from "./ui/InfoTip";
 import {
@@ -28,6 +29,8 @@ import {
   alignStatComparisonToLabels,
   alignTeamComparisonToLabels,
 } from "@/lib/prediction/align-player-props-orientation";
+import { fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
+import { isNationsLeaguePredictUi } from "@/lib/data/nations-league-2026-teams";
 import type { PredictionResult } from "@/lib/types/prediction";
 import type { EstimatedMatchStats } from "@/lib/prediction/estimated-match-stats";
 
@@ -84,6 +87,7 @@ export function PredictionResultCard({
   loading,
   compact = false,
   matchKey,
+  referenceLeagueId,
 }: {
   result: PredictionResult;
   onRerunWithLineups?: (lineups: FixtureLineup[]) => void;
@@ -91,8 +95,14 @@ export function PredictionResultCard({
   compact?: boolean;
   /** Stable key for persisting per-fixture book odds (e.g. home-away-date). */
   matchKey?: string;
+  /** National tournament id used to tailor result sections (e.g. Nations League). */
+  referenceLeagueId?: number;
 }) {
   const [showExplanation, setShowExplanation] = useState(false);
+  const nationsLeagueUi = isNationsLeaguePredictUi({
+    referenceLeagueId,
+    modelVersion: result.modelVersion,
+  });
   const homeLabel = result.homeTeamName ?? "Home";
   const awayLabel = result.awayTeamName ?? "Away";
   const teamComparison = result.teamComparison
@@ -121,6 +131,17 @@ export function PredictionResultCard({
     playerProps,
     analytics,
   };
+
+  if (nationsLeagueUi && !compact) {
+    return (
+      <NationsLeagueInsightsDashboard
+        result={displayResult}
+        onRerunWithLineups={onRerunWithLineups}
+        loading={loading}
+        matchKey={matchKey}
+      />
+    );
+  }
 
   return (
     <div className="liquid-glass-panel min-w-0 max-w-full overflow-hidden rounded-2xl sm:rounded-[2rem]">
@@ -161,12 +182,26 @@ export function PredictionResultCard({
       </div>
 
       <div className="min-w-0 space-y-6 p-4 sm:p-6">
+        {/* Match overview - club-style: 1X2 then key KPIs */}
         <WinProbabilityBar
           home={result.homeWinPct}
           draw={result.drawPct}
           away={result.awayWinPct}
           homeLabel={homeLabel}
           awayLabel={awayLabel}
+        />
+
+        <MatchOverviewKpis
+          homeLabel={homeLabel}
+          awayLabel={awayLabel}
+          homeXg={result.expectedGoals.home}
+          awayXg={result.expectedGoals.away}
+          homeWinPct={result.homeWinPct}
+          awayWinPct={result.awayWinPct}
+          over25Pct={
+            analytics?.overUnder.find((l) => l.line === 2.5)?.overPct ?? null
+          }
+          bttsYesPct={analytics?.btts.yesPct ?? null}
         />
 
         {!compact && teamComparison ? (
@@ -184,16 +219,9 @@ export function PredictionResultCard({
           />
         ) : null}
 
-        {!compact && playerProps ? (
-          <PlayerPropsPanel
-            props={playerProps}
-            homeLabel={homeLabel}
-            awayLabel={awayLabel}
-            matchKey={
-              matchKey ??
-              `${result.homeTeamName ?? "home"}-${result.awayTeamName ?? "away"}`
-            }
-          />
+        {/* Goal markets / AH charts / score matrix - before value board */}
+        {!compact ? (
+          <PredictionCharts result={displayResult} nationsLeagueUi={nationsLeagueUi} />
         ) : null}
 
         {!compact && result.firstTeamToScorePct ? (
@@ -204,38 +232,7 @@ export function PredictionResultCard({
           />
         ) : null}
 
-        {!compact ? <PredictionCharts result={displayResult} /> : null}
-        {!compact ? <MarketComparisonPanel result={displayResult} /> : null}
-        {!compact ? <HandicapMarketPanel result={displayResult} /> : null}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <StatBox
-            label={`${homeLabel} xG`}
-            value={result.expectedGoals.home.toFixed(2)}
-            accent="primary"
-            info={
-              <>
-                <strong>xG</strong> (“expected goals”) estimates how many goals a team should score
-                based on the quality of their chances. \(1.00\) xG roughly means “about one goal
-                worth of chances”.
-              </>
-            }
-          />
-          <StatBox
-            label={`${awayLabel} xG`}
-            value={result.expectedGoals.away.toFixed(2)}
-            accent="accent"
-            info={
-              <>
-                <strong>xG</strong> (“expected goals”) estimates how many goals a team should score
-                based on the quality of their chances. \(1.00\) xG roughly means “about one goal
-                worth of chances”.
-              </>
-            }
-          />
-        </div>
-
-        {!compact ? (
+        {!compact && !nationsLeagueUi ? (
         <div>
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary-emphasis">
@@ -280,6 +277,29 @@ export function PredictionResultCard({
         </div>
         ) : null}
 
+        {!compact && playerProps ? (
+          <PlayerPropsPanel
+            props={playerProps}
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
+            matchKey={
+              matchKey ??
+              `${result.homeTeamName ?? "home"}-${result.awayTeamName ?? "away"}`
+            }
+          />
+        ) : null}
+
+        {/* Value board last among markets - matches club insights order */}
+        {!compact && !nationsLeagueUi ? (
+          <MarketComparisonPanel result={displayResult} />
+        ) : null}
+        {!compact ? (
+          <NationalClubStyleOddsPanel
+            result={displayResult}
+            hideAsianHandicap={nationsLeagueUi}
+          />
+        ) : null}
+
         {!compact ? (
         <div>
           <button
@@ -299,6 +319,84 @@ export function PredictionResultCard({
         </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function MatchOverviewKpis({
+  homeLabel,
+  awayLabel,
+  homeXg,
+  awayXg,
+  homeWinPct,
+  awayWinPct,
+  over25Pct,
+  bttsYesPct,
+}: {
+  homeLabel: string;
+  awayLabel: string;
+  homeXg: number;
+  awayXg: number;
+  homeWinPct: number;
+  awayWinPct: number;
+  over25Pct: number | null;
+  bttsYesPct: number | null;
+}) {
+  const fairHome = fairOddsFromProb(homeWinPct / 100);
+  const fairAway = fairOddsFromProb(awayWinPct / 100);
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <StatBox
+        label={`${homeLabel} xG`}
+        value={homeXg.toFixed(2)}
+        accent="primary"
+        info={
+          <>
+            <strong>xG</strong> (“expected goals”) estimates how many goals a team should score
+            based on the quality of their chances. \(1.00\) xG roughly means “about one goal
+            worth of chances”.
+          </>
+        }
+      />
+      <StatBox
+        label={`${awayLabel} xG`}
+        value={awayXg.toFixed(2)}
+        accent="accent"
+        info={
+          <>
+            <strong>xG</strong> (“expected goals”) estimates how many goals a team should score
+            based on the quality of their chances. \(1.00\) xG roughly means “about one goal
+            worth of chances”.
+          </>
+        }
+      />
+      <StatBox
+        label="Over 2.5"
+        value={over25Pct != null ? `${over25Pct.toFixed(1)}%` : "-"}
+        accent="neutral"
+        info={<>Model probability that the match has 3 or more total goals.</>}
+      />
+      <StatBox
+        label="BTTS yes"
+        value={bttsYesPct != null ? `${bttsYesPct.toFixed(1)}%` : "-"}
+        accent="neutral"
+        info={<>Model probability that both teams score at least once.</>}
+      />
+      <StatBox
+        label="Fair home"
+        value={fairHome?.toFixed(2) ?? "-"}
+        accent="primary"
+        small
+        info={<>Fair decimal odds for a home win (1 / model %).</>}
+      />
+      <StatBox
+        label="Fair away"
+        value={fairAway?.toFixed(2) ?? "-"}
+        accent="accent"
+        small
+        info={<>Fair decimal odds for an away win (1 / model %).</>}
+      />
     </div>
   );
 }

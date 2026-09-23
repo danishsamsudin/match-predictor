@@ -26,8 +26,10 @@ import {
   getTeamCity,
   getTeamsByLeague,
   isKnownClubTeamName,
+  NATIONS_LEAGUE_REFERENCE_LEAGUE_ID,
 } from "@/lib/data/football-reference";
 import { enrichTeamsWithLogos } from "@/lib/data/team-logos";
+import { loadNationsLeagueScheduleFixtures } from "@/lib/nations-league/schedule-fixtures";
 import {
   filterToWorldCupTeams,
   isWorldCupLeague,
@@ -75,6 +77,17 @@ function filterUpcomingFixtures(fixtures: FixtureOption[]): FixtureOption[] {
     const kickoff = new Date(fixture.date).getTime();
     return Number.isFinite(kickoff) && kickoff >= cutoff;
   });
+}
+
+const MAX_SCHEDULE_FALLBACK_FIXTURES = 40;
+
+/** Seeded schedule when live sync has no upcoming events (e.g. Nations League 2026/27). */
+function scheduleFixturesFallback(leagueId: number): FixtureOption[] {
+  if (leagueId !== NATIONS_LEAGUE_REFERENCE_LEAGUE_ID) return [];
+  return filterUpcomingFixtures(loadNationsLeagueScheduleFixtures()).slice(
+    0,
+    MAX_SCHEDULE_FALLBACK_FIXTURES
+  );
 }
 
 function buildMockFixtures(leagueId: number): FixtureOption[] {
@@ -330,7 +343,16 @@ export async function lookupFixtures(
         };
       }
     } catch {
-      // fall through to empty message
+      // fall through to schedule / empty
+    }
+
+    const scheduled = scheduleFixturesFallback(leagueId);
+    if (scheduled.length) {
+      return {
+        fixtures: scheduled,
+        source: "reference",
+        message: "Fixtures loaded from the Nations League schedule.",
+      };
     }
 
     return {
@@ -344,6 +366,14 @@ export async function lookupFixtures(
   if (usesSportApi()) {
     const fixtures = filterUpcomingFixtures(await sportApiLookupFixtures(leagueId));
     if (fixtures.length) return { fixtures, source: "live" };
+    const scheduled = scheduleFixturesFallback(leagueId);
+    if (scheduled.length) {
+      return {
+        fixtures: scheduled,
+        source: "reference",
+        message: "Fixtures loaded from the Nations League schedule.",
+      };
+    }
     return {
       fixtures: [],
       source: "live",
@@ -371,6 +401,15 @@ export async function lookupFixtures(
     return {
       fixtures: upcoming,
       source: "live",
+    };
+  }
+
+  const scheduled = scheduleFixturesFallback(leagueId);
+  if (scheduled.length) {
+    return {
+      fixtures: scheduled,
+      source: "reference",
+      message: "Fixtures loaded from the Nations League schedule.",
     };
   }
 

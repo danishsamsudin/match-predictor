@@ -216,6 +216,30 @@ function round1(v: number): number {
   return Math.round(v * 10) / 10;
 }
 
+/**
+ * Convert independent team possession rates into a match share that sums to 100.
+ * Season averages are not zero-sum, so two high-possession sides can both sit
+ * above 50. The predicted line is the relative split of those rates.
+ */
+export function matchPossessionShare(
+  homeRate: number | null | undefined,
+  awayRate: number | null | undefined
+): { home: number | null; away: number | null } {
+  if (
+    homeRate == null ||
+    awayRate == null ||
+    !Number.isFinite(homeRate) ||
+    !Number.isFinite(awayRate) ||
+    homeRate <= 0 ||
+    awayRate <= 0
+  ) {
+    return { home: null, away: null };
+  }
+  const total = homeRate + awayRate;
+  const homePct = Math.max(0, Math.min(100, Math.round((homeRate / total) * 100)));
+  return { home: homePct, away: 100 - homePct };
+}
+
 function meanFinite(vals: Array<number | null | undefined>): number | null {
   const nums = vals.filter((v): v is number => v != null && Number.isFinite(v));
   if (!nums.length) return null;
@@ -539,6 +563,12 @@ export async function enrichFinishedMatches(
       : null;
     const homeRed = homeYellow != null ? heuristicReds(homeYellow) : null;
     const awayRed = awayYellow != null ? heuristicReds(awayYellow) : null;
+    const possession = matchPossessionShare(
+      stylePossByTeam.get(match.homeTeamSmId) ??
+        meanFinite(homeRecent.map((r) => r.possession_pct)),
+      stylePossByTeam.get(match.awayTeamSmId) ??
+        meanFinite(awayRecent.map((r) => r.possession_pct))
+    );
 
     const predictedHomeStats: LiveScorePredictedSideStats = {
       corners: homeCorners != null ? round1(homeCorners) : null,
@@ -546,7 +576,7 @@ export async function enrichFinishedMatches(
       redCards: homeRed != null ? round1(homeRed) : null,
       shots: homeShots != null ? round1(homeShots) : null,
       shotsOnTarget: homeSot != null ? round1(homeSot) : null,
-      possession: stylePossByTeam.get(match.homeTeamSmId) ?? meanFinite(homeRecent.map((r) => r.possession_pct)),
+      possession: possession.home,
     };
     const predictedAwayStats: LiveScorePredictedSideStats = {
       corners: awayCorners != null ? round1(awayCorners) : null,
@@ -554,7 +584,7 @@ export async function enrichFinishedMatches(
       redCards: awayRed != null ? round1(awayRed) : null,
       shots: awayShots != null ? round1(awayShots) : null,
       shotsOnTarget: awaySot != null ? round1(awaySot) : null,
-      possession: stylePossByTeam.get(match.awayTeamSmId) ?? meanFinite(awayRecent.map((r) => r.possession_pct)),
+      possession: possession.away,
     };
 
     return {

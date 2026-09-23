@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { DualPredictionResults } from "./match-predictor/DualPredictionResults";
+import { FixturePickerSheet } from "./match-predictor/FixturePickerSheet";
 import { MatchPredictorShell } from "./match-predictor/MatchPredictorShell";
 import { SquadXiPicker } from "./match-predictor/SquadXiPicker";
 import { TeamPickerSheet } from "./match-predictor/TeamPickerSheet";
@@ -12,6 +13,7 @@ function PredictionFormInner() {
   const form = usePredictionForm();
   const [homeSheetOpen, setHomeSheetOpen] = useState(false);
   const [awaySheetOpen, setAwaySheetOpen] = useState(false);
+  const [fixtureSheetOpen, setFixtureSheetOpen] = useState(false);
 
   if (form.entityType === "club") {
     return (
@@ -23,7 +25,7 @@ function PredictionFormInner() {
   }
 
   return (
-    <div className="w-full space-y-0">
+    <div className="w-full space-y-6">
       <MatchPredictorShell
         entityType={form.entityType}
         setEntityType={form.setEntityType}
@@ -51,8 +53,12 @@ function PredictionFormInner() {
         handleSubmit={form.handleSubmit}
         lineupSource={form.lineupSource}
         setLineupSource={form.setLineupSource}
+        homeLeagues={form.homeLeagues}
+        homeLeagueId={form.homeLeagueId}
+        handleNationalTournamentChange={form.handleNationalTournamentChange}
         onHomePodClick={() => setHomeSheetOpen(true)}
         onAwayPodClick={() => setAwaySheetOpen(true)}
+        onOpenFixture={() => setFixtureSheetOpen(true)}
         squadXiSection={
           form.showXiPicker ? (
             <SquadXiPicker
@@ -76,6 +82,16 @@ function PredictionFormInner() {
         <input type="hidden" name="awayTeamId" value={form.awayTeamId} />
       </MatchPredictorShell>
 
+      <FixturePickerSheet
+        open={fixtureSheetOpen}
+        onClose={() => setFixtureSheetOpen(false)}
+        fixtures={form.fixtures}
+        selectedFixtureId={form.selectedFixtureId}
+        loading={form.loadingFixtures}
+        onSelect={form.handleFixtureChange}
+        tournamentName={form.bridgeCompetition}
+      />
+
       <TeamPickerSheet
         open={homeSheetOpen}
         onClose={() => setHomeSheetOpen(false)}
@@ -88,7 +104,7 @@ function PredictionFormInner() {
         leagues={form.homeLeagues}
         teams={form.homeTeams}
         onCountryChange={form.setHomeCountry}
-        onLeagueChange={form.setHomeLeagueId}
+        onLeagueChange={form.handleNationalTournamentChange}
         onTeamChange={form.handleHomeTeamChange}
         disabled={form.loadingCountries}
       />
@@ -105,13 +121,13 @@ function PredictionFormInner() {
         leagues={form.awayLeagues}
         teams={form.awayTeams}
         onCountryChange={form.setAwayCountry}
-        onLeagueChange={form.setAwayLeagueId}
+        onLeagueChange={form.handleNationalTournamentChange}
         onTeamChange={form.handleAwayTeamChange}
         disabled={form.loadingCountries}
       />
 
       {form.loading && !form.result && Object.keys(form.resultsBySource).length === 0 && (
-        <div className="liquid-glass-panel mx-auto mt-8 max-w-6xl animate-pulse rounded-[2rem] p-8">
+        <div className="liquid-glass-panel mx-auto max-w-6xl animate-pulse rounded-[2rem] p-8">
           <div className="mb-4 h-6 w-48 rounded bg-slate-200/80 dark:bg-slate-700/50" />
           <div className="mb-2 h-4 w-full rounded bg-slate-200/60 dark:bg-slate-700/40" />
           <div className="h-4 w-3/4 rounded bg-slate-200/60 dark:bg-slate-700/40" />
@@ -119,12 +135,13 @@ function PredictionFormInner() {
       )}
 
       {(form.result || Object.keys(form.resultsBySource).length > 0) && (
-        <div className="mx-auto mt-8 w-full min-w-0 max-w-6xl">
+        <div className="mx-auto w-full min-w-0 max-w-6xl">
           <DualPredictionResults
             resultsBySource={form.resultsBySource}
             onRerunWithLineups={form.rerunWithCustomLineups}
             loading={form.loading}
             matchKey={`${form.homeTeamId}-${form.awayTeamId}-${form.date}`}
+            referenceLeagueId={Number(form.homeLeagueId)}
           />
         </div>
       )}

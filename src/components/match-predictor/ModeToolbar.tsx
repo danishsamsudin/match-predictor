@@ -1,6 +1,6 @@
 "use client";
 
-import type { EntityType } from "@/lib/types/football-lookup";
+import type { EntityType, LeagueOption } from "@/lib/types/football-lookup";
 import { Tooltip } from "@/components/ui/Tooltip";
 
 const ENTITY_TIPS = {
@@ -12,27 +12,51 @@ const ENTITY_TIPS = {
   ),
   national: (
     <>
-      Pick <strong>national</strong> teams for international tournaments. Open a team badge, choose{" "}
-      <strong>FIFA World Cup</strong> as the tournament, then compare any of the 48 qualified
-      nations. Fixture mode is not available for national sides.
+      Pick <strong>national</strong> teams for international tournaments. Choose a tournament
+      below (defaults to <strong>UEFA Nations League</strong>), then use{" "}
+      <strong>Fixture</strong> to pick an upcoming match or <strong>Compare</strong> any two
+      sides.
     </>
   ),
 } as const;
 
 const MODE_TIPS = {
-  fixture: (
-    <>
-      <strong>Fixture</strong> mode is reserved for national / World Cup flows. Club forecasts use
-      GLPM <strong>Compare</strong> with ingested rating vectors.
-    </>
-  ),
-  compare: (
-    <>
-      <strong>Compare</strong> any two clubs that have GLPM rating vectors for the selected season.
-      No scheduled fixture is required.
-    </>
-  ),
+  fixture: {
+    national: (
+      <>
+        <strong>Fixture</strong> loads upcoming matches for the selected tournament. Pick a
+        match to fill both nations, kickoff, venue, and suggested XIs automatically.
+      </>
+    ),
+    club: (
+      <>
+        <strong>Fixture</strong> mode is reserved for scheduled club flows. Club forecasts use
+        GLPM <strong>Compare</strong> with ingested rating vectors.
+      </>
+    ),
+  },
+  compare: {
+    national: (
+      <>
+        <strong>Compare</strong> any two nations in the selected tournament without needing a
+        scheduled fixture.
+      </>
+    ),
+    club: (
+      <>
+        <strong>Compare</strong> any two clubs that have GLPM rating vectors for the selected
+        season. No scheduled fixture is required.
+      </>
+    ),
+  },
 } as const;
+
+const TOURNAMENT_TIP = (
+  <>
+    Sets the competition for both nations. <strong>Nations League</strong> is the active cycle;{" "}
+    <strong>World Cup</strong> remains available for archived 2026 finals matchups.
+  </>
+);
 
 type SegmentOption = {
   label: string;
@@ -41,16 +65,26 @@ type SegmentOption = {
   disabled?: boolean;
 };
 
+function shortTournamentLabel(name: string): string {
+  if (/nations league/i.test(name)) return "Nations League";
+  if (/world cup/i.test(name)) return "World Cup";
+  if (/euro/i.test(name)) return "Euro";
+  if (/copa/i.test(name)) return "Copa América";
+  return name;
+}
+
 function SlidingSegmentGroup({
   label,
   options,
   value,
   onSelect,
+  compact,
 }: {
   label: string;
   options: readonly SegmentOption[];
   value: string;
   onSelect: (value: string) => void;
+  compact?: boolean;
 }) {
   const activeIndex = Math.max(
     0,
@@ -91,7 +125,9 @@ function SlidingSegmentGroup({
                 disabled={option.disabled}
                 aria-pressed={active}
                 onClick={() => onSelect(option.value)}
-                className={`relative z-10 min-h-10 flex-1 rounded-full px-3.5 py-2 text-center text-sm font-semibold transition-colors duration-300 ${
+                className={`relative z-10 min-h-10 flex-1 rounded-full text-center font-semibold transition-colors duration-300 ${
+                  compact ? "px-2 py-2 text-xs sm:px-3 sm:text-sm" : "px-3.5 py-2 text-sm"
+                } ${
                   active
                     ? "text-white dark:text-slate-950"
                     : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
@@ -112,49 +148,74 @@ export function ModeToolbar({
   onEntityTypeChange,
   inputMode,
   onInputModeChange,
+  nationalTournaments,
+  nationalTournamentId,
+  onNationalTournamentChange,
 }: {
   entityType: EntityType;
   onEntityTypeChange: (v: EntityType) => void;
   inputMode: "fixture" | "compare";
   onInputModeChange: (v: "fixture" | "compare") => void;
+  nationalTournaments?: LeagueOption[];
+  nationalTournamentId?: string;
+  onNationalTournamentChange?: (leagueId: string) => void;
 }) {
-  const fixtureDisabled = entityType === "national" || entityType === "club";
-  const fixtureTip =
-    entityType === "national" ? (
+  const fixtureDisabled = entityType === "club";
+  const modeKey = entityType === "national" ? "national" : "club";
+
+  const showTournament =
+    entityType === "national" &&
+    Boolean(nationalTournaments?.length) &&
+    Boolean(onNationalTournamentChange);
+
+  const tournamentOptions: SegmentOption[] = (nationalTournaments ?? []).map((league) => ({
+    label: shortTournamentLabel(league.name),
+    value: String(league.id),
+    tip: (
       <>
-        <strong>Fixture</strong> is disabled for national teams. Switch to <strong>Clubs</strong> or
-        use <strong>Compare</strong> for international sides.
+        {TOURNAMENT_TIP} Selected: <strong>{league.name}</strong>.
       </>
-    ) : (
-      MODE_TIPS.fixture
-    );
+    ),
+  }));
 
   return (
-    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-      <SlidingSegmentGroup
-        label="Teams"
-        value={entityType}
-        onSelect={(v) => onEntityTypeChange(v as EntityType)}
-        options={[
-          { label: "Clubs", value: "club", tip: ENTITY_TIPS.club },
-          { label: "National", value: "national", tip: ENTITY_TIPS.national },
-        ]}
-      />
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+        <SlidingSegmentGroup
+          label="Teams"
+          value={entityType}
+          onSelect={(v) => onEntityTypeChange(v as EntityType)}
+          options={[
+            { label: "Clubs", value: "club", tip: ENTITY_TIPS.club },
+            { label: "National", value: "national", tip: ENTITY_TIPS.national },
+          ]}
+        />
 
-      <SlidingSegmentGroup
-        label="Mode"
-        value={inputMode}
-        onSelect={(v) => onInputModeChange(v as "fixture" | "compare")}
-        options={[
-          {
-            label: "Fixture",
-            value: "fixture",
-            tip: fixtureTip,
-            disabled: fixtureDisabled,
-          },
-          { label: "Compare", value: "compare", tip: MODE_TIPS.compare },
-        ]}
-      />
+        <SlidingSegmentGroup
+          label="Mode"
+          value={inputMode}
+          onSelect={(v) => onInputModeChange(v as "fixture" | "compare")}
+          options={[
+            {
+              label: "Fixture",
+              value: "fixture",
+              tip: MODE_TIPS.fixture[modeKey],
+              disabled: fixtureDisabled,
+            },
+            { label: "Compare", value: "compare", tip: MODE_TIPS.compare[modeKey] },
+          ]}
+        />
+      </div>
+
+      {showTournament && nationalTournamentId ? (
+        <SlidingSegmentGroup
+          label="Tournament"
+          value={nationalTournamentId}
+          onSelect={onNationalTournamentChange!}
+          options={tournamentOptions}
+          compact={tournamentOptions.length > 2}
+        />
+      ) : null}
     </div>
   );
 }

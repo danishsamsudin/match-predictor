@@ -452,11 +452,10 @@ export function PlayerPropsPanel({
           Player goal markets
         </h3>
         <InfoTip label="How are player goal markets calculated?">
-          Player xG/xA rates blend club season data with cumulative World Cup tournament stats
-          when available. The top 5 list ranks actual WC goalscorers first, then fills with the
-          highest-threat non-scorers (xG, shots on target, chance creation). Probabilities use a
-          zero-inflated Poisson model normalized to team expected goals. Enter bookmaker decimal
-          odds to compare model probability vs market implied %.
+          Player xG/xA rates blend club season data with cumulative tournament stats when
+          available. The top 5 list ranks by model anytime / goal-or-assist probability.
+          Probabilities use a zero-inflated Poisson model normalized to team expected goals.
+          Enter bookmaker decimal odds to compare model probability vs market implied %.
         </InfoTip>
       </div>
 
@@ -471,7 +470,7 @@ export function PlayerPropsPanel({
       <div className="mt-4 space-y-6">
         <MarketSection
           title="Anytime goalscorer"
-          description="Top 5 by WC tournament goals, then highest-threat non-scorers."
+          description="Top 5 by model anytime-scorer probability."
           market="anytime_scorer"
           payload={payload}
           homeLabel={homeLabel}
@@ -480,7 +479,7 @@ export function PlayerPropsPanel({
         />
         <MarketSection
           title="Goal or assist"
-          description="Top 5 by WC goals + assists, then highest-threat creators."
+          description="Top 5 by model goal-or-assist probability."
           market="goal_or_assist"
           payload={payload}
           homeLabel={homeLabel}

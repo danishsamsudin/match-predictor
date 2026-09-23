@@ -46,14 +46,36 @@
 !/data/world-cup-2026/WC-Opta-Results/.gitkeep
 !/data/world-cup-2026/WC-Opta-Player-Stats/.gitkeep
 
+# Local Nations League squad / Opta HTML saves (ingest input — parsed data in Supabase after nl:postmatch)
+/data/nations-league-2026/NL Squads/**
+!/data/nations-league-2026/NL Squads/.gitkeep
+/data/nations-league-2026/NL-Opta-Results/**
+/data/nations-league-2026/NL-Opta-Player-Stats/**
+!/data/nations-league-2026/NL-Opta-Results/.gitkeep
+!/data/nations-league-2026/NL-Opta-Player-Stats/.gitkeep
+!/data/nations-league-2026/NL-Opta-Player-Stats/Match Summary/.gitkeep
+!/data/nations-league-2026/NL-Opta-Player-Stats/Opta Summary/.gitkeep
+!/data/nations-league-2026/NL-Opta-Player-Stats/Match Details/.gitkeep
+
 # Local FBref / FIFA scrape exports (not committed)
 /data/imports/fbref/**/*.html
 /data/imports/fbref/**/*.htm
+/data/imports/fbref/**/*_files/**
 /data/imports/statz/**/*.html
 /data/imports/fifa/**/*
 !/data/imports/fifa/**/.gitkeep
 !/data/imports/fifa/fifa-rankings-2026.json
 !/data/imports/fifa/README.md
+/data/imports/footystats/**/*.csv
+/data/imports/martj42/**/*.csv
+!/data/imports/footystats/.gitkeep
+!/data/imports/martj42/.gitkeep
+!/data/imports/fbref/nations-league/.gitkeep
+
+# Misplaced FBref / lineup HTML dumps under NL data root (JSON + gitkeeps are committed)
+/data/nations-league-2026/**/*.html
+/data/nations-league-2026/**/*_files/**
+!/data/nations-league-2026/NL Bulin Predicted Starting/manifest-md1.json
 
 # misc
 .DS_Store

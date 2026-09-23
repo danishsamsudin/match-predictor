@@ -191,20 +191,71 @@ def fix_split_accents(value: str) -> str:
 
 
 def fold_name_key(word: str) -> str:
-    folded = unicodedata.normalize("NFKD", word)
+    # ø/æ/å do not NFKD-decompose to ASCII; map them explicitly.
+    folded = (
+        word.replace("ø", "o")
+        .replace("Ø", "o")
+        .replace("æ", "ae")
+        .replace("Æ", "ae")
+        .replace("å", "a")
+        .replace("Å", "a")
+        .replace("ð", "d")
+        .replace("Ð", "d")
+        .replace("þ", "th")
+        .replace("Þ", "th")
+    )
+    folded = unicodedata.normalize("NFKD", folded)
     folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
     return re.sub(r"[^a-z]", "", folded.lower())
+
+
+def prefer_token(a: str, b: str) -> str:
+    a_diacritic = any(ord(ch) > 127 for ch in a)
+    b_diacritic = any(ord(ch) > 127 for ch in b)
+    if a_diacritic != b_diacritic:
+        return b if b_diacritic else a
+    a_all_caps = len(a) > 1 and a == a.upper()
+    b_all_caps = len(b) > 1 and b == b.upper()
+    if a_all_caps != b_all_caps:
+        return b if a_all_caps else a
+    return b if len(b) >= len(a) else a
 
 
 def dedupe_words(words: list[str]) -> list[str]:
     out: list[str] = []
     for word in words:
         if out and fold_name_key(out[-1]) == fold_name_key(word):
-            if len(word) >= len(out[-1]):
-                out[-1] = word
+            out[-1] = prefer_token(out[-1], word)
             continue
         out.append(word)
     return out
+
+
+def collapse_abab_sequences(words: list[str]) -> list[str]:
+    result = list(words)
+    for n in range(min(4, len(result) // 2), 1, -1):
+        next_words: list[str] = []
+        index = 0
+        while index < len(result):
+            if index + 2 * n <= len(result):
+                first = result[index : index + n]
+                second = result[index + n : index + 2 * n]
+                folds_a = [fold_name_key(w) for w in first]
+                folds_b = [fold_name_key(w) for w in second]
+                if (
+                    all(folds_a)
+                    and all(a == b for a, b in zip(folds_a, folds_b))
+                    and len(set(folds_a)) > 1
+                ):
+                    next_words.extend(
+                        prefer_token(a, b) for a, b in zip(first, second)
+                    )
+                    index += 2 * n
+                    continue
+            next_words.append(result[index])
+            index += 1
+        result = next_words
+    return result
 
 
 def split_repeated_token(token: str) -> list[str]:
@@ -303,7 +354,7 @@ def parse_name_blob(blob: str) -> str:
     words: list[str] = []
     for token in blob.split():
         words.extend(split_repeated_token(token))
-    words = dedupe_words(words)
+    words = collapse_abab_sequences(dedupe_words(words))
     if not words:
         return blob
 

@@ -1,15 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { dedupeSquadPlayersById, pickUniqueStarters } from "@/lib/data/dedupe-squad-players";
+import {
+  dedupeSquadPlayersById,
+  pickUniqueStarters,
+  playerNormKey,
+} from "@/lib/data/dedupe-squad-players";
+import { dedupeSquadRosterByPlayerIdentity } from "@/lib/data/dedupe-squad-roster";
 import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
 import { mergeOfficialWcPlayersIntoRoster } from "@/lib/data/merge-official-wc-roster";
 import { resolveWc2026TeamLabel } from "@/lib/data/world-cup-2026-official-squads";
+import { resolveBulinewsPredictedXi } from "@/lib/nations-league/resolve-bulinews-predicted-xi";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import type { EntityType } from "@/lib/types/football-lookup";
 import type { SquadPlayer } from "@/lib/types/team-comparison";
 
+function finalizeRoster(
+  players: SquadPlayer[],
+  entityType: EntityType | undefined
+): SquadPlayer[] {
+  const byId = dedupeSquadPlayersById(players);
+  // Club squads can share surnames across different players; only national
+  // rosters safely collapse SofaScore short names vs FIFA/official full names.
+  if (entityType === "national") {
+    return dedupeSquadRosterByPlayerIdentity(byId);
+  }
+  return byId;
+}
+
 export async function GET(request: NextRequest) {
   const teamId = Number(request.nextUrl.searchParams.get("teamId"));
   const teamName = request.nextUrl.searchParams.get("teamName")?.trim() ?? "";
+  const opponentName =
+    request.nextUrl.searchParams.get("opponentName")?.trim() ?? "";
+  const sideParam = request.nextUrl.searchParams.get("side");
+  const sideHint =
+    sideParam === "home" || sideParam === "away" ? sideParam : undefined;
   const leagueIdParam = request.nextUrl.searchParams.get("leagueId");
   const leagueId =
     leagueIdParam !== null && leagueIdParam !== ""
@@ -40,13 +64,41 @@ export async function GET(request: NextRequest) {
       entityType
     );
 
-    let roster = dedupeSquadPlayersById([...squad.starters, ...squad.substitutes]);
+    let roster = finalizeRoster([...squad.starters, ...squad.substitutes], entityType);
     const wcTeamLabel = resolveWc2026TeamLabel(teamName || undefined, teamId);
     if (wcTeamLabel) {
-      roster = dedupeSquadPlayersById(mergeOfficialWcPlayersIntoRoster(roster, wcTeamLabel));
+      roster = finalizeRoster(
+        mergeOfficialWcPlayersIntoRoster(roster, wcTeamLabel),
+        entityType ?? "national"
+      );
     }
 
-    const uniqueStarters = pickUniqueStarters(squad.starters, roster, 11);
+    let preferredFormation = squad.preferredFormation;
+    let squadSource = squad.squadSource;
+    let uniqueStarters: SquadPlayer[] = pickUniqueStarters(squad.starters, roster, 11);
+
+    if (entityType === "national" && teamName && opponentName) {
+      const bulinews = resolveBulinewsPredictedXi({
+        teamName,
+        opponentName,
+        sideHint,
+        roster,
+      });
+      if (bulinews) {
+        roster = finalizeRoster(bulinews.roster, "national");
+        uniqueStarters = bulinews.starters.map((starter) => {
+          const merged = roster.find(
+            (p) =>
+              p.sofascorePlayerId === starter.sofascorePlayerId ||
+              playerNormKey(p.name) === playerNormKey(starter.name)
+          );
+          return merged ?? starter;
+        });
+        preferredFormation = bulinews.formation ?? preferredFormation;
+        squadSource = "bulinews";
+      }
+    }
+
     const suggestedStarters = uniqueStarters.map((starter) => {
       const merged = roster.find((p) => p.sofascorePlayerId === starter.sofascorePlayerId);
       return merged ?? starter;
@@ -55,11 +107,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       teamId,
       teamName: teamName || undefined,
-      preferredFormation: squad.preferredFormation,
+      preferredFormation,
       coach: squad.coach ?? null,
       suggestedStarters,
       roster,
-      squadSource: squad.squadSource,
+      squadSource,
     });
   } catch (error) {
     console.error("Failed to load team squad:", error);

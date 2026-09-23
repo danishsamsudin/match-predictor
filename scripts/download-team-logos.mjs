@@ -27,44 +27,80 @@ const UNIQUE_TOURNAMENT_IDS = [
 ];
 
 const NATIONAL_NAME_TO_ISO = {
+  Albania: "al",
   Algeria: "dz",
+  Andorra: "ad",
   Argentina: "ar",
+  Armenia: "am",
   Australia: "au",
   Austria: "at",
+  Azerbaijan: "az",
+  Belarus: "by",
   Belgium: "be",
   "Bosnia & Herzegovina": "ba",
   Brazil: "br",
+  Bulgaria: "bg",
   "Cabo Verde": "cv",
   Canada: "ca",
   Colombia: "co",
   "Côte d'Ivoire": "ci",
   Croatia: "hr",
   Curaçao: "cw",
+  Cyprus: "cy",
   Czechia: "cz",
+  Denmark: "dk",
   "DR Congo": "cd",
   Ecuador: "ec",
   Egypt: "eg",
   England: "gb-eng",
+  Estonia: "ee",
+  "Faroe Islands": "fo",
+  Finland: "fi",
   France: "fr",
+  Georgia: "ge",
   Germany: "de",
   Ghana: "gh",
+  Gibraltar: "gi",
+  Greece: "gr",
   Haiti: "ht",
+  Hungary: "hu",
+  Iceland: "is",
   Iran: "ir",
   Iraq: "iq",
+  Israel: "il",
+  Italy: "it",
   Japan: "jp",
   Jordan: "jo",
+  Kazakhstan: "kz",
+  Kosovo: "xk",
+  Latvia: "lv",
+  Liechtenstein: "li",
+  Lithuania: "lt",
+  Luxembourg: "lu",
+  Malta: "mt",
   Mexico: "mx",
+  Moldova: "md",
+  Montenegro: "me",
   Morocco: "ma",
   Netherlands: "nl",
   "New Zealand": "nz",
+  "North Macedonia": "mk",
+  "Northern Ireland": "gb-nir",
   Norway: "no",
   Panama: "pa",
   Paraguay: "py",
+  Poland: "pl",
   Portugal: "pt",
   Qatar: "qa",
+  "Republic of Ireland": "ie",
+  Romania: "ro",
+  "San Marino": "sm",
   "Saudi Arabia": "sa",
   Scotland: "gb-sct",
   Senegal: "sn",
+  Serbia: "rs",
+  Slovakia: "sk",
+  Slovenia: "si",
   "South Africa": "za",
   "South Korea": "kr",
   Spain: "es",
@@ -73,6 +109,7 @@ const NATIONAL_NAME_TO_ISO = {
   Tunisia: "tn",
   Türkiye: "tr",
   Turkey: "tr",
+  Ukraine: "ua",
   Uruguay: "uy",
   USA: "us",
   "United States": "us",
@@ -232,11 +269,11 @@ async function fetchLeagueTeams(apiKey, host, tournamentId) {
   return collectTeamsFromStandings(data);
 }
 
-async function downloadBytes(url, headers) {
+async function downloadBytes(url, headers, { minBytes = 200 } = {}) {
   const res = await fetch(url, { redirect: "follow", headers });
   if (!res.ok) return null;
   const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length < 200) return null;
+  if (buf.length < minBytes) return null;
   return buf;
 }
 
@@ -250,17 +287,52 @@ async function downloadSofascoreLogo(apiKey, host, teamId) {
 
 async function main() {
   const apiKey = loadEnvKey();
+  const force = process.argv.includes("--force");
+  const nationalFlagsOnly = process.argv.includes("--national-flags-only");
+
+  const wcPath = path.join(root, "src/lib/data/world-cup-2026-teams.ts");
+  const nlPath = path.join(root, "src/lib/data/nations-league-2026-teams.ts");
+  const nationalTeams = uniqueTeams([
+    ...collectTeamsFromSource(wcPath),
+    ...collectTeamsFromSource(nlPath),
+  ]);
+
+  if (nationalFlagsOnly) {
+    fs.mkdirSync(outDir, { recursive: true });
+    let ok = 0;
+    let fail = 0;
+    for (const team of nationalTeams) {
+      const iso = NATIONAL_NAME_TO_ISO[team.name];
+      if (!iso) {
+        process.stdout.write(`✗ ${team.id} ${team.name} (no ISO)\n`);
+        fail++;
+        continue;
+      }
+      const dest = path.join(outDir, `${team.id}.png`);
+      const flagBuf = await downloadBytes(`https://flagcdn.com/w160/${iso}.png`, undefined, {
+        minBytes: 50,
+      });
+      if (flagBuf) {
+        fs.writeFileSync(dest, flagBuf);
+        ok++;
+        process.stdout.write(`✓ ${team.id} ${team.name} → ${iso}\n`);
+      } else {
+        fail++;
+        process.stdout.write(`✗ ${team.id} ${team.name} (${iso})\n`);
+      }
+      await new Promise((r) => setTimeout(r, 40));
+    }
+    console.log(`\nNational flags: ${ok} saved, ${fail} failed → public/team-logos/`);
+    return;
+  }
+
   if (!apiKey) {
     console.error("Missing RAPIDAPI_KEY in .env.local");
     process.exit(1);
   }
 
-  const force = process.argv.includes("--force");
-
   const host = getSofascoreHost();
-  const wcPath = path.join(root, "src/lib/data/world-cup-2026-teams.ts");
-  const wcTeams = uniqueTeams(collectTeamsFromSource(wcPath));
-  let teams = [...wcTeams];
+  let teams = [...nationalTeams];
   let clubTeamsFromLeagues = 0;
 
   console.log(`SofaScore host: ${host}`);
@@ -313,7 +385,9 @@ async function main() {
     let saved = false;
 
     if (iso) {
-      const flagBuf = await downloadBytes(`https://flagcdn.com/w160/${iso}.png`);
+      const flagBuf = await downloadBytes(`https://flagcdn.com/w160/${iso}.png`, undefined, {
+        minBytes: 50,
+      });
       if (flagBuf) {
         fs.writeFileSync(dest, flagBuf);
         ok++;

@@ -6,8 +6,12 @@ import {
   WORLD_CUP_2026_TEAMS,
   WORLD_CUP_REFERENCE_LEAGUE_ID,
 } from "@/lib/data/world-cup-2026-teams";
+import {
+  NATIONS_LEAGUE_2026_TEAMS,
+  NATIONS_LEAGUE_REFERENCE_LEAGUE_ID,
+} from "@/lib/data/nations-league-2026-teams";
 
-export { WORLD_CUP_REFERENCE_LEAGUE_ID };
+export { WORLD_CUP_REFERENCE_LEAGUE_ID, NATIONS_LEAGUE_REFERENCE_LEAGUE_ID };
 
 export const REFERENCE_SEASON = 2025;
 
@@ -137,14 +141,7 @@ const TEAMS_BY_LEAGUE: Record<number, TeamOption[]> = {
     { id: 2959, name: "Feyenoord" },
   ],
   1: WORLD_CUP_2026_TEAMS,
-  5: [
-    { id: 4748, name: "Brazil" },
-    { id: 4705, name: "Netherlands" },
-    { id: 4481, name: "France" },
-    { id: 4711, name: "Germany" },
-    { id: 4713, name: "England" },
-    { id: 4698, name: "Spain" },
-  ],
+  5: NATIONS_LEAGUE_2026_TEAMS,
 };
 
 export function getNationalTeamCountries(): CountryOption[] {
@@ -167,6 +164,8 @@ export function getLeaguesByCountry(country: string, entityType?: EntityType): L
   );
   if (entityType === "national" && country === "International") {
     return [...leagues].sort((a, b) => {
+      if (a.id === NATIONS_LEAGUE_REFERENCE_LEAGUE_ID) return -1;
+      if (b.id === NATIONS_LEAGUE_REFERENCE_LEAGUE_ID) return 1;
       if (a.id === WORLD_CUP_REFERENCE_LEAGUE_ID) return -1;
       if (b.id === WORLD_CUP_REFERENCE_LEAGUE_ID) return 1;
       return a.name.localeCompare(b.name);

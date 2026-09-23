@@ -3,6 +3,8 @@ import { runPrediction } from "@/lib/prediction/engine";
 import { validateManualCustomLineups } from "@/lib/prediction/validate-custom-lineups";
 import { resolveWcMatchFromPredictInput } from "@/lib/world-cup/resolve-wc-match";
 import { runWcGrahamPredictForRequest } from "@/lib/world-cup/run-wc-graham-predict-for-request";
+import { resolveNlMatchFromPredictInput } from "@/lib/nations-league/resolve-nl-match";
+import { runNlGrahamPredictForRequest } from "@/lib/nations-league/run-nl-graham-predict-for-request";
 import { clampEstimatedMatchStats } from "@/lib/world-cup/wc-estimated-match-stats";
 import { tryCreateServiceClient, type Database } from "@/lib/supabase";
 import type { FixtureLineup } from "@/lib/types/football";
@@ -165,7 +167,7 @@ export async function POST(request: NextRequest) {
     let result =
       supabase && input.entityType === "national"
         ? await (async () => {
-            const resolved = await resolveWcMatchFromPredictInput(supabase, {
+            const wcResolved = await resolveWcMatchFromPredictInput(supabase, {
               homeTeamId: input.homeTeamId,
               awayTeamId: input.awayTeamId,
               homeName: input.homeTeamName,
@@ -173,12 +175,29 @@ export async function POST(request: NextRequest) {
               matchDate: input.matchDate,
               city: input.city,
             });
-            if (!resolved) return null;
-            return runWcGrahamPredictForRequest({
-              request: input,
-              resolved,
-              supabase,
+            if (wcResolved) {
+              return runWcGrahamPredictForRequest({
+                request: input,
+                resolved: wcResolved,
+                supabase,
+              });
+            }
+            const nlResolved = await resolveNlMatchFromPredictInput(supabase, {
+              homeTeamId: input.homeTeamId,
+              awayTeamId: input.awayTeamId,
+              homeName: input.homeTeamName,
+              awayName: input.awayTeamName,
+              matchDate: input.matchDate,
+              city: input.city,
             });
+            if (nlResolved) {
+              return runNlGrahamPredictForRequest({
+                request: input,
+                resolved: nlResolved,
+                supabase,
+              });
+            }
+            return null;
           })()
         : null;
 

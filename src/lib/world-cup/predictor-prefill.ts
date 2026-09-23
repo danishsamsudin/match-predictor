@@ -1,15 +1,23 @@
 import {
   normalizeNationalTeamName,
   WORLD_CUP_2026_TEAMS,
+  WORLD_CUP_REFERENCE_LEAGUE_ID,
 } from "@/lib/data/world-cup-2026-teams";
+import {
+  NATIONS_LEAGUE_2026_TEAMS,
+  NATIONS_LEAGUE_REFERENCE_LEAGUE_ID,
+} from "@/lib/data/nations-league-2026-teams";
 import { utcIsoToWcDateTime } from "@/lib/utils/kickoff-display";
 import { resolveWcKickoffForFixture } from "@/lib/world-cup/match-kickoff";
 import { normalizePredictorVenueCity } from "@/lib/world-cup/stadium-metadata";
 import type { ForecastMatchResult } from "@/lib/world-cup/tournament-simulation";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
 
-const DEFAULT_NATIONAL_LEAGUE_ID = 1;
+/** Default for /predict national compare (Nations League is the active cycle). */
+const DEFAULT_NATIONAL_LEAGUE_ID = NATIONS_LEAGUE_REFERENCE_LEAGUE_ID;
 const DEFAULT_NATIONAL_COUNTRY = "International";
+
+const NATIONAL_TEAM_CATALOG = [...WORLD_CUP_2026_TEAMS, ...NATIONS_LEAGUE_2026_TEAMS];
 
 export type NationalPredictorPrefill = {
   homeTeamId: number;
@@ -19,11 +27,13 @@ export type NationalPredictorPrefill = {
   city: string;
   date: string;
   time: string;
+  homeLeagueId?: number;
+  awayLeagueId?: number;
 };
 
 export function resolveNationalTeamApiId(teamName: string): number | null {
   const key = normalizeNationalTeamName(teamName);
-  const team = WORLD_CUP_2026_TEAMS.find(
+  const team = NATIONAL_TEAM_CATALOG.find(
     (t) => normalizeNationalTeamName(t.name) === key
   );
   return team?.id ?? null;
@@ -38,6 +48,7 @@ export function buildNationalPredictorUrlFromMatch(match: WcMatchRow): string | 
     date: match.date,
     time: match.time,
     worldCupFixture: true,
+    leagueId: WORLD_CUP_REFERENCE_LEAGUE_ID,
   });
 }
 
@@ -50,6 +61,8 @@ export function buildNationalPredictorUrl(input: {
   time?: string | null;
   /** Use a geocodable default when venue is missing (World Cup hub links). */
   worldCupFixture?: boolean;
+  /** National reference league (1 = World Cup, 5 = Nations League). */
+  leagueId?: number;
 }): string | null {
   const homeId = resolveNationalTeamApiId(input.homeName);
   const awayId = resolveNationalTeamApiId(input.awayName);
@@ -68,9 +81,12 @@ export function buildNationalPredictorUrl(input: {
   const city =
     resolvedKickoff?.venueCity ??
     normalizePredictorVenueCity(input.city, {
-      defaultWhenUnknown: input.worldCupFixture ? "Mexico City" : "Neutral",
+      defaultWhenUnknown: input.worldCupFixture ? "Mexico City" : "London",
     });
 
+  const leagueId =
+    input.leagueId ??
+    (input.worldCupFixture ? WORLD_CUP_REFERENCE_LEAGUE_ID : DEFAULT_NATIONAL_LEAGUE_ID);
   const params = new URLSearchParams({
     entity: "national",
     mode: "compare",
@@ -79,6 +95,7 @@ export function buildNationalPredictorUrl(input: {
     homeName: input.homeName,
     awayName: input.awayName,
     city,
+    league: String(leagueId),
   });
 
   const kickoffUtc = resolvedKickoff?.kickoffUtc ?? null;
@@ -110,6 +127,7 @@ export function buildBracketMatchPredictorUrl(match: ForecastMatchResult): strin
     date: match.date,
     time: match.kickoffTime,
     worldCupFixture: true,
+    leagueId: WORLD_CUP_REFERENCE_LEAGUE_ID,
   });
 }
 
@@ -130,8 +148,16 @@ export function parsePredictorPrefillFromSearchParams(
 
   const entity = params.get("entity") === "club" ? "club" : "national";
   const mode = params.get("mode") === "fixture" ? "fixture" : "compare";
-  const defaultCity = entity === "national" ? "Mexico City" : "Manchester";
-
+  const leagueParam = params.get("league");
+  const leagueId = leagueParam != null && Number.isFinite(Number(leagueParam))
+    ? Number(leagueParam)
+    : undefined;
+  const defaultCity =
+    entity === "national"
+      ? leagueId === WORLD_CUP_REFERENCE_LEAGUE_ID
+        ? "Mexico City"
+        : "Paris"
+      : "Manchester";
   const homeName = params.get("homeName") ?? "";
   const awayName = params.get("awayName") ?? "";
   const city = normalizePredictorVenueCity(params.get("city") ?? defaultCity, {
@@ -146,7 +172,7 @@ export function parsePredictorPrefillFromSearchParams(
     const cest = utcIsoToWcDateTime(kickoffUtc);
     date = cest.date;
     time = cest.time;
-  } else if (entity === "national" && homeName && awayName) {
+  } else if (entity === "national" && homeName && awayName && leagueId !== 5) {
     const resolved = resolveWcKickoffForFixture({
       date,
       time,
@@ -170,6 +196,8 @@ export function parsePredictorPrefillFromSearchParams(
     city,
     date,
     time,
+    homeLeagueId: leagueId,
+    awayLeagueId: leagueId,
   };
 }
 

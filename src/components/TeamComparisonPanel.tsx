@@ -158,7 +158,7 @@ function RecentFormColumn({ matches }: { matches: TeamFormMatch[] }) {
       {matches.map((m, index) => (
         <li
           key={`${m.date}-${m.opponent}-${m.score}-${index}`}
-          className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/20 px-2 py-1.5 dark:border-slate-800/50 dark:bg-slate-900/30"
+          className="flex items-center gap-2 rounded-lg border border-glass-border bg-surface/50 px-2 py-1.5"
         >
           <FormBadge result={m.result} />
           <div className="min-w-0 flex-1">
@@ -189,7 +189,14 @@ function TeamColumnHeader({ side }: { side: TeamComparisonSide }) {
   );
 }
 
-export function TeamComparisonPanel({ comparison }: { comparison: TeamComparisonSnapshot }) {
+export function TeamComparisonPanel({
+  comparison,
+  embedded = false,
+}: {
+  comparison: TeamComparisonSnapshot;
+  /** Skip outer title chrome when nested inside an InsightCard. */
+  embedded?: boolean;
+}) {
   const { home, away } = comparison;
   const homeShort = resolveTeamShortLabel({ name: home.teamName });
   const awayShort = resolveTeamShortLabel({ name: away.teamName });
@@ -197,18 +204,26 @@ export function TeamComparisonPanel({ comparison }: { comparison: TeamComparison
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary-emphasis">
-            <BarChart3 className="h-3.5 w-3.5" />
-          </span>
-          Team comparison
-          <InfoTip label="Team comparison">
-            Side-by-side season averages and recent results. Values show N/A when data is not
-            available for that team.
-          </InfoTip>
-        </h3>
+        {!embedded ? (
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary-emphasis">
+              <BarChart3 className="h-3.5 w-3.5" />
+            </span>
+            Team comparison
+            <InfoTip label="Team comparison">
+              Side-by-side season averages and recent results. Values show N/A when data is not
+              available for that team.
+            </InfoTip>
+          </h3>
+        ) : null}
 
-        <div className="liquid-glass-pill rounded-2xl p-4">
+        <div
+          className={
+            embedded
+              ? "rounded-xl border border-glass-border bg-surface/50 p-4"
+              : "liquid-glass-pill rounded-2xl p-4"
+          }
+        >
           <div className="mb-3 grid grid-cols-2 gap-3">
             <TeamColumnHeader side={home} />
             <TeamColumnHeader side={away} />

@@ -27,10 +27,24 @@ export const MARKETING_NAV_LINKS = [
   { href: "/faq", label: "FAQ" },
 ] as const;
 
-export const APP_NAV_LINKS = [
+export type AppNavLink =
+  | { href: string; label: string; children?: undefined }
+  | {
+      href?: undefined;
+      label: string;
+      children: readonly { href: string; label: string }[];
+    };
+
+export const APP_NAV_LINKS: readonly AppNavLink[] = [
   { href: "/home", label: "Home" },
   { href: "/predict", label: "Predict" },
   { href: "/league", label: "League" },
-  { href: "/world-cup", label: "World Cup" },
+  {
+    label: "Tournaments",
+    children: [
+      { href: "/nations-league", label: "Nations League 2026/27" },
+      { href: "/world-cup", label: "World Cup 2026" },
+    ],
+  },
   { href: "/predictions", label: "History" },
 ] as const;

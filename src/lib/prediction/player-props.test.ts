@@ -5,6 +5,7 @@ import {
   computePlayerPropsPayload,
   computeTacticalMultiplier,
   isGoalkeeperPlayer,
+  penaltyTakerGoalBump,
   sumNormalizedGoalLambdas,
   zipProbAtLeastOne,
 } from "@/lib/prediction/player-props";
@@ -409,7 +410,7 @@ describe("computePlayerPropsPayload", () => {
     expect(sotLines[0]!.fairDecimalOdds).toBeLessThan(sotLines[4]!.fairDecimalOdds);
   });
 
-  it("ranks anytime scorers by WC tournament goals before model probability", () => {
+  it("ranks anytime scorers by model probability, not tournament goals", () => {
     const wcOverlays = new Map<string, WcPlayerPropOverlay>();
     const overlayFor = (
       name: string,
@@ -437,6 +438,7 @@ describe("computePlayerPropsPayload", () => {
       wcWeight: 0.85,
     });
 
+    // Richarlison has more tournament goals but much lower club xG than Vinicius.
     wcOverlays.set("richarlison", overlayFor("Richarlison", 3, 2.1, 0.55));
     wcOverlays.set("vinicius jr", overlayFor("Vinicius Jr", 2, 3.8, 0.42));
     wcOverlays.set("raphinha", overlayFor("Raphinha", 1, 1.2, 0.28));
@@ -512,11 +514,19 @@ describe("computePlayerPropsPayload", () => {
       wcOverlays,
     });
 
-    const names = payload.home.anytimeScorer.map((line) => line.playerName);
-    expect(names[0]).toBe("Richarlison");
-    expect(names[1]).toBe("Vinicius Jr");
-    expect(names[2]).toBe("Raphinha");
-    expect(names.slice(0, 3)).not.toContain("Marquinhos");
-    expect(names).toContain("Rodrygo");
+    const lines = payload.home.anytimeScorer;
+    expect(lines).toHaveLength(5);
+    for (let i = 1; i < lines.length; i++) {
+      expect(lines[i - 1]!.probabilityPct).toBeGreaterThanOrEqual(lines[i]!.probabilityPct);
+    }
+    // Low-threat CB with no goals should not outrank high-xG attackers.
+    expect(lines.map((l) => l.playerName).slice(0, 3)).not.toContain("Marquinhos");
+    expect(payload.home.anytimeCandidates.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("scales penalty taker bump with team xG instead of a flat 0.15", () => {
+    expect(penaltyTakerGoalBump(0.8)).toBeLessThan(0.15);
+    expect(penaltyTakerGoalBump(2.5)).toBeGreaterThan(penaltyTakerGoalBump(0.8));
+    expect(penaltyTakerGoalBump(2.5)).toBeLessThanOrEqual(0.14);
   });
 });

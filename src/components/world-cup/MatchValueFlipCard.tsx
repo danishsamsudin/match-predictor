@@ -42,6 +42,10 @@ export type UpcomingMatchCardProps = {
   awayFifaRank: number | null;
   awayFifaPoints: number | null;
   cardPrediction: HubCardPrediction | null;
+  /** Override national league for predict deep-link (5 = Nations League). */
+  nationalLeagueId?: number;
+  /** When set, use this URL instead of building from WC team catalog. */
+  predictorUrlOverride?: string | null;
 };
 
 export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
@@ -62,6 +66,8 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
     awayFifaRank,
     awayFifaPoints,
     cardPrediction,
+    nationalLeagueId,
+    predictorUrlOverride,
   } = props;
 
   const [flipped, setFlipped] = useState(false);
@@ -128,14 +134,17 @@ export function MatchValueFlipCard(props: UpcomingMatchCardProps) {
     homeName,
     awayName,
   });
-  const predictorUrl = buildNationalPredictorUrl({
-    homeName,
-    awayName,
-    city: kickoffVenueLabel,
-    date: matchDate,
-    time: matchTime,
-    worldCupFixture: true,
-  });
+  const predictorUrl =
+    predictorUrlOverride ??
+    buildNationalPredictorUrl({
+      homeName,
+      awayName,
+      city: kickoffVenueLabel,
+      date: matchDate,
+      time: matchTime,
+      worldCupFixture: nationalLeagueId == null || nationalLeagueId === 1,
+      leagueId: nationalLeagueId,
+    });
 
   const venueLine =
     venueStadium && venueCity && venueStadium !== venueCity

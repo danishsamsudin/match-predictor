@@ -33,6 +33,11 @@ export type InternationalFormMatch = {
   metricsSource?: string | null;
   /** Stadium altitude for altitude-acclimation scoring (from venue metadata when known). */
   venue_altitude_meters?: number | null;
+  /**
+   * Optional extra sample weight (e.g. NL cycle decay). Multiplies tier × time decay
+   * in Graham process rates / form aggregates when set.
+   */
+  sampleWeight?: number;
 };
 
 import {

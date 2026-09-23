@@ -122,7 +122,10 @@ export function computeGrahamProcessRatesFromMatches(
     if (m.home_goals == null || m.away_goals == null) continue;
 
     const tier = internationalMatchTierWeight(m.competition);
-    const weight = internationalDecayWeight(m.date, referenceMs) * tier;
+    const weight =
+      internationalDecayWeight(m.date, referenceMs) *
+      tier *
+      (m.sampleWeight != null && Number.isFinite(m.sampleWeight) ? m.sampleWeight : 1);
     if (weight <= 0) continue;
 
     if (!resolveInternationalFormTeamSide(m, teamId, teamName)) continue;

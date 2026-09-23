@@ -38,6 +38,8 @@ function samplePayload(
         },
       ],
       goalOrAssist: [],
+      shotsOnTarget: [],
+      anytimeCandidates: [],
     },
     away: {
       teamName: awayTeamName,
@@ -58,6 +60,8 @@ function samplePayload(
         },
       ],
       goalOrAssist: [],
+      shotsOnTarget: [],
+      anytimeCandidates: [],
     },
   };
 }

@@ -55,6 +55,7 @@ export type TeamSquadSource =
   | "fbref"
   | "fifa_official"
   | "sofifa"
+  | "bulinews"
   | "manual"
   | "none";
 

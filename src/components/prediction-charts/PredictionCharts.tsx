@@ -387,8 +387,11 @@ function ImpactPill({
 
 export function PredictionCharts({
   result,
+  nationsLeagueUi = false,
 }: {
   result: PredictionResult;
+  /** Hide NL-redundant sections (model adjustments, bottom form timeline, AH chart). */
+  nationsLeagueUi?: boolean;
 }) {
   const analytics = result.analytics;
   const homeLabel = result.homeTeamName ?? "Home";
@@ -521,29 +524,31 @@ export function PredictionCharts({
           </div>
         </ChartCardWithTip>
 
-        <ChartCardWithTip
-          title="Asian Handicap (home line)"
-          tipLabel="Asian Handicap"
-          tipBody={
-            <>
-              Home-side cover probability for each Asian Handicap line (negative = home gives goals).
-              Quarter lines split stake between adjacent half/whole lines. Compare with bookmaker AH
-              prices in the handicap market comparison panel below.
-            </>
-          }
-        >
-          <div className="space-y-2">
-            {analytics.handicapMarkets.asianHandicap.map((line) => (
-              <HorizontalBar
-                key={line.line}
-                label={`Home ${formatAsianLine(line.line)}`}
-                value={line.homeCoverPct}
-                maxValue={ahMax}
-                accent={line.line <= 0 ? "primary" : "accent"}
-              />
-            ))}
-          </div>
-        </ChartCardWithTip>
+        {!nationsLeagueUi ? (
+          <ChartCardWithTip
+            title="Asian Handicap (home line)"
+            tipLabel="Asian Handicap"
+            tipBody={
+              <>
+                Home-side cover probability for each Asian Handicap line (negative = home gives goals).
+                Quarter lines split stake between adjacent half/whole lines. Compare with bookmaker AH
+                prices in the Odds &amp; edges board below.
+              </>
+            }
+          >
+            <div className="space-y-2">
+              {analytics.handicapMarkets.asianHandicap.map((line) => (
+                <HorizontalBar
+                  key={line.line}
+                  label={`Home ${formatAsianLine(line.line)}`}
+                  value={line.homeCoverPct}
+                  maxValue={ahMax}
+                  accent={line.line <= 0 ? "primary" : "accent"}
+                />
+              ))}
+            </div>
+          </ChartCardWithTip>
+        ) : null}
 
         <ChartCardWithTip
           title="Goals markets (Over / Under) - model"
@@ -823,22 +828,24 @@ export function PredictionCharts({
           </ChartCardWithTip>
         ) : null}
 
-        <ChartCardWithTip
-          title="Model adjustments"
-          tipLabel="Model adjustments"
-          tipBody={
-            <>
-              How much altitude, host-nation, travel, weather, and lineup factors shifted expected
-              goals vs the baseline. Shown as % change from neutral (1.0×).
-            </>
-          }
-          className="lg:col-span-2"
-        >
-          <ModelImpactChart factors={analytics.modelImpact} />
-        </ChartCardWithTip>
+        {!nationsLeagueUi ? (
+          <ChartCardWithTip
+            title="Model adjustments"
+            tipLabel="Model adjustments"
+            tipBody={
+              <>
+                How much altitude, host-nation, travel, weather, and lineup factors shifted expected
+                goals vs the baseline. Shown as % change from neutral (1.0×).
+              </>
+            }
+            className="lg:col-span-2"
+          >
+            <ModelImpactChart factors={analytics.modelImpact} />
+          </ChartCardWithTip>
+        ) : null}
       </div>
 
-      {comparison ? (
+      {!nationsLeagueUi && comparison ? (
         <FormTrendSection comparison={comparison} homeLabel={homeLabel} awayLabel={awayLabel} />
       ) : null}
     </section>

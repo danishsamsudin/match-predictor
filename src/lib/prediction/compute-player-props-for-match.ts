@@ -6,8 +6,12 @@ import {
   computePlayerPropsPayload,
   type PlayerPropsPayload,
 } from "@/lib/prediction/player-props";
-import { loadWcPlayerPropOverlays } from "@/lib/prediction/player-props-wc-opta";
+import {
+  loadNlPlayerPropOverlays,
+  loadWcPlayerPropOverlays,
+} from "@/lib/prediction/player-props-wc-opta";
 import { tryCreateServiceClient } from "@/lib/supabase";
+import { loadNlCalibrationConfig } from "@/lib/nations-league/nl-calibration-config";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import {
   computeShotProfileFromMatches,
@@ -105,6 +109,8 @@ export async function computePlayerPropsForMatch(input: {
   homeSetPieceMult?: number;
   awaySetPieceMult?: number;
   setPieceRateThreshold?: number;
+  /** Tournament overlay + calibration source for nationals. Defaults to world_cup. */
+  tournamentSource?: "world_cup" | "nations_league";
 }): Promise<PlayerPropsPayload | null> {
   let comparison = input.teamComparison;
 
@@ -144,12 +150,17 @@ export async function computePlayerPropsForMatch(input: {
     input.homeFormMatches
   );
 
+  const tournamentSource = input.tournamentSource ?? "world_cup";
   const supabase = tryCreateServiceClient();
   const [wcOverlays, calibration] = await Promise.all([
     input.entityType === "national" && supabase
-      ? loadWcPlayerPropOverlays(supabase, [input.homeTeamId, input.awayTeamId])
+      ? tournamentSource === "nations_league"
+        ? loadNlPlayerPropOverlays(supabase, [input.homeTeamId, input.awayTeamId])
+        : loadWcPlayerPropOverlays(supabase, [input.homeTeamId, input.awayTeamId])
       : Promise.resolve(undefined),
-    loadWcCalibrationConfig(),
+    tournamentSource === "nations_league"
+      ? loadNlCalibrationConfig()
+      : loadWcCalibrationConfig(),
   ]);
 
   const payload = computePlayerPropsPayload({

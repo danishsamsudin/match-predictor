@@ -93,6 +93,14 @@ const NATIONAL_TEAM_NAME_ALIASES: Record<string, string> = {
   "united states of america": "usa",
   "ivory coast": "côte d'ivoire",
   "czech republic": "czechia",
+  ireland: "republic of ireland",
+  "republic of ireland": "republic of ireland",
+  "fyr macedonia": "north macedonia",
+  "fyrom": "north macedonia",
+  macedonia: "north macedonia",
+  "north macedonia": "north macedonia",
+  "faroe islands": "faroe islands",
+  "faeroe islands": "faroe islands",
 };
 
 function stripCombiningMarks(value: string): string {

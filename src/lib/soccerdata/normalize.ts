@@ -2,6 +2,26 @@ const PUNCTUATION = /[.,'’"()\-_/]/g;
 const WHITESPACE = /\s+/g;
 const DIACRITICS = /[\u0300-\u036f]/g;
 
+/** Letters that do not NFKD-decompose to ASCII (ø stays ø, etc.). */
+const LATIN_LETTER_FOLDS: Record<string, string> = {
+  ø: "o",
+  Ø: "o",
+  æ: "ae",
+  Æ: "ae",
+  å: "a",
+  Å: "a",
+  ð: "d",
+  Ð: "d",
+  þ: "th",
+  Þ: "th",
+  ł: "l",
+  Ł: "l",
+  đ: "d",
+  Đ: "d",
+  ı: "i",
+  ß: "ss",
+};
+
 const TEAM_STOPWORDS = new Set([
   "fc",
   "cf",
@@ -15,8 +35,16 @@ const TEAM_STOPWORDS = new Set([
   "the",
 ]);
 
+function foldLatinLetters(input: string): string {
+  let out = "";
+  for (const char of input) {
+    out += LATIN_LETTER_FOLDS[char] ?? char;
+  }
+  return out;
+}
+
 export function normalizeText(input: string): string {
-  return input
+  return foldLatinLetters(input)
     .normalize("NFKD")
     .replace(DIACRITICS, "")
     .toLowerCase()

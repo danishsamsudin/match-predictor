@@ -597,6 +597,271 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["world_cup_prediction_evaluations"]["Insert"]>;
         Relationships: [];
       };
+      nations_league_groups: {
+        Row: {
+          league_tier: string;
+          group_code: string;
+          team_id: string;
+          sort_order: number;
+        };
+        Insert: {
+          league_tier: string;
+          group_code: string;
+          team_id: string;
+          sort_order: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["nations_league_groups"]["Insert"]>;
+        Relationships: [];
+      };
+      nations_league_predictions: {
+        Row: {
+          match_id: string;
+          home_win_pct: number;
+          draw_pct: number;
+          away_win_pct: number;
+          fair_odds_home: number | null;
+          fair_odds_draw: number | null;
+          fair_odds_away: number | null;
+          predicted_score_home: number;
+          predicted_score_away: number;
+          under_2_5_pct: number;
+          over_2_5_pct: number;
+          model_version: string;
+          computed_at: string | null;
+          snapshot: Record<string, unknown>;
+        };
+        Insert: {
+          match_id: string;
+          home_win_pct: number;
+          draw_pct: number;
+          away_win_pct: number;
+          predicted_score_home: number;
+          predicted_score_away: number;
+          under_2_5_pct: number;
+          over_2_5_pct: number;
+          model_version: string;
+          computed_at?: string | null;
+          snapshot?: Record<string, unknown>;
+        };
+        Update: Partial<Database["public"]["Tables"]["nations_league_predictions"]["Insert"]>;
+        Relationships: [];
+      };
+      nations_league_hub_snapshot: {
+        Row: {
+          id: string;
+          computed_at: string;
+          payload: Record<string, unknown>;
+          refresh_status: string;
+          last_manual_refresh_at: string | null;
+          last_cron_refresh_at: string | null;
+          refresh_errors: unknown;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          computed_at?: string;
+          payload: Record<string, unknown>;
+          refresh_status?: string;
+          last_manual_refresh_at?: string | null;
+          last_cron_refresh_at?: string | null;
+          refresh_errors?: unknown;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["nations_league_hub_snapshot"]["Insert"]>;
+        Relationships: [];
+      };
+      nations_league_calibration_config: {
+        Row: {
+          id: string;
+          version: string;
+          effective_from: string;
+          constants: Record<string, unknown>;
+          metrics: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          version: string;
+          effective_from?: string;
+          constants?: Record<string, unknown>;
+          metrics?: Record<string, unknown>;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["nations_league_calibration_config"]["Insert"]>;
+        Relationships: [];
+      };
+      nations_league_post_match_ingests: {
+        Row: {
+          id: string;
+          match_id: string;
+          source_path: string | null;
+          parsed: Record<string, unknown>;
+          article_text: string | null;
+          narrative_features: Record<string, unknown>;
+          ingested_at: string;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          source_path?: string | null;
+          parsed?: Record<string, unknown>;
+          article_text?: string | null;
+          narrative_features?: Record<string, unknown>;
+          ingested_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["nations_league_post_match_ingests"]["Insert"]>;
+        Relationships: [];
+      };
+      nations_league_player_match_stats: {
+        Row: {
+          match_id: string;
+          opta_player_id: string;
+          player_name: string;
+          team_api_id: number;
+          side: string;
+          is_starter: boolean;
+          position: string | null;
+          minutes: number | null;
+          opta_points: number | null;
+          match_rank: number | null;
+          stats: Record<string, unknown>;
+          ingested_at: string;
+        };
+        Insert: {
+          match_id: string;
+          opta_player_id: string;
+          player_name: string;
+          team_api_id: number;
+          side: string;
+          is_starter?: boolean;
+          position?: string | null;
+          minutes?: number | null;
+          opta_points?: number | null;
+          match_rank?: number | null;
+          stats?: Record<string, unknown>;
+          ingested_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["nations_league_player_match_stats"]["Insert"]>;
+        Relationships: [];
+      };
+      nations_league_team_match_aggregates: {
+        Row: {
+          match_id: string;
+          team_api_id: number;
+          side: string;
+          chance_index: number | null;
+          finishing_delta: number | null;
+          defensive_solidity: number | null;
+          territory_index: number | null;
+          gk_save_index: number | null;
+          discipline_load: number | null;
+          opponent_strength: number | null;
+          payload: Record<string, unknown>;
+          computed_at: string;
+        };
+        Insert: {
+          match_id: string;
+          team_api_id: number;
+          side: string;
+          chance_index?: number | null;
+          finishing_delta?: number | null;
+          defensive_solidity?: number | null;
+          territory_index?: number | null;
+          gk_save_index?: number | null;
+          discipline_load?: number | null;
+          opponent_strength?: number | null;
+          payload?: Record<string, unknown>;
+          computed_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["nations_league_team_match_aggregates"]["Insert"]>;
+        Relationships: [];
+      };
+      nations_league_player_tournament_form: {
+        Row: {
+          team_api_id: number;
+          opta_player_id: string;
+          player_name: string;
+          matches_played: number;
+          minutes_total: number;
+          avg_opta_points: number | null;
+          chance_index_per90: number | null;
+          defensive_actions_per90: number | null;
+          gk_save_index: number | null;
+          yellow_cards: number;
+          was_last_starter: boolean;
+          availability_factor: number | null;
+          payload: Record<string, unknown>;
+          updated_at: string;
+        };
+        Insert: {
+          team_api_id: number;
+          opta_player_id: string;
+          player_name: string;
+          matches_played?: number;
+          minutes_total?: number;
+          avg_opta_points?: number | null;
+          chance_index_per90?: number | null;
+          defensive_actions_per90?: number | null;
+          gk_save_index?: number | null;
+          yellow_cards?: number;
+          was_last_starter?: boolean;
+          availability_factor?: number | null;
+          payload?: Record<string, unknown>;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["nations_league_player_tournament_form"]["Insert"]>;
+        Relationships: [];
+      };
+      nations_league_player_stats_ingests: {
+        Row: {
+          id: string;
+          match_id: string;
+          source_paths: Record<string, unknown>;
+          parsed_summary: Record<string, unknown>;
+          warnings: string[];
+          ingested_at: string;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          source_paths?: Record<string, unknown>;
+          parsed_summary?: Record<string, unknown>;
+          warnings?: string[];
+          ingested_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["nations_league_player_stats_ingests"]["Insert"]>;
+        Relationships: [];
+      };
+      nations_league_player_prop_evaluations: {
+        Row: {
+          match_id: string;
+          opta_player_id: string;
+          player_name: string;
+          team_api_id: number;
+          market: string;
+          predicted_lambda: number | null;
+          predicted_prob: number | null;
+          actual_count: number | null;
+          hit: boolean | null;
+          computed_at: string;
+        };
+        Insert: {
+          match_id: string;
+          opta_player_id: string;
+          player_name: string;
+          team_api_id: number;
+          market: string;
+          predicted_lambda?: number | null;
+          predicted_prob?: number | null;
+          actual_count?: number | null;
+          hit?: boolean | null;
+          computed_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["nations_league_player_prop_evaluations"]["Insert"]
+        >;
+        Relationships: [];
+      };
       prediction_snapshots: {
         Row: {
           id: string;

@@ -1,4 +1,5 @@
 import type { FixtureLineup } from "@/lib/types/football";
+import type { DerivedMarkets } from "@/lib/glpm-cx/derived-markets";
 import type { TeamComparisonSnapshot } from "@/lib/types/team-comparison";
 import type { PlayerPropsPayload } from "@/lib/prediction/player-props";
 
@@ -134,6 +135,8 @@ export interface PredictionResult {
   lineupSource?: PredictionLineupSource;
   debug?: { factors: Record<string, number> };
   playerProps?: PlayerPropsPayload;
+  /** Club-style EH / goal ranges / team totals / double chance from the score grid. */
+  derivedMarkets?: DerivedMarkets;
 }
 
 export interface TeamStatAverages {

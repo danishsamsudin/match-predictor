@@ -1,6 +1,6 @@
+import { WORLD_CUP_REFERENCE_LEAGUE_ID } from "@/lib/data/world-cup-2026-teams";
 import { resolveSingleFixtureMotivation } from "@/lib/world-cup/motivation";
 import { runGrahamWorldCupPredict } from "@/lib/world-cup/graham-predict";
-import { PREDICTOR_PREFILL_DEFAULTS } from "@/lib/world-cup/predictor-prefill";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
 import { normalizePredictorVenueCity } from "@/lib/world-cup/stadium-metadata";
 import type { PredictRequest } from "@/lib/types/prediction";
@@ -34,7 +34,7 @@ export function buildHubPredictRequestFromMatch(match: WcMatchRow): PredictReque
   const date = match.date?.trim().slice(0, 10);
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
 
-  const leagueId = PREDICTOR_PREFILL_DEFAULTS.nationalLeagueId;
+  const leagueId = WORLD_CUP_REFERENCE_LEAGUE_ID;
   return {
     mode: "compare",
     entityType: "national",

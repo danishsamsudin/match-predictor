@@ -42,6 +42,10 @@ describe("grahamHubRowToPredictionResult", () => {
     expect(result.analytics?.overUnder.length).toBeGreaterThan(0);
     expect(result.analytics?.handicapMarkets.asianHandicap.length).toBeGreaterThan(0);
     expect(result.analytics?.topScores.length).toBeGreaterThan(0);
+    expect(result.derivedMarkets?.europeanHandicap.length).toBeGreaterThan(0);
+    expect(result.derivedMarkets?.goalRanges.match.length).toBeGreaterThan(0);
+    expect(result.derivedMarkets?.teamTotals.length).toBeGreaterThan(0);
+    expect(result.derivedMarkets?.doubleChance.homeOrDraw).toBeGreaterThan(0);
     expect(result.estimated.corners).toBeGreaterThan(0);
     expect(result.estimated.fouls).toBeGreaterThan(0);
   });

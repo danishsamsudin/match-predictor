@@ -34,7 +34,11 @@ import type { SquadPlayer, TeamSquadSnapshot } from "@/lib/types/team-comparison
 const TOP_N = 5;
 const TEAM_GOAL_SHARE = 0.85;
 const TEAM_ASSIST_BUDGET_RATIO = 0.55;
-const PENALTY_TAKER_GOAL_BUMP = 0.15;
+/** Baseline expected pen goals/match; scaled with team xG (not a flat λ bump). */
+const PENALTY_BASE_EXPECTED_GOALS = 0.1;
+const PENALTY_XG_SLOPE = 0.035;
+const PENALTY_BUMP_MIN = 0.05;
+const PENALTY_BUMP_MAX = 0.14;
 const MIN_SUM_BASE = 0.1;
 
 export type PlayerPropMarketCoeffs = {
@@ -87,6 +91,11 @@ export type TeamPlayerPropsSide = {
   anytimeScorer: PlayerPropLine[];
   goalOrAssist: PlayerPropLine[];
   shotsOnTarget: SotPropLine[];
+  /**
+   * Full outfield XI ranked by anytime probability (for post-match calibration).
+   * UI markets still use the top-N lists above.
+   */
+  anytimeCandidates: PlayerPropLine[];
 };
 
 export type PlayerPropsPayload = {
@@ -361,14 +370,42 @@ function buildLikelyXi(squad: TeamSquadSnapshot): SquadPlayer[] {
     .sort((a, b) => (b.startSharePct ?? 0) - (a.startSharePct ?? 0));
 }
 
-function isSetPieceThreatProfile(player: SquadPlayer): boolean {
-  const role = resolveSquadPlayerLineupRole({
-    fieldPosition: player.fieldPosition,
-    position: player.position,
-  });
-  if (role === "D") return true;
+/** Central defenders only - full-backs are not automatic set-piece scorers. */
+function isCentralDefender(player: SquadPlayer): boolean {
   const slot = (player.fieldPosition ?? player.position ?? "").toUpperCase();
-  return ["CB", "RCB", "LCB", "RB", "LB", "RWB", "LWB"].some((t) => slot.includes(t));
+  return (
+    slot === "CB" ||
+    slot === "RCB" ||
+    slot === "LCB" ||
+    /\bCB\b/.test(slot) ||
+    slot.includes("CENTRE BACK") ||
+    slot.includes("CENTER BACK")
+  );
+}
+
+/**
+ * Set-piece goal pool recipients: pen taker, or central defenders with scoring
+ * evidence (tournament goals/xG or non-trivial open-play goal λ).
+ */
+function isSetPieceThreatProfile(
+  player: SquadPlayer,
+  wcOverlay: WcPlayerPropOverlay | null,
+  baseGoalLambda: number,
+  isPenaltyTaker: boolean
+): boolean {
+  if (isPenaltyTaker) return true;
+  if (!isCentralDefender(player)) return false;
+  if (wcOverlay && (wcOverlay.goalsTotal > 0 || wcOverlay.xgTotal >= 0.2)) return true;
+  return baseGoalLambda >= 0.04;
+}
+
+/** Match-scaled pen expected goals allocated to the designated taker. */
+export function penaltyTakerGoalBump(teamExpectedGoals: number): number {
+  return clamp(
+    PENALTY_BASE_EXPECTED_GOALS + teamExpectedGoals * PENALTY_XG_SLOPE,
+    PENALTY_BUMP_MIN,
+    PENALTY_BUMP_MAX
+  );
 }
 
 function buildCandidatesForTeam(input: {
@@ -460,15 +497,23 @@ function buildCandidatesForTeam(input: {
 
   const setPieceThreatIds = new Set(
     rawEntries
-      .filter((e) => isSetPieceThreatProfile(e.player) || e.isPenaltyTaker)
+      .filter((e) =>
+        isSetPieceThreatProfile(
+          e.player,
+          e.wcOverlay,
+          e.baseGoalLambda,
+          e.isPenaltyTaker
+        )
+      )
       .map((e) => e.player.sofascorePlayerId)
   );
   const setPieceWeightSum = rawEntries.reduce((sum, e) => {
     if (!setPieceThreatIds.has(e.player.sofascorePlayerId)) return sum;
-    return (
-      sum +
-      resolveExpectedMinutes(e.player, e.wcOverlay) / 90
-    );
+    // Weight by open-play threat so low-λ CBs barely take from the pool.
+    const threat =
+      allocationWeight(e.baseGoalLambda, e.tacticalMultiplier, e.wcOverlay) +
+      (e.isPenaltyTaker ? 0.08 : 0);
+    return sum + Math.max(threat, 0.01);
   }, 0);
 
   return rawEntries.map((entry) => {
@@ -485,7 +530,7 @@ function buildCandidatesForTeam(input: {
       (teamAssistBudget / Math.max(sumBaseAssists, MIN_SUM_BASE));
 
     if (entry.isPenaltyTaker) {
-      normalizedGoalLambda += PENALTY_TAKER_GOAL_BUMP;
+      normalizedGoalLambda += penaltyTakerGoalBump(input.teamExpectedGoals);
     }
 
     if (
@@ -493,11 +538,14 @@ function buildCandidatesForTeam(input: {
       setPieceWeightSum > 0 &&
       setPieceThreatIds.has(entry.player.sofascorePlayerId)
     ) {
-      const minutesShare =
-        resolveExpectedMinutes(entry.player, entry.wcOverlay) /
-        90 /
-        setPieceWeightSum;
-      normalizedGoalLambda += setPiecePool * minutesShare;
+      const threat =
+        allocationWeight(
+          entry.baseGoalLambda,
+          entry.tacticalMultiplier,
+          entry.wcOverlay
+        ) + (entry.isPenaltyTaker ? 0.08 : 0);
+      const share = Math.max(threat, 0.01) / setPieceWeightSum;
+      normalizedGoalLambda += setPiecePool * share;
     }
 
     const piGoal = scaledStructuralZeroForRole(
@@ -587,84 +635,16 @@ function rankTopN(
   return sorted.slice(0, n).map((candidate, index) => toPropLine(candidate, index + 1, market));
 }
 
-/** Threat score for players yet to score in the tournament (xG, SoT, chance creation). */
-function resolveNonScorerGoalThreat(candidate: PlayerPropCandidate): number {
-  const wc = candidate.wcOverlay;
-  if (wc && wc.minutesTotal > 0) {
-    return (
-      wc.xgTotal * 100 +
-      wc.shotsOnTargetTotal * 15 +
-      wc.chanceIndexPer90 * wc.minutesTotal * 0.08 +
-      wc.goalRate90 * 50
-    );
-  }
-  return candidate.normalizedGoalLambda * 100 + candidate.anytimeProb * 50;
-}
-
-function resolveGoalOrAssistContribution(candidate: PlayerPropCandidate): number {
-  const wc = candidate.wcOverlay;
-  if (!wc) return 0;
-  return wc.goalsTotal + wc.assistsTotal;
-}
-
 /**
- * Rank goal markets using cumulative WC tournament data when available:
- * actual scorers first (by goals), then high-threat non-scorers, then model fallback.
+ * Rank goal markets by model probability.
+ * Tournament overlays still influence λ / ML features; they no longer reorder the list.
  */
 function rankGoalMarketTopN(
   candidates: PlayerPropCandidate[],
   market: PlayerPropMarket,
   n = TOP_N
 ): PlayerPropLine[] {
-  const hasWcData = candidates.some(
-    (c) => c.wcOverlay != null && c.wcOverlay.minutesTotal > 0
-  );
-  if (!hasWcData) {
-    return rankTopN(candidates, market, n);
-  }
-
-  if (market === "anytime_scorer") {
-    const scorers = candidates.filter((c) => (c.wcOverlay?.goalsTotal ?? 0) > 0);
-    const rest = candidates.filter((c) => (c.wcOverlay?.goalsTotal ?? 0) <= 0);
-
-    scorers.sort((a, b) => {
-      const goalsDiff = b.wcOverlay!.goalsTotal - a.wcOverlay!.goalsTotal;
-      if (goalsDiff !== 0) return goalsDiff;
-      return b.wcOverlay!.xgTotal - a.wcOverlay!.xgTotal;
-    });
-
-    rest.sort((a, b) => resolveNonScorerGoalThreat(b) - resolveNonScorerGoalThreat(a));
-
-    return [...scorers, ...rest]
-      .slice(0, n)
-      .map((candidate, index) => toPropLine(candidate, index + 1, market));
-  }
-
-  const contributors = candidates.filter((c) => resolveGoalOrAssistContribution(c) > 0);
-  const rest = candidates.filter((c) => resolveGoalOrAssistContribution(c) <= 0);
-
-  contributors.sort((a, b) => {
-    const contribDiff =
-      resolveGoalOrAssistContribution(b) - resolveGoalOrAssistContribution(a);
-    if (contribDiff !== 0) return contribDiff;
-    return (b.wcOverlay?.goalsTotal ?? 0) - (a.wcOverlay?.goalsTotal ?? 0);
-  });
-
-  rest.sort((a, b) => {
-    const threatB =
-      resolveNonScorerGoalThreat(b) +
-      (b.wcOverlay?.assistRate90 ?? 0) * 30 +
-      b.normalizedAssistLambda * 50;
-    const threatA =
-      resolveNonScorerGoalThreat(a) +
-      (a.wcOverlay?.assistRate90 ?? 0) * 30 +
-      a.normalizedAssistLambda * 50;
-    return threatB - threatA;
-  });
-
-  return [...contributors, ...rest]
-    .slice(0, n)
-    .map((candidate, index) => toPropLine(candidate, index + 1, market));
+  return rankTopN(candidates, market, n);
 }
 
 const SOT_LINES: Array<0.5 | 1.5 | 2.5> = [0.5, 1.5, 2.5];
@@ -888,6 +868,7 @@ export function computeTeamPlayerProps(input: {
       wcOverlays: input.wcOverlays,
       sotCoeffs: propCoeffs.sot,
     }),
+    anytimeCandidates: rankTopN(candidates, "anytime_scorer", candidates.length),
   };
 }
 

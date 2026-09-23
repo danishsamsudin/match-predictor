@@ -40,16 +40,70 @@ function titleWord(word: string): string {
   return word;
 }
 
+function preferToken(a: string, b: string): string {
+  const aDiacritic = /[^\u0000-\u007f]/.test(a);
+  const bDiacritic = /[^\u0000-\u007f]/.test(b);
+  if (aDiacritic !== bDiacritic) return bDiacritic ? b : a;
+  const aAllCaps = a.length > 1 && a === a.toUpperCase();
+  const bAllCaps = b.length > 1 && b === b.toUpperCase();
+  if (aAllCaps !== bAllCaps) return aAllCaps ? b : a;
+  return b.length >= a.length ? b : a;
+}
+
 function dedupeWords(words: string[]): string[] {
   const out: string[] = [];
   for (const word of words) {
     if (out.length && foldToken(out[out.length - 1]) === foldToken(word)) {
-      if (word.length > out[out.length - 1].length) out[out.length - 1] = word;
+      out[out.length - 1] = preferToken(out[out.length - 1], word);
       continue;
     }
     out.push(word);
   }
   return out;
+}
+
+/** Collapse repeated blocks: ABAB, ABCABC (e.g. "Jens Petter Jens Petter"). */
+function collapseRepeatedSequences(words: string[]): string[] {
+  let result = [...words];
+  for (let n = Math.min(4, Math.floor(result.length / 2)); n >= 2; n -= 1) {
+    const next: string[] = [];
+    let index = 0;
+    while (index < result.length) {
+      if (index + 2 * n <= result.length) {
+        const first = result.slice(index, index + n);
+        const second = result.slice(index + n, index + 2 * n);
+        const foldsA = first.map(foldToken);
+        const foldsB = second.map(foldToken);
+        if (
+          foldsA.every(Boolean) &&
+          foldsA.every((fold, i) => fold === foldsB[i]) &&
+          new Set(foldsA).size > 1
+        ) {
+          for (let i = 0; i < n; i += 1) {
+            next.push(preferToken(first[i]!, second[i]!));
+          }
+          index += 2 * n;
+          continue;
+        }
+      }
+      next.push(result[index]!);
+      index += 1;
+    }
+    result = next;
+  }
+  return result;
+}
+
+/**
+ * Fix doubled FIFA/PDF tokens without requiring ALLCAPS glue detection
+ * (e.g. "Jorgen Jørgen Strand Larsen", "Jens Petter Jens Petter Hauge").
+ */
+export function collapseRepeatedNameTokens(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return trimmed;
+  return collapseRepeatedSequences(dedupeWords(words)).join(" ");
 }
 
 function splitRepeatedToken(token: string): string {
@@ -76,6 +130,7 @@ function unglue(value: string): string {
     if (
       index > 0 &&
       prev &&
+      /[A-Za-z\u00C0-\u017F]/.test(prev) &&
       prev.toLowerCase() === prev &&
       char.toUpperCase() === char &&
       char.toLowerCase() !== char
@@ -93,12 +148,14 @@ function collapseHyphenated(firstNames: string[], sourceWords: string[]): string
   const hyphenated = sourceWords.filter((word) => word.includes("-"));
   let result = [...firstNames];
   for (const candidate of hyphenated) {
-    const [head, tail] = candidate.split("-", 2);
-    if (!tail) continue;
+    const parts = candidate.split("-");
+    const head = parts[0];
+    const tail = parts.slice(1).join("-");
+    if (!head || !tail) continue;
     for (let index = 0; index < result.length - 1; index += 1) {
       if (
-        foldToken(result[index]) === foldToken(head) &&
-        foldToken(result[index + 1]) === foldToken(tail)
+        foldToken(result[index]!) === foldToken(head) &&
+        foldToken(result[index + 1]!) === foldToken(tail)
       ) {
         result = [...result.slice(0, index), candidate, ...result.slice(index + 2)];
         break;
@@ -108,8 +165,8 @@ function collapseHyphenated(firstNames: string[], sourceWords: string[]): string
   const cleaned: string[] = [];
   for (const word of result) {
     if (cleaned.length && word.includes("-")) {
-      const head = word.split("-", 1)[0];
-      if (foldToken(cleaned[cleaned.length - 1]) === foldToken(head)) {
+      const head = word.split("-")[0]!;
+      if (foldToken(cleaned[cleaned.length - 1]!) === foldToken(head)) {
         cleaned[cleaned.length - 1] = word;
         continue;
       }
@@ -122,7 +179,13 @@ function collapseHyphenated(firstNames: string[], sourceWords: string[]): string
 /** Reformat FIFA-style glued names; pass-through for normal SofaScore/Scoutlyst names. */
 export function formatPlayerDisplayName(raw: string): string {
   const trimmed = raw.trim();
-  if (!trimmed || !CORRUPT_NAME_PATTERN.test(trimmed)) return trimmed;
+  if (!trimmed) return trimmed;
+
+  // Soft cleanup for doubled tokens (Jorgen/Jørgen, ABAB blocks) when the
+  // string does not look like a FIFA ALLCAPS glue blob.
+  if (!CORRUPT_NAME_PATTERN.test(trimmed)) {
+    return collapseRepeatedNameTokens(trimmed);
+  }
 
   const blob = unglue(trimmed);
   const words: string[] = [];
@@ -135,9 +198,9 @@ export function formatPlayerDisplayName(raw: string): string {
   let firstNameStart = 0;
   while (
     firstNameStart < tokens.length &&
-    (tokens[firstNameStart].toUpperCase() === tokens[firstNameStart] ||
-      (tokens[firstNameStart].includes("-") &&
-        tokens[firstNameStart]
+    (tokens[firstNameStart]!.toUpperCase() === tokens[firstNameStart] ||
+      (tokens[firstNameStart]!.includes("-") &&
+        tokens[firstNameStart]!
           .split("-")
           .every((part) => part.toUpperCase() === part)))
   ) {
@@ -145,13 +208,13 @@ export function formatPlayerDisplayName(raw: string): string {
   }
   while (
     firstNameStart < tokens.length &&
-    !(tokens[firstNameStart][0]?.toUpperCase() === tokens[firstNameStart][0] &&
-      tokens[firstNameStart].toLowerCase() !== tokens[firstNameStart])
+    !(tokens[firstNameStart]![0]?.toUpperCase() === tokens[firstNameStart]![0] &&
+      tokens[firstNameStart]!.toLowerCase() !== tokens[firstNameStart])
   ) {
     firstNameStart += 1;
   }
   if (firstNameStart >= tokens.length) {
-    return tokens.map(titleWord).join(" ");
+    return collapseRepeatedNameTokens(tokens.map(titleWord).join(" "));
   }
 
   const surnameParts = tokens.slice(0, firstNameStart);
@@ -170,10 +233,31 @@ export function formatPlayerDisplayName(raw: string): string {
   let given = dedupeWords(firstNames);
   given = collapseHyphenated(given, tokens);
 
+  // Prefer hyphenated surname when the last given token matches the surname head
+  // (FIFA often repeats "Wan" before "WAN-BISSAKA").
+  if (
+    surnameParts.length === 1 &&
+    surnameParts[0]!.includes("-") &&
+    given.length
+  ) {
+    const [head, ...tailParts] = surnameParts[0]!.split("-");
+    const tail = tailParts.join("-");
+    if (
+      head &&
+      tail &&
+      foldToken(given[given.length - 1]!) === foldToken(head)
+    ) {
+      const merged = `${titleWord(given[given.length - 1]!)}-${titleWord(tail)}`;
+      given = given.slice(0, -1);
+      const first = given.map(titleWord).join(" ");
+      return collapseRepeatedNameTokens(first ? `${first} ${merged}` : merged);
+    }
+  }
+
   const last = surnameParts.map(titleWord).join(" ");
   const first = given.map(titleWord).join(" ");
-  if (first && last) return `${first} ${last}`;
-  return first || last || trimmed;
+  if (first && last) return collapseRepeatedNameTokens(`${first} ${last}`);
+  return collapseRepeatedNameTokens(first || last || trimmed);
 }
 
 export function formatPlayerDisplayNameIfNeeded(name: string | null | undefined): string {

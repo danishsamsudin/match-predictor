@@ -1,0 +1,25 @@
+{
+  "version": "uefa-nations-league-2026-27-draw",
+  "competition": "UEFA Nations League 2026/27",
+  "note": "Official UEFA Nations League 2026/27 league-phase draw (Brussels, 12 Feb 2026). Team names aligned with NATIONS_LEAGUE_2026_TEAMS.",
+  "leaguePhase": {
+    "start": "2026-09-24",
+    "end": "2026-11-17"
+  },
+  "groups": {
+    "A1": ["France", "Italy", "Belgium", "Türkiye"],
+    "A2": ["Germany", "Netherlands", "Serbia", "Greece"],
+    "A3": ["Spain", "Croatia", "England", "Czechia"],
+    "A4": ["Portugal", "Denmark", "Norway", "Wales"],
+    "B1": ["Scotland", "Switzerland", "Slovenia", "North Macedonia"],
+    "B2": ["Hungary", "Ukraine", "Georgia", "Northern Ireland"],
+    "B3": ["Israel", "Austria", "Republic of Ireland", "Kosovo"],
+    "B4": ["Poland", "Bosnia & Herzegovina", "Romania", "Sweden"],
+    "C1": ["Albania", "Finland", "Belarus", "San Marino"],
+    "C2": ["Montenegro", "Armenia", "Cyprus", "Latvia"],
+    "C3": ["Kazakhstan", "Slovakia", "Faroe Islands", "Moldova"],
+    "C4": ["Iceland", "Bulgaria", "Estonia", "Luxembourg"],
+    "D1": ["Gibraltar", "Malta", "Andorra"],
+    "D2": ["Lithuania", "Azerbaijan", "Liechtenstein"]
+  }
+}

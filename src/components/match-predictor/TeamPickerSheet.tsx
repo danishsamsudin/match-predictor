@@ -6,6 +6,7 @@ import type {
   LeagueOption,
   TeamOption,
 } from "@/lib/types/football-lookup";
+import { isNationsLeagueLeague } from "@/lib/data/nations-league-2026-teams";
 import { isWorldCupLeague } from "@/lib/data/world-cup-2026-teams";
 import { SheetOverlay, SheetSelect } from "./SheetOverlay";
 
@@ -44,6 +45,12 @@ export function TeamPickerSheet({
 }) {
   const isNational = entityType === "national";
   const worldCupSelected = isWorldCupLeague(Number(leagueId));
+  const nationsLeagueSelected = isNationsLeagueLeague(Number(leagueId));
+  const nationPlaceholder = worldCupSelected
+    ? "World Cup nation"
+    : nationsLeagueSelected
+      ? "Nations League side"
+      : "National team";
 
   return (
     <SheetOverlay
@@ -76,13 +83,7 @@ export function TeamPickerSheet({
           onChange={onTeamChange}
           disabled={!teams.length}
           options={teams.map((t) => ({ value: String(t.id), label: t.name }))}
-          placeholder={
-            isNational
-              ? worldCupSelected
-                ? "World Cup nation"
-                : "National team"
-              : "Team"
-          }
+          placeholder={isNational ? nationPlaceholder : "Team"}
         />
         <button
           type="button"

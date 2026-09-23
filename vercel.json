@@ -14,6 +14,10 @@
       "schedule": "0 16 * * *"
     },
     {
+      "path": "/api/cron/nations-league?run=true",
+      "schedule": "15 16 * * *"
+    },
+    {
       "path": "/api/cron/player-availabilities?run=true",
       "schedule": "0 8 * * *"
     },

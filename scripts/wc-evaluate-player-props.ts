@@ -58,8 +58,16 @@ async function main() {
   for (const row of preds) {
     const matchId = String(row.match_id);
     const props = row.player_props as {
-      home?: { anytimeScorer?: Array<{ playerName: string; probabilityPct: number; expectedGoals: number }>; shotsOnTarget?: Array<{ playerName: string; line: number; probabilityPct: number; expectedSot: number }> };
-      away?: { anytimeScorer?: Array<{ playerName: string; probabilityPct: number; expectedGoals: number }>; shotsOnTarget?: Array<{ playerName: string; line: number; probabilityPct: number; expectedSot: number }> };
+      home?: {
+        anytimeScorer?: Array<{ playerName: string; probabilityPct: number; expectedGoals: number }>;
+        anytimeCandidates?: Array<{ playerName: string; probabilityPct: number; expectedGoals: number }>;
+        shotsOnTarget?: Array<{ playerName: string; line: number; probabilityPct: number; expectedSot: number }>;
+      };
+      away?: {
+        anytimeScorer?: Array<{ playerName: string; probabilityPct: number; expectedGoals: number }>;
+        anytimeCandidates?: Array<{ playerName: string; probabilityPct: number; expectedGoals: number }>;
+        shotsOnTarget?: Array<{ playerName: string; line: number; probabilityPct: number; expectedSot: number }>;
+      };
     } | null;
     if (!props) continue;
 
@@ -93,7 +101,10 @@ async function main() {
 
     for (const { side, teamApiId } of sides) {
       if (!side) continue;
-      for (const line of side.anytimeScorer ?? []) {
+      const anytimeLines = side.anytimeCandidates?.length
+        ? side.anytimeCandidates
+        : side.anytimeScorer ?? [];
+      for (const line of anytimeLines) {
         const actual = byNorm.get(normalizeName(line.playerName));
         if (!actual) continue;
         await wcClient.from("world_cup_player_prop_evaluations").upsert({
