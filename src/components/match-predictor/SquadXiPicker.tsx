@@ -24,7 +24,7 @@ function playerOptionLabel(player: SquadPlayer): string {
   return `${player.name} (${player.position})${score}`;
 }
 
-function hasDuplicateSelections(slots: (number | null)[]): boolean {
+export function hasDuplicateXiSelections(slots: (number | null)[]): boolean {
   const ids = slots.filter((id): id is number => id != null);
   return new Set(ids).size !== ids.length;
 }
@@ -42,12 +42,8 @@ function XiColumn({
   onSlotChange: (index: number, playerId: number | null) => void;
   disabled?: boolean;
 }) {
-  const allOptions = useMemo(
-    () =>
-      roster.map((p) => ({
-        value: String(p.sofascorePlayerId),
-        label: playerOptionLabel(p),
-      })),
+  const rosterIds = useMemo(
+    () => new Set(roster.map((p) => p.sofascorePlayerId)),
     [roster]
   );
 
@@ -56,15 +52,37 @@ function XiColumn({
       <p className="text-sm font-semibold text-slate-900 dark:text-white">{label}</p>
       <ol className="mt-3 space-y-2">
         {slots.map((selectedId, index) => {
+          const selectedElsewhere = new Set(
+            slots
+              .map((id, i) => (i === index ? null : id))
+              .filter((id): id is number => id != null)
+          );
+          const options = roster
+            .filter(
+              (p) =>
+                p.sofascorePlayerId === selectedId ||
+                !selectedElsewhere.has(p.sofascorePlayerId)
+            )
+            .map((p) => ({
+              value: String(p.sofascorePlayerId),
+              label: playerOptionLabel(p),
+            }));
+          // Avoid HTML <select> falling back to the first option (often GK)
+          // when a stale id is not present in the roster.
+          const value =
+            selectedId != null && rosterIds.has(selectedId)
+              ? String(selectedId)
+              : "";
+
           return (
             <li key={index}>
               <SheetSelect
                 label={`Player ${index + 1}`}
-                value={selectedId != null ? String(selectedId) : ""}
+                value={value}
                 onChange={(v) =>
                   onSlotChange(index, v ? Number(v) : null)
                 }
-                options={allOptions}
+                options={options}
                 disabled={disabled || roster.length === 0}
                 placeholder="Select player"
               />
@@ -117,8 +135,8 @@ export function SquadXiPicker({
 }) {
   const homeComplete = homeRoster ? isXiComplete(homeXiSlots) : false;
   const awayComplete = awayRoster ? isXiComplete(awayXiSlots) : false;
-  const homeDuplicateWarning = hasDuplicateSelections(homeXiSlots);
-  const awayDuplicateWarning = hasDuplicateSelections(awayXiSlots);
+  const homeDuplicateWarning = hasDuplicateXiSelections(homeXiSlots);
+  const awayDuplicateWarning = hasDuplicateXiSelections(awayXiSlots);
   const homeGkWarning =
     homeRoster && homeComplete && !xiHasGoalkeeper(homeXiSlots, homeRoster.roster);
   const awayGkWarning =
@@ -148,8 +166,8 @@ export function SquadXiPicker({
         </h3>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {lineupSource === "manual_xi"
-            ? "Choose 11 players per team — prediction uses player-xG from your selection."
-            : "Optional while using model squad mode — manual XI is ignored for this run."}
+            ? "Choose 11 players per team - prediction uses player-xG from your selection."
+            : "Optional while using model squad mode - clear duplicates before generating."}
         </p>
       </div>
 
@@ -186,6 +204,12 @@ export function SquadXiPicker({
             lineupSource === "manual_xi" ? (
               <p>Complete both starting XIs (11 unique players each) to enable prediction.</p>
             ) : null
+          ) : null}
+          {homeDuplicateWarning || awayDuplicateWarning ? (
+            <p className="text-amber-600 dark:text-amber-400">
+              Duplicate players block Generate (including Model squad). Each slot must be a
+              different player.
+            </p>
           ) : null}
           {homeDuplicateWarning ? (
             <p className="text-amber-600 dark:text-amber-400">

@@ -75,4 +75,23 @@ describe("dedupeSquadRosterByPlayerIdentity", () => {
     expect(ostigard.name.toLowerCase()).toContain("leo");
     expect(ostigard.position).toBe("DEF");
   });
+
+  it("does not merge two full names that only share a surname", () => {
+    const out = dedupeSquadRosterByPlayerIdentity([
+      player({ sofascorePlayerId: 1, name: "Georgi Dimitrov", position: "DEF" }),
+      player({ sofascorePlayerId: 2, name: "Andrey Dimitrov", position: "FWD" }),
+      player({ sofascorePlayerId: 3, name: "Manuel Neuer", position: "GK" }),
+    ]);
+    expect(out).toHaveLength(3);
+  });
+
+  it("does not merge short labels that share a surname but differ by initial", () => {
+    const out = dedupeSquadRosterByPlayerIdentity([
+      player({ sofascorePlayerId: 1, name: "O. Thill", position: "MID" }),
+      player({ sofascorePlayerId: 2, name: "V. Thill", position: "FWD" }),
+      player({ sofascorePlayerId: 3, name: "P. Sucic", position: "MID" }),
+      player({ sofascorePlayerId: 4, name: "L. Sucic", position: "MID" }),
+    ]);
+    expect(out).toHaveLength(4);
+  });
 });

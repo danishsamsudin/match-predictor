@@ -76,6 +76,7 @@
 /data/nations-league-2026/**/*.html
 /data/nations-league-2026/**/*_files/**
 !/data/nations-league-2026/NL Bulin Predicted Starting/manifest-md1.json
+!/data/nations-league-2026/NL Bulin Predicted Starting/predicted-xis-md1.json
 
 # misc
 .DS_Store

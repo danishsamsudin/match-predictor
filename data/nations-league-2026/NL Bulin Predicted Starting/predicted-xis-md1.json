@@ -1,0 +1,4349 @@
+{
+  "source": "bulinews.com predicted-lineups",
+  "matchday": 1,
+  "extractedAt": "2026-09-24T10:38:22.573Z",
+  "fixtures": [
+    {
+      "fixtureId": "975131",
+      "homeTeam": "Albania",
+      "awayTeam": "Belarus",
+      "homeFormation": "4-2-3-1",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1790072241568",
+          "name": "Sherri",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1710853995409",
+          "name": "Mitaj",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1710853989640",
+          "name": "Djimsiti",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072274589",
+          "name": "Ismaijli",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1710853975899",
+          "name": "Hysaj",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1716274087728",
+          "name": "Asllani",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072432175",
+          "name": "Seferi",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072319531",
+          "name": "Mehmeti",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1718970542770",
+          "name": "Hoxha",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790072444236",
+          "name": "Muci",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790072323944",
+          "name": "Daku",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790072501081",
+          "name": "Lapoukhov",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790072533394",
+          "name": "Malashevich",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072520972",
+          "name": "Shevchenko",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072507849",
+          "name": "Pechenin",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072514510",
+          "name": "Begunov",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072606870",
+          "name": "Ebong",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072601896",
+          "name": "Yablonskiy",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072636116",
+          "name": "Melnichenko",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790072621772",
+          "name": "Gromyko",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790072614995",
+          "name": "Malashevich",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790072642603",
+          "name": "Lisakovich",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Albania - Belarus _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975228",
+      "homeTeam": "Andorra",
+      "awayTeam": "Malta",
+      "homeFormation": "4-3-3",
+      "awayFormation": "4-3-3",
+      "homePlayers": [
+        {
+          "id": "1790065073635",
+          "name": "Alvarez",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790065084948",
+          "name": "Guillen",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065081483",
+          "name": "Rubio",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065079121",
+          "name": "Borra",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065076352",
+          "name": "Nicolas",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065095377",
+          "name": "Ferreira",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065090911",
+          "name": "Babot",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065088031",
+          "name": "Vales",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065107677",
+          "name": "Alaez",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790065099572",
+          "name": "Martinez",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790065103351",
+          "name": "Fernandez",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790065143435",
+          "name": "Bornello",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790065157628",
+          "name": "Beerman",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065153956",
+          "name": "Shaw",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065151663",
+          "name": "Pepe",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065148586",
+          "name": "Muscat",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065166963",
+          "name": "Teuma",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065171104",
+          "name": "Satriano",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065163859",
+          "name": "Guillaumier",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065183542",
+          "name": "Cardona",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790065174950",
+          "name": "Mbong",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790065177785",
+          "name": "Zammit",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Andorra - Malta _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975138",
+      "homeTeam": "Armenia",
+      "awayTeam": "Latvia",
+      "homeFormation": "4-3-3",
+      "awayFormation": "3-4-2-1",
+      "homePlayers": [
+        {
+          "id": "1790067026664",
+          "name": "Mishiev",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790067063091",
+          "name": "Tiknizyan",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067056685",
+          "name": "Harutyunyan",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067046438",
+          "name": "Muradyan",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067041912",
+          "name": "Piloyan",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067079767",
+          "name": "Spertsyan",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067084118",
+          "name": "Sevikyan",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067089752",
+          "name": "Aghasaryan",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067124419",
+          "name": "Serobyan",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790067110864",
+          "name": "Miranyan",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790067117232",
+          "name": "Iwu",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790067137396",
+          "name": "Matrevics",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790067265933",
+          "name": "Cirkin",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067152028",
+          "name": "Cernomordijs",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067142412",
+          "name": "Jurkovskis",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067288181",
+          "name": "Ciganiks",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067282943",
+          "name": "Zelenkovs",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067277883",
+          "name": "Vapne",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067273060",
+          "name": "Savalnieks",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067301380",
+          "name": "Ikaunieks",
+          "x": 3,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790067293585",
+          "name": "Daskevics",
+          "x": 7,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790067307233",
+          "name": "Uldrikis",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Armenia - Latvia _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975245",
+      "homeTeam": "Austria",
+      "awayTeam": "Israel",
+      "homeFormation": "4-2-3-1",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1779795375848",
+          "name": "Schlager",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790064366651",
+          "name": "Friedl",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064408053",
+          "name": "Lienhart",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1781696892774",
+          "name": "Danso",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064356008",
+          "name": "Posch",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1780335835348",
+          "name": "Schlager",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1700471004246",
+          "name": "Seiwald",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064469211",
+          "name": "Wanner",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1780304289126",
+          "name": "Schmid",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064464779",
+          "name": "Wimmer",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064475904",
+          "name": "Gregoritsch",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790064484016",
+          "name": "Peretz",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790064502026",
+          "name": "Revivo",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064498316",
+          "name": "Shlomo",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064493150",
+          "name": "Feingold",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064488404",
+          "name": "Dasa",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064509200",
+          "name": "Fani",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064506009",
+          "name": "Peretz",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064520376",
+          "name": "Solomon",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064516778",
+          "name": "Kanichowsky",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064512442",
+          "name": "Abada",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064523805",
+          "name": "Gloukh",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Austria - Israel _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975137",
+      "homeTeam": "Bulgaria",
+      "awayTeam": "Luxembourg",
+      "homeFormation": "4-3-3",
+      "awayFormation": "4-3-3",
+      "homePlayers": [
+        {
+          "id": "1790072671694",
+          "name": "Mitov",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790072715674",
+          "name": "Petrov",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072708948",
+          "name": "Velkov",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072684425",
+          "name": "Dimitrov",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072679264",
+          "name": "Ivanov",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072733448",
+          "name": "Stoyanov",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072727944",
+          "name": "Gruev",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072721013",
+          "name": "Kraev",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072749209",
+          "name": "Rusev",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790072738909",
+          "name": "Dimitrov",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790072744186",
+          "name": "Ivanov",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1760008894570",
+          "name": "Moris",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1760008923319",
+          "name": "Bohnert",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1760008918103",
+          "name": "Carlson",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1760008911795",
+          "name": "Korac",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1760008900963",
+          "name": "Jans",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1760008938805",
+          "name": "Barreiro",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072779689",
+          "name": "O.Thill",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1760008933170",
+          "name": "C. Martins",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072802844",
+          "name": "Dardari",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790072785131",
+          "name": "V.Thill",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790072794942",
+          "name": "Sinani",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Bulgaria - Luxembourg _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975181",
+      "homeTeam": "Czech Republic",
+      "awayTeam": "Croatia",
+      "homeFormation": "3-4-2-1",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1790073054689",
+          "name": "Hornicek",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1716541146750",
+          "name": "Krejci",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1718350795614",
+          "name": "Hranac",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790073064066",
+          "name": "Chaloupek",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790073089240",
+          "name": "Lingr",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1782119956449",
+          "name": "Cerv",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1780657725986",
+          "name": "Sadilek",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790073077829",
+          "name": "Karabec",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790073131226",
+          "name": "Vitik",
+          "x": 4,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790073100219",
+          "name": "Sulc",
+          "x": 6,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1781610761803",
+          "name": "Hlozek",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "6552",
+          "name": "D. Livaković",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790073156573",
+          "name": "Perisic",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "6576",
+          "name": "J. Gvardiol",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790073149915",
+          "name": "Vuskovic",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1718970751657",
+          "name": "Stanisic",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1782673831030",
+          "name": "Kovacic",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "569",
+          "name": "L. Modrić",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1781765690985",
+          "name": "Baturina",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790073167212",
+          "name": "P.Sucic",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790073173376",
+          "name": "L.Sucic",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790073180512",
+          "name": "Matanovic",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Czech Republic - Croatia _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975180",
+      "homeTeam": "England",
+      "awayTeam": "Spain",
+      "homeFormation": "4-2-3-1",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "397",
+          "name": "J. Pickford",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1782285734395",
+          "name": "Guehi",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1779793303240",
+          "name": "Konsa",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790073206640",
+          "name": "OReilly",
+          "x": 1,
+          "y": 3,
+          "position": "D"
+        },
+        {
+          "id": "1790073219952",
+          "name": "Alexander-Arnold",
+          "x": 9,
+          "y": 3,
+          "position": "D"
+        },
+        {
+          "id": "1779793246984",
+          "name": "Anderson",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790073228497",
+          "name": "Garner",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790073243280",
+          "name": "Bellingham",
+          "x": 5,
+          "y": 6,
+          "position": "M"
+        },
+        {
+          "id": "1784267092599",
+          "name": "Rogers",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790073247916",
+          "name": "Saka",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "21",
+          "name": "H. Kane",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1780303771526",
+          "name": "Simon",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1719476254832",
+          "name": "Cucurella",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790073265906",
+          "name": "Huijsen",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1779788497894",
+          "name": "Cubarsi",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790073258918",
+          "name": "Garcia",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1719479530195",
+          "name": "Rodri",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1783763356576",
+          "name": "Ruiz",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790073276041",
+          "name": "Fermin",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790073284047",
+          "name": "Williams",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1781612562814",
+          "name": "Yamal",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1779788538863",
+          "name": "Oyarzabal",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "England - Spain _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975134",
+      "homeTeam": "Faroe Islands",
+      "awayTeam": "Kazakhstan",
+      "homeFormation": "4-3-3",
+      "awayFormation": "4-3-3",
+      "homePlayers": [
+        {
+          "id": "1790069236848",
+          "name": "Lamhauge",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790069254304",
+          "name": "Edmundsson",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069248673",
+          "name": "Vatnhamar",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069242949",
+          "name": "Færø",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069275595",
+          "name": "Davidsen",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069270889",
+          "name": "Turi",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069266903",
+          "name": "Joensen",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069259580",
+          "name": "Hellisdal",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069288506",
+          "name": "Sørensen",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790069280449",
+          "name": "Samuelsen",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790069286118",
+          "name": "Bjartalid",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790069305440",
+          "name": "Anarbekov",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790069326516",
+          "name": "Vorogovskiy",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069320052",
+          "name": "Alip",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069315755",
+          "name": "Kasym",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069310468",
+          "name": "Mrynskiy",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069337649",
+          "name": "Kenzhebek",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069333760",
+          "name": "Chesnokov",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069330062",
+          "name": "Orazov",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069352854",
+          "name": "Shushenachev",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790069342042",
+          "name": "Karimov",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790069346342",
+          "name": "Samorodov",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Faroe Islands - Kazakhstan _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975241",
+      "homeTeam": "Georgia",
+      "awayTeam": "N. Ireland",
+      "homeFormation": "4-3-3",
+      "awayFormation": "3-5-1-1",
+      "homePlayers": [
+        {
+          "id": "1711964535846",
+          "name": "Mamardashvili",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1718697400676",
+          "name": "Kiteishvili",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1711964554734",
+          "name": "Dvali",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790066647265",
+          "name": "Lochoshvili",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790066638997",
+          "name": "Azarovi",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1711964587918",
+          "name": "Kochorashvili",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790066673893",
+          "name": "Tsitaishvili",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1711964604630",
+          "name": "Chakvetadze",
+          "x": 5,
+          "y": 6,
+          "position": "M"
+        },
+        {
+          "id": "1711964622942",
+          "name": "Kvaratskhelia",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790066688651",
+          "name": "Davitashvili",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1717057208862",
+          "name": "Mikautadze",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790066697535",
+          "name": "Charles",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790066709013",
+          "name": "McConville",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790066704285",
+          "name": "Ballard",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790066700617",
+          "name": "Hume",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790066723739",
+          "name": "Devenny",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790066719562",
+          "name": "Charles",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790066716576",
+          "name": "Galbraith",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790066727749",
+          "name": "Spencer",
+          "x": 1,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790066712115",
+          "name": "Devlin",
+          "x": 9,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790066730721",
+          "name": "Price",
+          "x": 5,
+          "y": 6,
+          "position": "M"
+        },
+        {
+          "id": "1790066734029",
+          "name": "Donley",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Georgia - N. Ireland _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975239",
+      "homeTeam": "Hungary",
+      "awayTeam": "Ukraine",
+      "homeFormation": "4-2-3-1",
+      "awayFormation": "4-1-4-1",
+      "homePlayers": [
+        {
+          "id": "1790066797370",
+          "name": "Toth",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790066817807",
+          "name": "Kerkez",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790066812936",
+          "name": "Csinger",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1624274339335",
+          "name": "Orban",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1718350979800",
+          "name": "Bolla",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1718350996338",
+          "name": "Schäfer",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790066824765",
+          "name": "Vitalis",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1654863004663",
+          "name": "Szoboszlai",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790066834698",
+          "name": "Toth",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1710845151578",
+          "name": "Sallai",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790066841906",
+          "name": "Lukacs",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790066852588",
+          "name": "Riznyk",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1605273224977",
+          "name": "Matviienko",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1686556828783",
+          "name": "Zabarnyi",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1719084767199",
+          "name": "Mykolenko",
+          "x": 1,
+          "y": 3,
+          "position": "D"
+        },
+        {
+          "id": "1790066864356",
+          "name": "Mykhaylichenko",
+          "x": 9,
+          "y": 3,
+          "position": "D"
+        },
+        {
+          "id": "1719084780346",
+          "name": "Brazhko",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790066898603",
+          "name": "Zubkov",
+          "x": 1,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1686556861574",
+          "name": "Sudakov",
+          "x": 4,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790066891382",
+          "name": "Nazaryna",
+          "x": 6,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790066886260",
+          "name": "Tsygankov",
+          "x": 9,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790066907382",
+          "name": "Pomomarenko",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Hungary - Ukraine _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975136",
+      "homeTeam": "Iceland",
+      "awayTeam": "Estonia",
+      "homeFormation": "4-3-3",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1790072840510",
+          "name": "Olafsson",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790072867260",
+          "name": "Ellertsson",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072860227",
+          "name": "Magnusson",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072855370",
+          "name": "Tomasson",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072850239",
+          "name": "Palsson",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1631086325094",
+          "name": "Johannesson",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072889234",
+          "name": "Haraldsson",
+          "x": 3,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790072880854",
+          "name": "Willumsson",
+          "x": 7,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790072938358",
+          "name": "Þorsteinsson",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1631086365780",
+          "name": "Gudmundsson",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790072908691",
+          "name": "Gudjohnsen",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790072950614",
+          "name": "Hein",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790072986360",
+          "name": "Schjønning-Larsen",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072966635",
+          "name": "Mets",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072962946",
+          "name": "Kuusk",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072957794",
+          "name": "Peetson",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790073001644",
+          "name": "Palumets",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072995996",
+          "name": "Soomets",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790073020162",
+          "name": "Miller",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790073013867",
+          "name": "Käit",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790073007031",
+          "name": "Saarma",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790073028071",
+          "name": "Männilaan",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Iceland - Estonia _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975183",
+      "homeTeam": "Italy",
+      "awayTeam": "Belgium",
+      "homeFormation": "4-3-3",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1654348132404",
+          "name": "Donnarumma",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790066398742",
+          "name": "Calafiori",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1717056969675",
+          "name": "Bastoni",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790066390867",
+          "name": "Mancini",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790066575214",
+          "name": "Di Lorenzo",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1718696336748",
+          "name": "Barella",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790066590236",
+          "name": "Fagioli",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1742291892497",
+          "name": "Tonali",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790066435727",
+          "name": "Maldini",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1742291701327",
+          "name": "Kean",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790066426360",
+          "name": "Esposito",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790065737992",
+          "name": "Lammens",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1783410726375",
+          "name": "De Cuyper",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790066031613",
+          "name": "Debast",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1783410714070",
+          "name": "Ngoy",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1783005944173",
+          "name": "Castagne",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065772458",
+          "name": "Tielemans",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1783005893637",
+          "name": "Raskin",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790066215828",
+          "name": "Godts",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790066124003",
+          "name": "De Bruyne",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790066602128",
+          "name": "Lukebakio",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1783410644899",
+          "name": "De Ketelaere",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Italy - Belgium _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975242",
+      "homeTeam": "Kosovo",
+      "awayTeam": "Ireland",
+      "homeFormation": "4-4-2",
+      "awayFormation": "3-4-2-1",
+      "homePlayers": [
+        {
+          "id": "1790064576765",
+          "name": "Muric",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790064609351",
+          "name": "Gallapeni",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064605330",
+          "name": "Hajdari",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064601583",
+          "name": "Dellova",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064594320",
+          "name": "Vojvoda",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064622000",
+          "name": "Avdullahu",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064617451",
+          "name": "Hodza",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064626570",
+          "name": "Zhegrova",
+          "x": 1,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790064613443",
+          "name": "Rrudhani",
+          "x": 9,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790064638308",
+          "name": "Muriqi",
+          "x": 4,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1790064633160",
+          "name": "Asllani",
+          "x": 6,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790064677117",
+          "name": "Kelleher",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790064690240",
+          "name": "Kitching",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064686604",
+          "name": "OShea",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064682072",
+          "name": "OBrien",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064705684",
+          "name": "Manning",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064702062",
+          "name": "Molumby",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064698120",
+          "name": "Knight",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064695268",
+          "name": "Abankwah",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064712858",
+          "name": "Ogbene",
+          "x": 3,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064709079",
+          "name": "Azaz",
+          "x": 7,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064716628",
+          "name": "Parrott",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Kosovo - Ireland _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975227",
+      "homeTeam": "Liechtenstein",
+      "awayTeam": "Lithuania",
+      "homeFormation": "5-3-2",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1630569654568",
+          "name": "Büchel",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1630569670755",
+          "name": "Malin",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1630569677463",
+          "name": "Hofer",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065411729",
+          "name": "Traber",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1630569714496",
+          "name": "Göppel",
+          "x": 1,
+          "y": 3,
+          "position": "D"
+        },
+        {
+          "id": "1630569681281",
+          "name": "Wolfinger",
+          "x": 9,
+          "y": 3,
+          "position": "D"
+        },
+        {
+          "id": "1790065443876",
+          "name": "Lüchinger",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065435065",
+          "name": "Büchel",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1636550479524",
+          "name": "Sele",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065457125",
+          "name": "Notaro",
+          "x": 3,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1790065450244",
+          "name": "Salanovic",
+          "x": 7,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790065491856",
+          "name": "Gertmonas",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790065524083",
+          "name": "Širvys",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065517828",
+          "name": "Tutyškinas",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065510620",
+          "name": "Utkus",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065502001",
+          "name": "Lasickas",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790065542205",
+          "name": "Vorobjovas",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065534374",
+          "name": "Gineitis",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790065565770",
+          "name": "Burba",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790065560003",
+          "name": "Slivka",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790065551606",
+          "name": "Kalinauskas",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790065573121",
+          "name": "Kucys",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Liechtenstein - Lithuania _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975240",
+      "homeTeam": "Macedonia",
+      "awayTeam": "Switzerland",
+      "homeFormation": "3-4-1-2",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1617195718413",
+          "name": "Dimitrievski",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790068925007",
+          "name": "Musliu",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790068919633",
+          "name": "Zajkov",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790068908666",
+          "name": "Stojchevski",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790068946566",
+          "name": "Alioski",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068981484",
+          "name": "Bardhi",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068952815",
+          "name": "Gastarov",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068936289",
+          "name": "Ilievski",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1633935499287",
+          "name": "Elmas",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790068975019",
+          "name": "Rastoder",
+          "x": 3,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1790068965323",
+          "name": "Miovski",
+          "x": 7,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1779787445220",
+          "name": "Kobel",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1781611059687",
+          "name": "Rodriguez",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1670020126960",
+          "name": "Akanji",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1779787449944",
+          "name": "Elvedi",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069002537",
+          "name": "Amdouni",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1783413900849",
+          "name": "Rieder",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1670020139579",
+          "name": "Freuler",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069022007",
+          "name": "Jashari",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790069014989",
+          "name": "Manzambi",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1780573504803",
+          "name": "Ndoye",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1718696090188",
+          "name": "Embolo",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Macedonia - Switzerland _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975135",
+      "homeTeam": "Montenegro",
+      "awayTeam": "Cyprus",
+      "homeFormation": "4-4-2",
+      "awayFormation": "4-4-2",
+      "homePlayers": [
+        {
+          "id": "1790067348940",
+          "name": "Popovic",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790067368752",
+          "name": "Radunovic",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067364758",
+          "name": "Rubezic",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067359119",
+          "name": "Roganovic",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067354873",
+          "name": "Vesovic",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067382478",
+          "name": "Loncar",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067377914",
+          "name": "Bulatovic",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067386112",
+          "name": "Osmarjic",
+          "x": 1,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790067372215",
+          "name": "Adzic",
+          "x": 9,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790067393734",
+          "name": "Jovetic",
+          "x": 3,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1790067389458",
+          "name": "Krstovic",
+          "x": 7,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790067497757",
+          "name": "Michail",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790067553727",
+          "name": "Laifis",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067549279",
+          "name": "Panagiotou",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067543252",
+          "name": "Sielis",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067502778",
+          "name": "Shikkis",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067569289",
+          "name": "Kyprianou",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067563143",
+          "name": "Kastanos",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067573723",
+          "name": "Tzionis",
+          "x": 1,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790067558796",
+          "name": "Loizou",
+          "x": 9,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790067580024",
+          "name": "Edwards",
+          "x": 3,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1790067576195",
+          "name": "Pittas",
+          "x": 7,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Montenegro - Cyprus _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975186",
+      "homeTeam": "Netherlands",
+      "awayTeam": "Germany",
+      "homeFormation": "4-3-3",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1711392400296",
+          "name": "Verbruggen",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1728756606429",
+          "name": "Van de Ven",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1779788114829",
+          "name": "van Dijk",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1779788109192",
+          "name": "van Hecke",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "2199",
+          "name": "D. Dumfries",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1789985189906",
+          "name": "Veerman",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1718351141735",
+          "name": "Reijnders",
+          "x": 3,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1725866570245",
+          "name": "Gravenberch",
+          "x": 7,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1716549579097",
+          "name": "Gakpo",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1789985235512",
+          "name": "Summerville",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1782121209214",
+          "name": "Brobbey",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1789984771594",
+          "name": "ter Stegen",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1782666375045",
+          "name": "Brown",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1782120782024",
+          "name": "Tah",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1789984764408",
+          "name": "Schlotterbeck",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1789984778188",
+          "name": "Vagnoman",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1742291940519",
+          "name": "Kimmich",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1782365550533",
+          "name": "Nmecha",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1789984798947",
+          "name": "Schade",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1789984786593",
+          "name": "Musiala",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1789990658253",
+          "name": "Adeyemi",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1782365573369",
+          "name": "Havertz",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Netherlands - Germany _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975185",
+      "homeTeam": "Norway",
+      "awayTeam": "Denmark",
+      "homeFormation": "4-3-3",
+      "awayFormation": "4-3-3",
+      "homePlayers": [
+        {
+          "id": "1780574640644",
+          "name": "Nyland",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1780574661837",
+          "name": "Wolfe",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790162884077",
+          "name": "Østigård",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1780574647010",
+          "name": "Ajer",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1783410787359",
+          "name": "Ryerson",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1782202743773",
+          "name": "Berg",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1780574675973",
+          "name": "Berge",
+          "x": 4,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1780574717796",
+          "name": "Ødegaard",
+          "x": 6,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790063987037",
+          "name": "Nusa",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790162872231",
+          "name": "Bobb",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1780574713207",
+          "name": "Haaland",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790063999480",
+          "name": "Hermansen",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790064024950",
+          "name": "Dorgu",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064019221",
+          "name": "Provstgaard",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "2333",
+          "name": "J. Andersen",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1719683529704",
+          "name": "Bah",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "352",
+          "name": "P. Højbjerg",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064124856",
+          "name": "Hjulmand",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064112008",
+          "name": "Froholdt",
+          "x": 5,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790064139572",
+          "name": "Damsgaard",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790064145992",
+          "name": "Isaksen",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1710855026477",
+          "name": "Højlund",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Norway - Denmark _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975243",
+      "homeTeam": "Poland",
+      "awayTeam": "Bosnia",
+      "homeFormation": "3-5-2",
+      "awayFormation": "3-4-1-2",
+      "homePlayers": [
+        {
+          "id": "1790067738221",
+          "name": "Bulka",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "16598",
+          "name": "J. Kiwior",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067748693",
+          "name": "Wisniewski",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1686900103584",
+          "name": "Bednarek",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067841668",
+          "name": "Puchasz",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1199",
+          "name": "P. Zieliński",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067847241",
+          "name": "Cash",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067860513",
+          "name": "Szymanski",
+          "x": 3,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790067854129",
+          "name": "Zalewski",
+          "x": 7,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1718696915386",
+          "name": "Lewandowski",
+          "x": 3,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1790067831789",
+          "name": "Swiderski",
+          "x": 6,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1728460177740",
+          "name": "Vasilj",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1782668170078",
+          "name": "Muharemovic",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067886425",
+          "name": "Radeljic",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1779949909066",
+          "name": "Katic",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1779949923307",
+          "name": "Kolasinac",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067896135",
+          "name": "Sunjic",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067899398",
+          "name": "Gigovic",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1782668153198",
+          "name": "Bajraktarevic",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1782286058128",
+          "name": "Alajbegovic",
+          "x": 5,
+          "y": 6,
+          "position": "M"
+        },
+        {
+          "id": "1782119375228",
+          "name": "Dzeko",
+          "x": 4,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1728460384872",
+          "name": "Demirović",
+          "x": 6,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Poland - Bosnia _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975184",
+      "homeTeam": "Portugal",
+      "awayTeam": "Wales",
+      "homeFormation": "4-2-3-1",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1719387072045",
+          "name": "Costa",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1719476488912",
+          "name": "Mendes",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1781680513563",
+          "name": "Veiga",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1781765853012",
+          "name": "Dias",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1779950420598",
+          "name": "Cancelo",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1782673766570",
+          "name": "J.Neves",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1719476429866",
+          "name": "Vitinha",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1719476420555",
+          "name": "Fernandes",
+          "x": 5,
+          "y": 6,
+          "position": "M"
+        },
+        {
+          "id": "1790064187363",
+          "name": "Felix",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1782673757696",
+          "name": "Neto",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1719387052875",
+          "name": "Ronaldo",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790064197489",
+          "name": "Ward",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790064224031",
+          "name": "Dasilva",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064218898",
+          "name": "Norrington-Davies",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064212503",
+          "name": "Cabango",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "105373",
+          "name": "N. Williams",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790064231532",
+          "name": "James",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1303",
+          "name": "E. Ampadu",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790064241390",
+          "name": "Broadhead",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064246023",
+          "name": "Thomas",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064253114",
+          "name": "Brooks",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790064257498",
+          "name": "Johnson",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Portugal - Wales _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975133",
+      "homeTeam": "San Marino",
+      "awayTeam": "Finland",
+      "homeFormation": "4-3-2-1",
+      "awayFormation": "3-4-1-2",
+      "homePlayers": [
+        {
+          "id": "1790069046489",
+          "name": "Angelis",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790069071660",
+          "name": "Riccardi",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069064655",
+          "name": "Valentini",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069059269",
+          "name": "Rossi",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069052654",
+          "name": "Fabbri",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069088577",
+          "name": "Casadei",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069083688",
+          "name": "Mularoni",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069077204",
+          "name": "Golinucci",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069102249",
+          "name": "Pancotti",
+          "x": 3,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790069096427",
+          "name": "Zannoni",
+          "x": 7,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790069108723",
+          "name": "Giacopetti",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1780051647086",
+          "name": "Hradecky",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790069127287",
+          "name": "Stahl",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1780051877111",
+          "name": "Koski",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069134939",
+          "name": "Lähteenmäki",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1780051935501",
+          "name": "Antman",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1780051899995",
+          "name": "Markhiev",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069158631",
+          "name": "Kairinen",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069147533",
+          "name": "Valakari",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069179599",
+          "name": "Kamara",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1780051929818",
+          "name": "Pohjanpalo",
+          "x": 3,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1790069172599",
+          "name": "Källman",
+          "x": 7,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "San Marino - Finland _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975179",
+      "homeTeam": "Serbia",
+      "awayTeam": "Greece",
+      "homeFormation": "4-2-3-1",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1790063789040",
+          "name": "Milinkovic-Savic",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790063802801",
+          "name": "Kostic",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "10225",
+          "name": "S. Pavlović",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790063808561",
+          "name": "Simic",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790063816027",
+          "name": "Erakovic",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790063831719",
+          "name": "Dragojevic",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790063838982",
+          "name": "Lukic",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1718697642646",
+          "name": "Tadic",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790063874336",
+          "name": "Samardzic",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790063881767",
+          "name": "Zivkovic",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1718351342274",
+          "name": "Vlahovic",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790063893204",
+          "name": "Tzolakis",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790063904954",
+          "name": "Tsimikas",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1717665477461",
+          "name": "Mavropanos",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790063910989",
+          "name": "Koulierakis",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790063917687",
+          "name": "Vagiannidis",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790063935336",
+          "name": "Mouzakitis",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790063928316",
+          "name": "Zafeiris",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790063947533",
+          "name": "Karetsas",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1717665541189",
+          "name": "Tzolis",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1717665526406",
+          "name": "Masouras",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790063954982",
+          "name": "Douvikas",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Serbia - Greece _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975132",
+      "homeTeam": "Slovakia",
+      "awayTeam": "Moldova",
+      "homeFormation": "4-3-3",
+      "awayFormation": "3-5-1-1",
+      "homePlayers": [
+        {
+          "id": "1790069401569",
+          "name": "Greif",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1710935860050",
+          "name": "Hancko",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069416222",
+          "name": "Obert",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1710935850126",
+          "name": "Skriniar",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790069410222",
+          "name": "Valjent",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1710935883242",
+          "name": "Lobotka",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790069423713",
+          "name": "Rigo",
+          "x": 4,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1710935876169",
+          "name": "Duda",
+          "x": 6,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790069447086",
+          "name": "Haraslin",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790069432286",
+          "name": "Sauer",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790069439800",
+          "name": "Strelec",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790071780592",
+          "name": "Timbur",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790072142042",
+          "name": "Gherasimencov",
+          "x": 2,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072134720",
+          "name": "Baboglo",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072128720",
+          "name": "Reabciuk",
+          "x": 8,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790072170787",
+          "name": "Perciun",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072163741",
+          "name": "Bodisteanu",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072157796",
+          "name": "Rata",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790072178265",
+          "name": "Clescenco",
+          "x": 1,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790072151766",
+          "name": "Forov",
+          "x": 9,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790072197862",
+          "name": "Postolachi",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790072206828",
+          "name": "Mandrychenko",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Slovakia - Moldova _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975244",
+      "homeTeam": "Slovenia",
+      "awayTeam": "Scotland",
+      "homeFormation": "4-3-2-1",
+      "awayFormation": "3-4-1-2",
+      "homePlayers": [
+        {
+          "id": "1710854144519",
+          "name": "Oblak",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790068655420",
+          "name": "Brekalo",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1710854168677",
+          "name": "Bijol",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1718696721279",
+          "name": "Drkusic",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1716274180652",
+          "name": "Karnicnik",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790068670857",
+          "name": "Elsnik",
+          "x": 3,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068674222",
+          "name": "Cerin",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068677754",
+          "name": "Lovric",
+          "x": 7,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068691004",
+          "name": "Vipotnik",
+          "x": 3,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790068685799",
+          "name": "Horvat",
+          "x": 7,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1710854282376",
+          "name": "Sporar",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1715081480371",
+          "name": "Gunn",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790068750078",
+          "name": "McKenna",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790068743988",
+          "name": "Binks",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790068737214",
+          "name": "Welsh",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1715081457668",
+          "name": "Robertson",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068767500",
+          "name": "Gilmour",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068762391",
+          "name": "Patterson",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1779787990605",
+          "name": "Hickey",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1710412774063",
+          "name": "McGinn",
+          "x": 5,
+          "y": 6,
+          "position": "M"
+        },
+        {
+          "id": "1790068786283",
+          "name": "McBurnie",
+          "x": 4,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1790068775848",
+          "name": "Ure",
+          "x": 6,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Slovenia - Scotland _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975246",
+      "homeTeam": "Sweden",
+      "awayTeam": "Romania",
+      "homeFormation": "3-5-2",
+      "awayFormation": "4-3-3",
+      "homePlayers": [
+        {
+          "id": "1790068427285",
+          "name": "Johansson",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1779950268767",
+          "name": "Lindelöf",
+          "x": 3,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790068435230",
+          "name": "Starfelt",
+          "x": 5,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1780303699539",
+          "name": "Lagerbielke",
+          "x": 7,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790068451279",
+          "name": "Gudmundsson",
+          "x": 1,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1781163332021",
+          "name": "Karlström",
+          "x": 5,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068442114",
+          "name": "Holm",
+          "x": 9,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1779950286702",
+          "name": "Ayari",
+          "x": 3,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790068470009",
+          "name": "Bergvall",
+          "x": 7,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1779950303772",
+          "name": "Isak",
+          "x": 3,
+          "y": 9,
+          "position": "F"
+        },
+        {
+          "id": "1779950311674",
+          "name": "Gyökeres",
+          "x": 7,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1790068480276",
+          "name": "Radu",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790068491999",
+          "name": "Bancu",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1718697096732",
+          "name": "Burca",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1711964739661",
+          "name": "Dragusin",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1711964754446",
+          "name": "Ratiu",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790068508876",
+          "name": "Dragomir",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1711964789910",
+          "name": "R.Marin",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790068514779",
+          "name": "Hagi",
+          "x": 5,
+          "y": 5,
+          "position": "M"
+        },
+        {
+          "id": "1790068532415",
+          "name": "Mihaila",
+          "x": 1,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1717619219875",
+          "name": "Man",
+          "x": 9,
+          "y": 8,
+          "position": "F"
+        },
+        {
+          "id": "1790068526850",
+          "name": "Birligea",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Sweden - Romania _ Predicted Lineups.html"
+    },
+    {
+      "fixtureId": "975182",
+      "homeTeam": "Turkey",
+      "awayTeam": "France",
+      "homeFormation": "4-2-3-1",
+      "awayFormation": "4-2-3-1",
+      "homePlayers": [
+        {
+          "id": "1779950110573",
+          "name": "Cakir",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790067639029",
+          "name": "Elmali",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1711964471582",
+          "name": "Bardakci",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067631187",
+          "name": "Kabak",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067623696",
+          "name": "Celik",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067650327",
+          "name": "Kökcü",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067656219",
+          "name": "Özcan",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067677164",
+          "name": "Aktürkoglu",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1717506439107",
+          "name": "Güler",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1790067669415",
+          "name": "Aydin",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1782121858062",
+          "name": "Yilmaz",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "awayPlayers": [
+        {
+          "id": "1719475992815",
+          "name": "Maignan",
+          "x": 5,
+          "y": 1,
+          "position": "G"
+        },
+        {
+          "id": "1790067697991",
+          "name": "Diouf",
+          "x": 1,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1784230806902",
+          "name": "Lacroix",
+          "x": 4,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067705296",
+          "name": "Upamecano",
+          "x": 6,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1790067689281",
+          "name": "Koundé",
+          "x": 9,
+          "y": 2,
+          "position": "D"
+        },
+        {
+          "id": "1784349290126",
+          "name": "Rabiot",
+          "x": 4,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1790067711705",
+          "name": "Camavinga",
+          "x": 6,
+          "y": 4,
+          "position": "M"
+        },
+        {
+          "id": "1784349323307",
+          "name": "Doue",
+          "x": 1,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1784266954988",
+          "name": "Cherki",
+          "x": 5,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1784349314353",
+          "name": "Olise",
+          "x": 9,
+          "y": 7,
+          "position": "F"
+        },
+        {
+          "id": "1719476068011",
+          "name": "Mbappé",
+          "x": 5,
+          "y": 9,
+          "position": "F"
+        }
+      ],
+      "published": true,
+      "sourceFile": "Turkey - France _ Predicted Lineups.html"
+    }
+  ]
+}

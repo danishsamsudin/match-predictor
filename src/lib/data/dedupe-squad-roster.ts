@@ -1,10 +1,76 @@
 import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-display-name";
-import { playerNameLookupKeys } from "@/lib/data/resolve-squad-player-metrics";
 import { normalizeText } from "@/lib/soccerdata/normalize";
 import type { PlayerDisplayStat, SquadPlayer } from "@/lib/types/team-comparison";
 
-function rosterIdentityKeys(player: SquadPlayer): string[] {
-  return playerNameLookupKeys(formatPlayerDisplayNameIfNeeded(player.name));
+function normalizedNameParts(displayName: string): string[] {
+  return normalizeText(formatPlayerDisplayNameIfNeeded(displayName))
+    .split(" ")
+    .filter(Boolean);
+}
+
+/** Single-token or initial+surname labels (also after "J. Kimmich" → "Kimmich J."). */
+function isShortPlayerLabel(parts: string[]): boolean {
+  if (parts.length <= 1) return true;
+  if (parts.length === 2 && parts.some((p) => p.length <= 2)) return true;
+  return false;
+}
+
+/** Prefer a real surname token over a flipped initial ("kimmich j" → kimmich). */
+function primarySurname(parts: string[]): string | null {
+  const substantive = parts.filter((p) => p.length > 2);
+  if (substantive.length) return substantive[substantive.length - 1]!;
+  return parts[parts.length - 1] ?? null;
+}
+
+/**
+ * Identity keys for national-roster merge. Intentionally stricter than
+ * playerNameLookupKeys: bare first-name / surname matching collapses distinct
+ * players and leaves stale starter ids that the XI picker then renders as the
+ * first roster option (often the GK).
+ */
+export function rosterIdentityKeys(displayName: string): string[] {
+  const parts = normalizedNameParts(displayName);
+  if (!parts.length) return [];
+  const norm = parts.join(" ");
+  if (parts.length === 1) return [norm];
+
+  const first = parts[0]!;
+  const last = parts[parts.length - 1]!;
+  const surname = primarySurname(parts);
+  const keys = [norm, `${first} ${last}`, `${last} ${first}`];
+  if (surname && surname !== first && surname !== last) {
+    keys.push(surname);
+  }
+  return [...new Set(keys.filter(Boolean))];
+}
+
+export function playersShareRosterIdentity(a: string, b: string): boolean {
+  const aKeys = rosterIdentityKeys(a);
+  const bKeySet = new Set(rosterIdentityKeys(b));
+  if (aKeys.some((key) => bKeySet.has(key))) return true;
+
+  const aParts = normalizedNameParts(a);
+  const bParts = normalizedNameParts(b);
+  if (!aParts.length || !bParts.length) return false;
+
+  const aLast = primarySurname(aParts);
+  const bLast = primarySurname(bParts);
+  if (!aLast || !bLast || aLast !== bLast) return false;
+
+  const aShort = isShortPlayerLabel(aParts);
+  const bShort = isShortPlayerLabel(bParts);
+
+  // O. Thill vs V. Thill (or P. Sucic vs L. Sucic) are different people.
+  if (aShort && bShort) {
+    const aInitial = aParts.find((p) => p.length <= 2) ?? null;
+    const bInitial = bParts.find((p) => p.length <= 2) ?? null;
+    if (aInitial && bInitial) return aInitial === bInitial;
+    return aParts.join(" ") === bParts.join(" ");
+  }
+
+  // Allow "L. Ostigard" / "Ostigard" ↔ full names, but never merge two full
+  // names that only share a surname (Dimitrov / Ivanov pairs).
+  return aShort || bShort;
 }
 
 function isSyntheticPlayer(player: SquadPlayer): boolean {
@@ -87,11 +153,10 @@ export function dedupeSquadRosterByPlayerIdentity(players: SquadPlayer[]): Squad
   const buckets = new Map<string, SquadPlayer>();
 
   for (const player of players) {
-    const keys = rosterIdentityKeys(player);
+    const keys = rosterIdentityKeys(player.name);
     let bucketKey = keys[0] ?? normalizeText(player.name);
     for (const [existingKey, existing] of buckets.entries()) {
-      const existingKeys = rosterIdentityKeys(existing);
-      if (keys.some((key) => existingKeys.includes(key))) {
+      if (playersShareRosterIdentity(player.name, existing.name)) {
         bucketKey = existingKey;
         break;
       }

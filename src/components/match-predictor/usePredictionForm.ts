@@ -14,6 +14,7 @@ import {
 import type { FixtureLineup } from "@/lib/types/football";
 import type { PredictRequest, PredictionLineupSource, PredictionResult } from "@/lib/types/prediction";
 import {
+  hasDuplicateXiSelections,
   slotsFromSuggestedStarters,
   type SquadRosterData,
 } from "./SquadXiPicker";
@@ -593,16 +594,27 @@ export function usePredictionForm() {
 
   const xiSelectionComplete =
     isXiComplete(homeXiSlots) && isXiComplete(awayXiSlots);
+  const xiHasDuplicates =
+    hasDuplicateXiSelections(homeXiSlots) || hasDuplicateXiSelections(awayXiSlots);
 
   const submitDisabled =
     loading ||
     !homeTeamId ||
     !awayTeamId ||
     (inputMode === "fixture" && !matchId) ||
+    // Never allow Generate (manual or model squad) with duplicate XI slots.
+    (showXiPicker && !rosterLoading && xiHasDuplicates) ||
     (lineupSource === "manual_xi" && (rosterLoading || !xiSelectionComplete));
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (
+      showXiPicker &&
+      (hasDuplicateXiSelections(homeXiSlots) || hasDuplicateXiSelections(awayXiSlots))
+    ) {
+      setError("Fix duplicate players in both starting XIs before generating.");
+      return;
+    }
     setLoading(true);
     setError(null);
 

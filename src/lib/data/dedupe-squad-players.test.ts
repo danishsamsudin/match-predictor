@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  alignStartersToRoster,
   dedupeSquadPlayersById,
   pickUniqueStarters,
 } from "@/lib/data/dedupe-squad-players";
@@ -51,6 +52,23 @@ describe("pickUniqueStarters", () => {
     const xi = pickUniqueStarters(starters, pool, 11);
     expect(xi).toHaveLength(11);
     expect(new Set(xi.map((p) => p.sofascorePlayerId)).size).toBe(11);
+  });
+});
+
+describe("alignStartersToRoster", () => {
+  it("remaps stale starter ids onto the finalized roster", () => {
+    const aligned = alignStartersToRoster(
+      [player(1, "M. Neuer"), player(2, "J. Kimmich"), player(3, "Musiala")],
+      [
+        player(101, "Manuel Peter Neuer"),
+        player(202, "Joshua Walter Kimmich"),
+        player(303, "Jamal Musiala"),
+        player(404, "Kai Havertz"),
+      ],
+      4
+    );
+    expect(aligned.map((p) => p.sofascorePlayerId)).toEqual([101, 202, 303, 404]);
+    expect(new Set(aligned.map((p) => p.sofascorePlayerId)).size).toBe(4);
   });
 });
 

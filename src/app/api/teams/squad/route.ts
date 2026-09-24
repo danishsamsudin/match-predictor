@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  alignStartersToRoster,
   dedupeSquadPlayersById,
   pickUniqueStarters,
-  playerNormKey,
 } from "@/lib/data/dedupe-squad-players";
 import { dedupeSquadRosterByPlayerIdentity } from "@/lib/data/dedupe-squad-roster";
 import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
@@ -86,23 +86,13 @@ export async function GET(request: NextRequest) {
       });
       if (bulinews) {
         roster = finalizeRoster(bulinews.roster, "national");
-        uniqueStarters = bulinews.starters.map((starter) => {
-          const merged = roster.find(
-            (p) =>
-              p.sofascorePlayerId === starter.sofascorePlayerId ||
-              playerNormKey(p.name) === playerNormKey(starter.name)
-          );
-          return merged ?? starter;
-        });
+        uniqueStarters = alignStartersToRoster(bulinews.starters, roster, 11);
         preferredFormation = bulinews.formation ?? preferredFormation;
         squadSource = "bulinews";
       }
     }
 
-    const suggestedStarters = uniqueStarters.map((starter) => {
-      const merged = roster.find((p) => p.sofascorePlayerId === starter.sofascorePlayerId);
-      return merged ?? starter;
-    });
+    const suggestedStarters = alignStartersToRoster(uniqueStarters, roster, 11);
 
     return NextResponse.json({
       teamId,

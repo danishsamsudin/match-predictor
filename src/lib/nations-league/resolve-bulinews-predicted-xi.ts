@@ -3,6 +3,7 @@ import { formatPlayerDisplayNameIfNeeded } from "@/lib/data/format-player-displa
 import { positionDisplayLabel } from "@/lib/data/normalize-player-position";
 import { playerNameLookupKeys } from "@/lib/data/resolve-squad-player-metrics";
 import { listBulinewsPredictedHtmlFiles } from "@/lib/nations-league/bulinews-predicted-dir";
+import { loadCommittedBulinewsPredictedFixtures } from "@/lib/nations-league/bulinews-predicted-xis-data";
 import {
   bulinewsPlayerLookupKeys,
   bulinewsTeamsMatch,
@@ -27,34 +28,53 @@ export type ResolvedBulinewsPredictedXi = {
   bulinewsOpponent: string;
 };
 
+function fixtureMatchesPair(
+  parsed: BulinewsPredictedLineups,
+  teamName: string,
+  opponentName: string
+): boolean {
+  if (!parsed.published) return false;
+  if (parsed.homePlayers.length < 11 || parsed.awayPlayers.length < 11) return false;
+  const teamIsHome = bulinewsTeamsMatch(parsed.homeTeam, teamName);
+  const teamIsAway = bulinewsTeamsMatch(parsed.awayTeam, teamName);
+  const oppIsHome = bulinewsTeamsMatch(parsed.homeTeam, opponentName);
+  const oppIsAway = bulinewsTeamsMatch(parsed.awayTeam, opponentName);
+  return (teamIsHome && oppIsAway) || (teamIsAway && oppIsHome);
+}
+
 function findBulinewsFixture(
   teamName: string,
   opponentName: string,
   htmlPaths?: string[]
 ): BulinewsPredictedLineups | null {
-  const paths = htmlPaths ?? listBulinewsPredictedHtmlFiles();
-  for (const sourcePath of paths) {
-    let html: string;
-    try {
-      html = fs.readFileSync(sourcePath, "utf8");
-    } catch {
-      continue;
+  const readHtmlFixture = (paths: string[]): BulinewsPredictedLineups | null => {
+    for (const sourcePath of paths) {
+      let html: string;
+      try {
+        html = fs.readFileSync(sourcePath, "utf8");
+      } catch {
+        continue;
+      }
+      const parsed = parseBulinewsPredictedLineupsHtml(html, { sourcePath });
+      if (!parsed || !fixtureMatchesPair(parsed, teamName, opponentName)) continue;
+      return parsed;
     }
-    const parsed = parseBulinewsPredictedLineupsHtml(html, { sourcePath });
-    if (!parsed?.published) continue;
-    if (parsed.homePlayers.length < 11 || parsed.awayPlayers.length < 11) continue;
+    return null;
+  };
 
-    const teamIsHome = bulinewsTeamsMatch(parsed.homeTeam, teamName);
-    const teamIsAway = bulinewsTeamsMatch(parsed.awayTeam, teamName);
-    const oppIsHome = bulinewsTeamsMatch(parsed.homeTeam, opponentName);
-    const oppIsAway = bulinewsTeamsMatch(parsed.awayTeam, opponentName);
-
-    const pairOk =
-      (teamIsHome && oppIsAway) || (teamIsAway && oppIsHome);
-    if (!pairOk) continue;
-    return parsed;
+  // Explicit htmlPaths (tests / local overrides) win when present.
+  if (htmlPaths?.length) {
+    const fromHtml = readHtmlFixture(htmlPaths);
+    if (fromHtml) return fromHtml;
   }
-  return null;
+
+  // Committed JSON ships to Vercel; HTML dumps are gitignored.
+  for (const parsed of loadCommittedBulinewsPredictedFixtures()) {
+    if (fixtureMatchesPair(parsed, teamName, opponentName)) return parsed;
+  }
+
+  if (htmlPaths) return null;
+  return readHtmlFixture(listBulinewsPredictedHtmlFiles());
 }
 
 function buildRosterLookup(roster: SquadPlayer[]): Map<string, SquadPlayer[]> {
@@ -103,15 +123,24 @@ function matchPredictedToRoster(
 
 function syntheticFromPredicted(
   predicted: BulinewsPredictedPlayer,
-  teamName: string
+  teamName: string,
+  usedNormNames: Set<string>
 ): SquadPlayer {
   // Keep BuliNews labels as-is; formatPlayerDisplayNameIfNeeded mangles
   // particle surnames like "ter Stegen" → "Stegen ter".
-  const display = predicted.name.trim();
+  let display = predicted.name.trim();
+  const baseNorm = normalizeText(display);
+  if (usedNormNames.has(baseNorm)) {
+    // BuliNews occasionally repeats a surname for two pitch slots (Dimitrov, Schlager).
+    // Avoid parentheses - formatPlayerDisplayNameIfNeeded strips them and collapses names.
+    display = `${display} ${positionDisplayLabel(predicted.position)}`;
+  }
   const norm = normalizeText(display);
   return {
-    sofascorePlayerId: stableSyntheticPlayerId(`bulinews:${teamName}:${norm}`),
-    scoutlystPlayerKey: `bulinews:${teamName}:${norm}`,
+    sofascorePlayerId: stableSyntheticPlayerId(
+      `bulinews:${teamName}:${predicted.id}:${norm}`
+    ),
+    scoutlystPlayerKey: `bulinews:${teamName}:${predicted.id}:${norm}`,
     name: display,
     position: positionDisplayLabel(predicted.position),
     fieldPosition: predicted.position,
@@ -151,13 +180,14 @@ export function resolveBulinewsPredictedXi(input: {
   const roster = [...input.roster];
   const lookup = buildRosterLookup(roster);
   const usedIds = new Set<number>();
+  const usedNormNames = new Set<string>();
   const starters: SquadPlayer[] = [];
   let matchedCount = 0;
 
   for (const predicted of predictedPlayers.slice(0, 11)) {
     let matched = matchPredictedToRoster(predicted, lookup, usedIds);
     if (!matched) {
-      matched = syntheticFromPredicted(predicted, teamName);
+      matched = syntheticFromPredicted(predicted, teamName, usedNormNames);
       roster.push(matched);
       for (const key of [
         ...playerNameLookupKeys(matched.name),
@@ -179,6 +209,7 @@ export function resolveBulinewsPredictedXi(input: {
       }
     }
     usedIds.add(matched.sofascorePlayerId);
+    usedNormNames.add(normalizeText(matched.name));
     starters.push(matched);
   }
 

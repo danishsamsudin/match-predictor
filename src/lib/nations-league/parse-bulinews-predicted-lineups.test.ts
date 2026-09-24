@@ -89,17 +89,17 @@ describe("resolveBulinewsPredictedXi", () => {
     expect(resolved!.starters).toHaveLength(11);
   });
 
-  it("reads the real NL Bulin HTML folder for Netherlands vs Germany", () => {
+  it("reads committed predicted-xis JSON for Netherlands vs Germany", () => {
     const resolved = resolveBulinewsPredictedXi({
       teamName: "Germany",
       opponentName: "Netherlands",
       roster: [fakePlayer(1, "M. Neuer", "GK"), fakePlayer(2, "Kimmich J.", "DEF")],
+      htmlPaths: [],
     });
-    if (!resolved) {
-      // Folder may be absent in CI; skip soft
-      expect(resolved).toBeNull();
-      return;
-    }
-    expect(resolved.starters[0]!.name.toLowerCase()).toContain("stegen");
+    expect(resolved).not.toBeNull();
+    expect(resolved!.starters).toHaveLength(11);
+    expect(new Set(resolved!.starters.map((p) => p.sofascorePlayerId)).size).toBe(11);
+    expect(resolved!.starters[0]!.name.toLowerCase()).toContain("stegen");
+    expect(resolved!.starters[0]!.name.toLowerCase()).not.toContain("neuer");
   });
 });
