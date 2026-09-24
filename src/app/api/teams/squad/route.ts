@@ -5,11 +5,10 @@ import {
   pickUniqueStarters,
 } from "@/lib/data/dedupe-squad-players";
 import { dedupeSquadRosterByPlayerIdentity } from "@/lib/data/dedupe-squad-roster";
-import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
+import { loadTeamSquadForComparisonCached } from "@/lib/data/load-team-squad-cached";
 import { mergeOfficialWcPlayersIntoRoster } from "@/lib/data/merge-official-wc-roster";
 import { resolveWc2026TeamLabel } from "@/lib/data/world-cup-2026-official-squads";
 import { resolveBulinewsPredictedXi } from "@/lib/nations-league/resolve-bulinews-predicted-xi";
-import { tryCreateServiceClient } from "@/lib/supabase";
 import type { EntityType } from "@/lib/types/football-lookup";
 import type { SquadPlayer } from "@/lib/types/team-comparison";
 
@@ -55,9 +54,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = tryCreateServiceClient();
-    const squad = await loadTeamSquadForComparison(
-      supabase,
+    // Base roster is cross-request cached; BuliNews overlay stays outside so
+    // switching NL opponents reuses the same national squad snapshot.
+    const squad = await loadTeamSquadForComparisonCached(
       teamId,
       teamName || undefined,
       Number.isFinite(leagueId) ? leagueId : undefined,
@@ -94,15 +93,23 @@ export async function GET(request: NextRequest) {
 
     const suggestedStarters = alignStartersToRoster(uniqueStarters, roster, 11);
 
-    return NextResponse.json({
-      teamId,
-      teamName: teamName || undefined,
-      preferredFormation,
-      coach: squad.coach ?? null,
-      suggestedStarters,
-      roster,
-      squadSource,
-    });
+    return NextResponse.json(
+      {
+        teamId,
+        teamName: teamName || undefined,
+        preferredFormation,
+        coach: squad.coach ?? null,
+        suggestedStarters,
+        roster,
+        squadSource,
+      },
+      {
+        headers: {
+          // Browser/session reuse when revisiting the same fixture query.
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (error) {
     console.error("Failed to load team squad:", error);
     return NextResponse.json({ error: "Failed to load team squad" }, { status: 500 });

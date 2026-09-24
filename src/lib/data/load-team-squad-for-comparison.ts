@@ -425,11 +425,11 @@ export async function loadTeamSquadForComparison(
       ...slSubs.map((p) => p.sofascore_player_id ?? stableSyntheticPlayerId(p.scoutlyst_player_key)),
     ];
     const slNames = [...slStarters, ...slSubs].map((r) => r.player_name);
-    const [matchRatings, sofifaGlobal] = await Promise.all([
+    const [matchRatings, sofifaGlobal, sofifaByTeam] = await Promise.all([
       loadMatchRatingsByPlayerIds(supabase, slIds.filter((id) => id > 0)),
       loadSofifaOverallByNames(supabase, slNames),
+      loadSofifaOverallByTeam(supabase, teamId),
     ]);
-    const sofifaByTeam = await loadSofifaOverallByTeam(supabase, teamId);
 
     const mapRow = (row: ScoutlystSquadRow, isStarter: boolean): SquadPlayer => {
       const sofascoreId =

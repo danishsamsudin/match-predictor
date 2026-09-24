@@ -63,6 +63,31 @@ function pickFallbackTeamId(
   return other ? String(other.id) : teams.length ? String(teams[0].id) : undefined;
 }
 
+/** Session cache so switching NL fixtures reuses squads already fetched. */
+const CLIENT_SQUAD_CACHE_TTL_MS = 5 * 60 * 1000;
+const clientSquadCache = new Map<
+  string,
+  { expiresAt: number; data: SquadRosterData }
+>();
+
+function squadCacheKey(input: {
+  teamId: number;
+  teamName?: string;
+  opponentName?: string;
+  side?: "home" | "away";
+  leagueId: number;
+  entityType: EntityType;
+}): string {
+  return [
+    input.entityType,
+    input.teamId,
+    input.leagueId,
+    input.teamName ?? "",
+    input.opponentName ?? "",
+    input.side ?? "",
+  ].join("|");
+}
+
 async function fetchTeamSquad(input: {
   teamId: number;
   teamName?: string;
@@ -71,6 +96,12 @@ async function fetchTeamSquad(input: {
   leagueId: number;
   entityType: EntityType;
 }): Promise<SquadRosterData> {
+  const key = squadCacheKey(input);
+  const cached = clientSquadCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const params = new URLSearchParams({
     teamId: String(input.teamId),
     leagueId: String(input.leagueId),
@@ -84,13 +115,18 @@ async function fetchTeamSquad(input: {
   if (!res.ok) {
     throw new Error(data.error ?? "Failed to load squad");
   }
-  return {
+  const rosterData: SquadRosterData = {
     teamId: data.teamId,
     teamName: input.teamName ?? data.teamName ?? "Team",
     preferredFormation: data.preferredFormation ?? null,
     roster: data.roster ?? [],
     suggestedStarters: data.suggestedStarters ?? [],
   };
+  clientSquadCache.set(key, {
+    expiresAt: Date.now() + CLIENT_SQUAD_CACHE_TTL_MS,
+    data: rosterData,
+  });
+  return rosterData;
 }
 
 export function usePredictionForm() {

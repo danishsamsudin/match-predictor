@@ -250,32 +250,82 @@ export async function loadRecentFormEvents(
   return events;
 }
 
-/** Recent finished events for a team across all synced competitions. */
+/**
+ * Recent finished events for a team across all synced competitions.
+ * Prefers team-indexed `synced_fixtures` so national-team lookups do not
+ * scan a global recent-events window and miss sparse international matches.
+ */
 export async function loadRecentFormEventsForTeam(
   supabase: ServiceClient,
   teamId: number,
   teamName?: string,
   limit = 20
 ): Promise<SportApiEvent[]> {
+  const collectFinished = (
+    rows: Array<{ payload: unknown; kickoff_at?: string | null }> | null | undefined
+  ): SportApiEvent[] => {
+    const events: SportApiEvent[] = [];
+    for (const row of rows ?? []) {
+      const event = row.payload as SportApiEvent;
+      if (!event?.homeTeam?.id || !event?.awayTeam?.id) continue;
+      if (event.status?.type !== "finished") continue;
+      if (eventInvolvesTeam(event, teamId, teamName)) {
+        events.push(event);
+      }
+      if (events.length >= limit) break;
+    }
+    return events;
+  };
+
+  const { data: fixtureRows } = await supabase
+    .from("synced_fixtures")
+    .select("event_id, kickoff_at")
+    .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`)
+    .order("kickoff_at", { ascending: false })
+    .limit(Math.max(limit * 3, 24));
+
+  const eventIds = (fixtureRows ?? [])
+    .map((row) => row.event_id)
+    .filter((id): id is number => Number.isFinite(id));
+
+  if (eventIds.length) {
+    const { data: eventRows } = await supabase
+      .from("synced_events")
+      .select("payload, kickoff_at")
+      .in("event_id", eventIds)
+      .order("kickoff_at", { ascending: false });
+
+    const fromFixtures = collectFinished(eventRows);
+    if (fromFixtures.length >= limit) {
+      return fromFixtures.slice(0, limit);
+    }
+
+    // Need more finished matches: merge a bounded global scan.
+    const { data: recentRows } = await supabase
+      .from("synced_events")
+      .select("payload, kickoff_at")
+      .order("kickoff_at", { ascending: false })
+      .limit(limit * 12);
+
+    const seen = new Set(fromFixtures.map((e) => e.id));
+    const merged = [...fromFixtures];
+    for (const event of collectFinished(recentRows)) {
+      if (seen.has(event.id)) continue;
+      merged.push(event);
+      seen.add(event.id);
+      if (merged.length >= limit) break;
+    }
+    return merged.slice(0, limit);
+  }
+
   const { data, error } = await supabase
     .from("synced_events")
     .select("payload, kickoff_at")
     .order("kickoff_at", { ascending: false })
-    .limit(limit * 8);
+    .limit(limit * 12);
 
   if (error) return [];
-
-  const events: SportApiEvent[] = [];
-  for (const row of data ?? []) {
-    const event = row.payload as SportApiEvent;
-    if (!event?.homeTeam?.id || !event?.awayTeam?.id) continue;
-    if (event.status?.type !== "finished") continue;
-    if (eventInvolvesTeam(event, teamId, teamName)) {
-      events.push(event);
-    }
-    if (events.length >= limit) break;
-  }
-  return events;
+  return collectFinished(data).slice(0, limit);
 }
 
 export async function assembleFootballBundleFromStore(
