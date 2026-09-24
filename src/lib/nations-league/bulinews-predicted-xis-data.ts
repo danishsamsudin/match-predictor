@@ -1,5 +1,5 @@
 import type { BulinewsPredictedLineups } from "@/lib/nations-league/parse-bulinews-predicted-lineups";
-import predictedXisMd1 from "../../../data/nations-league-2026/NL Bulin Predicted Starting/predicted-xis-md1.json";
+import predictedXisMd1 from "../../../data/nations-league-2026/bulinews-predicted-xis-md1.json";
 
 type PredictedXisFile = {
   fixtures?: Array<{
@@ -36,8 +36,8 @@ export function loadCommittedBulinewsPredictedFixtures(): BulinewsPredictedLineu
       awayPlayers: row.awayPlayers,
       published: true,
       sourcePath: row.sourceFile
-        ? `committed:NL Bulin Predicted Starting/${row.sourceFile}`
-        : "committed:predicted-xis-md1.json",
+        ? `committed:bulinews-predicted-xis-md1.json:${row.sourceFile}`
+        : "committed:bulinews-predicted-xis-md1.json",
     });
   }
   return out;
