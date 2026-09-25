@@ -9,6 +9,10 @@ export const PLAYER_DETAIL_STAT_SPECS: Array<{
   { label: "xA", suffixes: ["xA", "xAG", "Expected assists", "xA/90"] },
   { label: "Shots", suffixes: ["Sh", "Shots", "shots"] },
   {
+    label: "SoT",
+    suffixes: ["SoT", "SOT", "Shots on target", "Shots on Target", "Shooting — SoT"],
+  },
+  {
     label: "Key passes",
     suffixes: ["KP", "Key passes", "key passes", "SCA"],
   },

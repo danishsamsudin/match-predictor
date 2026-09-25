@@ -2,6 +2,7 @@ import {
   applyCustomLineupToSquad,
   applyCustomLineupsToTeamComparison,
 } from "@/lib/data/apply-custom-lineups-to-comparison";
+import { enrichSquadPlayersWithClubScoutlyst } from "@/lib/data/enrich-squad-with-club-scoutlyst";
 import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
 import type { FixtureLineup } from "@/lib/types/football";
 import type { TeamComparisonSnapshot, TeamSquadSnapshot } from "@/lib/types/team-comparison";
@@ -14,6 +15,7 @@ import {
   loadWcPlayerPropOverlays,
 } from "@/lib/prediction/player-props-wc-opta";
 import { tryCreateServiceClient } from "@/lib/supabase";
+import { resolveNationalPenaltyTaker } from "@/lib/nations-league/nl-penalty-takers";
 import { loadNlCalibrationConfig } from "@/lib/nations-league/nl-calibration-config";
 import { loadWcCalibrationConfig } from "@/lib/world-cup/wc-calibration-config";
 import {
@@ -21,31 +23,16 @@ import {
   type ShotProfile,
 } from "@/lib/world-cup/graham-shot-profiles";
 import type { InternationalFormMatch } from "@/lib/world-cup/load-international-form";
-import sofifaSquads from "../../../data/world-cup-2026/sofifa-squads.json";
 
-type SofifaSquadsFile = {
-  teams: Record<
-    string,
-    {
-      setPieces?: { Penalties?: string };
-    }
-  >;
-};
-
-const penaltyTakersByTeamName = buildPenaltyTakerMap();
-
-function buildPenaltyTakerMap(): Map<string, string | null> {
-  const map = new Map<string, string | null>();
-  const teams = (sofifaSquads as SofifaSquadsFile).teams ?? {};
-  for (const [teamName, team] of Object.entries(teams)) {
-    map.set(teamName.toLowerCase(), team.setPieces?.Penalties ?? null);
-  }
-  return map;
-}
-
-function resolvePenaltyTaker(teamName: string, entityType: "club" | "national"): string | null {
+function resolvePenaltyTaker(
+  teamName: string,
+  entityType: "club" | "national",
+  tournamentSource: "world_cup" | "nations_league"
+): string | null {
   if (entityType !== "national") return null;
-  return penaltyTakersByTeamName.get(teamName.toLowerCase()) ?? null;
+  return resolveNationalPenaltyTaker(teamName, {
+    preferNlMap: tournamentSource === "nations_league",
+  });
 }
 
 function squadHasPlayers(squad: TeamSquadSnapshot): boolean {
@@ -153,6 +140,41 @@ export async function computePlayerPropsForMatch(input: {
     return null;
   }
 
+  const tournamentSource = input.tournamentSource ?? "world_cup";
+  const supabase = tryCreateServiceClient();
+
+  // Club Scoutlyst → national / BuliNews XI so stars like Kvara get real Gls/Sh/SoT.
+  if (input.entityType === "national" && supabase) {
+    const [homePlayers, awayPlayers] = await Promise.all([
+      enrichSquadPlayersWithClubScoutlyst(supabase, [
+        ...homeSquad.starters,
+        ...homeSquad.substitutes,
+      ]),
+      enrichSquadPlayersWithClubScoutlyst(supabase, [
+        ...awaySquad.starters,
+        ...awaySquad.substitutes,
+      ]),
+    ]);
+    const homeStarterIds = new Set(homeSquad.starters.map((p) => p.sofascorePlayerId));
+    const awayStarterIds = new Set(awaySquad.starters.map((p) => p.sofascorePlayerId));
+    homeSquad = {
+      ...homeSquad,
+      starters: homePlayers.filter((p) => homeStarterIds.has(p.sofascorePlayerId)),
+      substitutes: homePlayers.filter((p) => !homeStarterIds.has(p.sofascorePlayerId)),
+      hasScoutlystData:
+        homeSquad.hasScoutlystData ||
+        homePlayers.some((p) => p.scoutlystPlayerKey && !p.scoutlystPlayerKey.startsWith("bulinews:")),
+    };
+    awaySquad = {
+      ...awaySquad,
+      starters: awayPlayers.filter((p) => awayStarterIds.has(p.sofascorePlayerId)),
+      substitutes: awayPlayers.filter((p) => !awayStarterIds.has(p.sofascorePlayerId)),
+      hasScoutlystData:
+        awaySquad.hasScoutlystData ||
+        awayPlayers.some((p) => p.scoutlystPlayerKey && !p.scoutlystPlayerKey.startsWith("bulinews:")),
+    };
+  }
+
   const homeOpponentProfile = resolveShotProfile(
     input.awayDbTeamId,
     input.awayFormMatches
@@ -162,8 +184,6 @@ export async function computePlayerPropsForMatch(input: {
     input.homeFormMatches
   );
 
-  const tournamentSource = input.tournamentSource ?? "world_cup";
-  const supabase = tryCreateServiceClient();
   const [wcOverlays, calibration] = await Promise.all([
     input.entityType === "national" && supabase
       ? tournamentSource === "nations_league"
@@ -189,8 +209,16 @@ export async function computePlayerPropsForMatch(input: {
     awaySquad,
     homeOpponentProfile,
     awayOpponentProfile,
-    homePenaltyTaker: resolvePenaltyTaker(input.homeTeamName, input.entityType),
-    awayPenaltyTaker: resolvePenaltyTaker(input.awayTeamName, input.entityType),
+    homePenaltyTaker: resolvePenaltyTaker(
+      input.homeTeamName,
+      input.entityType,
+      tournamentSource
+    ),
+    awayPenaltyTaker: resolvePenaltyTaker(
+      input.awayTeamName,
+      input.entityType,
+      tournamentSource
+    ),
     homeSetPieceGoalShare: input.homeSetPieceGoalShare,
     awaySetPieceGoalShare: input.awaySetPieceGoalShare,
     homeSetPieceMult: input.homeSetPieceMult,

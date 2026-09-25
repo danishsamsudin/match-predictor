@@ -18,9 +18,19 @@ type ServiceClient = SupabaseClient<Database>;
 
 const NAME_QUERY_BATCH = 40;
 const NAME_QUERY_CONCURRENCY = 8;
+/** Min surname length for truncated-stem matching (Kvaratskheli… ↔ Kvaratskhelia). */
+const TRUNCATION_STEM_MIN = 6;
+
+/** Strip Scoutlyst / UI truncation markers (`...` / `…`). */
+export function stripNameTruncation(displayName: string): string {
+  return displayName
+    .replace(/\u2026/g, "")
+    .replace(/\.{2,}\s*$/g, "")
+    .trim();
+}
 
 export function playerNameLookupKeys(displayName: string): string[] {
-  const norm = normalizeText(displayName);
+  const norm = normalizeText(stripNameTruncation(displayName));
   const parts = norm.split(" ").filter(Boolean);
   const keys = [norm];
   if (parts.length === 1) {
@@ -36,9 +46,44 @@ export function playerNameLookupKeys(displayName: string): string[] {
 }
 
 function surnameLookupKeys(displayName: string): string[] {
-  const parts = normalizeText(displayName).split(" ").filter(Boolean);
+  const parts = normalizeText(stripNameTruncation(displayName)).split(" ").filter(Boolean);
   if (parts.length < 2) return parts.length === 1 ? [parts[0]] : [];
   return [...new Set([parts[parts.length - 1], parts[0]])];
+}
+
+/** True when surnames share a truncation stem (Scoutlyst cut off mid-name). */
+export function surnamesShareTruncationStem(a: string, b: string): boolean {
+  const left = surnameLookupKeys(a);
+  const right = surnameLookupKeys(b);
+  for (const sa of left) {
+    for (const sb of right) {
+      if (sa.length < TRUNCATION_STEM_MIN || sb.length < TRUNCATION_STEM_MIN) continue;
+      if (sa === sb) return true;
+      if (sa.startsWith(sb) || sb.startsWith(sa)) return true;
+    }
+  }
+  return false;
+}
+
+export function playerNamesLikelyMatch(a: string, b: string): boolean {
+  if (!a.trim() || !b.trim()) return false;
+  const aParts = normalizeText(stripNameTruncation(a)).split(" ").filter(Boolean);
+  const bParts = normalizeText(stripNameTruncation(b)).split(" ").filter(Boolean);
+  const bKeys = new Set(playerNameLookupKeys(b));
+
+  // Ignore bare first-name keys when both sides are multi-token (Harry ≠ Harry Maguire).
+  const strongA = playerNameLookupKeys(a).filter((key) => {
+    if (aParts.length >= 2 && key === aParts[0]) return false;
+    return true;
+  });
+  if (strongA.some((key) => bKeys.has(key))) return true;
+
+  if (!surnamesShareTruncationStem(a, b)) return false;
+  // Require matching first initial when both names include a given name.
+  if (aParts.length >= 2 && bParts.length >= 2) {
+    return aParts[0]![0] === bParts[0]![0];
+  }
+  return true;
 }
 
 function pickHigherOverall(
@@ -169,9 +214,19 @@ export async function loadScoutlystSnapshotsByNames(
   ) => {
     for (const row of rows) {
       const mapped = mapScoutlystRow(row);
+      // Exact key overlap first.
       for (const key of playerNameLookupKeys(row.player_name)) {
         if (!wanted.has(key) || byName.has(key)) continue;
         byName.set(key, mapped);
+      }
+      // Truncated Scoutlyst exports (`Khvicha Kvaratskheli...`) must also
+      // register under the full display-name keys the caller asked for.
+      for (const displayName of displayNames) {
+        if (!playerNamesLikelyMatch(displayName, row.player_name)) continue;
+        for (const key of playerNameLookupKeys(displayName)) {
+          if (byName.has(key)) continue;
+          byName.set(key, mapped);
+        }
       }
     }
   };
@@ -223,20 +278,21 @@ export async function loadScoutlystSnapshotsByNames(
     if (isResolved(displayName)) return;
     for (const surname of surnameLookupKeys(displayName)) {
       if (!surname || surname.length < 4) continue;
-      const { data } = await supabase
-        .from("scoutlyst_player_snapshots")
-        .select(SCOUTLYST_SELECT)
-        .ilike("player_name", `%${surname}%`)
-        .order("snapshot_date", { ascending: false })
-        .limit(20);
-      for (const row of data ?? []) {
-        const rowKeys = playerNameLookupKeys(row.player_name);
-        if (!rowKeys.some((key) => wanted.has(key))) continue;
-        const mapped = mapScoutlystRow(row);
-        for (const key of rowKeys) {
-          if (!wanted.has(key) || byName.has(key)) continue;
-          byName.set(key, mapped);
-        }
+      // Also search the truncation stem so full DB names match truncated queries
+      // and truncated DB names match full queries.
+      const stems = [
+        surname,
+        surname.slice(0, Math.max(TRUNCATION_STEM_MIN, surname.length - 2)),
+      ].filter((s, i, arr) => s.length >= 4 && arr.indexOf(s) === i);
+      for (const stem of stems) {
+        const { data } = await supabase
+          .from("scoutlyst_player_snapshots")
+          .select(SCOUTLYST_SELECT)
+          .ilike("player_name", `%${stem}%`)
+          .order("snapshot_date", { ascending: false })
+          .limit(20);
+        ingestRows(data ?? []);
+        if (isResolved(displayName)) break;
       }
       if (isResolved(displayName)) break;
     }
@@ -285,6 +341,10 @@ export function resolveScoutlystSnapshot(
   for (const key of playerNameLookupKeys(displayName)) {
     const row = byName.get(key);
     if (row) return row;
+  }
+  // Fallback: scan map values for truncation-stem matches.
+  for (const row of byName.values()) {
+    if (playerNamesLikelyMatch(displayName, row.player_name)) return row;
   }
   return null;
 }

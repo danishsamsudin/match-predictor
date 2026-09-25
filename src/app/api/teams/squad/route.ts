@@ -5,10 +5,12 @@ import {
   pickUniqueStarters,
 } from "@/lib/data/dedupe-squad-players";
 import { dedupeSquadRosterByPlayerIdentity } from "@/lib/data/dedupe-squad-roster";
+import { enrichSquadPlayersWithClubScoutlyst } from "@/lib/data/enrich-squad-with-club-scoutlyst";
 import { loadTeamSquadForComparisonCached } from "@/lib/data/load-team-squad-cached";
 import { mergeOfficialWcPlayersIntoRoster } from "@/lib/data/merge-official-wc-roster";
 import { resolveWc2026TeamLabel } from "@/lib/data/world-cup-2026-official-squads";
 import { resolveBulinewsPredictedXi } from "@/lib/nations-league/resolve-bulinews-predicted-xi";
+import { tryCreateServiceClient } from "@/lib/supabase";
 import type { EntityType } from "@/lib/types/football-lookup";
 import type { SquadPlayer } from "@/lib/types/team-comparison";
 
@@ -89,6 +91,16 @@ export async function GET(request: NextRequest) {
         preferredFormation = bulinews.formation ?? preferredFormation;
         squadSource = "bulinews";
       }
+    }
+
+    // Attach club Scoutlyst threat metrics (Gls/Sh/SoT) onto national / BuliNews players.
+    if (entityType === "national") {
+      const supabase = tryCreateServiceClient();
+      roster = finalizeRoster(
+        await enrichSquadPlayersWithClubScoutlyst(supabase, roster),
+        "national"
+      );
+      uniqueStarters = alignStartersToRoster(uniqueStarters, roster, 11);
     }
 
     const suggestedStarters = alignStartersToRoster(uniqueStarters, roster, 11);

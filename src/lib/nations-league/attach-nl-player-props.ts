@@ -47,8 +47,9 @@ async function resolveNlHubProjectedLineups(input: {
 
   const homeRoster = rosterFromSquad(homeSquad.starters, homeSquad.substitutes);
   const awayRoster = rosterFromSquad(awaySquad.starters, awaySquad.substitutes);
-  if (!homeRoster.length || !awayRoster.length) return undefined;
 
+  // Empty national Scoutlyst/lineups is common for pure NL sides (e.g. Georgia).
+  // BuliNews still builds a full synthetic XI from the committed predicted lineups.
   const homeXi = resolveBulinewsPredictedXi({
     teamName: input.homeName,
     opponentName: input.awayName,
