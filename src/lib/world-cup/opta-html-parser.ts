@@ -4,6 +4,7 @@ import {
   normalizeNationalTeamName,
   WORLD_CUP_2026_TEAMS,
 } from "@/lib/data/world-cup-2026-teams";
+import { NATIONS_LEAGUE_2026_TEAMS } from "@/lib/data/nations-league-2026-teams";
 import {
   extractOptaWidgetMatchStats,
   type OptaWidgetMatchStats,
@@ -80,9 +81,9 @@ function decodeHtmlEntities(text: string): string {
 
 function resolveTeam(name: string): { apiId: number | null; canonicalName: string } {
   const key = normalizeNationalTeamName(name);
-  const team = WORLD_CUP_2026_TEAMS.find(
-    (t) => normalizeNationalTeamName(t.name) === key
-  );
+  const team =
+    WORLD_CUP_2026_TEAMS.find((t) => normalizeNationalTeamName(t.name) === key) ??
+    NATIONS_LEAGUE_2026_TEAMS.find((t) => normalizeNationalTeamName(t.name) === key);
   return {
     apiId: team?.id ?? null,
     canonicalName: team?.name ?? name.trim(),

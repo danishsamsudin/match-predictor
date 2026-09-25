@@ -37,8 +37,9 @@ export interface WcPlayerStatsFixtureFiles {
   matchDetails: string | null;
 }
 
+/** Accepts Sep / Sept / September (Opta filenames often use “Sept”). */
 const FIXTURE_FILENAME_RE =
-  /^(.+?)\s+vs\s+(.+?)\s+-\s+(\d{1,2}\s+\w{3}\s+\d{4})/i;
+  /^(.+?)\s+vs\s+(.+?)\s+-\s+(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/i;
 
 export function expectedOptaHtmlFilesDir(htmlPath: string): string {
   return htmlPath.replace(/\.html$/i, "_files");
@@ -72,7 +73,12 @@ function parseFixtureFromFilename(filename: string): {
   const parsed = new Date(dateRaw);
   const matchDate = Number.isNaN(parsed.getTime())
     ? null
-    : parsed.toISOString().slice(0, 10);
+    : (() => {
+        const y = parsed.getFullYear();
+        const mo = String(parsed.getMonth() + 1).padStart(2, "0");
+        const d = String(parsed.getDate()).padStart(2, "0");
+        return `${y}-${mo}-${d}`;
+      })();
   const fixtureKey = `${normalizeFixtureTeam(homeName)}|${normalizeFixtureTeam(awayName)}|${matchDate ?? dateRaw}`;
   return { homeName, awayName, matchDate, fixtureKey };
 }

@@ -693,7 +693,6 @@ export function usePredictionForm() {
           };
 
     const customLineups =
-      lineupSource === "manual_xi" &&
       homeRosterData &&
       awayRosterData &&
       xiSelectionComplete

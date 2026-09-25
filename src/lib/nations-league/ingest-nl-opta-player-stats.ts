@@ -8,6 +8,7 @@ import {
   parseOptaPlayerStatsFixture,
   type ParsedOptaFixture,
 } from "@/lib/world-cup/opta-player-stats-parser";
+import { mapGoalsBetweenOrientations } from "@/lib/world-cup/match-orientation";
 import { resolveNlMatchFromParsedTeams } from "@/lib/nations-league/resolve-nl-match";
 import {
   assertPlayerStatsHtmlBundle,
@@ -22,6 +23,8 @@ export type NlPlayerStatsIngestResult = {
   parsed: ParsedOptaFixture;
   skipped?: boolean;
   skipReason?: string;
+  /** When player-stats HTML carried a score, match was marked finished. */
+  scoreApplied?: { homeGoals: number; awayGoals: number } | null;
 };
 
 function opponentStrength(teamApiId: number): number {
@@ -158,6 +161,35 @@ export async function ingestNlOptaPlayerStatsFixture(
     if (existing?.length) skipIngestLog = true;
   }
 
+  // Articles normally mark matches finished; without them, apply score from Betting Showcase.
+  let scoreApplied: { homeGoals: number; awayGoals: number } | null = null;
+  if (parsed.homeGoals != null && parsed.awayGoals != null) {
+    const dbGoals = mapGoalsBetweenOrientations(
+      parsed.homeGoals,
+      parsed.awayGoals,
+      parsed.homeTeamName,
+      parsed.awayTeamName,
+      resolved.match.home_team_name ?? parsed.homeTeamName,
+      resolved.match.away_team_name ?? parsed.awayTeamName
+    );
+    if (dbGoals.homeGoals != null && dbGoals.awayGoals != null) {
+      const { error: scoreErr } = await supabase
+        .from("matches")
+        .update({
+          home_goals: dbGoals.homeGoals,
+          away_goals: dbGoals.awayGoals,
+          status: "finished",
+        })
+        .eq("id", matchId)
+        .ilike("competition", "%Nations League%");
+      if (scoreErr) throw new Error(scoreErr.message);
+      scoreApplied = {
+        homeGoals: dbGoals.homeGoals,
+        awayGoals: dbGoals.awayGoals,
+      };
+    }
+  }
+
   const [{ homeXg, awayXg }, territory] = await Promise.all([
     loadXgForMatch(supabase, parsed.homeTeamApiId, parsed.awayTeamApiId),
     loadTerritoryFromIngest(supabase, matchId),
@@ -264,6 +296,7 @@ export async function ingestNlOptaPlayerStatsFixture(
     parsed,
     skipped: skipIngestLog,
     skipReason: skipIngestLog ? "already_ingested" : undefined,
+    scoreApplied,
   };
 }
 
@@ -354,9 +387,15 @@ export async function ingestAllNlOptaPlayerStats(
 export function formatNlPlayerStatsIngestLine(
   result: NlPlayerStatsIngestResult
 ): string {
-  if (result.skipped) {
-    return `${result.parsed.homeTeamName} vs ${result.parsed.awayTeamName} - skipped (${result.skipReason})`;
-  }
   const p = result.parsed;
-  return `${p.homeTeamName} vs ${p.awayTeamName} - ${p.players.length} players (${result.matchId})`;
+  const score =
+    result.scoreApplied != null
+      ? ` score ${result.scoreApplied.homeGoals}-${result.scoreApplied.awayGoals}`
+      : p.homeGoals != null && p.awayGoals != null
+        ? ` score ${p.homeGoals}-${p.awayGoals} (not applied)`
+        : " (no score in HTML)";
+  if (result.skipped) {
+    return `${p.homeTeamName} vs ${p.awayTeamName} - skipped (${result.skipReason})${score}`;
+  }
+  return `${p.homeTeamName} vs ${p.awayTeamName} - ${p.players.length} players (${result.matchId})${score}`;
 }

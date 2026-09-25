@@ -40,6 +40,17 @@ const PENALTY_XG_SLOPE = 0.035;
 const PENALTY_BUMP_MIN = 0.05;
 const PENALTY_BUMP_MAX = 0.14;
 const MIN_SUM_BASE = 0.1;
+/**
+ * NL MD1 starter avg xG by Opta position (generalised prior for players / teams
+ * without tournament minutes yet). Scaled by team xG vs this baseline.
+ */
+const ROLE_GOAL_PRIOR_90 = { F: 0.27, M: 0.14, D: 0.065, G: 0.01 } as const;
+const ROLE_ASSIST_PRIOR_90 = { F: 0.1, M: 0.12, D: 0.04, G: 0.01 } as const;
+const ROLE_PRIOR_TEAM_XG_BASELINE = 1.4;
+/** Bayesian prior strength (matches) when shrinking single-game tournament rates. */
+const TOURNAMENT_RATE_PRIOR_MATCHES = 2;
+/** Selected / projected XI: prefer roster minutes over Opta bench minutes. */
+const SELECTED_STARTER_SHARE_PCT = 80;
 
 export type PlayerPropMarketCoeffs = {
   anytime: PlayerPropMlCoeffs;
@@ -220,11 +231,12 @@ function structuralZeroForGoals(player: SquadPlayer): number {
   });
   const tokens = parseTacticalPositionTokens(player.fieldPosition ?? player.position);
   const slot = (tokens[0] ?? player.fieldPosition ?? "").toUpperCase();
-  if (slot === "ST" || slot === "CF" || slot === "LS" || slot === "RS") return 0.1;
-  if (slot === "LW" || slot === "RW" || slot === "LF" || slot === "RF") return 0.15;
-  if (role === "F") return 0.12;
-  if (role === "M") return 0.18;
-  return 0.2;
+  // Lower structural zeros after NL MD1 (starting FW anytime ~31% at ~0.27 xG).
+  if (slot === "ST" || slot === "CF" || slot === "LS" || slot === "RS") return 0.06;
+  if (slot === "LW" || slot === "RW" || slot === "LF" || slot === "RF") return 0.1;
+  if (role === "F") return 0.08;
+  if (role === "M") return 0.14;
+  return 0.18;
 }
 
 function structuralZeroForAssists(player: SquadPlayer): number {
@@ -241,6 +253,15 @@ function resolveExpectedMinutes(
   player: SquadPlayer,
   wcOverlay: WcPlayerPropOverlay | null
 ): number {
+  // Selected / projected starters always get starter minutes, even if Opta
+  // last match was a sub appearance for a different XI.
+  if (
+    player.startSharePct != null &&
+    player.startSharePct >= SELECTED_STARTER_SHARE_PCT
+  ) {
+    return clamp(player.startSharePct / 100, 0.85, 1) * 90;
+  }
+
   const wcMinutes = wcExpectedMinutes(wcOverlay);
   if (wcMinutes != null) return wcMinutes;
 
@@ -250,6 +271,33 @@ function resolveExpectedMinutes(
   if (wcOverlay?.wasLastStarter) return 85;
   if (player.performanceScore != null && player.performanceScore >= 70) return 72;
   return 58;
+}
+
+function roleGoalPrior90(
+  role: "G" | "D" | "M" | "F",
+  teamExpectedGoals: number
+): number {
+  const scale = clamp(teamExpectedGoals / ROLE_PRIOR_TEAM_XG_BASELINE, 0.55, 1.6);
+  return ROLE_GOAL_PRIOR_90[role] * scale;
+}
+
+function roleAssistPrior90(
+  role: "G" | "D" | "M" | "F",
+  teamExpectedGoals: number
+): number {
+  const scale = clamp(teamExpectedGoals / ROLE_PRIOR_TEAM_XG_BASELINE, 0.55, 1.6);
+  return ROLE_ASSIST_PRIOR_90[role] * scale;
+}
+
+/** Shrink noisy single-match tournament rates toward the role prior. */
+export function shrinkTowardPrior(
+  observed: number,
+  prior: number,
+  matchesPlayed: number,
+  priorStrength = TOURNAMENT_RATE_PRIOR_MATCHES
+): number {
+  const n = Math.max(0, matchesPlayed);
+  return (prior * priorStrength + observed * n) / (priorStrength + n);
 }
 
 function isPoacherProfile(xgPerShot: number): boolean {
@@ -304,35 +352,62 @@ export function playerNamesMatch(
 function resolveGoalRate90(
   stats: Record<string, string | number | null>,
   player: SquadPlayer,
-  wcOverlay: WcPlayerPropOverlay | null
+  wcOverlay: WcPlayerPropOverlay | null,
+  role: "G" | "D" | "M" | "F",
+  teamExpectedGoals: number
 ): number {
-  const clubRate =
+  const prior = roleGoalPrior90(role, teamExpectedGoals);
+  const fromStats =
     per90(stats, ["npxG", "npxg"]) ??
     per90(stats, ["xG", "Expected goals", "xG/90"]) ??
-    per90(stats, ["Gls", "Goals", "goals"]) ??
-    performanceToNpxGProxy(player.performanceScore);
+    per90(stats, ["Gls", "Goals", "goals"]);
+  // No club/tournament evidence → full role prior (generalises to unplayed teams).
+  const clubRate =
+    fromStats != null
+      ? fromStats * 0.55 + prior * 0.45
+      : player.performanceScore != null
+        ? performanceToNpxGProxy(player.performanceScore) * 0.5 + prior * 0.5
+        : prior;
 
   if (!wcOverlay || wcOverlay.wcWeight <= 0) return clubRate;
 
+  const shrunkTournament = shrinkTowardPrior(
+    wcOverlay.goalRate90,
+    prior,
+    wcOverlay.matchesPlayed
+  );
   const blended =
-    clubRate * (1 - wcOverlay.wcWeight) + wcOverlay.goalRate90 * wcOverlay.wcWeight;
-  return Math.max(blended, wcOverlay.goalRate90 * 0.85);
+    clubRate * (1 - wcOverlay.wcWeight) + shrunkTournament * wcOverlay.wcWeight;
+  return Math.max(blended, shrunkTournament * 0.7);
 }
 
 function resolveAssistRate90(
   stats: Record<string, string | number | null>,
   player: SquadPlayer,
-  wcOverlay: WcPlayerPropOverlay | null
+  wcOverlay: WcPlayerPropOverlay | null,
+  role: "G" | "D" | "M" | "F",
+  teamExpectedGoals: number
 ): number {
-  const clubRate =
+  const prior = roleAssistPrior90(role, teamExpectedGoals);
+  const fromStats =
     per90(stats, ["xA", "xAG", "Expected assists", "xA/90"]) ??
-    per90(stats, ["Ast", "Assists", "assists"]) ??
-    performanceToXAProxy(player.performanceScore);
+    per90(stats, ["Ast", "Assists", "assists"]);
+  const clubRate =
+    fromStats != null
+      ? fromStats * 0.55 + prior * 0.45
+      : player.performanceScore != null
+        ? performanceToXAProxy(player.performanceScore) * 0.5 + prior * 0.5
+        : prior;
 
   if (!wcOverlay || wcOverlay.wcWeight <= 0) return clubRate;
 
+  const shrunkTournament = shrinkTowardPrior(
+    wcOverlay.assistRate90,
+    prior,
+    wcOverlay.matchesPlayed
+  );
   return (
-    clubRate * (1 - wcOverlay.wcWeight) + wcOverlay.assistRate90 * wcOverlay.wcWeight
+    clubRate * (1 - wcOverlay.wcWeight) + shrunkTournament * wcOverlay.wcWeight
   );
 }
 
@@ -343,31 +418,43 @@ function allocationWeight(
 ): number {
   const core = baseGoalLambda * tacticalMultiplier;
   if (!wcOverlay) return core;
-  const chanceBoost = wcOverlay.chanceIndexPer90 * 0.14;
+  // Cap chance boost - raw Opta chance index can exceed 2.0 after one big xG game.
+  const chanceBoost = Math.min(wcOverlay.chanceIndexPer90, 1.1) * 0.08;
   return core + chanceBoost;
 }
 
-function buildLikelyXi(squad: TeamSquadSnapshot): SquadPlayer[] {
-  const roster = [...squad.starters, ...squad.substitutes];
-  if (!roster.length) return [];
-
+function dedupeOutfieldPlayers(players: SquadPlayer[]): SquadPlayer[] {
   const byId = new Map<number, SquadPlayer>();
-  for (const player of roster) {
+  for (const player of players) {
     const existing = byId.get(player.sofascorePlayerId);
     if (!existing || (player.startSharePct ?? 0) > (existing.startSharePct ?? 0)) {
       byId.set(player.sofascorePlayerId, player);
     }
   }
 
-  return [...byId.values()]
-    .filter(
-      (player) =>
-        resolveSquadPlayerLineupRole({
-          fieldPosition: player.fieldPosition,
-          position: player.position,
-        }) !== "G"
-    )
-    .sort((a, b) => (b.startSharePct ?? 0) - (a.startSharePct ?? 0));
+  return [...byId.values()].filter(
+    (player) =>
+      resolveSquadPlayerLineupRole({
+        fieldPosition: player.fieldPosition,
+        position: player.position,
+      }) !== "G"
+  );
+}
+
+/**
+ * Goal / SoT markets only use the selected or projected starting XI when
+ * lineup data is present (squad selector / BuliNews / manual XI).
+ * Falls back to start-share ranking over the full outfield roster otherwise.
+ */
+function buildLikelyXi(squad: TeamSquadSnapshot): SquadPlayer[] {
+  const starterOutfield = dedupeOutfieldPlayers(squad.starters);
+  if (squad.hasLineupData && starterOutfield.length >= 7) {
+    return starterOutfield;
+  }
+
+  return dedupeOutfieldPlayers([...squad.starters, ...squad.substitutes]).sort(
+    (a, b) => (b.startSharePct ?? 0) - (a.startSharePct ?? 0)
+  );
 }
 
 /** Central defenders only - full-backs are not automatic set-piece scorers. */
@@ -449,14 +536,30 @@ function buildCandidatesForTeam(input: {
       fieldPosition: player.fieldPosition,
       position: player.position,
     });
+    const fromSelectedXi =
+      input.squad.hasLineupData &&
+      input.squad.starters.some((s) => s.sofascorePlayerId === player.sofascorePlayerId);
     const isStarter =
+      fromSelectedXi ||
       (player.startSharePct ?? 0) >= 50 ||
       Boolean(wcOverlay?.wasLastStarter) ||
       minutesFactor >= 0.75;
     const baseGoalLambda =
-      resolveGoalRate90(stats, player, wcOverlay) * minutesFactor;
+      resolveGoalRate90(
+        stats,
+        player,
+        wcOverlay,
+        role,
+        input.teamExpectedGoals
+      ) * minutesFactor;
     const baseAssistLambda =
-      resolveAssistRate90(stats, player, wcOverlay) * minutesFactor;
+      resolveAssistRate90(
+        stats,
+        player,
+        wcOverlay,
+        role,
+        input.teamExpectedGoals
+      ) * minutesFactor;
     const tacticalMultiplier = computeTacticalMultiplier(
       player,
       input.opponentProfile,
@@ -649,18 +752,6 @@ function rankGoalMarketTopN(
 
 const SOT_LINES: Array<0.5 | 1.5 | 2.5> = [0.5, 1.5, 2.5];
 
-function dedupeSquadPlayers(squad: TeamSquadSnapshot): SquadPlayer[] {
-  const roster = [...squad.starters, ...squad.substitutes];
-  const byId = new Map<number, SquadPlayer>();
-  for (const player of roster) {
-    const existing = byId.get(player.sofascorePlayerId);
-    if (!existing || (player.startSharePct ?? 0) > (existing.startSharePct ?? 0)) {
-      byId.set(player.sofascorePlayerId, player);
-    }
-  }
-  return [...byId.values()];
-}
-
 /** Goalkeepers are never eligible for shots-on-target player markets. */
 export function isGoalkeeperPlayer(player: SquadPlayer): boolean {
   const role = resolveSquadPlayerLineupRole({
@@ -734,7 +825,7 @@ function buildSotPropsForTeam(input: {
     roleForward: boolean;
   }> = [];
 
-  for (const player of dedupeSquadPlayers(input.squad)) {
+  for (const player of buildLikelyXi(input.squad)) {
     if (isGoalkeeperPlayer(player)) continue;
 
     const role = resolveSquadPlayerLineupRole({
@@ -768,7 +859,9 @@ function buildSotPropsForTeam(input: {
       rankingScore,
       expectedMinutes,
       isStarter:
-        (player.startSharePct ?? 0) >= 50 || Boolean(wcOverlay?.wasLastStarter),
+        input.squad.hasLineupData ||
+        (player.startSharePct ?? 0) >= 50 ||
+        Boolean(wcOverlay?.wasLastStarter),
       roleForward: role === "F",
     });
   }

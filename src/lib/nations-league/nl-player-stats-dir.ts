@@ -37,8 +37,9 @@ export interface NlPlayerStatsFixtureFiles {
   matchDetails: string | null;
 }
 
+/** Accepts Sep / Sept / September (Opta filenames often use “Sept”). */
 const FIXTURE_FILENAME_RE =
-  /^(.+?)\s+vs\s+(.+?)\s+-\s+(\d{1,2}\s+\w{3}\s+\d{4})/i;
+  /^(.+?)\s+vs\s+(.+?)\s+-\s+(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/i;
 
 export function expectedOptaHtmlFilesDir(htmlPath: string): string {
   return htmlPath.replace(/\.html$/i, "_files");
@@ -56,7 +57,17 @@ export function assertPlayerStatsHtmlBundle(htmlPath: string): void {
   );
 }
 
-function parseFixtureFromFilename(filename: string): {
+/** Local calendar date so midnight local times do not shift a day via UTC. */
+function parseFilenameDate(dateRaw: string): string | null {
+  const parsed = new Date(dateRaw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, "0");
+  const d = String(parsed.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function parseNlPlayerStatsFixtureFromFilename(filename: string): {
   homeName: string;
   awayName: string;
   matchDate: string | null;
@@ -66,19 +77,52 @@ function parseFixtureFromFilename(filename: string): {
     .replace(/\.html$/i, "")
     .replace(/ - UEFA Nations League.*$/i, "")
     .replace(/ - Nations League.*$/i, "")
-    .replace(/ - FIFA World Cup.*$/i, "");
+    .replace(/ - FIFA World Cup.*$/i, "")
+    .replace(/ - Betting Showcase.*$/i, "");
   const m = base.match(FIXTURE_FILENAME_RE);
   if (!m) return null;
 
   const homeName = m[1].trim();
   const awayName = m[2].trim();
   const dateRaw = m[3].trim();
-  const parsed = new Date(dateRaw);
-  const matchDate = Number.isNaN(parsed.getTime())
-    ? null
-    : parsed.toISOString().slice(0, 10);
+  const matchDate = parseFilenameDate(dateRaw);
   const fixtureKey = `${normalizeFixtureTeam(homeName)}|${normalizeFixtureTeam(awayName)}|${matchDate ?? dateRaw}`;
   return { homeName, awayName, matchDate, fixtureKey };
+}
+
+/** HTML files present under the three Betting Showcase subdirs that failed name parsing. */
+export function listUnparsedNlPlayerStatsHtml(
+  root = NL_PLAYER_STATS_ROOT
+): string[] {
+  const unparsed: string[] = [];
+  for (const subdir of Object.values(NL_PLAYER_STATS_SUBDIRS)) {
+    for (const file of listHtmlInSubdir(root, subdir)) {
+      if (!parseNlPlayerStatsFixtureFromFilename(path.basename(file))) {
+        unparsed.push(file);
+      }
+    }
+  }
+  return unparsed;
+}
+
+export function summarizeNlPlayerStatsDir(root = NL_PLAYER_STATS_ROOT): {
+  fixtures: NlPlayerStatsFixtureFiles[];
+  htmlCounts: { matchSummary: number; optaSummary: number; matchDetails: number };
+  unparsed: string[];
+} {
+  const fixtures = listNlPlayerStatsFixtures(root);
+  return {
+    fixtures,
+    htmlCounts: {
+      matchSummary: listHtmlInSubdir(root, NL_PLAYER_STATS_SUBDIRS.matchSummary)
+        .length,
+      optaSummary: listHtmlInSubdir(root, NL_PLAYER_STATS_SUBDIRS.optaSummary)
+        .length,
+      matchDetails: listHtmlInSubdir(root, NL_PLAYER_STATS_SUBDIRS.matchDetails)
+        .length,
+    },
+    unparsed: listUnparsedNlPlayerStatsHtml(root),
+  };
 }
 
 function normalizeFixtureTeam(name: string): string {
@@ -105,7 +149,7 @@ export function listNlPlayerStatsFixtures(
   const byKey = new Map<string, NlPlayerStatsFixtureFiles>();
 
   const addFile = (kind: NlPlayerStatsPageKind, filePath: string) => {
-    const meta = parseFixtureFromFilename(path.basename(filePath));
+    const meta = parseNlPlayerStatsFixtureFromFilename(path.basename(filePath));
     if (!meta) return;
     let entry = byKey.get(meta.fixtureKey);
     if (!entry) {

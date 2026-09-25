@@ -77,8 +77,9 @@ function validateBody(body: unknown): PredictRequest | null {
   const matchDate = typeof b.matchDate === "string" ? b.matchDate.trim() : "";
   const lineupSource = parseLineupSource(b.lineupSource);
   const parsedLineups = parseCustomLineups(b.customLineups);
-  const customLineups =
-    lineupSource === "model_xi" ? undefined : parsedLineups;
+  // Keep projected / selected XI for player-prop markets even in model_xi mode
+  // (team xG still ignores lineups unless lineupSource is manual_xi).
+  const customLineups = parsedLineups;
 
   if (
     !Number.isFinite(homeTeamId) ||

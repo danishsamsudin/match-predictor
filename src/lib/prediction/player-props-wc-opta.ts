@@ -67,9 +67,10 @@ function resolveStat(
 
 function computeWcWeight(minutesTotal: number, matchesPlayed: number): number {
   if (minutesTotal <= 0 || matchesPlayed <= 0) return 0;
-  const minutesFactor = clamp(minutesTotal / 180, 0, 1);
-  const matchFactor = clamp(matchesPlayed / 2, 0, 1);
-  return clamp(0.35 + minutesFactor * 0.4 + matchFactor * 0.25, 0, 0.95);
+  // Soften after a single matchday so one outlier xG game cannot dominate.
+  const minutesFactor = clamp(minutesTotal / 270, 0, 1);
+  const matchFactor = clamp(matchesPlayed / 3, 0, 1);
+  return clamp(0.22 + minutesFactor * 0.35 + matchFactor * 0.28, 0, 0.85);
 }
 
 /**
@@ -87,13 +88,14 @@ export function wcGoalRate90FromTournament(input: {
   const per90 = 90 / minutes;
   const goalsPer90 = input.goalsTotal * per90;
   const xgPer90 = input.xgTotal * per90;
-  const chanceThreat = (input.chanceIndexPer90 ?? 0) * 0.36;
-  const sotThreat = (input.shotsOnTargetPer90 ?? 0) * 0.11;
+  // Cap chance - raw Opta chance composites can exceed 2.0 and double-count xG.
+  const chanceThreat = Math.min(input.chanceIndexPer90 ?? 0, 1.0) * 0.18;
+  const sotThreat = (input.shotsOnTargetPer90 ?? 0) * 0.1;
 
   return clamp(
-    Math.max(xgPer90, goalsPer90 * 0.92, chanceThreat, sotThreat),
+    Math.max(xgPer90, goalsPer90 * 0.85, chanceThreat, sotThreat),
     0.02,
-    1.2
+    0.95
   );
 }
 
@@ -105,8 +107,8 @@ export function wcAssistRate90FromTournament(input: {
   const minutes = Math.max(input.minutesTotal, 1);
   const per90 = 90 / minutes;
   const astPer90 = input.assistsTotal * per90;
-  const chanceAssist = (input.chanceIndexPer90 ?? 0) * 0.22;
-  return clamp(Math.max(astPer90, chanceAssist * 0.45), 0.02, 0.85);
+  const chanceAssist = Math.min(input.chanceIndexPer90 ?? 0, 1.0) * 0.14;
+  return clamp(Math.max(astPer90, chanceAssist * 0.4), 0.02, 0.7);
 }
 
 type TournamentFormRow = {

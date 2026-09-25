@@ -53,6 +53,10 @@ async function main() {
     (r) => r.predicted_prob != null && r.predicted_lambda != null
   );
 
+  console.log(
+    `Anytime-scorer evaluation rows: ${scorerRows.length} (need ≥8 to retrain)`
+  );
+
   if (scorerRows.length < 8) {
     console.log(
       `Only ${scorerRows.length} NL anytime-scorer evaluations - keeping deployed player-prop coeffs.`

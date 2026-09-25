@@ -3,6 +3,7 @@ import {
   normalizeNationalTeamName,
   WORLD_CUP_2026_TEAMS,
 } from "@/lib/data/world-cup-2026-teams";
+import { NATIONS_LEAGUE_2026_TEAMS } from "@/lib/data/nations-league-2026-teams";
 import type { WcPlayerStatsFixtureFiles } from "@/lib/world-cup/wc-player-stats-dir";
 
 export type PlayerSide = "home" | "away";
@@ -36,7 +37,7 @@ export interface ParsedOptaFixture {
 }
 
 const FIXTURE_FILENAME_RE =
-  /^(.+?)\s+vs\s+(.+?)\s+-\s+(\d{1,2}\s+\w{3}\s+\d{4})/i;
+  /^(.+?)\s+vs\s+(.+?)\s+-\s+(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})/i;
 
 function decodeHtml(text: string): string {
   return text
@@ -59,9 +60,9 @@ function parseNum(raw: string | null | undefined): number | null {
 
 function resolveTeam(name: string): { apiId: number | null; canonicalName: string } {
   const key = normalizeNationalTeamName(name);
-  const team = WORLD_CUP_2026_TEAMS.find(
-    (t) => normalizeNationalTeamName(t.name) === key
-  );
+  const team =
+    WORLD_CUP_2026_TEAMS.find((t) => normalizeNationalTeamName(t.name) === key) ??
+    NATIONS_LEAGUE_2026_TEAMS.find((t) => normalizeNationalTeamName(t.name) === key);
   return { apiId: team?.id ?? null, canonicalName: team?.name ?? name.trim() };
 }
 

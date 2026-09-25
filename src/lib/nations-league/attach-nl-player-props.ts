@@ -1,9 +1,88 @@
 import { NATIONS_LEAGUE_REFERENCE_LEAGUE_ID } from "@/lib/data/nations-league-2026-teams";
+import { squadPlayersToFixtureLineup } from "@/lib/prediction/build-custom-lineup";
 import { computePlayerPropsForMatch } from "@/lib/prediction/compute-player-props-for-match";
 import type { PlayerPropsPayload } from "@/lib/prediction/player-props";
+import { resolveBulinewsPredictedXi } from "@/lib/nations-league/resolve-bulinews-predicted-xi";
+import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
+import { tryCreateServiceClient } from "@/lib/supabase";
+import type { FixtureLineup } from "@/lib/types/football";
+import type { SquadPlayer } from "@/lib/types/team-comparison";
 import { resolveApiTeamId } from "@/lib/world-cup/resolve-api-team-id";
 import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
+
+function rosterFromSquad(starters: SquadPlayer[], substitutes: SquadPlayer[]): SquadPlayer[] {
+  return [...starters, ...substitutes];
+}
+
+/**
+ * Project BuliNews (or committed) predicted XIs so hub-locked player props
+ * only allocate among the most-likely starting elevens.
+ */
+async function resolveNlHubProjectedLineups(input: {
+  homeTeamApiId: number;
+  awayTeamApiId: number;
+  homeName: string;
+  awayName: string;
+}): Promise<FixtureLineup[] | undefined> {
+  const supabase = tryCreateServiceClient();
+  if (!supabase) return undefined;
+
+  const [homeSquad, awaySquad] = await Promise.all([
+    loadTeamSquadForComparison(
+      supabase,
+      input.homeTeamApiId,
+      input.homeName,
+      NATIONS_LEAGUE_REFERENCE_LEAGUE_ID,
+      "national"
+    ),
+    loadTeamSquadForComparison(
+      supabase,
+      input.awayTeamApiId,
+      input.awayName,
+      NATIONS_LEAGUE_REFERENCE_LEAGUE_ID,
+      "national"
+    ),
+  ]);
+
+  const homeRoster = rosterFromSquad(homeSquad.starters, homeSquad.substitutes);
+  const awayRoster = rosterFromSquad(awaySquad.starters, awaySquad.substitutes);
+  if (!homeRoster.length || !awayRoster.length) return undefined;
+
+  const homeXi = resolveBulinewsPredictedXi({
+    teamName: input.homeName,
+    opponentName: input.awayName,
+    sideHint: "home",
+    roster: homeRoster,
+  });
+  const awayXi = resolveBulinewsPredictedXi({
+    teamName: input.awayName,
+    opponentName: input.homeName,
+    sideHint: "away",
+    roster: awayRoster,
+  });
+
+  if (!homeXi || !awayXi || homeXi.starters.length < 11 || awayXi.starters.length < 11) {
+    return undefined;
+  }
+
+  return [
+    squadPlayersToFixtureLineup(
+      input.homeTeamApiId,
+      input.homeName,
+      homeXi.formation ?? homeSquad.preferredFormation,
+      homeXi.starters,
+      homeXi.roster
+    ),
+    squadPlayersToFixtureLineup(
+      input.awayTeamApiId,
+      input.awayName,
+      awayXi.formation ?? awaySquad.preferredFormation,
+      awayXi.starters,
+      awayXi.roster
+    ),
+  ];
+}
 
 /**
  * Compute and attach player props into the hub prediction snapshot so
@@ -25,6 +104,13 @@ export async function attachNlPlayerPropsToHubPrediction(
   const homeXg = Number(snap.home_xg ?? snap.lambda ?? 1.2);
   const awayXg = Number(snap.away_xg ?? snap.mu ?? 1.1);
 
+  const customLineups = await resolveNlHubProjectedLineups({
+    homeTeamApiId,
+    awayTeamApiId,
+    homeName,
+    awayName,
+  }).catch(() => undefined);
+
   const playerProps = await computePlayerPropsForMatch({
     homeTeamId: homeTeamApiId,
     awayTeamId: awayTeamApiId,
@@ -41,6 +127,7 @@ export async function attachNlPlayerPropsToHubPrediction(
     awayDbTeamId: match.away_team_id,
     modelVersion: hubRow.model_version,
     tournamentSource: "nations_league",
+    customLineups,
   }).catch(() => null);
 
   if (!playerProps) return hubRow;

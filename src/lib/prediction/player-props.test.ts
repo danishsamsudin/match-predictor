@@ -6,6 +6,7 @@ import {
   computeTacticalMultiplier,
   isGoalkeeperPlayer,
   penaltyTakerGoalBump,
+  shrinkTowardPrior,
   sumNormalizedGoalLambdas,
   zipProbAtLeastOne,
 } from "@/lib/prediction/player-props";
@@ -528,5 +529,143 @@ describe("computePlayerPropsPayload", () => {
     expect(penaltyTakerGoalBump(0.8)).toBeLessThan(0.15);
     expect(penaltyTakerGoalBump(2.5)).toBeGreaterThan(penaltyTakerGoalBump(0.8));
     expect(penaltyTakerGoalBump(2.5)).toBeLessThanOrEqual(0.14);
+  });
+
+  it("only lists players from the selected starting XI when lineup data is set", () => {
+    const starters = Array.from({ length: 10 }, (_, i) =>
+      makePlayer({
+        name: `Starter${i + 1}`,
+        sofascorePlayerId: i + 1,
+        position: i < 2 ? "FWD" : i < 5 ? "MID" : "DEF",
+        fieldPosition: i < 2 ? "ST" : i < 5 ? "CM" : "CB",
+        startSharePct: 100,
+        detailStats: [
+          { label: "xG", value: String(Math.max(2, 12 - i)) },
+          { label: "Minutes", value: "2700" },
+        ],
+      })
+    );
+    const benchStar = makePlayer({
+      name: "BenchSuperstar",
+      sofascorePlayerId: 99,
+      fieldPosition: "ST",
+      startSharePct: 40,
+      detailStats: [
+        { label: "xG", value: "40" },
+        { label: "Minutes", value: "2700" },
+      ],
+    });
+
+    const squad: TeamSquadSnapshot = {
+      starters,
+      substitutes: [benchStar],
+      hasLineupData: true,
+      hasScoutlystData: true,
+      squadSource: "manual",
+      preferredFormation: "4-3-3",
+      snapshotDate: null,
+    };
+
+    const payload = computePlayerPropsPayload({
+      modelVersion: "test",
+      homeTeamName: "Home",
+      awayTeamName: "Away",
+      homeTeamId: 1,
+      awayTeamId: 2,
+      homeXg: 1.7,
+      awayXg: 1.1,
+      homeSquad: squad,
+      awaySquad: makeSquad([makePlayer({ name: "Away ST", sofascorePlayerId: 50 })]),
+    });
+
+    const anytimeNames = payload.home.anytimeScorer.map((p) => p.playerName);
+    const goalAssistNames = payload.home.goalOrAssist.map((p) => p.playerName);
+    const sotNames = payload.home.shotsOnTarget
+      .filter((l) => l.line === 0.5)
+      .map((l) => l.playerName);
+
+    expect(anytimeNames).not.toContain("BenchSuperstar");
+    expect(goalAssistNames).not.toContain("BenchSuperstar");
+    expect(sotNames).not.toContain("BenchSuperstar");
+    expect(anytimeNames.every((n) => n.startsWith("Starter"))).toBe(true);
+  });
+
+  it("produces role-prior anytime odds in a realistic band for a starting striker", () => {
+    const squad = makeSquad([
+      makePlayer({
+        name: "Striker",
+        sofascorePlayerId: 1,
+        fieldPosition: "ST",
+        startSharePct: 100,
+        performanceScore: null,
+        detailStats: [],
+      }),
+      makePlayer({
+        name: "Winger",
+        sofascorePlayerId: 2,
+        fieldPosition: "LW",
+        position: "FWD",
+        startSharePct: 100,
+        performanceScore: null,
+        detailStats: [],
+      }),
+      ...Array.from({ length: 4 }, (_, i) =>
+        makePlayer({
+          name: `Mid${i + 1}`,
+          sofascorePlayerId: 10 + i,
+          position: "MID",
+          fieldPosition: "CM",
+          startSharePct: 100,
+          performanceScore: null,
+          detailStats: [],
+        })
+      ),
+      ...Array.from({ length: 4 }, (_, i) =>
+        makePlayer({
+          name: `Def${i + 1}`,
+          sofascorePlayerId: 20 + i,
+          position: "DEF",
+          fieldPosition: "CB",
+          startSharePct: 100,
+          performanceScore: null,
+          detailStats: [],
+        })
+      ),
+    ]);
+
+    const payload = computePlayerPropsPayload({
+      modelVersion: "test",
+      homeTeamName: "Home",
+      awayTeamName: "Away",
+      homeTeamId: 1,
+      awayTeamId: 2,
+      homeXg: 1.4,
+      awayXg: 1.1,
+      homeSquad: squad,
+      awaySquad: makeSquad([]),
+    });
+
+    const striker = payload.home.anytimeScorer.find((p) => p.playerName === "Striker");
+    expect(striker).toBeDefined();
+    // NL MD1 starting FW anytime ~31% (~3.25); band allows team-xG allocation noise.
+    expect(striker!.probabilityPct).toBeGreaterThan(18);
+    expect(striker!.probabilityPct).toBeLessThan(45);
+    expect(striker!.fairDecimalOdds).toBeGreaterThan(2.2);
+    expect(striker!.fairDecimalOdds).toBeLessThan(6);
+  });
+});
+
+describe("shrinkTowardPrior", () => {
+  it("pulls a single-match outlier toward the prior", () => {
+    const shrunk = shrinkTowardPrior(1.4, 0.27, 1);
+    expect(shrunk).toBeLessThan(1.4);
+    expect(shrunk).toBeGreaterThan(0.27);
+    expect(shrunk).toBeCloseTo((0.27 * 2 + 1.4) / 3, 5);
+  });
+
+  it("converges to the observed rate as matches grow", () => {
+    const early = shrinkTowardPrior(0.5, 0.27, 1);
+    const late = shrinkTowardPrior(0.5, 0.27, 8);
+    expect(Math.abs(late - 0.5)).toBeLessThan(Math.abs(early - 0.5));
   });
 });

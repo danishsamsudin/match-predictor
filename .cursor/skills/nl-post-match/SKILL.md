@@ -13,7 +13,9 @@ Use after each UEFA Nations League 2026/27 match when the user saves Opta HTML t
    - `NL-Opta-Player-Stats/Opta Summary/`
    - `NL-Opta-Player-Stats/Match Details/`
    - Filename pattern: `{Home} vs {Away} - {DD Mon YYYY} - UEFA Nations League ...`
-3. Run one command (or ask the agent to run it).
+   - Month may be `Sep`, `Sept`, or `September` (Opta often uses `Sept`).
+3. Articles are optional. If `NL-Opta-Results` is empty, `nl:postmatch` skips article ingest and still marks matches finished from Betting Showcase scores.
+4. Run one command (or ask the agent to run it).
 
 ## Commands
 

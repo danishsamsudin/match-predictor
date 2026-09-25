@@ -15,7 +15,7 @@ import {
   listNlOptaResultHtmlFiles,
   NL_OPTA_RESULTS_DIR,
 } from "../src/lib/nations-league/nl-opta-results-dir";
-import { listNlPlayerStatsFixtures } from "../src/lib/nations-league/nl-player-stats-dir";
+import { summarizeNlPlayerStatsDir } from "../src/lib/nations-league/nl-player-stats-dir";
 import { refreshNationsLeagueHubSnapshot } from "../src/lib/nations-league/hub-load";
 
 function loadEnvLocal() {
@@ -71,42 +71,98 @@ function validateBundles(files: string[]): void {
   process.exit(1);
 }
 
+function step(n: number, total: number, title: string) {
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`Step ${n}/${total}: ${title}`);
+  console.log("=".repeat(60));
+}
+
 async function main() {
   loadEnvLocal();
+  const totalSteps = 5;
   const files = resolveHtmlFiles(process.argv.slice(2));
-  const playerFixtures = listNlPlayerStatsFixtures();
+  const playerSummary = summarizeNlPlayerStatsDir();
 
+  console.log("NL post-match pipeline starting");
+  console.log(`  Articles found: ${files.length} under ${NL_OPTA_RESULTS_DIR}`);
+  console.log(
+    `  Player-stats fixtures: ${playerSummary.fixtures.length} ` +
+      `(MS ${playerSummary.htmlCounts.matchSummary} / OS ${playerSummary.htmlCounts.optaSummary} / MD ${playerSummary.htmlCounts.matchDetails})`
+  );
+  if (playerSummary.unparsed.length) {
+    console.warn(
+      `  WARNING: ${playerSummary.unparsed.length} player-stats HTML file(s) failed filename parse`
+    );
+  }
+
+  step(1, totalSteps, "Opta Analyst articles (match scores + process metrics)");
   if (!files.length) {
     console.log(
       `No Opta HTML in ${NL_OPTA_RESULTS_DIR} yet - skipping article ingest (empty-safe).`
     );
+    console.log(
+      "Without articles, player-stats ingest will still mark matches finished from Betting Showcase scores."
+    );
   } else {
-    console.log(`Processing ${files.length} Opta article(s) from NL-Opta-Results:\n`);
+    console.log(`Processing ${files.length} Opta article(s):\n`);
     for (const file of files) {
       console.log(`  • ${path.basename(file)}`);
     }
-    console.log(`\nPlayer-stats fixtures in NL-Opta-Player-Stats: ${playerFixtures.length}`);
-    console.log("");
     validateBundles(files);
     run("npx", ["tsx", "scripts/nl-ingest-opta-html.ts", ...files]);
   }
 
+  step(2, totalSteps, "Player-stats ingest (Betting Showcase)");
+  if (!playerSummary.fixtures.length) {
+    console.log("No parseable player-stats fixtures found.");
+    if (
+      playerSummary.htmlCounts.matchSummary +
+        playerSummary.htmlCounts.optaSummary +
+        playerSummary.htmlCounts.matchDetails >
+      0
+    ) {
+      console.error(
+        "HTML is present but filenames did not parse - aborting so this is not silently skipped."
+      );
+      process.exit(1);
+    }
+  } else {
+    console.log("Discovered fixtures:");
+    for (const f of playerSummary.fixtures) {
+      const pages = [
+        f.matchSummary ? "MS" : null,
+        f.optaSummary ? "OS" : null,
+        f.matchDetails ? "MD" : null,
+      ]
+        .filter(Boolean)
+        .join("+");
+      console.log(
+        `  • ${f.homeName} vs ${f.awayName} (${f.matchDate ?? "?"}) [${pages || "no pages"}]`
+      );
+    }
+  }
   run("npm", ["run", "nl:ingest-player-stats"]);
+
+  step(3, totalSteps, "Recompute NL ratings (xG-Elo / WCTR / talent)");
   run("npm", ["run", "nl:recompute-ratings"]);
 
-  console.log("\nRefreshing Nations League hub snapshot...");
+  step(4, totalSteps, "Refresh Nations League hub snapshot");
   const payload = await refreshNationsLeagueHubSnapshot();
   if (!payload) {
     console.error("Hub refresh returned null (check Supabase / NL fixtures).");
     process.exit(1);
   }
-  console.log("Hub snapshot refreshed.");
+  console.log(
+    `Hub snapshot refreshed - recent ${payload.recent.length}, upcoming ${payload.upcoming.length}.`
+  );
 
-  console.log("\nEvaluating + calibrating NL player goal markets...");
+  step(5, totalSteps, "Evaluate + calibrate NL player goal markets");
   run("npx", ["tsx", "scripts/nl-evaluate-player-props.ts"]);
   run("npx", ["tsx", "scripts/nl-calibrate-player-props.ts"]);
 
-  console.log("\nNL post-match pipeline complete.");
+  console.log(`\n${"=".repeat(60)}`);
+  console.log("NL post-match pipeline complete.");
+  console.log("=".repeat(60));
 }
 
 main().catch((err) => {

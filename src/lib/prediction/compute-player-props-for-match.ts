@@ -1,4 +1,7 @@
-import { applyCustomLineupsToTeamComparison } from "@/lib/data/apply-custom-lineups-to-comparison";
+import {
+  applyCustomLineupToSquad,
+  applyCustomLineupsToTeamComparison,
+} from "@/lib/data/apply-custom-lineups-to-comparison";
 import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
 import type { FixtureLineup } from "@/lib/types/football";
 import type { TeamComparisonSnapshot, TeamSquadSnapshot } from "@/lib/types/team-comparison";
@@ -118,7 +121,7 @@ export async function computePlayerPropsForMatch(input: {
     comparison = applyCustomLineupsToTeamComparison(comparison, input.customLineups);
   }
 
-  const [homeSquad, awaySquad] = await Promise.all([
+  let [homeSquad, awaySquad] = await Promise.all([
     resolveSquad({
       teamId: input.homeTeamId,
       teamName: input.homeTeamName,
@@ -136,6 +139,15 @@ export async function computePlayerPropsForMatch(input: {
       comparisonTeamId: comparison?.away.teamId,
     }),
   ]);
+
+  // When teamComparison is missing (hub lock path), still pin props to the
+  // projected / selected XI so markets do not leak full-roster players.
+  if (input.customLineups?.length && !input.teamComparison) {
+    const homeLineup = input.customLineups.find((l) => l.team.id === input.homeTeamId);
+    const awayLineup = input.customLineups.find((l) => l.team.id === input.awayTeamId);
+    homeSquad = applyCustomLineupToSquad(homeSquad, homeLineup);
+    awaySquad = applyCustomLineupToSquad(awaySquad, awayLineup);
+  }
 
   if (!squadHasPlayers(homeSquad) && !squadHasPlayers(awaySquad)) {
     return null;

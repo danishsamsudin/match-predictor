@@ -56,19 +56,53 @@ async function main() {
   const supabase = tryCreateServiceClient();
   if (!supabase) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
 
-  const { data: finishedMatches, error: matchErr } = await supabase
+  console.log("Loading finished Nations League matches...");
+  // `matches` has no denormalized team name columns - join via `teams`.
+  const { data: finishedRows, error: matchErr } = await supabase
     .from("matches")
     .select(
-      "id, date, status, home_team_id, away_team_id, home_team_name, away_team_name, competition"
+      "id, date, status, home_team_id, away_team_id, home_goals, away_goals, competition, round, venue, venue_city, group_code, time"
     )
     .eq("status", "finished")
     .ilike("competition", "%Nations League%");
 
   if (matchErr) throw new Error(matchErr.message);
-  if (!finishedMatches?.length) {
+  if (!finishedRows?.length) {
     console.log("No finished Nations League matches to evaluate.");
     return;
   }
+
+  const { data: teams, error: teamsErr } = await supabase
+    .from("teams")
+    .select("id, name");
+  if (teamsErr) throw new Error(teamsErr.message);
+  const teamNames = new Map(
+    (teams ?? []).map((t) => [String(t.id), t.name as string])
+  );
+
+  const finishedMatches: WcMatchRow[] = finishedRows.map((row) => ({
+    id: String(row.id),
+    date: row.date,
+    time: row.time,
+    competition: row.competition,
+    round: row.round,
+    venue: row.venue,
+    venue_city: row.venue_city ?? row.venue,
+    group_code: row.group_code,
+    status: row.status,
+    home_team_id: row.home_team_id,
+    away_team_id: row.away_team_id,
+    home_goals: row.home_goals,
+    away_goals: row.away_goals,
+    home_team_name: row.home_team_id
+      ? teamNames.get(String(row.home_team_id))
+      : undefined,
+    away_team_name: row.away_team_id
+      ? teamNames.get(String(row.away_team_id))
+      : undefined,
+  }));
+
+  console.log(`Finished NL matches: ${finishedMatches.length}`);
 
   // Fail fast with a clear migration hint if the eval table is missing.
   {
@@ -88,24 +122,34 @@ async function main() {
   const matchIds = finishedMatches.map((m) => String(m.id));
   const { data: preds } = await supabase
     .from("nations_league_predictions")
-    .select("match_id, model_version, snapshot, home_win_pct, draw_pct, away_win_pct, predicted_score_home, predicted_score_away, under_2_5_pct, over_2_5_pct")
+    .select(
+      "match_id, model_version, snapshot, home_win_pct, draw_pct, away_win_pct, predicted_score_home, predicted_score_away, under_2_5_pct, over_2_5_pct"
+    )
     .in("match_id", matchIds);
 
   const predByMatch = new Map(
     (preds ?? []).map((p) => [String(p.match_id), p as Record<string, unknown>])
   );
+  console.log(`Predictions loaded for ${predByMatch.size} finished match(es).`);
 
   let evaluated = 0;
   let matchesUsed = 0;
+  let skippedNoStats = 0;
+  let skippedNoProps = 0;
 
-  for (const match of finishedMatches as WcMatchRow[]) {
+  for (const match of finishedMatches) {
     const matchId = String(match.id);
+    const label = `${match.home_team_name ?? "Home"} vs ${match.away_team_name ?? "Away"} (${match.date ?? "?"})`;
+
     const { data: stats } = await supabase
       .from("nations_league_player_match_stats")
       .select("opta_player_id, player_name, team_api_id, stats")
       .eq("match_id", matchId);
 
-    if (!stats?.length) continue;
+    if (!stats?.length) {
+      skippedNoStats += 1;
+      continue;
+    }
 
     let props: PlayerPropsPayload | null = null;
     const pred = predByMatch.get(matchId);
@@ -113,6 +157,7 @@ async function main() {
     const locked = snap.player_props as PlayerPropsPayload | undefined;
     if (locked?.home && locked?.away) {
       props = locked;
+      console.log(`  ${label}: using locked snapshot.player_props (${stats.length} Opta players)`);
     } else if (pred) {
       const hubRow: HubPredictionRow = {
         home_win_pct: Number(pred.home_win_pct),
@@ -132,10 +177,17 @@ async function main() {
           .from("nations_league_predictions")
           .update({ snapshot: enriched.snapshot })
           .eq("match_id", matchId);
+        console.log(
+          `  ${label}: recomputed player_props bootstrap (${stats.length} Opta players)`
+        );
       }
     }
 
-    if (!props) continue;
+    if (!props) {
+      skippedNoProps += 1;
+      console.log(`  ${label}: skip - no player props (prediction missing or attach failed)`);
+      continue;
+    }
     matchesUsed += 1;
 
     const byNorm = new Map(
@@ -159,6 +211,7 @@ async function main() {
       { side: props.away as PropSide, teamApiId: props.away.teamId },
     ];
 
+    let matchEvalCount = 0;
     for (const { side, teamApiId } of sides) {
       for (const line of resolveAnytimeLines(side)) {
         const actual = byNorm.get(normalizeName(line.playerName));
@@ -177,6 +230,7 @@ async function main() {
         });
         if (error) throw new Error(error.message);
         evaluated += 1;
+        matchEvalCount += 1;
       }
 
       for (const line of side.shotsOnTarget ?? []) {
@@ -196,12 +250,17 @@ async function main() {
         });
         if (error) throw new Error(error.message);
         evaluated += 1;
+        matchEvalCount += 1;
       }
     }
+    console.log(`    → wrote ${matchEvalCount} evaluation row(s)`);
   }
 
   console.log(
-    `Evaluated ${evaluated} NL player prop lines across ${matchesUsed} match(es).`
+    `\nEvaluated ${evaluated} NL player prop lines across ${matchesUsed} match(es).`
+  );
+  console.log(
+    `Skipped: ${skippedNoStats} without Opta player stats, ${skippedNoProps} without props.`
   );
 }
 

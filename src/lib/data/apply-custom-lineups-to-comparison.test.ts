@@ -126,6 +126,7 @@ describe("applyCustomLineupsToTeamComparison", () => {
       customLineups[0].startXI.map((s) => s.player.id)
     );
     expect(next.home.squad.starters[0].name).toBe("Home Sub");
+    expect(next.home.squad.starters[0].startSharePct).toBe(100);
     expect(next.home.squad.substitutes.some((p) => p.sofascorePlayerId === 1)).toBe(
       true
     );

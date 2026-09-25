@@ -21,17 +21,17 @@ export interface PlayerPropMlCoeffs {
 }
 
 export const DEFAULT_PLAYER_PROP_ML_COEFFS: PlayerPropMlCoeffs = {
-  intercept: -0.72,
-  logLambdaSlope: 1.25,
-  chanceIndexSlope: 0.45,
-  penaltyTakerSlope: 0.32,
-  starterSlope: 0.24,
-  roleForwardSlope: 0.2,
-  roleMidSlope: 0.1,
-  teamXgSlope: 0.14,
-  mlBlend: 0.58,
-  structuralZeroScale: 0.42,
-  wcGoalShare: 0.94,
+  intercept: -0.55,
+  logLambdaSlope: 1.15,
+  chanceIndexSlope: 0.28,
+  penaltyTakerSlope: 0.28,
+  starterSlope: 0.18,
+  roleForwardSlope: 0.16,
+  roleMidSlope: 0.08,
+  teamXgSlope: 0.1,
+  mlBlend: 0.45,
+  structuralZeroScale: 0.55,
+  wcGoalShare: 0.92,
 };
 
 export type PlayerPropMlFeatures = {
@@ -91,7 +91,8 @@ export function buildPlayerPropMlFeatures(input: {
 }): PlayerPropMlFeatures {
   return {
     logLambda: Math.log(Math.max(input.normalizedGoalLambda, 0.005)),
-    chanceIndexPer90: input.wcOverlay?.chanceIndexPer90 ?? 0,
+    // Cap so one Opta chance spike does not dominate the logit.
+    chanceIndexPer90: Math.min(input.wcOverlay?.chanceIndexPer90 ?? 0, 1.15),
     isPenaltyTaker: input.isPenaltyTaker,
     isStarter: input.isStarter,
     roleForward: input.role === "F",

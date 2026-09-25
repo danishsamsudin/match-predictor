@@ -29,9 +29,14 @@ async function main() {
   const supabase = tryCreateServiceClient();
   if (!supabase) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
 
+  console.log(
+    `Recomputing NL ratings for ${NATIONS_LEAGUE_2026_TEAMS.length} nations...`
+  );
+
   const allMatches = [];
   const teamIds: number[] = [];
   const teamNames = new Map<number, string>();
+  let teamsLoaded = 0;
 
   for (const team of NATIONS_LEAGUE_2026_TEAMS) {
     teamIds.push(team.id);
@@ -46,6 +51,12 @@ async function main() {
       enrichFormMatchesWithProcessMetrics(form, metrics)
     );
     allMatches.push(...enriched);
+    teamsLoaded += 1;
+    if (teamsLoaded % 10 === 0 || teamsLoaded === NATIONS_LEAGUE_2026_TEAMS.length) {
+      console.log(
+        `  Loaded form for ${teamsLoaded}/${NATIONS_LEAGUE_2026_TEAMS.length} teams (${allMatches.length} form rows so far)`
+      );
+    }
   }
 
   const deduped = [
@@ -54,6 +65,7 @@ async function main() {
     ).values(),
   ];
 
+  console.log(`Persisting ratings from ${deduped.length} unique matches...`);
   await persistNationalTeamRatings(deduped, teamIds, teamNames);
   console.log(
     `Persisted NL ratings for ${teamIds.length} teams from ${deduped.length} matches.`

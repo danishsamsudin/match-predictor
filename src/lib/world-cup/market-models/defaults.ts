@@ -221,16 +221,16 @@ export function getDefaultMarketModelsConfig(): MarketModelsConfig {
     playerProps: {
       anytime: mergePlayerPropMlCoeffs({
         ...DEFAULT_PLAYER_PROP_ML_COEFFS,
-        intercept: -0.72,
-        structuralZeroScale: 0.42,
-        mlBlend: 0.58,
-        wcGoalShare: 0.94,
+        intercept: -0.55,
+        structuralZeroScale: 0.55,
+        mlBlend: 0.45,
+        wcGoalShare: 0.92,
       }),
       goalAssist: mergePlayerPropMlCoeffs({
         ...DEFAULT_PLAYER_PROP_ML_COEFFS,
-        intercept: -0.58,
-        structuralZeroScale: 0.38,
-        mlBlend: 0.52,
+        intercept: -0.48,
+        structuralZeroScale: 0.5,
+        mlBlend: 0.42,
         logLambdaSlope: 1.05,
       }),
       sot: { ...DEFAULT_PLAYER_PROP_SOT },
