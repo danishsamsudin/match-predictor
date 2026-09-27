@@ -78,7 +78,13 @@ export async function GET(request: NextRequest) {
     let squadSource = squad.squadSource;
     let uniqueStarters: SquadPlayer[] = pickUniqueStarters(squad.starters, roster, 11);
 
-    if (entityType === "national" && teamName && opponentName) {
+    // MD1 actual XIs are the NL tournament baseline; skip predicted overlays.
+    if (
+      entityType === "national" &&
+      teamName &&
+      opponentName &&
+      squadSource !== "nl_md1"
+    ) {
       const bulinews = resolveBulinewsPredictedXi({
         teamName,
         opponentName,

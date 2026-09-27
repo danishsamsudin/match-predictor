@@ -6,6 +6,8 @@ import {
 import { loadOfficialWcSquadForComparison } from "@/lib/data/load-official-wc-squad-for-comparison";
 import { loadFbrefTeamSquadSnapshot } from "@/lib/fbref/comparison-fallback";
 import { resolveWc2026TeamLabel } from "@/lib/data/world-cup-2026-official-squads";
+import { isNationsLeagueLeague } from "@/lib/data/nations-league-2026-teams";
+import { loadNlMd1SquadForComparison } from "@/lib/nations-league/load-nl-md1-squad-for-comparison";
 import { loadPreferredFormationForTeam } from "@/lib/data/team-formations";
 import { buildLineupQualityMap } from "@/lib/data/build-lineup-quality-map";
 import {
@@ -213,6 +215,20 @@ export async function loadTeamSquadForComparison(
     coach: null,
   };
 
+  const effectiveEntity = entityType ?? "club";
+
+  // Nations League: lock tournament baseline to actual MD1 starting XIs
+  // (bench = everyone else on that matchday sheet). Prefer this over WC
+  // official lists so NL fixtures stay stable across the competition.
+  if (
+    effectiveEntity === "national" &&
+    (isNationsLeagueLeague(benchmarkLeagueId ?? 0) ||
+      isNationsLeagueLeague(domesticLeagueId ?? 0))
+  ) {
+    const md1 = loadNlMd1SquadForComparison(teamId, teamName);
+    if (md1) return md1;
+  }
+
   const wcTeamLabel = resolveWc2026TeamLabel(teamName, teamId);
   if (wcTeamLabel) {
     const official = await loadOfficialWcSquadForComparison(
@@ -225,8 +241,6 @@ export async function loadTeamSquadForComparison(
   }
 
   if (!supabase) return empty;
-
-  const effectiveEntity = entityType ?? "club";
   const [lineupAgg, scoutlyst] = await Promise.all([
     aggregateLineupAppearances(supabase, teamId, teamName, 12, {
       entityType: effectiveEntity,

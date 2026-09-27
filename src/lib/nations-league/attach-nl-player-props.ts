@@ -48,8 +48,8 @@ async function resolveNlHubProjectedLineups(input: {
   const homeRoster = rosterFromSquad(homeSquad.starters, homeSquad.substitutes);
   const awayRoster = rosterFromSquad(awaySquad.starters, awaySquad.substitutes);
 
-  // Empty national Scoutlyst/lineups is common for pure NL sides (e.g. Georgia).
-  // BuliNews still builds a full synthetic XI from the committed predicted lineups.
+  // Prefer BuliNews predicted XIs when present; otherwise use MD1 actual baselines
+  // already loaded via loadTeamSquadForComparison (squadSource nl_md1).
   const homeXi = resolveBulinewsPredictedXi({
     teamName: input.homeName,
     opponentName: input.awayName,
@@ -63,7 +63,12 @@ async function resolveNlHubProjectedLineups(input: {
     roster: awayRoster,
   });
 
-  if (!homeXi || !awayXi || homeXi.starters.length < 11 || awayXi.starters.length < 11) {
+  const homeStarters = homeXi?.starters ?? homeSquad.starters;
+  const awayStarters = awayXi?.starters ?? awaySquad.starters;
+  const homeFullRoster = homeXi?.roster ?? homeRoster;
+  const awayFullRoster = awayXi?.roster ?? awayRoster;
+
+  if (homeStarters.length < 11 || awayStarters.length < 11) {
     return undefined;
   }
 
@@ -71,16 +76,16 @@ async function resolveNlHubProjectedLineups(input: {
     squadPlayersToFixtureLineup(
       input.homeTeamApiId,
       input.homeName,
-      homeXi.formation ?? homeSquad.preferredFormation,
-      homeXi.starters,
-      homeXi.roster
+      homeXi?.formation ?? homeSquad.preferredFormation,
+      homeStarters,
+      homeFullRoster
     ),
     squadPlayersToFixtureLineup(
       input.awayTeamApiId,
       input.awayName,
-      awayXi.formation ?? awaySquad.preferredFormation,
-      awayXi.starters,
-      awayXi.roster
+      awayXi?.formation ?? awaySquad.preferredFormation,
+      awayStarters,
+      awayFullRoster
     ),
   ];
 }

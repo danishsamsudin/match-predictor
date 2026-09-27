@@ -39,7 +39,7 @@ export async function loadTeamSquadForComparisonCached(
           : undefined
       );
     },
-    ["team-squad-v1", String(teamId), nameKey, leagueKey, entityKey],
+    ["team-squad-v2-nl-md1", String(teamId), nameKey, leagueKey, entityKey],
     {
       revalidate: TEAM_SQUAD_CACHE_REVALIDATE_SECONDS,
       tags: ["team-squad", `team-squad-${teamId}`],

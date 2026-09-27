@@ -56,6 +56,7 @@ export type TeamSquadSource =
   | "fifa_official"
   | "sofifa"
   | "bulinews"
+  | "nl_md1"
   | "manual"
   | "none";
 

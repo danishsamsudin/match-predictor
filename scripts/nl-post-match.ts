@@ -8,6 +8,7 @@
  *   npx tsx scripts/nl-post-match.ts /path/to/article.html [...]
  */
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import {
   assertOptaHtmlBundle,
@@ -17,6 +18,9 @@ import {
 } from "../src/lib/nations-league/nl-opta-results-dir";
 import { summarizeNlPlayerStatsDir } from "../src/lib/nations-league/nl-player-stats-dir";
 import { refreshNationsLeagueHubSnapshot } from "../src/lib/nations-league/hub-load";
+
+const fsExists = (p: string) => fs.existsSync(p);
+const fsReaddir = (p: string) => fs.readdirSync(p);
 
 function loadEnvLocal() {
   const fs = require("fs") as typeof import("fs");
@@ -79,9 +83,16 @@ function step(n: number, total: number, title: string) {
 
 async function main() {
   loadEnvLocal();
-  const totalSteps = 5;
+  const totalSteps = 6;
   const files = resolveHtmlFiles(process.argv.slice(2));
   const playerSummary = summarizeNlPlayerStatsDir();
+  const sofifaDir = path.join(
+    process.cwd(),
+    "data/nations-league-2026/nl-scoutlyst-rankings"
+  );
+  const sofifaHtmlCount = fsExists(sofifaDir)
+    ? fsReaddir(sofifaDir).filter((name) => name.toLowerCase().endsWith(".html")).length
+    : 0;
 
   console.log("NL post-match pipeline starting");
   console.log(`  Articles found: ${files.length} under ${NL_OPTA_RESULTS_DIR}`);
@@ -89,6 +100,7 @@ async function main() {
     `  Player-stats fixtures: ${playerSummary.fixtures.length} ` +
       `(MS ${playerSummary.htmlCounts.matchSummary} / OS ${playerSummary.htmlCounts.optaSummary} / MD ${playerSummary.htmlCounts.matchDetails})`
   );
+  console.log(`  SoFIFA listing pages: ${sofifaHtmlCount} under nl-scoutlyst-rankings`);
   if (playerSummary.unparsed.length) {
     console.warn(
       `  WARNING: ${playerSummary.unparsed.length} player-stats HTML file(s) failed filename parse`
@@ -112,7 +124,16 @@ async function main() {
     run("npx", ["tsx", "scripts/nl-ingest-opta-html.ts", ...files]);
   }
 
-  step(2, totalSteps, "Player-stats ingest (Betting Showcase)");
+  step(2, totalSteps, "SoFIFA player overalls (nl-scoutlyst-rankings HTML)");
+  if (!sofifaHtmlCount) {
+    console.log(
+      "No SoFIFA HTML in nl-scoutlyst-rankings - skipping (empty-safe). Save listing pages or run npm run nl:fetch-sofifa."
+    );
+  } else {
+    run("npm", ["run", "nl:import-sofifa", "--", "--skip-report"]);
+  }
+
+  step(3, totalSteps, "Player-stats ingest (Betting Showcase)");
   if (!playerSummary.fixtures.length) {
     console.log("No parseable player-stats fixtures found.");
     if (
@@ -143,10 +164,10 @@ async function main() {
   }
   run("npm", ["run", "nl:ingest-player-stats"]);
 
-  step(3, totalSteps, "Recompute NL ratings (xG-Elo / WCTR / talent)");
+  step(4, totalSteps, "Recompute NL ratings (xG-Elo / WCTR / talent)");
   run("npm", ["run", "nl:recompute-ratings"]);
 
-  step(4, totalSteps, "Refresh Nations League hub snapshot");
+  step(5, totalSteps, "Refresh Nations League hub snapshot");
   const payload = await refreshNationsLeagueHubSnapshot();
   if (!payload) {
     console.error("Hub refresh returned null (check Supabase / NL fixtures).");
@@ -156,7 +177,7 @@ async function main() {
     `Hub snapshot refreshed - recent ${payload.recent.length}, upcoming ${payload.upcoming.length}.`
   );
 
-  step(5, totalSteps, "Evaluate + calibrate NL player goal markets");
+  step(6, totalSteps, "Evaluate + calibrate NL player goal markets");
   run("npx", ["tsx", "scripts/nl-evaluate-player-props.ts"]);
   run("npx", ["tsx", "scripts/nl-calibrate-player-props.ts"]);
 

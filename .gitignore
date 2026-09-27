@@ -51,11 +51,14 @@
 !/data/nations-league-2026/NL Squads/.gitkeep
 /data/nations-league-2026/NL-Opta-Results/**
 /data/nations-league-2026/NL-Opta-Player-Stats/**
+/data/nations-league-2026/nl-scoutlyst-rankings/**
 !/data/nations-league-2026/NL-Opta-Results/.gitkeep
 !/data/nations-league-2026/NL-Opta-Player-Stats/.gitkeep
 !/data/nations-league-2026/NL-Opta-Player-Stats/Match Summary/.gitkeep
 !/data/nations-league-2026/NL-Opta-Player-Stats/Opta Summary/.gitkeep
 !/data/nations-league-2026/NL-Opta-Player-Stats/Match Details/.gitkeep
+!/data/nations-league-2026/nl-scoutlyst-rankings/.gitkeep
+!/data/nations-league-2026/nl-sofifa-missing-players.csv
 
 # Local FBref / FIFA scrape exports (not committed)
 /data/imports/fbref/**/*.html
