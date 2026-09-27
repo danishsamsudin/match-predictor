@@ -5,10 +5,10 @@
     "start": "2026-09-24",
     "end": "2026-09-26"
   },
-  "scrapedAt": "2026-09-26T21:52:32.002Z",
+  "scrapedAt": "2026-09-27T11:32:14.554Z",
   "source": "sofascore",
-  "fixtureCount": 26,
-  "teamCount": 52,
+  "fixtureCount": 28,
+  "teamCount": 54,
   "fixtures": [
     {
       "sofascoreEventId": 15537726,
@@ -8984,6 +8984,358 @@
       },
       "confirmed": true,
       "source": "sofascore"
+    },
+    {
+      "sofascoreEventId": 15537762,
+      "kickoffUtc": "2026-09-27T16:00:00Z",
+      "home": {
+        "teamId": 129264,
+        "teamName": "Gibraltar",
+        "formation": "4-4-2",
+        "starters": [
+          {
+            "sofascorePlayerId": 876677,
+            "name": "Jaylan Hankins",
+            "position": "G",
+            "jerseyNumber": "13",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 361586,
+            "name": "Ethan Jolley",
+            "position": "D",
+            "jerseyNumber": "2",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 604174,
+            "name": "Bernardo Lopes",
+            "position": "D",
+            "jerseyNumber": "6",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 884193,
+            "name": "Louie Annesley",
+            "position": "D",
+            "jerseyNumber": "5",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 986178,
+            "name": "Kian Ronan",
+            "position": "D",
+            "jerseyNumber": "2",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1137231,
+            "name": "Carlos Richards",
+            "position": "F",
+            "jerseyNumber": null,
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 876681,
+            "name": "Graeme Torrilla",
+            "position": "M",
+            "jerseyNumber": "22",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1149352,
+            "name": "Nicholas Pozo",
+            "position": "M",
+            "jerseyNumber": "30",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1427138,
+            "name": "Jeremy Perera",
+            "position": "M",
+            "jerseyNumber": "14",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 876680,
+            "name": "Tjay De Barr",
+            "position": "F",
+            "jerseyNumber": "11",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1383878,
+            "name": "Dan Bent",
+            "position": "M",
+            "jerseyNumber": "26",
+            "substitute": false
+          }
+        ],
+        "substitutes": []
+      },
+      "away": {
+        "teamId": 4818,
+        "teamName": "Andorra",
+        "formation": "4-4-2",
+        "starters": [
+          {
+            "sofascorePlayerId": 1005638,
+            "name": "Iker Álvarez",
+            "position": "G",
+            "jerseyNumber": "1",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1409685,
+            "name": "Biel Borra Font",
+            "position": "D",
+            "jerseyNumber": null,
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 810852,
+            "name": "Max Llovera",
+            "position": "D",
+            "jerseyNumber": "5",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1159417,
+            "name": "Ian Bryan Olivera",
+            "position": "D",
+            "jerseyNumber": null,
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 97423,
+            "name": "Moisés San Nicolás",
+            "position": "D",
+            "jerseyNumber": "23",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1481915,
+            "name": "Aron Rodrigo",
+            "position": "M",
+            "jerseyNumber": "17",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1064867,
+            "name": "Éric Izquierdo",
+            "position": "M",
+            "jerseyNumber": null,
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1005691,
+            "name": "Pau Babot",
+            "position": "M",
+            "jerseyNumber": null,
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1005682,
+            "name": "Ot Remolins Planes",
+            "position": "M",
+            "jerseyNumber": null,
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1049118,
+            "name": "Guillaume Lopez",
+            "position": "F",
+            "jerseyNumber": "10",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1005700,
+            "name": "Gerard Sola Garcia",
+            "position": "F",
+            "jerseyNumber": "17",
+            "substitute": false
+          }
+        ],
+        "substitutes": []
+      },
+      "confirmed": false,
+      "source": "sofascore"
+    },
+    {
+      "sofascoreEventId": 15534242,
+      "kickoffUtc": "2026-09-27T13:00:00Z",
+      "home": {
+        "teamId": 4776,
+        "teamName": "Lithuania",
+        "formation": "4-3-3",
+        "starters": [
+          {
+            "sofascorePlayerId": 67874,
+            "name": "Džiugas Bartkus",
+            "position": "G",
+            "jerseyNumber": "10",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 802293,
+            "name": "Rokas Lekiatas",
+            "position": "D",
+            "jerseyNumber": "77",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 986043,
+            "name": "Kipras Kazukolovas",
+            "position": "D",
+            "jerseyNumber": "5",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 921180,
+            "name": "Edgaras Utkus",
+            "position": "D",
+            "jerseyNumber": "5",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1124209,
+            "name": "Artemijus Tutyškinas",
+            "position": "D",
+            "jerseyNumber": "6",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1030829,
+            "name": "Gvidas Gineitis",
+            "position": "M",
+            "jerseyNumber": "66",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 319751,
+            "name": "Modestas Vorobjovas",
+            "position": "M",
+            "jerseyNumber": "8",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1409345,
+            "name": "Lukas Michelbrink",
+            "position": "M",
+            "jerseyNumber": "8",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 793976,
+            "name": "Eligijus Jankauskas",
+            "position": "M",
+            "jerseyNumber": "17",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1124208,
+            "name": "Armandas Kučys",
+            "position": "F",
+            "jerseyNumber": "47",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 791831,
+            "name": "Justas Lasickas",
+            "position": "D",
+            "jerseyNumber": "23",
+            "substitute": false
+          }
+        ],
+        "substitutes": []
+      },
+      "away": {
+        "teamId": 4742,
+        "teamName": "Azerbaijan",
+        "formation": "3-4-3",
+        "starters": [
+          {
+            "sofascorePlayerId": 98486,
+            "name": "Emil Balayev",
+            "position": "G",
+            "jerseyNumber": "1",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 190619,
+            "name": "Elvin Badalov",
+            "position": "D",
+            "jerseyNumber": "14",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1183599,
+            "name": "Calal Hüseynov",
+            "position": "D",
+            "jerseyNumber": "30",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 851089,
+            "name": "Anton Kryvotsiuk",
+            "position": "D",
+            "jerseyNumber": "98",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 981246,
+            "name": "Toral Bayramov",
+            "position": "D",
+            "jerseyNumber": "27",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 1156621,
+            "name": "Abdulakh Khaybulaev",
+            "position": "M",
+            "jerseyNumber": "6",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 114883,
+            "name": "Emin Mahmudov",
+            "position": "M",
+            "jerseyNumber": "8",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 945401,
+            "name": "Rahman Dashdamirov",
+            "position": "D",
+            "jerseyNumber": "5",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 992237,
+            "name": "Musa Qurbanlı",
+            "position": "F",
+            "jerseyNumber": "22",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 836941,
+            "name": "Renat Dadaşov",
+            "position": "F",
+            "jerseyNumber": "9",
+            "substitute": false
+          },
+          {
+            "sofascorePlayerId": 286071,
+            "name": "Mahir Emreli",
+            "position": "F",
+            "jerseyNumber": "11",
+            "substitute": false
+          }
+        ],
+        "substitutes": []
+      },
+      "confirmed": false,
+      "source": "sofascore"
     }
   ],
   "teams": [
@@ -9666,6 +10018,91 @@
           "substitute": true
         }
       ]
+    },
+    {
+      "teamId": 4742,
+      "teamName": "Azerbaijan",
+      "formation": "3-4-3",
+      "starters": [
+        {
+          "sofascorePlayerId": 98486,
+          "name": "Emil Balayev",
+          "position": "G",
+          "jerseyNumber": "1",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 190619,
+          "name": "Elvin Badalov",
+          "position": "D",
+          "jerseyNumber": "14",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 1183599,
+          "name": "Calal Hüseynov",
+          "position": "D",
+          "jerseyNumber": "30",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 851089,
+          "name": "Anton Kryvotsiuk",
+          "position": "D",
+          "jerseyNumber": "98",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 981246,
+          "name": "Toral Bayramov",
+          "position": "D",
+          "jerseyNumber": "27",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 1156621,
+          "name": "Abdulakh Khaybulaev",
+          "position": "M",
+          "jerseyNumber": "6",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 114883,
+          "name": "Emin Mahmudov",
+          "position": "M",
+          "jerseyNumber": "8",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 945401,
+          "name": "Rahman Dashdamirov",
+          "position": "D",
+          "jerseyNumber": "5",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 992237,
+          "name": "Musa Qurbanlı",
+          "position": "F",
+          "jerseyNumber": "22",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 836941,
+          "name": "Renat Dadaşov",
+          "position": "F",
+          "jerseyNumber": "9",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 286071,
+          "name": "Mahir Emreli",
+          "position": "F",
+          "jerseyNumber": "11",
+          "substitute": false
+        }
+      ],
+      "substitutes": []
     },
     {
       "teamId": 4743,
@@ -12209,6 +12646,91 @@
           "substitute": true
         }
       ]
+    },
+    {
+      "teamId": 129264,
+      "teamName": "Gibraltar",
+      "formation": "4-4-2",
+      "starters": [
+        {
+          "sofascorePlayerId": 876677,
+          "name": "Jaylan Hankins",
+          "position": "G",
+          "jerseyNumber": "13",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 361586,
+          "name": "Ethan Jolley",
+          "position": "D",
+          "jerseyNumber": "2",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 604174,
+          "name": "Bernardo Lopes",
+          "position": "D",
+          "jerseyNumber": "6",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 884193,
+          "name": "Louie Annesley",
+          "position": "D",
+          "jerseyNumber": "5",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 986178,
+          "name": "Kian Ronan",
+          "position": "D",
+          "jerseyNumber": "2",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 1137231,
+          "name": "Carlos Richards",
+          "position": "F",
+          "jerseyNumber": null,
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 876681,
+          "name": "Graeme Torrilla",
+          "position": "M",
+          "jerseyNumber": "22",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 1149352,
+          "name": "Nicholas Pozo",
+          "position": "M",
+          "jerseyNumber": "30",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 1427138,
+          "name": "Jeremy Perera",
+          "position": "M",
+          "jerseyNumber": "14",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 876680,
+          "name": "Tjay De Barr",
+          "position": "F",
+          "jerseyNumber": "11",
+          "substitute": false
+        },
+        {
+          "sofascorePlayerId": 1383878,
+          "name": "Dan Bent",
+          "position": "M",
+          "jerseyNumber": "26",
+          "substitute": false
+        }
+      ],
+      "substitutes": []
     },
     {
       "teamId": 4710,

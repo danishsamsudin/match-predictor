@@ -10,6 +10,7 @@ import type { TeamStatAverages, WeatherForecast } from "@/lib/types/prediction";
 import { UpstreamApiError } from "@/lib/types/prediction";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { utcDayBounds } from "@/lib/prediction/snapshot-types";
+import { NATIONS_LEAGUE_REFERENCE_LEAGUE_ID } from "@/lib/data/nations-league-2026-teams";
 
 function cityKey(city: string): string {
   return city.trim().toLowerCase();
@@ -130,13 +131,17 @@ export async function loadFixturesFromStore(leagueId: number): Promise<FixtureOp
   const supabase = tryCreateServiceClient();
   if (!supabase) return [];
 
+  // Nations League schedule is denser than club "next 20" windows; keep enough
+  // rows for the Predict picker merge with the seeded schedule.
+  const limit = leagueId === NATIONS_LEAGUE_REFERENCE_LEAGUE_ID ? 80 : 50;
+
   const { data, error } = await supabase
     .from("synced_fixtures")
     .select("*")
     .eq("league_id", leagueId)
     .gte("kickoff_at", startOfUtcDayIso())
     .order("kickoff_at")
-    .limit(50);
+    .limit(limit);
 
   if (error) throw new UpstreamApiError(`Failed to load fixtures from store: ${error.message}`);
 

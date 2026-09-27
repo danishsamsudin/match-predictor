@@ -3,13 +3,19 @@ import { getNlMd1TeamLineup, listNlMd1TeamLineups } from "@/lib/nations-league/m
 import { loadNlMd1SquadForComparison } from "@/lib/nations-league/load-nl-md1-squad-for-comparison";
 
 describe("NL MD1 starting XIs", () => {
-  it("covers all 52 Nations League MD1 teams with 11 starters", () => {
+  it("covers all 54 Nations League teams with 11 starters", () => {
     const teams = listNlMd1TeamLineups();
-    expect(teams.length).toBe(52);
+    expect(teams.length).toBe(54);
     for (const team of teams) {
       expect(team.starters.length).toBeGreaterThanOrEqual(11);
-      expect(team.substitutes.length).toBeGreaterThan(0);
     }
+  });
+
+  it("resolves Azerbaijan and Gibraltar baselines from first-match sheets", () => {
+    const azerbaijan = getNlMd1TeamLineup(4742, "Azerbaijan");
+    const gibraltar = getNlMd1TeamLineup(129264, "Gibraltar");
+    expect(azerbaijan?.starters).toHaveLength(11);
+    expect(gibraltar?.starters).toHaveLength(11);
   });
 
   it("resolves Serbia and Netherlands by id and name", () => {

@@ -81,12 +81,51 @@ function filterUpcomingFixtures(fixtures: FixtureOption[]): FixtureOption[] {
 
 const MAX_SCHEDULE_FALLBACK_FIXTURES = 40;
 
+function isUsableVenueCity(city: string | null | undefined): boolean {
+  const trimmed = (city ?? "").trim();
+  return Boolean(trimmed) && trimmed.toLowerCase() !== "unknown";
+}
+
 /** Seeded schedule when live sync has no upcoming events (e.g. Nations League 2026/27). */
 function scheduleFixturesFallback(leagueId: number): FixtureOption[] {
   if (leagueId !== NATIONS_LEAGUE_REFERENCE_LEAGUE_ID) return [];
   return filterUpcomingFixtures(loadNationsLeagueScheduleFixtures()).slice(
     0,
     MAX_SCHEDULE_FALLBACK_FIXTURES
+  );
+}
+
+/**
+ * Nations League live sync only caches a short "next matches" window, so the
+ * store is often incomplete. Prefer the seeded schedule and overlay store
+ * venue/city when present.
+ */
+function mergeNationsLeagueScheduleWithLive(
+  live: FixtureOption[]
+): FixtureOption[] | null {
+  const scheduled = scheduleFixturesFallback(NATIONS_LEAGUE_REFERENCE_LEAGUE_ID);
+  if (!scheduled.length) return null;
+
+  const byId = new Map<number, FixtureOption>();
+  for (const fixture of scheduled) {
+    byId.set(fixture.id, fixture);
+  }
+  for (const fixture of live) {
+    const existing = byId.get(fixture.id);
+    if (!existing) {
+      byId.set(fixture.id, fixture);
+      continue;
+    }
+    byId.set(fixture.id, {
+      ...existing,
+      venueCity: isUsableVenueCity(fixture.venueCity)
+        ? fixture.venueCity
+        : existing.venueCity,
+    });
+  }
+
+  return [...byId.values()].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 }
 
@@ -323,6 +362,18 @@ export async function lookupFixtures(
     }
 
     const upcomingFromStore = filterUpcomingFixtures(fixtures);
+    if (leagueId === NATIONS_LEAGUE_REFERENCE_LEAGUE_ID) {
+      const merged = mergeNationsLeagueScheduleWithLive(upcomingFromStore);
+      if (merged?.length) {
+        return {
+          fixtures: merged,
+          source: upcomingFromStore.length ? "live" : "reference",
+          message: upcomingFromStore.length
+            ? "Nations League fixtures from the seeded schedule (store venue overlay when available)."
+            : "Fixtures loaded from the Nations League schedule.",
+        };
+      }
+    }
     if (upcomingFromStore.length) {
       return {
         fixtures: upcomingFromStore,
@@ -334,6 +385,18 @@ export async function lookupFixtures(
 
     try {
       const live = filterUpcomingFixtures(await sportApiLookupFixtures(leagueId));
+      if (leagueId === NATIONS_LEAGUE_REFERENCE_LEAGUE_ID) {
+        const merged = mergeNationsLeagueScheduleWithLive(live);
+        if (merged?.length) {
+          return {
+            fixtures: merged,
+            source: live.length ? "live" : "reference",
+            message: live.length
+              ? "Nations League fixtures from the seeded schedule (live venue overlay when available)."
+              : "Fixtures loaded from the Nations League schedule.",
+          };
+        }
+      }
       if (live.length) {
         return {
           fixtures: live,
@@ -365,6 +428,18 @@ export async function lookupFixtures(
 
   if (usesSportApi()) {
     const fixtures = filterUpcomingFixtures(await sportApiLookupFixtures(leagueId));
+    if (leagueId === NATIONS_LEAGUE_REFERENCE_LEAGUE_ID) {
+      const merged = mergeNationsLeagueScheduleWithLive(fixtures);
+      if (merged?.length) {
+        return {
+          fixtures: merged,
+          source: fixtures.length ? "live" : "reference",
+          message: fixtures.length
+            ? "Nations League fixtures from the seeded schedule (live venue overlay when available)."
+            : "Fixtures loaded from the Nations League schedule.",
+        };
+      }
+    }
     if (fixtures.length) return { fixtures, source: "live" };
     const scheduled = scheduleFixturesFallback(leagueId);
     if (scheduled.length) {

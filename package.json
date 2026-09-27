@@ -72,6 +72,8 @@
     "nl:post-match": "npx tsx scripts/nl-post-match.ts",
     "nl:scrape-md1-lineups": "npx tsx scripts/nl-scrape-md1-lineups.ts",
     "nl:scrape-md1-lineups:resume": "npx tsx scripts/nl-scrape-md1-lineups-resume.ts",
+    "nl:backfill-baseline-xis": "npx tsx scripts/nl-backfill-missing-baseline-xis.ts",
+    "nl:seed-synced-fixtures": "npx tsx scripts/nl-seed-synced-fixtures.ts",
     "nl:upsert-md1-lineups": "npx tsx scripts/nl-upsert-md1-lineups-to-db.ts",
     "process-metrics:backfill": "npx tsx scripts/backfill-national-process-metrics.ts",
     "xg-elo:recompute": "npx tsx scripts/recompute-national-xg-elo.ts",

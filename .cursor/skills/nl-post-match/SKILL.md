@@ -75,7 +75,7 @@ Not yet mirrored for NL (document so agents do not invent stubs mid-match):
 - No full market-model / Graham calibrate / ml-train steps beyond player-prop calibrate in `nl:postmatch`.
 - Hub Model-XI / lineup impact helpers (`resolve-wc-lineup-player-stats` equivalents) still TBD.
 - Official fixture orientation uses DB home/away only (no WC `fixture-venues.json` aligner).
-- **MD1 baseline XIs** - scraped via `npm run nl:scrape-md1-lineups` into `data/nations-league-2026/md1-starting-xis.json` and used as the default NL squad/XI (`squadSource: nl_md1`). Resume with `nl:scrape-md1-lineups:resume`; upsert DB with `nl:upsert-md1-lineups`.
+- **MD1 baseline XIs** - scraped via `npm run nl:scrape-md1-lineups` into `data/nations-league-2026/md1-starting-xis.json` and used as the default NL squad/XI (`squadSource: nl_md1`). Resume with `nl:scrape-md1-lineups:resume`; backfill teams that skipped MD1 (first-match XI) with `nl:backfill-baseline-xis`; upsert DB with `nl:upsert-md1-lineups`. Seed Predict picker fixtures with `nl:seed-synced-fixtures`.
 
 ## Parser failures
 
