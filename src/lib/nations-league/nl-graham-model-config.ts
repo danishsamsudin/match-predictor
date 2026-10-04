@@ -3,17 +3,18 @@ export const NL_GRAHAM_MODEL_VERSION = "nl-graham-v1.1";
 
 /**
  * Target composite weights for ΔS (must sum to 1).
- * Talent starts lower than WC (0.18 vs 0.25): NL has cycle-weighted same-competition
- * history, so WCTR/form carry more. Within a congested window, talent weight still
- * decays via talentDecayPerMatch as in-competition matches arrive (same mechanism as WC).
+ * Relative to WC, talent stays lower and recent form / momentum carry more so short
+ * NL windows can move lines without discarding long-run xG-Elo. Within a congested
+ * window, talent weight still decays via talentDecayPerMatch as in-competition
+ * matches arrive (same mechanism as WC).
  */
 export const NL_GRAHAM_DELTA_WEIGHTS = {
-  xgElo: 0.48,
-  talent: 0.18,
+  xgElo: 0.42,
+  talent: 0.14,
   tournament: 0.16,
-  recentXgForm: 0.14,
+  recentXgForm: 0.2,
   fifa: 0,
-  momentum: 0.04,
+  momentum: 0.08,
 } as const;
 
 export const NL_GRAHAM_DELTA_S_CAP = 220;

@@ -95,8 +95,19 @@ function writeRunFacts(facts: NlPostMatchRunFacts) {
   );
 }
 
+function formatDuration(ms: number): string {
+  const totalSec = Math.round(ms / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
 async function main() {
   loadEnvLocal();
+  const startedAt = Date.now();
   const totalSteps = 12;
   const files = resolveHtmlFiles(process.argv.slice(2));
   const playerSummary = summarizeNlPlayerStatsDir();
@@ -256,6 +267,10 @@ async function main() {
     playerLines: 0,
   });
   run("npx", ["tsx", "scripts/nl-post-match-report.ts"]);
+
+  console.log(
+    `\nNL post-match pipeline finished in ${formatDuration(Date.now() - startedAt)}.`
+  );
 }
 
 main().catch((err) => {

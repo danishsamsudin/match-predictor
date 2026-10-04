@@ -40,21 +40,21 @@ Optional Opta / process feature deltas can add to ΔS when calibration coefficie
 Δfifa       = homeFifaPts − awayFifaPts
 
 rawΔS =
-    0.48 · ΔxgElo
-  + 0.18 · (Δtalent · 400)
+    0.42 · ΔxgElo
+  + 0.14 · (Δtalent · 400)
   + 0.16 · Δtournament
-  + 0.14 · (ΔrecentForm · 100)
+  + 0.20 · (ΔrecentForm · 100)
   + 0 · Δfifa
   + optaDelta + processDelta
 
 ΔS = clamp(rawΔS, −220, +220)
 ```
 
-Default ΔS weights (`NL_GRAHAM_DELTA_WEIGHTS`): xG-Elo **0.48**, talent **0.18**, WCTR **0.16**, recent form **0.14**, FIFA **0**, momentum slot **0.04**.
+Default ΔS weights (`NL_GRAHAM_DELTA_WEIGHTS`): xG-Elo **0.42**, talent **0.14**, WCTR **0.16**, recent form **0.20**, FIFA **0**, momentum slot **0.08**.
 
 Notes:
 
-- Momentum’s 4% weight is reserved in normalization but **not added into `rawΔS`**. Momentum is applied later as a multiplicative shock on xG.
+- Momentum’s 8% weight is reserved in normalization but **not added into `rawΔS`**. Momentum is applied later as a multiplicative shock on xG.
 - Inside a congested NL window (matches within ~21 days), talent weight decays: `1 − 0.04 · min(n, 4)`, floor **0.4**, as in-competition matches arrive.
 - Form samples are reweighted for NL: competition tier × time decay × cycle. Nations League matches get tier ≈ **1.15** (finals **1.2**); friendlies **0.32**. Prior cycles: current **1.0**, 2024/25 **0.55**, 2022/23 **0.30**, older NL **0.15**. Time decay: `e^(−0.00048 · days)`.
 
