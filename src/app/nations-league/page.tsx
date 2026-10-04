@@ -7,7 +7,7 @@ import type { UpcomingMatchCardProps } from "@/components/world-cup/MatchValueFl
 import { WorldCupSectionHelp } from "@/components/world-cup/WorldCupSectionHelp";
 import { loadNationsLeagueHubPayload } from "@/lib/nations-league/hub-load";
 import { parseHubPrediction } from "@/lib/world-cup/hub-prediction";
-import { resolveMatchPhase } from "@/lib/world-cup/match-kickoff";
+import { resolveNlMatchPhase } from "@/lib/nations-league/nl-match-phase";
 
 export const dynamic = "force-dynamic";
 
@@ -33,13 +33,12 @@ export default async function NationsLeagueHubPage() {
   }
 
   const upcomingCards: UpcomingMatchCardProps[] = payload.upcoming.map((m) => {
-    const phase = resolveMatchPhase({
+    const phase = resolveNlMatchPhase({
       status: m.status,
       homeGoals: m.home_goals,
       awayGoals: m.away_goals,
       date: m.date,
       time: m.time,
-      venueCity: m.venue_city ?? null,
     });
     const cardPrediction = parseHubPrediction(
       m.prediction as Record<string, unknown> | null,

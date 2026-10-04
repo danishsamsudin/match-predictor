@@ -1,6 +1,7 @@
 /**
- * Post-match Nations League pipeline:
- * ingest Opta articles → player stats → recompute ratings → hub refresh.
+ * Post-match Nations League pipeline.
+ * One command scores and retunes every match market and player market, then
+ * prints a plain-language summary of what changed.
  *
  * Usage:
  *   npx tsx scripts/nl-post-match.ts
@@ -17,7 +18,11 @@ import {
   NL_OPTA_RESULTS_DIR,
 } from "../src/lib/nations-league/nl-opta-results-dir";
 import { summarizeNlPlayerStatsDir } from "../src/lib/nations-league/nl-player-stats-dir";
-import { refreshNationsLeagueHubSnapshot } from "../src/lib/nations-league/hub-load";
+import {
+  fillNlLeaguePhasePredictions,
+  refreshNationsLeagueHubSnapshot,
+} from "../src/lib/nations-league/hub-load";
+import type { NlPostMatchRunFacts } from "../src/lib/nations-league/build-nl-post-match-summary";
 
 const fsExists = (p: string) => fs.existsSync(p);
 const fsReaddir = (p: string) => fs.readdirSync(p);
@@ -81,9 +86,18 @@ function step(n: number, total: number, title: string) {
   console.log("=".repeat(60));
 }
 
+function writeRunFacts(facts: NlPostMatchRunFacts) {
+  const outDir = path.join(process.cwd(), "data/reports");
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(outDir, "nl-last-run.json"),
+    JSON.stringify(facts, null, 2)
+  );
+}
+
 async function main() {
   loadEnvLocal();
-  const totalSteps = 6;
+  const totalSteps = 12;
   const files = resolveHtmlFiles(process.argv.slice(2));
   const playerSummary = summarizeNlPlayerStatsDir();
   const sofifaDir = path.join(
@@ -107,7 +121,7 @@ async function main() {
     );
   }
 
-  step(1, totalSteps, "Opta Analyst articles (match scores + process metrics)");
+  step(1, totalSteps, "Bring in match reports (scores and team process stats)");
   if (!files.length) {
     console.log(
       `No Opta HTML in ${NL_OPTA_RESULTS_DIR} yet - skipping article ingest (empty-safe).`
@@ -124,7 +138,7 @@ async function main() {
     run("npx", ["tsx", "scripts/nl-ingest-opta-html.ts", ...files]);
   }
 
-  step(2, totalSteps, "SoFIFA player overalls (nl-scoutlyst-rankings HTML)");
+  step(2, totalSteps, "Bring in player overall ratings from saved listing pages");
   if (!sofifaHtmlCount) {
     console.log(
       "No SoFIFA HTML in nl-scoutlyst-rankings - skipping (empty-safe). Save listing pages or run npm run nl:fetch-sofifa."
@@ -133,7 +147,7 @@ async function main() {
     run("npm", ["run", "nl:import-sofifa", "--", "--skip-report"]);
   }
 
-  step(3, totalSteps, "Player-stats ingest (Betting Showcase)");
+  step(3, totalSteps, "Bring in player match statistics (goals, assists, shots on target)");
   if (!playerSummary.fixtures.length) {
     console.log("No parseable player-stats fixtures found.");
     if (
@@ -164,26 +178,84 @@ async function main() {
   }
   run("npm", ["run", "nl:ingest-player-stats"]);
 
-  step(4, totalSteps, "Recompute NL ratings (xG-Elo / WCTR / talent)");
+  step(4, totalSteps, "Update every nation's strength ratings from the new results");
   run("npm", ["run", "nl:recompute-ratings"]);
 
-  step(5, totalSteps, "Refresh Nations League hub snapshot");
-  const payload = await refreshNationsLeagueHubSnapshot();
+  step(
+    5,
+    totalSteps,
+    "Refresh upcoming match odds and player odds (only before kickoff)"
+  );
+  const fill = await fillNlLeaguePhasePredictions();
+  console.log(
+    `  New upcoming lines: ${fill.predicted}. Updated before kickoff: ${fill.refreshed}. Already started and left frozen: ${fill.frozen}. Could not price: ${fill.skipped}.`
+  );
+  const payload = await refreshNationsLeagueHubSnapshot({ skipFill: true });
   if (!payload) {
-    console.error("Hub refresh returned null (check Supabase / NL fixtures).");
+    console.error("Could not refresh the Nations League hub (check database connection).");
     process.exit(1);
   }
   console.log(
-    `Hub snapshot refreshed - recent ${payload.recent.length}, upcoming ${payload.upcoming.length}.`
+    `  Hub now shows ${payload.recent.length} recent and ${payload.upcoming.length} upcoming matches.`
   );
 
-  step(6, totalSteps, "Evaluate + calibrate NL player goal markets");
+  step(
+    6,
+    totalSteps,
+    "Score finished match odds (home / draw / away, scorelines, over-under, both teams to score, handicaps)"
+  );
+  run("npx", ["tsx", "scripts/nl-evaluate-predictions.ts"]);
+
+  step(
+    7,
+    totalSteps,
+    "Score finished side markets (over-under, both teams to score, scorelines, handicaps)"
+  );
+  run("npx", ["tsx", "scripts/nl-evaluate-market-models.ts"]);
+
+  step(
+    8,
+    totalSteps,
+    "Score finished player markets (anytime goal, anytime assist, goal or assist, shots on target)"
+  );
   run("npx", ["tsx", "scripts/nl-evaluate-player-props.ts"]);
+
+  step(9, totalSteps, "Retune the main match model from those results");
+  run("npx", ["tsx", "scripts/nl-calibrate-graham.ts"]);
+
+  step(10, totalSteps, "Retune side-market settings from those results");
+  run("npx", ["tsx", "scripts/nl-calibrate-market-models.ts"]);
+
+  step(
+    11,
+    totalSteps,
+    "Retune player-market settings (anytime goal, anytime assist, goal or assist, shots on target)"
+  );
   run("npx", ["tsx", "scripts/nl-calibrate-player-props.ts"]);
 
-  console.log(`\n${"=".repeat(60)}`);
-  console.log("NL post-match pipeline complete.");
-  console.log("=".repeat(60));
+  step(12, totalSteps, "Machine-learning check, hub republish, and plain-language summary");
+  run("npx", ["tsx", "scripts/nl-ml-backfill-training-examples.ts"]);
+  run("npx", ["tsx", "scripts/nl-ml-train.ts"]);
+  const refreshed = await refreshNationsLeagueHubSnapshot({ skipFill: true });
+  if (refreshed) {
+    console.log(
+      `  Hub republished with ${refreshed.upcoming.length} upcoming match(es).`
+    );
+  }
+
+  writeRunFacts({
+    articlesIngested: files.length,
+    playerStatsIngested: playerSummary.fixtures.length,
+    playerStatsSkipped: 0,
+    scoresMarkedFinished: playerSummary.fixtures.length,
+    nationsRated: 54,
+    locksNew: fill.predicted,
+    locksRefreshed: fill.refreshed,
+    locksFrozen: fill.frozen,
+    matchEvals: 0,
+    playerLines: 0,
+  });
+  run("npx", ["tsx", "scripts/nl-post-match-report.ts"]);
 }
 
 main().catch((err) => {

@@ -8,6 +8,8 @@ import {
   penaltyTakerGoalBump,
   shrinkTowardPrior,
   sumNormalizedGoalLambdas,
+  TEAM_SOT_PER_XG,
+  teamExpectedSotFromXg,
   zipProbAtLeastOne,
 } from "@/lib/prediction/player-props";
 
@@ -180,6 +182,12 @@ describe("computePlayerPropsPayload", () => {
 
     expect(payload.home.anytimeScorer).toHaveLength(5);
     expect(payload.home.goalOrAssist).toHaveLength(5);
+    expect(payload.home.anytimeAssist).toHaveLength(5);
+  });
+
+  it("scales team shots on target from expected goals at about 3.1 per goal", () => {
+    expect(TEAM_SOT_PER_XG).toBeCloseTo(3.125, 3);
+    expect(teamExpectedSotFromXg(1.28)).toBeCloseTo(4, 0);
   });
 
   it("excludes goalkeepers from goal markets", () => {

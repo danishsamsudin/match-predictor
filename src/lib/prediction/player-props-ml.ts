@@ -294,6 +294,99 @@ export function mergePlayerPropSotCoeffs(
   };
 }
 
+export type PlayerPropSotTrainingRow = {
+  hit: boolean;
+  predictedProb: number;
+  predictedLambda: number;
+  sotRatePer90: number;
+  isStarter: boolean;
+  roleForward: boolean;
+  teamExpectedSot: number;
+};
+
+export function trainPlayerPropSotCoeffs(
+  rows: PlayerPropSotTrainingRow[],
+  deployed: PlayerPropSotCoeffs = DEFAULT_PLAYER_PROP_SOT
+): { coeffs: PlayerPropSotCoeffs; brier: number; sampleSize: number } {
+  if (!rows.length) {
+    return { coeffs: mergePlayerPropSotCoeffs(deployed), brier: 1, sampleSize: 0 };
+  }
+
+  const shrink = clamp(1 - rows.length / 80, 0.15, 0.85);
+  const coeffs = mergePlayerPropSotCoeffs(deployed);
+  const lr = 0.08;
+
+  for (let epoch = 0; epoch < 120; epoch++) {
+    let gIntercept = 0;
+    let gLogLambda = 0;
+    let gSotRate = 0;
+    let gStarter = 0;
+    let gForward = 0;
+    let gTeamSot = 0;
+
+    for (const row of rows) {
+      const logLambda = Math.log(Math.max(row.predictedLambda, 0.005));
+      const logit =
+        coeffs.intercept +
+        coeffs.logLambdaSlope * logLambda +
+        coeffs.sotRateSlope * row.sotRatePer90 +
+        (row.isStarter ? coeffs.starterSlope : 0) +
+        (row.roleForward ? coeffs.roleForwardSlope : 0) +
+        coeffs.teamSotSlope * row.teamExpectedSot;
+      const pred = sigmoid(logit);
+      const err = pred - (row.hit ? 1 : 0);
+      gIntercept += err;
+      gLogLambda += err * logLambda;
+      gSotRate += err * row.sotRatePer90;
+      if (row.isStarter) gStarter += err;
+      if (row.roleForward) gForward += err;
+      gTeamSot += err * row.teamExpectedSot;
+    }
+
+    const n = rows.length;
+    coeffs.intercept -= (lr * gIntercept) / n;
+    coeffs.logLambdaSlope -= (lr * gLogLambda) / n;
+    coeffs.sotRateSlope -= (lr * gSotRate) / n;
+    coeffs.starterSlope -= (lr * gStarter) / n;
+    coeffs.roleForwardSlope -= (lr * gForward) / n;
+    coeffs.teamSotSlope -= (lr * gTeamSot) / n;
+  }
+
+  const shrunk = mergePlayerPropSotCoeffs({
+    intercept: deployed.intercept * shrink + coeffs.intercept * (1 - shrink),
+    logLambdaSlope: deployed.logLambdaSlope * shrink + coeffs.logLambdaSlope * (1 - shrink),
+    sotRateSlope: deployed.sotRateSlope * shrink + coeffs.sotRateSlope * (1 - shrink),
+    starterSlope: deployed.starterSlope * shrink + coeffs.starterSlope * (1 - shrink),
+    roleForwardSlope: deployed.roleForwardSlope * shrink + coeffs.roleForwardSlope * (1 - shrink),
+    teamSotSlope: deployed.teamSotSlope * shrink + coeffs.teamSotSlope * (1 - shrink),
+    mlBlend: deployed.mlBlend,
+    structuralZeroScale: deployed.structuralZeroScale,
+  });
+
+  const probs = rows.map((row) =>
+    applyPlayerPropSotCalibration(
+      row.predictedProb,
+      {
+        logLambda: Math.log(Math.max(row.predictedLambda, 0.005)),
+        sotRatePer90: row.sotRatePer90,
+        isStarter: row.isStarter,
+        roleForward: row.roleForward,
+        teamExpectedSot: row.teamExpectedSot,
+      },
+      shrunk
+    )
+  );
+
+  return {
+    coeffs: shrunk,
+    brier: brierScore(
+      probs,
+      rows.map((r) => r.hit)
+    ),
+    sampleSize: rows.length,
+  };
+}
+
 export function applyPlayerPropSotCalibration(
   baseProb: number,
   input: {

@@ -220,7 +220,11 @@ function TeamPropsTable({
   onBookOddsChange: (playerName: string, value: string) => void;
 }) {
   const lines: PlayerPropLine[] =
-    market === "anytime_scorer" ? side.anytimeScorer : side.goalOrAssist;
+    market === "anytime_scorer"
+      ? side.anytimeScorer
+      : market === "anytime_assist"
+        ? (side.anytimeAssist ?? [])
+        : side.goalOrAssist;
 
   if (!lines.length) {
     return (
@@ -419,6 +423,8 @@ export function PlayerPropsPanel({
       payload.away.anytimeScorer.length > 0 ||
       payload.home.goalOrAssist.length > 0 ||
       payload.away.goalOrAssist.length > 0 ||
+      (payload.home.anytimeAssist?.length ?? 0) > 0 ||
+      (payload.away.anytimeAssist?.length ?? 0) > 0 ||
       payload.home.shotsOnTarget.length > 0 ||
       payload.away.shotsOnTarget.length > 0,
     [payload]
@@ -481,6 +487,15 @@ export function PlayerPropsPanel({
           title="Goal or assist"
           description="Top 5 by model goal-or-assist probability."
           market="goal_or_assist"
+          payload={payload}
+          homeLabel={homeLabel}
+          awayLabel={awayLabel}
+          matchKey={matchKey}
+        />
+        <MarketSection
+          title="Anytime assist"
+          description="Top 5 by model anytime-assist probability."
+          market="anytime_assist"
           payload={payload}
           homeLabel={homeLabel}
           awayLabel={awayLabel}

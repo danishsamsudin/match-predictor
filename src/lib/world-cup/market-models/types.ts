@@ -6,6 +6,7 @@ export type MarketModelId =
   | "team_comparison"
   | "player_props_anytime"
   | "player_props_goal_assist"
+  | "player_props_assist"
   | "player_props_sot"
   | "correct_score"
   | "winning_margin"
@@ -21,6 +22,7 @@ export const ALL_MARKET_MODEL_IDS: MarketModelId[] = [
   "team_comparison",
   "player_props_anytime",
   "player_props_goal_assist",
+  "player_props_assist",
   "player_props_sot",
   "correct_score",
   "winning_margin",
@@ -121,6 +123,7 @@ export interface MarketModelsConfig {
   playerProps: {
     anytime: PlayerPropMlCoeffs;
     goalAssist: PlayerPropMlCoeffs;
+    assist: PlayerPropMlCoeffs;
     sot: PlayerPropSotCoeffs;
   };
 }

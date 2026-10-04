@@ -1,4 +1,5 @@
 import { computePlayerPropsForMatch } from "@/lib/prediction/compute-player-props-for-match";
+import { teamExpectedSotFromXg } from "@/lib/prediction/player-props";
 import { applyNlFormWeights } from "@/lib/nations-league/nl-form-weights";
 import { loadNlCalibrationConfig } from "@/lib/nations-league/nl-calibration-config";
 import { runNlHubMainPredict } from "@/lib/nations-league/hub-main-predict";
@@ -168,8 +169,8 @@ export async function runNlGrahamPredictForRequest(input: {
     entityType: "national",
     homeXg: enriched.displayHomeXg,
     awayXg: enriched.displayAwayXg,
-    homeTeamExpectedSot: enriched.displayHomeXg * 4.2,
-    awayTeamExpectedSot: enriched.displayAwayXg * 4.2,
+    homeTeamExpectedSot: teamExpectedSotFromXg(enriched.displayHomeXg),
+    awayTeamExpectedSot: teamExpectedSotFromXg(enriched.displayAwayXg),
     teamComparison: analyticsContext.teamComparison,
     customLineups: request.customLineups,
     homeFormMatches,

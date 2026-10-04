@@ -55,6 +55,7 @@ const SELECTED_STARTER_SHARE_PCT = 80;
 export type PlayerPropMarketCoeffs = {
   anytime: PlayerPropMlCoeffs;
   goalAssist: PlayerPropMlCoeffs;
+  assist: PlayerPropMlCoeffs;
   sot: PlayerPropSotCoeffs;
 };
 
@@ -66,11 +67,19 @@ function resolveMarketPropCoeffs(
   return {
     anytime: mergePlayerPropMlCoeffs(marketCoeffs?.anytime ?? mlCoeffs ?? defaults.anytime),
     goalAssist: mergePlayerPropMlCoeffs(marketCoeffs?.goalAssist ?? defaults.goalAssist),
+    assist: mergePlayerPropMlCoeffs(marketCoeffs?.assist ?? defaults.assist),
     sot: mergePlayerPropSotCoeffs(marketCoeffs?.sot ?? defaults.sot),
   };
 }
 
-export type PlayerPropMarket = "anytime_scorer" | "goal_or_assist";
+/** Shots on target per expected goal (inverse of process SOT_TO_XG ≈ 0.32). */
+export const TEAM_SOT_PER_XG = 1 / 0.32;
+
+export function teamExpectedSotFromXg(teamExpectedGoals: number): number {
+  return Math.max(0.1, teamExpectedGoals * TEAM_SOT_PER_XG);
+}
+
+export type PlayerPropMarket = "anytime_scorer" | "goal_or_assist" | "anytime_assist";
 
 export type SotPropLine = {
   rank: number;
@@ -93,6 +102,9 @@ export type PlayerPropLine = {
   fairDecimalOdds: number;
   isPenaltyTaker: boolean;
   tacticalMultiplier: number;
+  isStarter?: boolean;
+  role?: "G" | "D" | "M" | "F";
+  chanceIndexPer90?: number;
 };
 
 export type TeamPlayerPropsSide = {
@@ -101,12 +113,15 @@ export type TeamPlayerPropsSide = {
   teamExpectedGoals: number;
   anytimeScorer: PlayerPropLine[];
   goalOrAssist: PlayerPropLine[];
+  anytimeAssist?: PlayerPropLine[];
   shotsOnTarget: SotPropLine[];
   /**
    * Full outfield XI ranked by anytime probability (for post-match calibration).
    * UI markets still use the top-N lists above.
    */
   anytimeCandidates: PlayerPropLine[];
+  anytimeAssistCandidates?: PlayerPropLine[];
+  goalOrAssistCandidates?: PlayerPropLine[];
 };
 
 export type PlayerPropsPayload = {
@@ -127,6 +142,7 @@ type PlayerPropCandidate = {
   isPenaltyTaker: boolean;
   anytimeProb: number;
   goalOrAssistProb: number;
+  anytimeAssistProb: number;
   wcOverlay: WcPlayerPropOverlay | null;
   isStarter: boolean;
   role: "G" | "D" | "M" | "F";
@@ -515,6 +531,7 @@ function buildCandidatesForTeam(input: {
   const propCoeffs = resolveMarketPropCoeffs(input.mlCoeffs, input.marketPropCoeffs);
   const mlCoeffs = propCoeffs.anytime;
   const goalAssistCoeffs = propCoeffs.goalAssist;
+  const assistCoeffs = propCoeffs.assist;
   const hasWcOverlay = Boolean(
     input.wcOverlays?.size &&
       xi.some((player) =>
@@ -689,6 +706,20 @@ function buildCandidatesForTeam(input: {
       applyPlayerPropMlCalibration(goalOrAssistBase, goalOrAssistMlFeatures, goalAssistCoeffs),
       anytimeProb
     );
+    const baseAssistProb = zipProbAtLeastOne(normalizedAssistLambda, piAssist);
+    const assistMlFeatures = buildPlayerPropMlFeatures({
+      normalizedGoalLambda: normalizedAssistLambda,
+      wcOverlay: entry.wcOverlay,
+      isPenaltyTaker: false,
+      isStarter: entry.isStarter,
+      role: entry.role,
+      teamExpectedGoals: input.teamExpectedGoals,
+    });
+    const anytimeAssistProb = applyPlayerPropMlCalibration(
+      baseAssistProb,
+      assistMlFeatures,
+      assistCoeffs
+    );
 
     return {
       ...entry,
@@ -696,8 +727,15 @@ function buildCandidatesForTeam(input: {
       normalizedAssistLambda,
       anytimeProb,
       goalOrAssistProb,
+      anytimeAssistProb,
     };
   });
+}
+
+function marketProb(candidate: PlayerPropCandidate, market: PlayerPropMarket): number {
+  if (market === "anytime_scorer") return candidate.anytimeProb;
+  if (market === "anytime_assist") return candidate.anytimeAssistProb;
+  return candidate.goalOrAssistProb;
 }
 
 function toPropLine(
@@ -705,7 +743,7 @@ function toPropLine(
   rank: number,
   market: PlayerPropMarket
 ): PlayerPropLine {
-  const prob = market === "anytime_scorer" ? candidate.anytimeProb : candidate.goalOrAssistProb;
+  const prob = marketProb(candidate, market);
   const probabilityPct = Math.round(prob * 1000) / 10;
   const fairDecimalOdds =
     prob > 0 ? Math.round((1 / prob) * 100) / 100 : 999;
@@ -721,6 +759,9 @@ function toPropLine(
     fairDecimalOdds,
     isPenaltyTaker: candidate.isPenaltyTaker,
     tacticalMultiplier: Math.round(candidate.tacticalMultiplier * 1000) / 1000,
+    isStarter: candidate.isStarter,
+    role: candidate.role,
+    chanceIndexPer90: candidate.wcOverlay?.chanceIndexPer90,
   };
 }
 
@@ -729,12 +770,7 @@ function rankTopN(
   market: PlayerPropMarket,
   n = TOP_N
 ): PlayerPropLine[] {
-  const sorted = [...candidates].sort((a, b) => {
-    const probA = market === "anytime_scorer" ? a.anytimeProb : a.goalOrAssistProb;
-    const probB = market === "anytime_scorer" ? b.anytimeProb : b.goalOrAssistProb;
-    return probB - probA;
-  });
-
+  const sorted = [...candidates].sort((a, b) => marketProb(b, market) - marketProb(a, market));
   return sorted.slice(0, n).map((candidate, index) => toPropLine(candidate, index + 1, market));
 }
 
@@ -954,14 +990,17 @@ export function computeTeamPlayerProps(input: {
     teamExpectedGoals: input.teamExpectedGoals,
     anytimeScorer: rankGoalMarketTopN(candidates, "anytime_scorer"),
     goalOrAssist: rankGoalMarketTopN(candidates, "goal_or_assist"),
+    anytimeAssist: rankGoalMarketTopN(candidates, "anytime_assist"),
     shotsOnTarget: buildSotPropsForTeam({
       squad: input.squad,
-      teamExpectedSot: input.teamExpectedSot ?? input.teamExpectedGoals * 4.2,
+      teamExpectedSot: input.teamExpectedSot ?? teamExpectedSotFromXg(input.teamExpectedGoals),
       teamApiId: input.teamId,
       wcOverlays: input.wcOverlays,
       sotCoeffs: propCoeffs.sot,
     }),
     anytimeCandidates: rankTopN(candidates, "anytime_scorer", candidates.length),
+    anytimeAssistCandidates: rankTopN(candidates, "anytime_assist", candidates.length),
+    goalOrAssistCandidates: rankTopN(candidates, "goal_or_assist", candidates.length),
   };
 }
 

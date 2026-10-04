@@ -233,6 +233,14 @@ export function getDefaultMarketModelsConfig(): MarketModelsConfig {
         mlBlend: 0.42,
         logLambdaSlope: 1.05,
       }),
+      assist: mergePlayerPropMlCoeffs({
+        ...DEFAULT_PLAYER_PROP_ML_COEFFS,
+        intercept: -0.62,
+        structuralZeroScale: 0.52,
+        mlBlend: 0.42,
+        logLambdaSlope: 1.08,
+        teamXgSlope: 0.06,
+      }),
       sot: { ...DEFAULT_PLAYER_PROP_SOT },
     },
   };
@@ -296,6 +304,9 @@ export function mergeMarketModelsConfig(
       ),
       goalAssist: mergePlayerPropMlCoeffs(
         raw.playerProps?.goalAssist ?? defaults.playerProps.goalAssist
+      ),
+      assist: mergePlayerPropMlCoeffs(
+        raw.playerProps?.assist ?? defaults.playerProps.assist
       ),
       sot: mergePlayerPropSot(raw.playerProps?.sot, defaults.playerProps.sot),
     },

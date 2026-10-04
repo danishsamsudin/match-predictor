@@ -6,8 +6,16 @@ import {
 import { runNlHubMainPredict } from "@/lib/nations-league/hub-main-predict";
 import { buildNlHubPredictRequestFromMatch } from "@/lib/nations-league/hub-main-predict";
 import { attachNlPlayerPropsToHubPrediction } from "@/lib/nations-league/attach-nl-player-props";
+import { loadNlCalibrationConfig } from "@/lib/nations-league/nl-calibration-config";
+import { enrichHubPredictionWithMarketModels } from "@/lib/world-cup/market-models/enrich-hub-prediction";
 import { NL_COMPETITION_LABEL } from "@/lib/nations-league/group-draw";
+import {
+  nlKickoffUtcIso,
+  resolveNlMatchPhase,
+  shouldRefreshNlPrediction,
+} from "@/lib/nations-league/nl-match-phase";
 import { compareByKickoffAsc } from "@/lib/world-cup/sort-matches";
+import type { HubPredictionRow } from "@/lib/world-cup/hub-main-predict";
 import type { WcMatchRow } from "@/lib/world-cup/standings";
 import type { GroupStandingRow } from "@/lib/world-cup/standings";
 
@@ -31,6 +39,58 @@ export type NationsLeagueHubPayload = {
     }
   >;
 };
+
+/**
+ * Price a fixture and stamp the snapshot with when it was locked, so post-match scoring
+ * can prove the numbers it grades were published before kickoff.
+ */
+async function buildNlLockedPrediction(
+  match: WcMatchRow,
+  context: {
+    finished: WcMatchRow[];
+    standings?: GroupStandingRow[];
+    now: Date;
+  }
+): Promise<HubPredictionRow | null> {
+  const base = await runNlHubMainPredict(match, {
+    finishedMatches: context.finished,
+    standings: context.standings,
+  });
+  if (!base) return null;
+
+  const withProps = await attachNlPlayerPropsToHubPrediction(match, base);
+  const calibration = await loadNlCalibrationConfig();
+  const enriched = enrichHubPredictionWithMarketModels({
+    hubRow: withProps,
+    calibration,
+    homeName: match.home_team_name ?? "Home",
+    awayName: match.away_team_name ?? "Away",
+  }).hubRow;
+  return {
+    ...enriched,
+    snapshot: {
+      ...enriched.snapshot,
+      lock_state: "pre",
+      locked_at: context.now.toISOString(),
+      kickoff_utc: nlKickoffUtcIso({ date: match.date, time: match.time }),
+    },
+  };
+}
+
+function nlPredictionUpsertRow(matchId: string, computed: HubPredictionRow) {
+  return {
+    match_id: matchId,
+    home_win_pct: computed.home_win_pct,
+    draw_pct: computed.draw_pct,
+    away_win_pct: computed.away_win_pct,
+    predicted_score_home: computed.predicted_score_home,
+    predicted_score_away: computed.predicted_score_away,
+    under_2_5_pct: computed.under_2_5_pct,
+    over_2_5_pct: computed.over_2_5_pct,
+    model_version: computed.model_version,
+    snapshot: computed.snapshot,
+  };
+}
 
 async function loadNlMatches(
   statusFilter?: "finished" | "scheduled"
@@ -154,28 +214,20 @@ export async function buildNationsLeagueHubPayload(): Promise<NationsLeagueHubPa
 
     let raw = predByMatch.get(m.id) ?? null;
     if (!raw && !isPlaceholder && supabase && predictedNow < PREDICT_ON_LOAD_LIMIT) {
-      const computedBase = await runNlHubMainPredict(m, { finishedMatches: finished });
-      const computed = computedBase
-        ? await attachNlPlayerPropsToHubPrediction(m, computedBase)
-        : null;
+      const computed = await buildNlLockedPrediction(m, {
+        finished,
+        standings: groupMatrix[m.group_code ?? ""],
+        now: new Date(),
+      });
       if (computed) {
         predictedNow += 1;
         raw = {
           match_id: m.id,
           ...computed,
         };
-        await supabase.from("nations_league_predictions").upsert({
-          match_id: m.id,
-          home_win_pct: computed.home_win_pct,
-          draw_pct: computed.draw_pct,
-          away_win_pct: computed.away_win_pct,
-          predicted_score_home: computed.predicted_score_home,
-          predicted_score_away: computed.predicted_score_away,
-          under_2_5_pct: computed.under_2_5_pct,
-          over_2_5_pct: computed.over_2_5_pct,
-          model_version: computed.model_version,
-          snapshot: computed.snapshot,
-        });
+        await supabase
+          .from("nations_league_predictions")
+          .upsert(nlPredictionUpsertRow(m.id, computed));
       }
     }
     const prediction = raw
@@ -255,14 +307,42 @@ export async function loadNationsLeagueHubPayload(): Promise<NationsLeagueHubPay
   }
 }
 
+export type NlLockFillResult = {
+  /** Fixtures that had no locked line before this run. */
+  predicted: number;
+  /** Pre-kickoff fixtures whose existing line was recomputed with the newest form. */
+  refreshed: number;
+  /** Fixtures already kicked off: their locked line is left untouched. */
+  frozen: number;
+  /** Fixtures the model could not price (missing team ids, squads, or form). */
+  skipped: number;
+};
+
+/**
+ * Lock (and keep refreshing) Graham + player-prop lines for upcoming fixtures.
+ *
+ * A line stays open to recomputation for as long as the fixture has not kicked off, so the
+ * published numbers always use the freshest ratings. Once the match starts, the snapshot is
+ * frozen - post-match evaluation must score what was actually published before kickoff.
+ */
 export async function fillNlLeaguePhasePredictions(options?: {
   limit?: number;
-}): Promise<{ predicted: number; skipped: number }> {
+  now?: Date;
+}): Promise<NlLockFillResult> {
   const supabase = tryCreateServiceClient();
-  if (!supabase) return { predicted: 0, skipped: 0 };
+  if (!supabase) return { predicted: 0, refreshed: 0, frozen: 0, skipped: 0 };
 
+  const now = options?.now ?? new Date();
   const allMatches = await loadNlMatches();
   const finished = allMatches.filter((m) => m.status === "finished");
+
+  const teamNames = new Map<string, string>();
+  for (const m of allMatches) {
+    if (m.home_team_id && m.home_team_name) teamNames.set(m.home_team_id, m.home_team_name);
+    if (m.away_team_id && m.away_team_name) teamNames.set(m.away_team_id, m.away_team_name);
+  }
+  const standingsByGroup = computeAllNlGroupStandings(finished, teamNames);
+
   const scheduled = allMatches
     .filter((m) => m.status === "scheduled" || m.status === "timed")
     .filter(
@@ -287,39 +367,49 @@ export async function fillNlLeaguePhasePredictions(options?: {
     for (const row of data ?? []) existing.add(String(row.match_id));
   }
 
-  let predicted = 0;
-  let skipped = 0;
+  const result: NlLockFillResult = { predicted: 0, refreshed: 0, frozen: 0, skipped: 0 };
   for (const m of targets) {
-    if (existing.has(m.id)) {
-      skipped += 1;
+    const phase = resolveNlMatchPhase(
+      {
+        status: m.status,
+        homeGoals: m.home_goals,
+        awayGoals: m.away_goals,
+        date: m.date,
+        time: m.time,
+      },
+      now
+    );
+    const hadLock = existing.has(m.id);
+
+    if (!shouldRefreshNlPrediction(phase)) {
+      if (hadLock) result.frozen += 1;
+      else result.skipped += 1;
       continue;
     }
-    const computedBase = await runNlHubMainPredict(m, { finishedMatches: finished });
-    const computed = computedBase
-      ? await attachNlPlayerPropsToHubPrediction(m, computedBase)
-      : null;
-    if (!computed) {
-      skipped += 1;
-      continue;
-    }
-    await supabase.from("nations_league_predictions").upsert({
-      match_id: m.id,
-      home_win_pct: computed.home_win_pct,
-      draw_pct: computed.draw_pct,
-      away_win_pct: computed.away_win_pct,
-      predicted_score_home: computed.predicted_score_home,
-      predicted_score_away: computed.predicted_score_away,
-      under_2_5_pct: computed.under_2_5_pct,
-      over_2_5_pct: computed.over_2_5_pct,
-      model_version: computed.model_version,
-      snapshot: computed.snapshot,
+
+    const computed = await buildNlLockedPrediction(m, {
+      finished,
+      standings: standingsByGroup[m.group_code ?? ""],
+      now,
     });
-    predicted += 1;
+    if (!computed) {
+      result.skipped += 1;
+      continue;
+    }
+
+    await supabase.from("nations_league_predictions").upsert(
+      nlPredictionUpsertRow(m.id, computed)
+    );
+    if (hadLock) result.refreshed += 1;
+    else result.predicted += 1;
   }
-  return { predicted, skipped };
+  return result;
 }
 
-export async function refreshNationsLeagueHubSnapshot(): Promise<NationsLeagueHubPayload | null> {
+export async function refreshNationsLeagueHubSnapshot(options?: {
+  /** When true, skip fillNlLeaguePhasePredictions (caller already filled). */
+  skipFill?: boolean;
+}): Promise<NationsLeagueHubPayload | null> {
   const supabase = tryCreateServiceClient();
   if (supabase) {
     await supabase
@@ -329,7 +419,9 @@ export async function refreshNationsLeagueHubSnapshot(): Promise<NationsLeagueHu
   }
   try {
     // Pre-compute lines for all real league-phase fixtures so hub cards are ready
-    await fillNlLeaguePhasePredictions();
+    if (!options?.skipFill) {
+      await fillNlLeaguePhasePredictions();
+    }
     const payload = await buildNationsLeagueHubPayload();
     if (supabase) {
       await supabase.from("nations_league_hub_snapshot").upsert({

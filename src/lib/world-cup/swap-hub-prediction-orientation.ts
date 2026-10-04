@@ -31,6 +31,15 @@ const HOME_AWAY_SWAP_PAIRS: [string, string][] = [
   ["lineup_home_defense_mult", "lineup_away_defense_mult"],
   ["motivation_sigma_home", "motivation_sigma_away"],
   ["rotation_index_home", "rotation_index_away"],
+  ["home_set_piece_mult", "away_set_piece_mult"],
+  ["home_set_piece_share", "away_set_piece_share"],
+  ["home_set_piece_def_leak", "away_set_piece_def_leak"],
+  ["home_advantage", "away_advantage"],
+  ["home_discipline_load", "away_discipline_load"],
+  ["home_chance_index", "away_chance_index"],
+  ["motivation_sigma_home_base", "motivation_sigma_away_base"],
+  ["nl_window_match_count_home", "nl_window_match_count_away"],
+  ["nl_rest_days_home", "nl_rest_days_away"],
 ];
 
 const SIGNED_NEGATE_KEYS = [

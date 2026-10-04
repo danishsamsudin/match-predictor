@@ -1,5 +1,6 @@
 import { computeLineupPlayerXgImpact } from "@/lib/prediction/lineup-player-xg-impact";
 import { computePlayerPropsForMatch } from "@/lib/prediction/compute-player-props-for-match";
+import { teamExpectedSotFromXg } from "@/lib/prediction/player-props";
 import { shouldOrientWcCompareToRequest } from "@/lib/prediction/align-player-props-orientation";
 import { resolveLineupPlayerStats } from "@/lib/prediction/resolve-lineup-player-stats";
 import { applyLineupImpactToHubPrediction } from "@/lib/world-cup/apply-wc-lineup-impact";
@@ -328,8 +329,8 @@ export async function runWcGrahamPredictForRequest(input: {
     entityType: "national",
     homeXg: displayHomeXg,
     awayXg: displayAwayXg,
-    homeTeamExpectedSot: displayHomeXg * 4.2,
-    awayTeamExpectedSot: displayAwayXg * 4.2,
+    homeTeamExpectedSot: teamExpectedSotFromXg(displayHomeXg),
+    awayTeamExpectedSot: teamExpectedSotFromXg(displayAwayXg),
     teamComparison: displayAnalyticsContext.teamComparison,
     customLineups: request.customLineups,
     homeFormMatches: orientToRequest ? awayFormMatches : homeFormMatches,

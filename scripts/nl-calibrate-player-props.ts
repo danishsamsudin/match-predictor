@@ -1,11 +1,15 @@
 /**
- * Calibrate NL player goal-prop ML coefficients from evaluation rows.
+ * Calibrate Nations League player markets from evaluation rows.
  *
  * Usage: npx tsx scripts/nl-calibrate-player-props.ts
  */
 import {
   mergePlayerPropMlCoeffs,
+  mergePlayerPropSotCoeffs,
   trainPlayerPropMlCoeffs,
+  trainPlayerPropSotCoeffs,
+  type PlayerPropMlCoeffs,
+  type PlayerPropTrainingRow,
 } from "../src/lib/prediction/player-props-ml";
 import {
   loadNlCalibrationConfig,
@@ -27,13 +31,34 @@ function loadEnvLocal() {
   }
 }
 
-function normalizeName(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+function asTrainingRow(row: Record<string, unknown>): PlayerPropTrainingRow {
+  return {
+    hit: Boolean(row.hit),
+    predictedProb: Number(row.predicted_prob),
+    predictedLambda: Number(row.predicted_lambda),
+    chanceIndexPer90: Number(row.chance_index_per90 ?? 0),
+    isPenaltyTaker: Boolean(row.is_penalty_taker),
+    isStarter: row.is_starter == null ? true : Boolean(row.is_starter),
+    roleForward: String(row.role ?? "") === "F",
+    roleMid: String(row.role ?? "") === "M",
+    teamExpectedGoals: Number(row.team_expected_goals ?? 1.25),
+  };
+}
+
+function blendMl(deployed: PlayerPropMlCoeffs, trained: PlayerPropMlCoeffs, step = 0.12) {
+  return mergePlayerPropMlCoeffs({
+    intercept: deployed.intercept * (1 - step) + trained.intercept * step,
+    logLambdaSlope: deployed.logLambdaSlope * (1 - step) + trained.logLambdaSlope * step,
+    chanceIndexSlope: deployed.chanceIndexSlope * (1 - step) + trained.chanceIndexSlope * step,
+    penaltyTakerSlope: deployed.penaltyTakerSlope * (1 - step) + trained.penaltyTakerSlope * step,
+    starterSlope: deployed.starterSlope * (1 - step) + trained.starterSlope * step,
+    roleForwardSlope: deployed.roleForwardSlope * (1 - step) + trained.roleForwardSlope * step,
+    roleMidSlope: deployed.roleMidSlope * (1 - step) + trained.roleMidSlope * step,
+    teamXgSlope: deployed.teamXgSlope * (1 - step) + trained.teamXgSlope * step,
+    mlBlend: deployed.mlBlend,
+    structuralZeroScale: deployed.structuralZeroScale,
+    wcGoalShare: deployed.wcGoalShare,
+  });
 }
 
 async function main() {
@@ -42,167 +67,120 @@ async function main() {
   if (!supabase) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
 
   const current = await loadNlCalibrationConfig();
-
   const { data: evalRows, error } = await supabase
     .from("nations_league_player_prop_evaluations")
-    .select("*")
-    .eq("market", "anytime_scorer");
-
+    .select("*");
   if (error) throw new Error(error.message);
-  const scorerRows = (evalRows ?? []).filter(
-    (r) => r.predicted_prob != null && r.predicted_lambda != null
-  );
 
-  console.log(
-    `Anytime-scorer evaluation rows: ${scorerRows.length} (need ≥8 to retrain)`
-  );
-
-  if (scorerRows.length < 8) {
-    console.log(
-      `Only ${scorerRows.length} NL anytime-scorer evaluations - keeping deployed player-prop coeffs.`
-    );
-    return;
+  const byMarket = new Map<string, Record<string, unknown>[]>();
+  for (const row of evalRows ?? []) {
+    if (row.predicted_prob == null || row.predicted_lambda == null) continue;
+    const market = String(row.market);
+    const list = byMarket.get(market) ?? [];
+    list.push(row as Record<string, unknown>);
+    byMarket.set(market, list);
   }
 
-  const matchIds = [...new Set(scorerRows.map((r) => String(r.match_id)))];
-  const { data: preds } = await supabase
-    .from("nations_league_predictions")
-    .select("match_id, snapshot")
-    .in("match_id", matchIds);
+  const notes: string[] = [];
+  const nextMarket = {
+    ...current.marketModels,
+    playerProps: { ...current.marketModels.playerProps },
+  };
 
-  const teamXgByMatchPlayer = new Map<string, number>();
-  for (const pred of preds ?? []) {
-    const snap = (pred.snapshot as Record<string, unknown> | null) ?? {};
-    const props = snap.player_props as {
-      home?: { teamId?: number; teamExpectedGoals?: number; anytimeScorer?: Array<{ playerName: string }>; anytimeCandidates?: Array<{ playerName: string }> };
-      away?: { teamId?: number; teamExpectedGoals?: number; anytimeScorer?: Array<{ playerName: string }>; anytimeCandidates?: Array<{ playerName: string }> };
-    } | null;
-    if (!props) continue;
-    for (const side of [props.home, props.away]) {
-      if (!side) continue;
-      const teamApiId = Number(side.teamId ?? 0);
-      const teamXg = Number(side.teamExpectedGoals ?? 1.25);
-      const lines = [
-        ...(side.anytimeCandidates ?? []),
-        ...(side.anytimeScorer ?? []),
-      ];
-      for (const line of lines) {
-        teamXgByMatchPlayer.set(
-          `${pred.match_id}|${teamApiId}|${normalizeName(line.playerName)}`,
-          teamXg
-        );
-      }
+  const marketLabels = {
+    anytime_scorer: "Anytime goalscorer",
+    anytime_assist: "Anytime assist",
+    goal_or_assist: "Goal or assist",
+  } as const;
+
+  for (const market of ["anytime_scorer", "anytime_assist", "goal_or_assist"] as const) {
+    const rows = byMarket.get(market) ?? [];
+    const label = marketLabels[market];
+    console.log(`${label}: ${rows.length} scored line(s) (need 8 to retune)`);
+    if (rows.length < 8) {
+      notes.push(`${label}: kept previous settings (${rows.length} scored lines).`);
+      continue;
     }
+    const deployed =
+      market === "anytime_scorer"
+        ? mergePlayerPropMlCoeffs(current.marketModels.playerProps.anytime)
+        : market === "anytime_assist"
+          ? mergePlayerPropMlCoeffs(current.marketModels.playerProps.assist)
+          : mergePlayerPropMlCoeffs(current.marketModels.playerProps.goalAssist);
+    const trained = trainPlayerPropMlCoeffs(rows.map(asTrainingRow), deployed);
+    const candidate = blendMl(deployed, trained.coeffs);
+    if (market === "anytime_scorer") nextMarket.playerProps.anytime = candidate;
+    else if (market === "anytime_assist") nextMarket.playerProps.assist = candidate;
+    else nextMarket.playerProps.goalAssist = candidate;
+    notes.push(`${label}: retuned on ${trained.sampleSize} player lines.`);
   }
 
-  const { data: formRows } = await supabase
-    .from("nations_league_player_tournament_form")
-    .select("team_api_id, player_name, chance_index_per90");
-
-  const chanceByTeamPlayer = new Map<string, number>();
-  for (const row of formRows ?? []) {
-    chanceByTeamPlayer.set(
-      `${row.team_api_id}|${normalizeName(String(row.player_name))}`,
-      Number(row.chance_index_per90 ?? 0)
+  const sotRows = [...(byMarket.get("sot_0.5") ?? [])];
+  console.log(`Shots on target (at least one): ${sotRows.length} scored line(s)`);
+  if (sotRows.length >= 8) {
+    const deployed = mergePlayerPropSotCoeffs(current.marketModels.playerProps.sot);
+    const trained = trainPlayerPropSotCoeffs(
+      sotRows.map((row) => ({
+        hit: Boolean(row.hit),
+        predictedProb: Number(row.predicted_prob),
+        predictedLambda: Number(row.predicted_lambda),
+        sotRatePer90: Number(row.sot_rate_per90 ?? row.predicted_lambda ?? 0.2),
+        isStarter: row.is_starter == null ? true : Boolean(row.is_starter),
+        roleForward: String(row.role ?? "") === "F",
+        teamExpectedSot: Number(row.team_expected_sot ?? 3.1),
+      })),
+      deployed
     );
+    const step = 0.12;
+    nextMarket.playerProps.sot = mergePlayerPropSotCoeffs({
+      intercept: deployed.intercept * (1 - step) + trained.coeffs.intercept * step,
+      logLambdaSlope: deployed.logLambdaSlope * (1 - step) + trained.coeffs.logLambdaSlope * step,
+      sotRateSlope: deployed.sotRateSlope * (1 - step) + trained.coeffs.sotRateSlope * step,
+      starterSlope: deployed.starterSlope * (1 - step) + trained.coeffs.starterSlope * step,
+      roleForwardSlope:
+        deployed.roleForwardSlope * (1 - step) + trained.coeffs.roleForwardSlope * step,
+      teamSotSlope: deployed.teamSotSlope * (1 - step) + trained.coeffs.teamSotSlope * step,
+      mlBlend: deployed.mlBlend,
+      structuralZeroScale: deployed.structuralZeroScale,
+    });
+    notes.push(`Shots on target: retuned on ${trained.sampleSize} player lines.`);
+  } else {
+    notes.push(`Shots on target: kept previous settings (${sotRows.length} scored lines).`);
   }
 
-  const trainingRows = scorerRows.map((row) => {
-    const teamApiId = Number(row.team_api_id);
-    const norm = normalizeName(String(row.player_name));
-    const chance = chanceByTeamPlayer.get(`${teamApiId}|${norm}`) ?? 0;
-    const teamXg =
-      teamXgByMatchPlayer.get(`${row.match_id}|${teamApiId}|${norm}`) ?? 1.25;
-
-    return {
-      hit: Boolean(row.hit),
-      predictedProb: Number(row.predicted_prob),
-      predictedLambda: Number(row.predicted_lambda),
-      chanceIndexPer90: chance,
-      isPenaltyTaker: false,
-      isStarter: true,
-      roleForward: false,
-      roleMid: true,
-      teamExpectedGoals: teamXg,
-    };
-  });
-
-  const trained = trainPlayerPropMlCoeffs(
-    trainingRows,
-    mergePlayerPropMlCoeffs(current.playerPropModelCoeffs)
-  );
-
-  const blendStep = 0.12;
-  const deployed = mergePlayerPropMlCoeffs(current.playerPropModelCoeffs);
-  const candidate = mergePlayerPropMlCoeffs({
-    intercept:
-      deployed.intercept * (1 - blendStep) + trained.coeffs.intercept * blendStep,
-    logLambdaSlope:
-      deployed.logLambdaSlope * (1 - blendStep) +
-      trained.coeffs.logLambdaSlope * blendStep,
-    chanceIndexSlope:
-      deployed.chanceIndexSlope * (1 - blendStep) +
-      trained.coeffs.chanceIndexSlope * blendStep,
-    penaltyTakerSlope:
-      deployed.penaltyTakerSlope * (1 - blendStep) +
-      trained.coeffs.penaltyTakerSlope * blendStep,
-    starterSlope:
-      deployed.starterSlope * (1 - blendStep) + trained.coeffs.starterSlope * blendStep,
-    roleForwardSlope:
-      deployed.roleForwardSlope * (1 - blendStep) +
-      trained.coeffs.roleForwardSlope * blendStep,
-    roleMidSlope:
-      deployed.roleMidSlope * (1 - blendStep) + trained.coeffs.roleMidSlope * blendStep,
-    teamXgSlope:
-      deployed.teamXgSlope * (1 - blendStep) + trained.coeffs.teamXgSlope * blendStep,
-    mlBlend: deployed.mlBlend,
-    structuralZeroScale: deployed.structuralZeroScale,
-    wcGoalShare: deployed.wcGoalShare,
-  });
-
-  const version = `${current.modelVersion}-props-${trained.sampleSize}`;
+  const anytimeN = (byMarket.get("anytime_scorer") ?? []).length;
+  const version = `${current.modelVersion}-props-${anytimeN || evalRows?.length || 0}`;
   const { data: existing } = await supabase
     .from("nations_league_calibration_config")
     .select("id")
     .eq("version", version)
     .maybeSingle();
-
   if (existing) {
-    console.log(`NL player prop calibration ${version} already saved - skipping.`);
+    console.log(`Player-market settings ${version} already saved - skipping.`);
     return;
   }
 
-  const nextConstants = {
-    ...NL_CALIBRATION_DEFAULTS,
-    ...current,
-    playerPropModelCoeffs: candidate,
-    modelVersion: version,
-  };
-
-  const calibrationNote = `NL player prop ML calibration (${trained.sampleSize} anytime-scorer lines, Brier ${trained.brier.toFixed(4)})`;
-
   const { error: insertErr } = await supabase.from("nations_league_calibration_config").insert({
     version,
-    constants: nextConstants,
+    constants: {
+      ...NL_CALIBRATION_DEFAULTS,
+      ...current,
+      playerPropModelCoeffs: nextMarket.playerProps.anytime,
+      marketModels: nextMarket,
+      modelVersion: version,
+    },
     metrics: {
-      player_prop_brier: trained.brier,
-      player_prop_samples: trained.sampleSize,
+      player_prop_samples: anytimeN,
       player_prop_calibrated_at: new Date().toISOString(),
-      method: "player_prop_logistic_blend",
-      note: calibrationNote,
+      method: "player_prop_logistic_blend_all_heads",
+      note: notes.join(" "),
     },
     effective_from: new Date().toISOString(),
   });
-
   if (insertErr) throw new Error(insertErr.message);
 
-  console.log("NL player prop calibration updated:");
-  console.log(`  samples: ${trained.sampleSize}`);
-  console.log(`  Brier:   ${trained.brier.toFixed(4)}`);
-  console.log(`  intercept: ${candidate.intercept.toFixed(3)} (was ${deployed.intercept.toFixed(3)})`);
-  console.log(
-    `  logLambdaSlope: ${candidate.logLambdaSlope.toFixed(3)} (was ${deployed.logLambdaSlope.toFixed(3)})`
-  );
+  console.log("Player-market settings updated:");
+  for (const note of notes) console.log(`  ${note}`);
 }
 
 main().catch((err) => {

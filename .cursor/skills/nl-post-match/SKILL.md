@@ -52,7 +52,8 @@ npm run nl:recompute-ratings
 
 - `.env.local` with `SUPABASE_SERVICE_ROLE_KEY` (and related Supabase vars).
 - Migration `060_nations_league_bettor_core.sql` applied (NL ingest + player-stats tables).
-- Migration `061_nations_league_player_prop_evaluations.sql` applied (player-prop evaluate/calibrate).
+- Migration `061_nations_league_player_prop_evaluations.sql` applied (player-market scoring).
+- Migration `063_nations_league_match_market_learning.sql` applied (match-market scoring, side-market scoring, and machine-learning snapshots).
 - Opta HTML must include the embedded match centre iframe (`saved_resource(1).html` in `_files` for articles; Betting Showcase pages need their `_files` bundles).
 - Fixture rows must already exist in `matches` with `competition` containing `Nations League` (import via martj42 / footystats / seed scripts first).
 - **No dev server required** - `nl:postmatch` refreshes the hub snapshot directly via Supabase.
@@ -63,16 +64,20 @@ npm run nl:recompute-ratings
 2. **SoFIFA overalls** - Parses `nl-scoutlyst-rankings` player listing HTML into `soccerdata_players` (fills squad picker performance scores).
 3. **Ingest player stats** - Parses Match Summary, Opta Summary, Match Details; upserts `nations_league_player_match_stats`, `nations_league_team_match_aggregates`, `nations_league_player_tournament_form`.
 4. **Ratings** - Recomputes NL-weighted xG-Elo / WCTR / talent via `nl:recompute-ratings`.
-5. **Hub refresh** - Calls `refreshNationsLeagueHubSnapshot()` to rebuild `nations_league_hub_snapshot` (new scheduled preds lock `snapshot.player_props`).
-6. **Player props evaluate** - Scores locked (or recomputed) anytime / SoT lines vs Opta into `nations_league_player_prop_evaluations` (full XI candidates when present).
-7. **Player props calibrate** - Retrains anytime-scorer ML coeffs into `nations_league_calibration_config` when enough eval rows exist (≥8).
+5. **Refresh upcoming odds** - Recomputes Graham + player markets + side markets for fixtures that have not kicked off. Finished / live lines stay frozen.
+6. **Score finished match odds** - Home / draw / away, scorelines, over-under, both teams to score, handicaps → `nations_league_prediction_evaluations`.
+7. **Score side markets** → `nations_league_market_evaluations`.
+8. **Score player markets** - Anytime goal, anytime assist, goal or assist, shots on target. Bootstrap only when no pre-kickoff lock exists (marked bootstrap).
+9. **Retune main match model** - Walk-forward Graham calibrate into `nations_league_calibration_config`.
+10. **Retune side markets and player markets**.
+11. **Machine-learning check** - Backfill frozen snapshots and deploy a small nudge only if recent test matches do not get worse.
+12. **Hub republish + plain-language summary** printed at the end of the terminal run.
+
+`npm run nl:postmatch` is the only user command. Extra aliases (`nl:evaluate`, `nl:calibrate`, `nl:ml-train`) are for debugging.
 
 ## Remaining mapping (vs full WC pipeline)
 
-Not yet mirrored for NL (document so agents do not invent stubs mid-match):
-
 - No `nations_league_team_discipline` table (WC writes `world_cup_team_discipline`).
-- No full market-model / Graham calibrate / ml-train steps beyond player-prop calibrate in `nl:postmatch`.
 - Hub Model-XI / lineup impact helpers (`resolve-wc-lineup-player-stats` equivalents) still TBD.
 - Official fixture orientation uses DB home/away only (no WC `fixture-venues.json` aligner).
 - **MD1 baseline XIs** - scraped via `npm run nl:scrape-md1-lineups` into `data/nations-league-2026/md1-starting-xis.json` and used as the default NL squad/XI (`squadSource: nl_md1`). Resume with `nl:scrape-md1-lineups:resume`; backfill teams that skipped MD1 (first-match XI) with `nl:backfill-baseline-xis`; upsert DB with `nl:upsert-md1-lineups`. Seed Predict picker fixtures with `nl:seed-synced-fixtures`.

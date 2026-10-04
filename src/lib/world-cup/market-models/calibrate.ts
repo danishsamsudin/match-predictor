@@ -64,6 +64,7 @@ export function calibrateMarketModelsFromEvaluations(input: {
   playerPropRows?: {
     anytime: PlayerPropTrainingRow[];
     goalAssist: PlayerPropTrainingRow[];
+    assist?: PlayerPropTrainingRow[];
   };
 }): MarketCalibrationResult {
   const { deployed, evaluations, playerPropRows } = input;
@@ -164,6 +165,20 @@ export function calibrateMarketModelsFromEvaluations(input: {
     });
   } else {
     insufficient.push("player_props_goal_assist");
+  }
+
+  if (playerPropRows?.assist && playerPropRows.assist.length >= MIN_SAMPLES) {
+    const trained = trainPlayerPropMlCoeffs(
+      playerPropRows.assist,
+      deployed.playerProps.assist
+    );
+    next.playerProps.assist = trained.coeffs;
+    changes.push({
+      marketId: "player_props_assist",
+      description: `Anytime-assist Brier ${trained.brier.toFixed(3)} on ${trained.sampleSize} rows.`,
+    });
+  } else {
+    insufficient.push("player_props_assist");
   }
 
   const eventRows = evaluations.filter((r) => r.marketId === "event_stats");

@@ -1,12 +1,19 @@
 /**
  * Evaluate NL hub player props against ingested Opta player match stats.
- * Prefer locked snapshot.player_props; recompute when missing (bootstrap).
+ * Prefer locked snapshot.player_props; bootstrap when missing:
+ *   - prediction exists without props → attach props
+ *   - no prediction → hub Graham predict (form as-of before kickoff) + attach
  *
  * Usage: npx tsx scripts/nl-evaluate-player-props.ts
  */
 import { attachNlPlayerPropsToHubPrediction } from "../src/lib/nations-league/attach-nl-player-props";
+import { runNlHubMainPredict } from "../src/lib/nations-league/hub-main-predict";
 import { tryCreateServiceClient } from "../src/lib/supabase";
-import type { PlayerPropLine, PlayerPropsPayload } from "../src/lib/prediction/player-props";
+import {
+  playerNamesMatch,
+  type PlayerPropLine,
+  type PlayerPropsPayload,
+} from "../src/lib/prediction/player-props";
 import type { HubPredictionRow } from "../src/lib/world-cup/hub-main-predict";
 import type { WcMatchRow } from "../src/lib/world-cup/standings";
 
@@ -35,8 +42,13 @@ function normalizeName(name: string): string {
 
 type PropSide = {
   teamExpectedGoals?: number;
+  teamExpectedSot?: number;
   anytimeScorer?: PlayerPropLine[];
   anytimeCandidates?: PlayerPropLine[];
+  anytimeAssist?: PlayerPropLine[];
+  anytimeAssistCandidates?: PlayerPropLine[];
+  goalOrAssist?: PlayerPropLine[];
+  goalOrAssistCandidates?: PlayerPropLine[];
   shotsOnTarget?: Array<{
     playerName: string;
     line: number;
@@ -45,10 +57,75 @@ type PropSide = {
   }>;
 };
 
-function resolveAnytimeLines(side: PropSide | undefined): PlayerPropLine[] {
-  if (!side) return [];
-  if (side.anytimeCandidates?.length) return side.anytimeCandidates;
-  return side.anytimeScorer ?? [];
+function resolveLines(
+  side: PropSide | undefined,
+  candidates: PlayerPropLine[] | undefined,
+  fallback: PlayerPropLine[] | undefined
+): PlayerPropLine[] {
+  if (candidates?.length) return candidates;
+  return fallback ?? [];
+}
+
+/** Form history for bootstrap: exclude this fixture and same-day / later results. */
+function finishedBeforeKickoff(
+  allFinished: WcMatchRow[],
+  match: WcMatchRow
+): WcMatchRow[] {
+  const matchId = String(match.id);
+  const matchDate = match.date?.slice(0, 10) ?? "";
+  return allFinished.filter((m) => {
+    if (String(m.id) === matchId) return false;
+    const d = m.date?.slice(0, 10) ?? "";
+    if (!matchDate || !d) return String(m.id) !== matchId;
+    return d < matchDate;
+  });
+}
+
+type ServiceClient = NonNullable<ReturnType<typeof tryCreateServiceClient>>;
+
+async function withRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  attempts = 4
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const transient =
+        /fetch failed|ECONNRESET|ETIMEDOUT|socket|network|429|503|502/i.test(msg);
+      if (!transient || i === attempts - 1) throw err;
+      const waitMs = 500 * 2 ** i;
+      console.warn(`  retry ${i + 1}/${attempts - 1} after ${label}: ${msg}`);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+  throw lastErr;
+}
+
+async function persistNlPrediction(
+  supabase: ServiceClient,
+  matchId: string,
+  row: HubPredictionRow
+): Promise<void> {
+  await withRetry(`persist prediction ${matchId}`, async () => {
+    const { error } = await supabase.from("nations_league_predictions").upsert({
+      match_id: matchId,
+      home_win_pct: row.home_win_pct,
+      draw_pct: row.draw_pct,
+      away_win_pct: row.away_win_pct,
+      predicted_score_home: row.predicted_score_home,
+      predicted_score_away: row.predicted_score_away,
+      under_2_5_pct: row.under_2_5_pct,
+      over_2_5_pct: row.over_2_5_pct,
+      model_version: row.model_version,
+      snapshot: row.snapshot,
+    });
+    if (error) throw new Error(error.message);
+  });
 }
 
 async function main() {
@@ -68,7 +145,7 @@ async function main() {
 
   if (matchErr) throw new Error(matchErr.message);
   if (!finishedRows?.length) {
-    console.log("No finished Nations League matches to evaluate.");
+    console.log("No finished Nations League matches to score.");
     return;
   }
 
@@ -102,7 +179,7 @@ async function main() {
       : undefined,
   }));
 
-  console.log(`Finished NL matches: ${finishedMatches.length}`);
+  console.log(`Finished Nations League matches: ${finishedMatches.length}`);
 
   // Fail fast with a clear migration hint if the eval table is missing.
   {
@@ -120,34 +197,64 @@ async function main() {
   }
 
   const matchIds = finishedMatches.map((m) => String(m.id));
-  const { data: preds } = await supabase
-    .from("nations_league_predictions")
-    .select(
-      "match_id, model_version, snapshot, home_win_pct, draw_pct, away_win_pct, predicted_score_home, predicted_score_away, under_2_5_pct, over_2_5_pct"
-    )
-    .in("match_id", matchIds);
+  const predByMatch = new Map<string, Record<string, unknown>>();
+  // Chunk .in() queries - large finished sets blow URL limits and return empty.
+  for (let i = 0; i < matchIds.length; i += 80) {
+    const chunk = matchIds.slice(i, i + 80);
+    const preds = await withRetry(`load predictions chunk ${i}`, async () => {
+      const { data, error } = await supabase
+        .from("nations_league_predictions")
+        .select(
+          "match_id, model_version, snapshot, home_win_pct, draw_pct, away_win_pct, predicted_score_home, predicted_score_away, under_2_5_pct, over_2_5_pct"
+        )
+        .in("match_id", chunk);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    });
+    for (const p of preds) {
+      predByMatch.set(String(p.match_id), p as Record<string, unknown>);
+    }
+  }
+  console.log(`Locked match odds loaded for ${predByMatch.size} finished match(es).`);
 
-  const predByMatch = new Map(
-    (preds ?? []).map((p) => [String(p.match_id), p as Record<string, unknown>])
+  // Only evaluate fixtures that already have Opta player stats (skip ~600 empty lookups).
+  const statsMatchRows = await withRetry("list matches with Opta stats", async () => {
+    const { data, error } = await supabase
+      .from("nations_league_player_match_stats")
+      .select("match_id");
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+  const statsMatchIds = new Set(
+    statsMatchRows.map((row) => String(row.match_id))
   );
-  console.log(`Predictions loaded for ${predByMatch.size} finished match(es).`);
+  const matchesWithStats = finishedMatches.filter((m) =>
+    statsMatchIds.has(String(m.id))
+  );
+  const skippedNoStats = finishedMatches.length - matchesWithStats.length;
+  console.log(
+    `Matches with player statistics: ${matchesWithStats.length} (skipping ${skippedNoStats} without player statistics)`
+  );
 
   let evaluated = 0;
   let matchesUsed = 0;
-  let skippedNoStats = 0;
   let skippedNoProps = 0;
 
-  for (const match of finishedMatches) {
+  for (const match of matchesWithStats) {
     const matchId = String(match.id);
     const label = `${match.home_team_name ?? "Home"} vs ${match.away_team_name ?? "Away"} (${match.date ?? "?"})`;
 
-    const { data: stats } = await supabase
-      .from("nations_league_player_match_stats")
-      .select("opta_player_id, player_name, team_api_id, stats")
-      .eq("match_id", matchId);
+    const stats = await withRetry(`load Opta stats ${matchId}`, async () => {
+      const { data, error } = await supabase
+        .from("nations_league_player_match_stats")
+        .select("opta_player_id, player_name, team_api_id, stats")
+        .eq("match_id", matchId);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    });
 
-    if (!stats?.length) {
-      skippedNoStats += 1;
+    if (!stats.length) {
+      // Race: listed in stats index but empty on fetch - treat as no-stats.
       continue;
     }
 
@@ -157,7 +264,9 @@ async function main() {
     const locked = snap.player_props as PlayerPropsPayload | undefined;
     if (locked?.home && locked?.away) {
       props = locked;
-      console.log(`  ${label}: using locked snapshot.player_props (${stats.length} Opta players)`);
+      console.log(
+        `  ${label}: using the pre-kickoff player odds that were already saved (${stats.length} players)`
+      );
     } else if (pred) {
       const hubRow: HubPredictionRow = {
         home_win_pct: Number(pred.home_win_pct),
@@ -168,99 +277,224 @@ async function main() {
         under_2_5_pct: Number(pred.under_2_5_pct),
         over_2_5_pct: Number(pred.over_2_5_pct),
         model_version: String(pred.model_version ?? "nl"),
-        snapshot: snap,
+        snapshot: { ...snap, bootstrap: true },
       };
       const enriched = await attachNlPlayerPropsToHubPrediction(match, hubRow);
       props = (enriched.snapshot.player_props as PlayerPropsPayload | undefined) ?? null;
       if (props) {
-        await supabase
-          .from("nations_league_predictions")
-          .update({ snapshot: enriched.snapshot })
-          .eq("match_id", matchId);
+        await persistNlPrediction(supabase, matchId, {
+          ...enriched,
+          snapshot: { ...enriched.snapshot, bootstrap: true },
+        });
+        predByMatch.set(matchId, {
+          match_id: matchId,
+          ...enriched,
+        });
         console.log(
-          `  ${label}: recomputed player_props bootstrap (${stats.length} Opta players)`
+          `  ${label}: built player odds after the match for scoring only (${stats.length} players)`
         );
+      }
+    } else {
+      // No stored hub prediction (common when fixtures finished before lock).
+      // Bootstrap Graham + props using form strictly before kickoff.
+      const priorFinished = finishedBeforeKickoff(finishedMatches, match);
+      const computedBase = await runNlHubMainPredict(match, {
+        finishedMatches: priorFinished,
+      });
+      if (computedBase) {
+        const enriched = await attachNlPlayerPropsToHubPrediction(match, computedBase);
+        props = (enriched.snapshot.player_props as PlayerPropsPayload | undefined) ?? null;
+        if (props) {
+          await persistNlPrediction(supabase, matchId, {
+            ...enriched,
+            snapshot: { ...enriched.snapshot, bootstrap: true },
+          });
+          predByMatch.set(matchId, {
+            match_id: matchId,
+            ...enriched,
+          });
+          console.log(
+            `  ${label}: built match and player odds after the match for scoring only (${stats.length} players)`
+          );
+        }
       }
     }
 
     if (!props) {
       skippedNoProps += 1;
-      console.log(`  ${label}: skip - no player props (prediction missing or attach failed)`);
+      console.log(
+        `  ${label}: skip - could not build player odds`
+      );
       continue;
     }
     matchesUsed += 1;
 
-    const byNorm = new Map(
-      stats.map((s) => [
-        normalizeName(String(s.player_name)),
-        {
-          optaPlayerId: String(s.opta_player_id),
-          teamApiId: Number(s.team_api_id),
-          goals: Number((s.stats as Record<string, unknown>)?.goals ?? 0),
-          sot: Number(
-            (s.stats as Record<string, unknown>)?.shots_on_target ??
-              (s.stats as Record<string, unknown>)?.SOnT ??
-              0
-          ),
-        },
-      ])
-    );
+    type OptaActual = {
+      optaPlayerId: string;
+      teamApiId: number;
+      goals: number;
+      assists: number;
+      sot: number;
+      playerName: string;
+    };
+
+    const optaPlayers: OptaActual[] = stats.map((s) => {
+      const raw = (s.stats as Record<string, unknown>) ?? {};
+      return {
+        optaPlayerId: String(s.opta_player_id),
+        teamApiId: Number(s.team_api_id),
+        goals: Number(raw.goals ?? 0),
+        assists: Number(raw.assists ?? raw.Assists ?? 0),
+        sot: Number(raw.shots_on_target ?? raw.SOnT ?? 0),
+        playerName: String(s.player_name),
+      };
+    });
+
+    const byNorm = new Map(optaPlayers.map((s) => [normalizeName(s.playerName), s]));
+
+    function resolveOptaActual(playerName: string): OptaActual | undefined {
+      const exact = byNorm.get(normalizeName(playerName));
+      if (exact) return exact;
+      return optaPlayers.find((s) => playerNamesMatch(playerName, s.playerName));
+    }
 
     const sides = [
       { side: props.home as PropSide, teamApiId: props.home.teamId },
       { side: props.away as PropSide, teamApiId: props.away.teamId },
     ];
 
-    let matchEvalCount = 0;
+    const nowIso = new Date().toISOString();
+    const snapSource = snap.bootstrap === true ? "bootstrap" : "locked";
+    const evalByKey = new Map<string, Record<string, unknown>>();
+
+    function pushLine(input: {
+      market: string;
+      line: PlayerPropLine;
+      teamApiId: number;
+      teamXg: number;
+      actualCount: number;
+      hit: boolean;
+      predictedLambda: number;
+      sotLine?: number;
+      teamSot?: number;
+    }) {
+      const actual = resolveOptaActual(input.line.playerName);
+      if (!actual) return;
+      const key = `${matchId}|${actual.optaPlayerId}|${input.market}`;
+      if (evalByKey.has(key)) return;
+      evalByKey.set(key, {
+        match_id: matchId,
+        opta_player_id: actual.optaPlayerId,
+        player_name: input.line.playerName,
+        team_api_id: input.teamApiId,
+        market: input.market,
+        predicted_lambda: input.predictedLambda,
+        predicted_prob: input.line.probabilityPct / 100,
+        actual_count: input.actualCount,
+        hit: input.hit,
+        computed_at: nowIso,
+        line: input.sotLine ?? null,
+        chance_index_per90: input.line.chanceIndexPer90 ?? null,
+        is_penalty_taker: input.line.isPenaltyTaker,
+        is_starter: input.line.isStarter ?? true,
+        role: input.line.role ?? null,
+        team_expected_goals: input.teamXg,
+        team_expected_sot: input.teamSot ?? null,
+        prop_source: snapSource,
+        match_date: match.date ?? null,
+      });
+    }
+
     for (const { side, teamApiId } of sides) {
-      for (const line of resolveAnytimeLines(side)) {
-        const actual = byNorm.get(normalizeName(line.playerName));
+      const teamXg = Number(side.teamExpectedGoals ?? 1.25);
+      const teamSot = Number(side.teamExpectedSot ?? 0);
+      for (const line of resolveLines(side, side.anytimeCandidates, side.anytimeScorer)) {
+        const actual = resolveOptaActual(line.playerName);
         if (!actual) continue;
-        const { error } = await supabase.from("nations_league_player_prop_evaluations").upsert({
-          match_id: matchId,
-          opta_player_id: actual.optaPlayerId,
-          player_name: line.playerName,
-          team_api_id: teamApiId,
+        pushLine({
           market: "anytime_scorer",
-          predicted_lambda: line.expectedGoals,
-          predicted_prob: line.probabilityPct / 100,
-          actual_count: actual.goals,
+          line,
+          teamApiId,
+          teamXg,
+          actualCount: actual.goals,
           hit: actual.goals >= 1,
-          computed_at: new Date().toISOString(),
+          predictedLambda: line.expectedGoals,
         });
-        if (error) throw new Error(error.message);
-        evaluated += 1;
-        matchEvalCount += 1;
+      }
+      for (const line of resolveLines(side, side.anytimeAssistCandidates, side.anytimeAssist)) {
+        const actual = resolveOptaActual(line.playerName);
+        if (!actual) continue;
+        pushLine({
+          market: "anytime_assist",
+          line,
+          teamApiId,
+          teamXg,
+          actualCount: actual.assists,
+          hit: actual.assists >= 1,
+          predictedLambda: line.expectedAssists,
+        });
+      }
+      for (const line of resolveLines(side, side.goalOrAssistCandidates, side.goalOrAssist)) {
+        const actual = resolveOptaActual(line.playerName);
+        if (!actual) continue;
+        const combined = actual.goals + actual.assists;
+        pushLine({
+          market: "goal_or_assist",
+          line,
+          teamApiId,
+          teamXg,
+          actualCount: combined,
+          hit: combined >= 1,
+          predictedLambda: line.expectedGoals + line.expectedAssists * 0.45,
+        });
       }
 
       for (const line of side.shotsOnTarget ?? []) {
-        const actual = byNorm.get(normalizeName(line.playerName));
+        const actual = resolveOptaActual(line.playerName);
         if (!actual) continue;
-        const { error } = await supabase.from("nations_league_player_prop_evaluations").upsert({
+        const market = `sot_${line.line}`;
+        const key = `${matchId}|${actual.optaPlayerId}|${market}`;
+        if (evalByKey.has(key)) continue;
+        evalByKey.set(key, {
           match_id: matchId,
           opta_player_id: actual.optaPlayerId,
           player_name: line.playerName,
           team_api_id: teamApiId,
-          market: `sot_${line.line}`,
+          market,
           predicted_lambda: line.expectedSot,
           predicted_prob: line.probabilityPct / 100,
           actual_count: actual.sot,
           hit: actual.sot > line.line,
-          computed_at: new Date().toISOString(),
+          computed_at: nowIso,
+          line: line.line,
+          is_starter: true,
+          team_expected_goals: teamXg,
+          team_expected_sot: teamSot || null,
+          sot_rate_per90: line.expectedSot,
+          prop_source: snapSource,
+          match_date: match.date ?? null,
         });
-        if (error) throw new Error(error.message);
-        evaluated += 1;
-        matchEvalCount += 1;
       }
     }
-    console.log(`    → wrote ${matchEvalCount} evaluation row(s)`);
+
+    const evalRows = [...evalByKey.values()];
+    if (evalRows.length) {
+      await withRetry(`upsert evals ${matchId}`, async () => {
+        const { error } = await supabase
+          .from("nations_league_player_prop_evaluations")
+          .upsert(evalRows);
+        if (error) throw new Error(error.message);
+      });
+    }
+    evaluated += evalRows.length;
+    console.log(`    scored ${evalRows.length} player-market line(s)`);
   }
 
   console.log(
-    `\nEvaluated ${evaluated} NL player prop lines across ${matchesUsed} match(es).`
+    `\nScored ${evaluated} player-market line(s) across ${matchesUsed} match(es).`
   );
   console.log(
-    `Skipped: ${skippedNoStats} without Opta player stats, ${skippedNoProps} without props.`
+    `Skipped: ${skippedNoStats} without player statistics, ${skippedNoProps} without player odds.`
   );
 }
 

@@ -50,8 +50,8 @@ function snapshotGridOptions(
       homeXg,
       awayXg,
       calibration.goalOverdispersionK,
-      snapNumOr(snapshot, 1.5, "home_avg_chance_index"),
-      snapNumOr(snapshot, 1.5, "away_avg_chance_index")
+      snapNumOr(snapshot, 1.5, "home_chance_index", "home_avg_chance_index"),
+      snapNumOr(snapshot, 1.5, "away_chance_index", "away_avg_chance_index")
     ),
     redCardMatchBaseProb: calibration.redCardMatchBaseProb,
     homeDisciplineLoad: snapNumOr(snapshot, 0, "home_discipline_load"),
@@ -190,10 +190,14 @@ export function recomputeXgFromSnapshot(
   homeXg *= snapNumOr(snapshot, 1, "delta_final_home");
   homeXg *= snapNumOr(snapshot, 1, "sigma_home");
   homeXg *= snapNumOr(snapshot, 1, "host_nation_boost");
+  // Nations League plays true home and away legs, so the lift lives on the snapshot
+  // rather than in a neutral-venue gamma. World Cup snapshots have no such key.
+  homeXg *= snapNumOr(snapshot, 1, "home_advantage");
 
   awayXg *= snapNumOr(snapshot, 1, "gamma_away");
   awayXg *= snapNumOr(snapshot, 1, "delta_final_away");
   awayXg *= snapNumOr(snapshot, 1, "sigma_away");
+  awayXg *= snapNumOr(snapshot, 1, "away_advantage");
 
   homeXg *= snapNumOr(snapshot, 1, "lineup_home_xg_mult");
   awayXg *= snapNumOr(snapshot, 1, "lineup_away_xg_mult");
@@ -224,9 +228,12 @@ export function recomputeHubPredictionFromSnapshot(
   const mutualDraw = String(snapshot.scenario ?? "").includes("mutual_draw");
   const gridOptions = snapshotGridOptions(snapshot, calibration, homeXg, awayXg);
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw, gridOptions);
-  const temperedH = Math.pow(outcomes.homeWin, GRAHAM_1X2_TEMPERATURE);
-  const temperedD = Math.pow(outcomes.draw, GRAHAM_1X2_TEMPERATURE);
-  const temperedA = Math.pow(outcomes.awayWin, GRAHAM_1X2_TEMPERATURE);
+  // Each competition sharpens its 1X2 probabilities by a different amount, so honour the
+  // temperature frozen on the snapshot and only fall back to the World Cup value.
+  const tau = snapNumOr(snapshot, GRAHAM_1X2_TEMPERATURE, "one_x_two_temperature");
+  const temperedH = Math.pow(outcomes.homeWin, tau);
+  const temperedD = Math.pow(outcomes.draw, tau);
+  const temperedA = Math.pow(outcomes.awayWin, tau);
   const temperedSum = temperedH + temperedD + temperedA || 1;
   const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, mutualDraw, gridOptions);
 

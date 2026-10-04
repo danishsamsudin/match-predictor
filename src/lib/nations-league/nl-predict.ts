@@ -63,7 +63,7 @@ async function loadMedianSquadValueForNlTeams(): Promise<number> {
  * European home grounds + HA already absorb "home climate"; we lack stadium
  * lat/lon coverage for all 54 nations comparable to WC co-host venues.
  */
-const NL_HOME_ADVANTAGE = 1.08;
+export const NL_HOME_ADVANTAGE = 1.08;
 
 export async function runNlGrahamPredict(input: {
   match: WcMatchRow;
@@ -261,6 +261,22 @@ export async function runNlGrahamPredict(input: {
       rotation_index_home: rotationIndexHome,
       rotation_index_away: rotationIndexAway,
       ...baseline.snapshot,
+      // Frozen so post-match recalibration can rebuild this exact line from the snapshot
+      // alone, without re-deriving form, motivation, or discipline inputs.
+      one_x_two_temperature: NL_GRAHAM_1X2_TEMPERATURE,
+      goal_overdispersion_k: gridOptions.goalOverdispersionK,
+      red_card_match_base_prob: gridOptions.redCardMatchBaseProb,
+      red_card_attack_penalty: gridOptions.redCardAttackPenalty,
+      red_card_opponent_boost: gridOptions.redCardOpponentBoost,
+      home_discipline_load: homeNlForm.avgDisciplineLoad,
+      away_discipline_load: awayNlForm.avgDisciplineLoad,
+      home_chance_index: homeNlForm.avgChanceIndex,
+      away_chance_index: awayNlForm.avgChanceIndex,
+      motivation_scenario: motivation.scenario,
+      motivation_rho_offset: motivation.rhoOffset,
+      motivation_sigma_home_base: motivation.sigmaHome,
+      motivation_sigma_away_base: motivation.sigmaAway,
+      motivation_standings_rows: input.standings?.length ?? 0,
     },
   };
 }

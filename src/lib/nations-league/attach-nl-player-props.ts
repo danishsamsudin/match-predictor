@@ -1,7 +1,10 @@
 import { NATIONS_LEAGUE_REFERENCE_LEAGUE_ID } from "@/lib/data/nations-league-2026-teams";
 import { squadPlayersToFixtureLineup } from "@/lib/prediction/build-custom-lineup";
 import { computePlayerPropsForMatch } from "@/lib/prediction/compute-player-props-for-match";
-import type { PlayerPropsPayload } from "@/lib/prediction/player-props";
+import {
+  teamExpectedSotFromXg,
+  type PlayerPropsPayload,
+} from "@/lib/prediction/player-props";
 import { resolveBulinewsPredictedXi } from "@/lib/nations-league/resolve-bulinews-predicted-xi";
 import { loadTeamSquadForComparison } from "@/lib/data/load-team-squad-for-comparison";
 import { tryCreateServiceClient } from "@/lib/supabase";
@@ -127,8 +130,8 @@ export async function attachNlPlayerPropsToHubPrediction(
     entityType: "national",
     homeXg,
     awayXg,
-    homeTeamExpectedSot: homeXg * 4.2,
-    awayTeamExpectedSot: awayXg * 4.2,
+    homeTeamExpectedSot: teamExpectedSotFromXg(homeXg),
+    awayTeamExpectedSot: teamExpectedSotFromXg(awayXg),
     homeDbTeamId: match.home_team_id,
     awayDbTeamId: match.away_team_id,
     modelVersion: hubRow.model_version,
