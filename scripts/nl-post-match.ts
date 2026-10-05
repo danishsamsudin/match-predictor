@@ -17,7 +17,10 @@ import {
   listNlOptaResultHtmlFiles,
   NL_OPTA_RESULTS_DIR,
 } from "../src/lib/nations-league/nl-opta-results-dir";
-import { summarizeNlPlayerStatsDir } from "../src/lib/nations-league/nl-player-stats-dir";
+import {
+  formatNlPlayerStatsAuditReport,
+  summarizeNlPlayerStatsDir,
+} from "../src/lib/nations-league/nl-player-stats-dir";
 import {
   fillNlLeaguePhasePredictions,
   refreshNationsLeagueHubSnapshot,
@@ -108,7 +111,7 @@ function formatDuration(ms: number): string {
 async function main() {
   loadEnvLocal();
   const startedAt = Date.now();
-  const totalSteps = 12;
+  const totalSteps = 13;
   const files = resolveHtmlFiles(process.argv.slice(2));
   const playerSummary = summarizeNlPlayerStatsDir();
   const sofifaDir = path.join(
@@ -123,13 +126,24 @@ async function main() {
   console.log(`  Articles found: ${files.length} under ${NL_OPTA_RESULTS_DIR}`);
   console.log(
     `  Player-stats fixtures: ${playerSummary.fixtures.length} ` +
-      `(MS ${playerSummary.htmlCounts.matchSummary} / OS ${playerSummary.htmlCounts.optaSummary} / MD ${playerSummary.htmlCounts.matchDetails})`
+      `(MS ${playerSummary.htmlCounts.matchSummary} / OS ${playerSummary.htmlCounts.optaSummary} / MD ${playerSummary.htmlCounts.matchDetails}; ` +
+      `${playerSummary.completeCount} complete)`
   );
   console.log(`  SoFIFA listing pages: ${sofifaHtmlCount} under nl-scoutlyst-rankings`);
-  if (playerSummary.unparsed.length) {
-    console.warn(
-      `  WARNING: ${playerSummary.unparsed.length} player-stats HTML file(s) failed filename parse`
+
+  const auditLines = formatNlPlayerStatsAuditReport(playerSummary);
+  for (const line of auditLines) {
+    if (playerSummary.ok || line.startsWith("Player-stats audit:")) {
+      console.log(`  ${line}`);
+    } else {
+      console.warn(`  ${line}`);
+    }
+  }
+  if (!playerSummary.ok) {
+    console.error(
+      "\nAborting: fix missing / duplicate / wrong-folder player-stats files before running the pipeline."
     );
+    process.exit(1);
   }
 
   step(1, totalSteps, "Bring in match reports (scores and team process stats)");
@@ -244,7 +258,10 @@ async function main() {
   );
   run("npx", ["tsx", "scripts/nl-calibrate-player-props.ts"]);
 
-  step(12, totalSteps, "Machine-learning check, hub republish, and plain-language summary");
+  step(12, totalSteps, "Rebuild confidence floors from locked history (Strong / Moderate / Weak / None)");
+  run("npx", ["tsx", "scripts/nl-calibrate-confidence.ts"]);
+
+  step(13, totalSteps, "Machine-learning check, hub republish, and plain-language summary");
   run("npx", ["tsx", "scripts/nl-ml-backfill-training-examples.ts"]);
   run("npx", ["tsx", "scripts/nl-ml-train.ts"]);
   const refreshed = await refreshNationsLeagueHubSnapshot({ skipFill: true });

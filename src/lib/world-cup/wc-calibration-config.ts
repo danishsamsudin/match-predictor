@@ -8,6 +8,7 @@ import {
   mergeMarketModelsConfig,
 } from "@/lib/world-cup/market-models/defaults";
 import type { MarketModelsConfig } from "@/lib/world-cup/market-models/types";
+import type { ConfidenceLayerConfig } from "@/lib/nations-league/confidence-layer";
 import {
   GRAHAM_DELTA_WEIGHTS,
   GRAHAM_MODEL_VERSION,
@@ -84,6 +85,8 @@ export interface WcCalibrationConstants {
   playerPropModelCoeffs: PlayerPropMlCoeffs;
   /** Per-market ML calibration heads (BTTS, O/U, xG, events, player props, etc.). */
   marketModels: MarketModelsConfig;
+  /** Adaptive NL confidence floors / reliability bins. Optional for World Cup configs. */
+  confidenceLayer?: ConfidenceLayerConfig;
 }
 
 export type MlEventModelKind = "yellow" | "fouls" | "corners" | "red";
@@ -298,6 +301,7 @@ function mergeConstants(raw: Record<string, unknown> | null): WcCalibrationConst
         ),
       },
     }),
+    confidenceLayer: raw.confidenceLayer as ConfidenceLayerConfig | undefined,
   };
 }
 

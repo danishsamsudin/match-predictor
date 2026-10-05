@@ -14,6 +14,7 @@ Use after each UEFA Nations League 2026/27 match when the user saves Opta HTML t
    - `NL-Opta-Player-Stats/Match Details/`
    - Filename pattern: `{Home} vs {Away} - {DD Mon YYYY} - UEFA Nations League ...`
    - Month may be `Sep`, `Sept`, or `September` (Opta often uses `Sept`).
+   - `nl:postmatch` audits these folders first: incomplete three-page sets, duplicate files for the same match in one folder, pages saved in the wrong folder, and missing `_files` bundles. It aborts with a clear report until those are fixed.
 3. Optional: refresh SoFIFA overalls - save SoFIFA `/players` listing pages (Web Page, Complete) into `nl-scoutlyst-rankings/`, or run `npm run nl:fetch-sofifa` then `npm run nl:import-sofifa`.
 4. Articles are optional. If `NL-Opta-Results` is empty, `nl:postmatch` skips article ingest and still marks matches finished from Betting Showcase scores.
 5. Run one command (or ask the agent to run it).
@@ -60,20 +61,22 @@ npm run nl:recompute-ratings
 
 ## What the pipeline does
 
+0. **Audit player-stats folders** - Reports (and aborts on) incomplete three-page sets, duplicate HTML for the same match in one folder, pages whose content does not match the folder (wrong save), unparsed filenames, and missing `_files` bundles.
 1. **Ingest articles** - Parses Analyst article + Opta widget (shared WC parsers); updates `matches`, `national_match_process_metrics`, `nations_league_post_match_ingests`. Optionally writes set-piece rates into `nations_league_calibration_config`.
 2. **SoFIFA overalls** - Parses `nl-scoutlyst-rankings` player listing HTML into `soccerdata_players` (fills squad picker performance scores).
 3. **Ingest player stats** - Parses Match Summary, Opta Summary, Match Details; upserts `nations_league_player_match_stats`, `nations_league_team_match_aggregates`, `nations_league_player_tournament_form`.
 4. **Ratings** - Recomputes NL-weighted xG-Elo / WCTR / talent via `nl:recompute-ratings`.
 5. **Refresh upcoming odds** - Recomputes Graham + player markets + side markets for fixtures that have not kicked off. Finished / live lines stay frozen.
 6. **Score finished match odds** - Home / draw / away, scorelines, over-under, both teams to score, handicaps → `nations_league_prediction_evaluations`.
-7. **Score side markets** → `nations_league_market_evaluations`.
+7. **Score side markets** → `nations_league_market_evaluations` (including double chance, goal ranges, team totals, European handicap).
 8. **Score player markets** - Anytime goal, anytime assist, goal or assist, shots on target. Bootstrap only when no pre-kickoff lock exists (marked bootstrap).
 9. **Retune main match model** - Walk-forward Graham calibrate into `nations_league_calibration_config`.
 10. **Retune side markets and player markets**.
-11. **Machine-learning check** - Backfill frozen snapshots and deploy a small nudge only if recent test matches do not get worse.
-12. **Hub republish + plain-language summary** printed at the end of the terminal run.
+11. **Rebuild confidence layer** - Reliability bins vs real hits; Strong / Moderate / Weak / None floors with holdout guard. Extra alias: `nl:calibrate-confidence`.
+12. **Machine-learning check** - Backfill frozen snapshots and deploy a small nudge only if recent test matches do not get worse.
+13. **Hub republish + plain-language summary** printed at the end of the terminal run.
 
-`npm run nl:postmatch` is the only user command. Extra aliases (`nl:evaluate`, `nl:calibrate`, `nl:ml-train`) are for debugging.
+`npm run nl:postmatch` is the only user command. Extra aliases (`nl:evaluate`, `nl:calibrate`, `nl:ml-train`, `nl:calibrate-confidence`) are for debugging.
 
 ## Remaining mapping (vs full WC pipeline)
 

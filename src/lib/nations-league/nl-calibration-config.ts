@@ -9,6 +9,11 @@ import {
 } from "@/lib/world-cup/market-models/defaults";
 import type { MarketModelsConfig } from "@/lib/world-cup/market-models/types";
 import {
+  EMPTY_CONFIDENCE_LAYER,
+  mergeConfidenceLayer,
+  type ConfidenceLayerConfig,
+} from "@/lib/nations-league/confidence-layer";
+import {
   DEFAULT_PLAYER_PROP_ML_COEFFS,
   mergePlayerPropMlCoeffs,
   type PlayerPropMlCoeffs,
@@ -87,6 +92,7 @@ const DEFAULTS: WcCalibrationConstants = {
   },
   playerPropModelCoeffs: { ...DEFAULT_PLAYER_PROP_ML_COEFFS },
   marketModels: getDefaultMarketModelsConfig(),
+  confidenceLayer: { ...EMPTY_CONFIDENCE_LAYER, markets: {} },
 };
 
 function mergeConstants(
@@ -112,6 +118,9 @@ function mergeConstants(
       ...DEFAULTS.eventModelCoeffs,
       ...(raw.eventModelCoeffs ?? {}),
     } as WcCalibrationConstants["eventModelCoeffs"],
+    confidenceLayer: mergeConfidenceLayer(
+      raw.confidenceLayer as Partial<ConfidenceLayerConfig> | undefined
+    ),
   };
 }
 

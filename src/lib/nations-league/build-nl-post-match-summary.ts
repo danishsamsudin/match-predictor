@@ -1,4 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  mergeConfidenceLayer,
+  type ConfidenceLayerConfig,
+  type MarketConfidenceSnapshot,
+} from "@/lib/nations-league/confidence-layer";
 
 export type NlPostMatchRunFacts = {
   articlesIngested: number;
@@ -23,6 +28,46 @@ function actualOutcome(home: number, away: number): "home" | "draw" | "away" {
   if (home > away) return "home";
   if (home < away) return "away";
   return "draw";
+}
+
+function formatFloor(value: number | null): string {
+  if (value == null) return "no Strong band yet";
+  return `model ${(value * 100).toFixed(0)}%+`;
+}
+
+function friendlyMarketKey(key: string): string {
+  return key.replace(/_/g, " ").replace(/:/g, " / ");
+}
+
+function layerFromConstants(raw: unknown): ConfidenceLayerConfig | null {
+  const constants = raw as { confidenceLayer?: ConfidenceLayerConfig } | null;
+  if (!constants?.confidenceLayer) return null;
+  return mergeConfidenceLayer(constants.confidenceLayer);
+}
+
+function strongKeys(layer: ConfidenceLayerConfig | null): Set<string> {
+  if (!layer) return new Set();
+  return new Set(
+    Object.values(layer.markets)
+      .filter((m) => m.strongFloor != null)
+      .map((m) => m.marketKey)
+  );
+}
+
+function worstCalibrated(markets: MarketConfidenceSnapshot[], limit = 4): MarketConfidenceSnapshot[] {
+  return [...markets]
+    .filter((m) => m.n >= 8)
+    .map((m) => {
+      const highBins = m.bins.filter((b) => b.lo >= 0.5 && b.n >= 6);
+      const gap = highBins.length
+        ? Math.max(...highBins.map((b) => b.gap))
+        : Math.max(0, ...m.bins.map((b) => b.gap));
+      return { market: m, gap };
+    })
+    .filter((x) => x.gap > 0.12 && x.market.strongFloor == null)
+    .sort((a, b) => b.gap - a.gap)
+    .slice(0, limit)
+    .map((x) => x.market);
 }
 
 export async function buildNlPostMatchSummary(
@@ -69,9 +114,9 @@ export async function buildNlPostMatchSummary(
 
   const { data: calibs } = await supabase
     .from("nations_league_calibration_config")
-    .select("version, metrics, effective_from")
+    .select("version, metrics, constants, effective_from")
     .order("effective_from", { ascending: false })
-    .limit(6);
+    .limit(8);
 
   const latest = calibs?.[0];
   const learned: string[] = [];
@@ -149,6 +194,51 @@ export async function buildNlPostMatchSummary(
     lines.push("- No player-market results were available to summarise yet.");
   }
 
+  const confidenceLayers = (calibs ?? [])
+    .map((row) => layerFromConstants(row.constants))
+    .filter((layer): layer is ConfidenceLayerConfig => layer != null && layer.trainN > 0);
+  const currentLayer = confidenceLayers[0] ?? null;
+  const previousLayer = confidenceLayers[1] ?? null;
+
+  lines.push("", "Confidence layer");
+  if (!currentLayer) {
+    lines.push(
+      "- No confidence floors yet. After more finished matches with locked pre-kickoff lines, Strong / Moderate / Weak bands will appear here."
+    );
+  } else {
+    const markets = Object.values(currentLayer.markets);
+    const strong = markets.filter((m) => m.strongFloor != null);
+    lines.push(
+      `- Rebuilt on ${currentLayer.trainN} train and ${currentLayer.holdoutN} holdout lines across ${markets.length} markets.`
+    );
+    if (!strong.length) {
+      lines.push("- No Strong bands yet - history is still too thin or the model is not calibrated enough to be a decision guardrail.");
+    } else {
+      const sample = [...strong]
+        .sort((a, b) => (a.strongFloor ?? 1) - (b.strongFloor ?? 1))
+        .slice(0, 8);
+      for (const m of sample) {
+        lines.push(
+          `- ${friendlyMarketKey(m.marketKey)}: Strong from ${formatFloor(m.strongFloor)} (n=${m.n}).`
+        );
+      }
+    }
+    const gained = [...strongKeys(currentLayer)].filter((k) => !strongKeys(previousLayer).has(k));
+    const lost = [...strongKeys(previousLayer)].filter((k) => !strongKeys(currentLayer).has(k));
+    if (gained.length) {
+      lines.push(`- Newly Strong this run: ${gained.slice(0, 6).map(friendlyMarketKey).join("; ")}.`);
+    }
+    if (lost.length) {
+      lines.push(`- Lost Strong this run: ${lost.slice(0, 6).map(friendlyMarketKey).join("; ")}.`);
+    }
+    const avoid = worstCalibrated(markets);
+    for (const m of avoid) {
+      lines.push(
+        `- Do not rely on ${friendlyMarketKey(m.marketKey)} yet (None / Weak) - predicted % has been running ahead of actual hits.`
+      );
+    }
+  }
+
   lines.push("", "What the model learned this run");
   if (latest) {
     lines.push(`- Latest saved settings: ${String(latest.version)}.`);
@@ -167,7 +257,8 @@ export async function buildNlPostMatchSummary(
     "",
     "What to do with this",
     "- Compare the refreshed model odds on the Nations League hub to bookmaker prices.",
-    "- The model is trained on real match outcomes, not on bookmaker prices. Where our chance is meaningfully higher than the bookmaker's implied chance, that is a candidate edge.",
+    "- Use the confidence chip as the decision guardrail: only Strong (and carefully Moderate) bands have enough history to size a stake.",
+    "- Stake suggestions use fractional Kelly gated by that confidence. Do not add exclusive outcomes on the same match together.",
     "- Do not treat shots-on-target prices as bet-ready until the gap between predicted and actual stays small.",
     "=".repeat(60)
   );

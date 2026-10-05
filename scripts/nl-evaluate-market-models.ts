@@ -5,6 +5,7 @@
  */
 import { loadNlCalibrationConfig } from "../src/lib/nations-league/nl-calibration-config";
 import { tryCreateServiceClient } from "../src/lib/supabase";
+import { evaluateDerivedMarketsForMatch } from "../src/lib/nations-league/evaluate-derived-markets";
 import {
   aggregateMarketEvaluations,
   evaluateMarketsForMatch,
@@ -26,6 +27,12 @@ const SIDE_MARKET_LABELS: Record<string, string> = {
   expected_goals: "Expected goals",
   form_momentum: "Form and momentum",
   event_stats: "Estimated match statistics",
+  double_chance: "Double chance",
+  goal_range_match: "Match goal range",
+  goal_range_home: "Home goal range",
+  goal_range_away: "Away goal range",
+  european_handicap: "European handicap",
+  team_total: "Team totals",
 };
 
 function loadEnvLocal() {
@@ -61,6 +68,7 @@ async function main() {
 
   const allRows: ReturnType<typeof evaluateMarketsForMatch> = [];
   let upserted = 0;
+  let derivedCount = 0;
 
   for (const m of matches ?? []) {
     if (m.home_goals == null || m.away_goals == null) continue;
@@ -92,28 +100,52 @@ async function main() {
       estimatedEvents: null,
     }).map((r) => ({ ...r, matchId: String(m.id) }));
 
+    const derived = evaluateDerivedMarketsForMatch({
+      pred: hubPred,
+      actualHome: Number(m.home_goals),
+      actualAway: Number(m.away_goals),
+      calibration,
+      modelVersion: calibration.modelVersion,
+    }).map((r) => ({ ...r, matchId: String(m.id) }));
+    derivedCount += derived.length;
+
     allRows.push(...rows);
-    for (const row of rows) {
-      const { error: upsertErr } = await supabase.from("nations_league_market_evaluations").upsert(
-        {
-          match_id: row.matchId,
-          market_id: row.marketId,
-          market_key: String((row.predicted as { line?: number }).line ?? ""),
-          predicted: row.predicted,
-          actual: row.actual,
-          loss_metric: row.lossMetric,
-          loss_value: row.lossValue,
-          model_version: row.modelVersion,
-          match_date: m.date ?? null,
-          computed_at: new Date().toISOString(),
-        },
-        { onConflict: "match_id,market_id,market_key" }
-      );
+    const toUpsert = [
+      ...rows.map((row) => ({
+        match_id: row.matchId,
+        market_id: row.marketId,
+        market_key: String((row.predicted as { line?: number }).line ?? ""),
+        predicted: row.predicted,
+        actual: row.actual,
+        loss_metric: row.lossMetric,
+        loss_value: row.lossValue,
+        model_version: row.modelVersion,
+        match_date: m.date ?? null,
+        computed_at: new Date().toISOString(),
+      })),
+      ...derived.map((row) => ({
+        match_id: row.matchId,
+        market_id: row.marketId,
+        market_key: row.marketKey,
+        predicted: row.predicted,
+        actual: row.actual,
+        loss_metric: row.lossMetric,
+        loss_value: row.lossValue,
+        model_version: row.modelVersion,
+        match_date: m.date ?? null,
+        computed_at: new Date().toISOString(),
+      })),
+    ];
+    for (const payload of toUpsert) {
+      const { error: upsertErr } = await supabase
+        .from("nations_league_market_evaluations")
+        .upsert(payload, { onConflict: "match_id,market_id,market_key" });
       if (!upsertErr) upserted += 1;
     }
   }
 
   console.log(`Scored ${upserted} side-market lines across finished Nations League matches.`);
+  console.log(`  Including ${derivedCount} derived-market lines (double chance, ranges, EH, team totals).`);
   const marketIds = [...new Set(allRows.map((r) => r.marketId))];
   for (const marketId of marketIds) {
     const agg = aggregateMarketEvaluations(allRows, marketId);

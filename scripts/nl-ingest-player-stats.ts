@@ -8,11 +8,11 @@ import {
   ingestAllNlOptaPlayerStats,
 } from "../src/lib/nations-league/ingest-nl-opta-player-stats";
 import {
+  formatNlPlayerStatsAuditReport,
   NL_PLAYER_STATS_ROOT,
   summarizeNlPlayerStatsDir,
 } from "../src/lib/nations-league/nl-player-stats-dir";
 import { tryCreateServiceClient } from "../src/lib/supabase";
-import path from "node:path";
 
 function loadEnvLocal() {
   const fs = require("fs") as typeof import("fs");
@@ -42,20 +42,14 @@ function pageFlags(f: {
 async function main() {
   loadEnvLocal();
   const summary = summarizeNlPlayerStatsDir();
-  const { fixtures, htmlCounts, unparsed } = summary;
+  const { fixtures, htmlCounts } = summary;
 
   console.log(`Player-stats root: ${NL_PLAYER_STATS_ROOT}`);
-  console.log(
-    `HTML counts - Match Summary: ${htmlCounts.matchSummary}, Opta Summary: ${htmlCounts.optaSummary}, Match Details: ${htmlCounts.matchDetails}`
-  );
-  console.log(`Parseable fixtures: ${fixtures.length}`);
-
-  if (unparsed.length) {
-    console.warn(
-      `\nWARNING: ${unparsed.length} HTML file(s) could not be parsed from filename:`
-    );
-    for (const file of unparsed) {
-      console.warn(`  • ${path.basename(path.dirname(file))}/${path.basename(file)}`);
+  for (const line of formatNlPlayerStatsAuditReport(summary)) {
+    if (summary.ok || line.startsWith("Player-stats audit:")) {
+      console.log(line);
+    } else {
+      console.warn(line);
     }
   }
 
@@ -78,6 +72,13 @@ async function main() {
       process.exit(1);
     }
     return;
+  }
+
+  if (!summary.ok) {
+    console.error(
+      "\nAborting ingest until missing / duplicate / wrong-folder player-stats files are fixed."
+    );
+    process.exit(1);
   }
 
   console.log("\nFixtures to ingest:");

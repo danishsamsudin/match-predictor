@@ -188,5 +188,6 @@ export async function runNlGrahamPredictForRequest(input: {
     }
   }
 
+  result.confidenceLayer = calibration.confidenceLayer;
   return result;
 }

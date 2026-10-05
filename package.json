@@ -70,6 +70,7 @@
     "nl:calibrate": "npx tsx scripts/nl-calibrate-graham.ts",
     "nl:calibrate-markets": "npx tsx scripts/nl-calibrate-market-models.ts",
     "nl:calibrate-player-props": "npx tsx scripts/nl-calibrate-player-props.ts",
+    "nl:calibrate-confidence": "npx tsx scripts/nl-calibrate-confidence.ts",
     "nl:ml-backfill": "npx tsx scripts/nl-ml-backfill-training-examples.ts",
     "nl:ml-train": "npx tsx scripts/nl-ml-train.ts",
     "nl:import-sofifa": "npx tsx scripts/import-nl-sofifa-players-local.ts",

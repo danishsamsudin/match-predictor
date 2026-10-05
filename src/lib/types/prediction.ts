@@ -1,5 +1,6 @@
 import type { FixtureLineup } from "@/lib/types/football";
 import type { DerivedMarkets } from "@/lib/glpm-cx/derived-markets";
+import type { ConfidenceLayerConfig } from "@/lib/nations-league/confidence-layer";
 import type { TeamComparisonSnapshot } from "@/lib/types/team-comparison";
 import type { PlayerPropsPayload } from "@/lib/prediction/player-props";
 
@@ -137,6 +138,8 @@ export interface PredictionResult {
   playerProps?: PlayerPropsPayload;
   /** Club-style EH / goal ranges / team totals / double chance from the score grid. */
   derivedMarkets?: DerivedMarkets;
+  /** Learned NL reliability floors for Value Opportunities confidence + Kelly. */
+  confidenceLayer?: ConfidenceLayerConfig;
 }
 
 export interface TeamStatAverages {

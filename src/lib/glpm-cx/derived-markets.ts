@@ -62,7 +62,7 @@ export type DerivedMarkets = {
 };
 
 const AH_LINES = [-1.5, -0.5, 0.5, 1.5] as const;
-const TEAM_TOTAL_LINES = [0.5, 1.5, 2.5] as const;
+export const TEAM_TOTAL_LINES = [0.5, 1.5, 2.5] as const;
 export const EUROPEAN_HANDICAP_LINES = [-3, -2, -1, 1, 2, 3] as const;
 /** Match total goal bands (partition). */
 export const MATCH_GOAL_RANGE_BANDS = [
