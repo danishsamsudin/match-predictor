@@ -128,8 +128,8 @@ export const GLPM_CX_GLOSSARY = {
   },
   valueEdge: {
     label: "Expected value (+EV)",
-    what: "Whether a book price is longer than the model’s fair odds.",
-    how: "Edge = (model probability × book decimal odds) − 1. Enter book odds manually; no live scrape in v1.",
+    what: "Whether a book price is longer than the model's fair odds, checked against this league's locked prediction history when a confidence layer exists.",
+    how: "Without history: edge = (model probability × book decimal odds) − 1. With Confidence / Stake / Action: hist edge and Kelly use the league's empirical hit rate in that model-% band; Bet only when Moderate/Strong history clears Kelly.",
   },
   restCongestion: {
     label: "Rest days",

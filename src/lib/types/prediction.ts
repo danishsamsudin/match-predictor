@@ -1,6 +1,6 @@
 import type { FixtureLineup } from "@/lib/types/football";
 import type { DerivedMarkets } from "@/lib/glpm-cx/derived-markets";
-import type { ConfidenceLayerConfig } from "@/lib/nations-league/confidence-layer";
+import type { ConfidenceLayerConfig } from "@/lib/value-opportunities/confidence-layer";
 import type { TeamComparisonSnapshot } from "@/lib/types/team-comparison";
 import type { PlayerPropsPayload } from "@/lib/prediction/player-props";
 

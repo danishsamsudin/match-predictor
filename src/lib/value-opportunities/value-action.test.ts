@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { ConfidenceLookup } from "@/lib/nations-league/confidence-layer";
-import type { KellyStakeResult } from "@/lib/nations-league/kelly-stake";
-import { suggestValueAction } from "@/lib/nations-league/value-action";
+import type { ConfidenceLookup } from "@/lib/value-opportunities/confidence-layer";
+import type { KellyStakeResult } from "@/lib/value-opportunities/kelly-stake";
+import { suggestValueAction } from "@/lib/value-opportunities/value-action";
 
 function lookup(partial: Partial<ConfidenceLookup> = {}): ConfidenceLookup {
   return {

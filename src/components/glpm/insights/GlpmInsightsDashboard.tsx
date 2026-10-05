@@ -38,6 +38,26 @@ import {
   SCORE_HEATMAP_MAX_GOALS,
 } from "@/lib/glpm-cx/derived-markets";
 import { computeValueEdges } from "@/lib/prediction/odds-value";
+import {
+  lookupConfidence,
+  valueRowIdToMarketKey,
+  type ConfidenceLookup,
+} from "@/lib/value-opportunities/confidence-layer";
+import {
+  shrunkProbability,
+  suggestKellyStake,
+  type KellyStakeResult,
+} from "@/lib/value-opportunities/kelly-stake";
+import {
+  suggestValueAction,
+  type ValueActionResult,
+} from "@/lib/value-opportunities/value-action";
+import {
+  ActionCell,
+  ConfidenceCell,
+  StakeCell,
+  TIER_STYLES,
+} from "@/components/value-opportunities/ValueOpportunityCells";
 
 function pct(n: number): string {
   return `${(n * 100).toFixed(1)}%`;
@@ -170,6 +190,8 @@ function ValueOpportunitiesPanel({
 }) {
   const homeLabel = payload.base.homeTeam.name;
   const awayLabel = payload.base.awayTeam.name;
+  const confidenceLayer = useCx ? payload.confidenceLayer : null;
+  const showConfidence = Boolean(confidenceLayer);
 
   const markets = useCx
     ? payload.cx
@@ -196,6 +218,10 @@ function ValueOpportunitiesPanel({
   }, [useCx, payload]);
 
   const [book, setBook] = useState<Record<string, string>>({});
+  const [bankroll, setBankroll] = useState("100");
+  const bankrollValue = Number(bankroll);
+  const bankrollNum =
+    Number.isFinite(bankrollValue) && bankrollValue > 0 ? bankrollValue : 100;
 
   const setBookOdds = (id: string, value: string) => {
     setBook((b) => ({ ...b, [id]: value }));
@@ -207,7 +233,11 @@ function ValueOpportunitiesPanel({
     modelProb: number;
     fairOdds: number | null;
     bookOdds: number | null;
-    edgePct: number | null;
+    modelEdgePct: number | null;
+    histEdgePct: number | null;
+    confidence?: ConfidenceLookup;
+    kelly?: KellyStakeResult;
+    action?: ValueActionResult;
   };
 
   type ValueSection = {
@@ -224,11 +254,47 @@ function ValueOpportunitiesPanel({
     const makeRow = (id: string, market: string, modelProb: number): ValueRow => {
       const bookOdds = parse(id);
       const fairOdds = fairOddsFromProb(modelProb);
-      const edgePct =
-        bookOdds != null && modelProb > 0
-          ? (modelProb * bookOdds - 1) * 100
+      const modelEdgePct =
+        bookOdds != null && modelProb > 0 ? (modelProb * bookOdds - 1) * 100 : null;
+      const marketKey = valueRowIdToMarketKey(id);
+      const confidence =
+        marketKey && confidenceLayer
+          ? lookupConfidence(marketKey, modelProb, confidenceLayer)
+          : undefined;
+      const kelly =
+        confidence && bookOdds != null
+          ? suggestKellyStake({
+              modelProb,
+              decimalOdds: bookOdds,
+              confidence,
+              bankroll: bankrollNum,
+            })
+          : undefined;
+      const histEdgePct =
+        confidence && bookOdds != null && confidence.n > 0
+          ? (shrunkProbability(modelProb, confidence) * bookOdds - 1) * 100
           : null;
-      return { id, market, modelProb, fairOdds, bookOdds, edgePct };
+      const action = showConfidence
+        ? suggestValueAction({
+            bookOdds,
+            confidence,
+            kelly,
+            modelEdgePct,
+            histEdgePct,
+          })
+        : undefined;
+      return {
+        id,
+        market,
+        modelProb,
+        fairOdds,
+        bookOdds,
+        modelEdgePct,
+        histEdgePct,
+        confidence,
+        kelly,
+        action,
+      };
     };
 
     const ouLines = ["0.5", "1.5", "2.5", "3.5"];
@@ -263,7 +329,26 @@ function ValueOpportunitiesPanel({
       );
     }
 
-    const ah = (activeDerived.asianHandicap ?? []).find((l) => l.line === -0.5);
+    const ahRows: ValueRow[] = [];
+    for (const line of activeDerived.asianHandicap ?? []) {
+      const tag = formatEhLine(line.line);
+      ahRows.push(
+        makeRow(`ah-home-${line.line}`, `AH ${tag} Home`, line.homeCover),
+        makeRow(`ah-away-${line.line}`, `AH ${tag} Away`, line.awayCover)
+      );
+    }
+
+    const dc = activeDerived.doubleChance;
+    const ttRows: ValueRow[] = [];
+    for (const line of activeDerived.teamTotals ?? []) {
+      ttRows.push(
+        makeRow(`tt-home-over-${line.line}`, `${homeLabel} Over ${line.line}`, line.homeOver),
+        makeRow(`tt-home-under-${line.line}`, `${homeLabel} Under ${line.line}`, line.homeUnder),
+        makeRow(`tt-away-over-${line.line}`, `${awayLabel} Over ${line.line}`, line.awayOver),
+        makeRow(`tt-away-under-${line.line}`, `${awayLabel} Under ${line.line}`, line.awayUnder)
+      );
+    }
+
     const shots = payload.satellites?.shots;
     const shotRows: ValueRow[] = [];
     for (const line of shots?.shotsOverUnder ?? []) {
@@ -273,9 +358,7 @@ function ValueOpportunitiesPanel({
       );
     }
     for (const line of shots?.sotOver ?? []) {
-      shotRows.push(
-        makeRow(`sot-over-${line.line}`, `SoT Over ${line.line}`, line.over)
-      );
+      shotRows.push(makeRow(`sot-over-${line.line}`, `SoT Over ${line.line}`, line.over));
     }
 
     return [
@@ -295,14 +378,22 @@ function ValueOpportunitiesPanel({
         ],
       },
       { title: "Goals O/U", rows: ouRows },
+      ...(dc
+        ? [
+            {
+              title: "Double chance",
+              rows: [
+                makeRow("dc-1x", "1X", dc.homeOrDraw),
+                makeRow("dc-12", "12", dc.homeOrAway),
+                makeRow("dc-x2", "X2", dc.drawOrAway),
+              ],
+            },
+          ]
+        : []),
       ...rangeSections,
       { title: "European handicap", rows: ehRows },
-      {
-        title: "Asian handicap",
-        rows: ah
-          ? [makeRow("ah-home--0.5", "AH home -0.5", ah.homeCover)]
-          : [],
-      },
+      { title: "Asian handicap", rows: ahRows },
+      { title: "Team totals", rows: ttRows },
       {
         title: "Shots",
         hint:
@@ -312,7 +403,17 @@ function ValueOpportunitiesPanel({
         rows: shots && shots.totalShots > 0 ? shotRows : [],
       },
     ].filter((s) => s.rows.length > 0);
-  }, [book, markets, activeDerived, homeLabel, awayLabel, payload.satellites?.shots]);
+  }, [
+    book,
+    markets,
+    activeDerived,
+    homeLabel,
+    awayLabel,
+    payload.satellites?.shots,
+    confidenceLayer,
+    bankrollNum,
+    showConfidence,
+  ]);
 
   const oneX2Edges = useMemo(() => {
     const parse = (id: string): number | null => {
@@ -335,8 +436,11 @@ function ValueOpportunitiesPanel({
 
   const edgeChart = sections
     .flatMap((s) => s.rows)
-    .filter((r) => r.edgePct != null)
-    .map((r) => ({ market: r.market, edgePct: r.edgePct as number }));
+    .filter((r) => (showConfidence ? r.histEdgePct : r.modelEdgePct) != null)
+    .map((r) => ({
+      market: r.market,
+      edgePct: (showConfidence ? r.histEdgePct : r.modelEdgePct) as number,
+    }));
 
   const quickBookFields = [
     ["1x2-home", "Home"],
@@ -351,7 +455,11 @@ function ValueOpportunitiesPanel({
     <InsightCard
       title="Value opportunities"
       glossaryKey="valueEdge"
-      howToRead="Enter book decimal odds below or on each row to compare with model fair odds. Positive edge means the book price is longer than the model."
+      howToRead={
+        showConfidence
+          ? "Enter book decimal odds to compare with model fair odds. Confidence, stake, and Pass/Watch/Bet use this league's historical hit rates at this model %, not the raw model % alone."
+          : "Enter book decimal odds below or on each row to compare with model fair odds. Positive edge means the book price is longer than the model. Confidence / Stake / Action appear after this league has enough locked finished evaluations."
+      }
     >
       <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {quickBookFields.map(([id, label]) => (
@@ -367,7 +475,42 @@ function ValueOpportunitiesPanel({
             />
           </label>
         ))}
+        {showConfidence ? (
+          <label className="block space-y-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted">Bankroll (€)</span>
+            <input
+              className="w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
+              inputMode="decimal"
+              value={bankroll}
+              onChange={(e) => setBankroll(e.target.value)}
+              aria-label="Bankroll in euros for Kelly stake"
+              placeholder="e.g. 100"
+            />
+          </label>
+        ) : null}
       </div>
+
+      {showConfidence ? (
+        <div className="mb-3 flex flex-wrap gap-2 text-[11px]">
+          {(
+            [
+              ["strong", "Strong"],
+              ["moderate", "Moderate"],
+              ["weak", "Weak"],
+              ["none", "None"],
+            ] as const
+          ).map(([tier, label]) => (
+            <span
+              key={tier}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium ring-1 ring-inset ${TIER_STYLES[tier].badge}`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${TIER_STYLES[tier].dot}`} />
+              {label}
+              <span className="font-normal opacity-70">· {TIER_STYLES[tier].label}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {oneX2Edges ? (
         <p className="mb-3 text-xs text-muted">
@@ -376,8 +519,9 @@ function ValueOpportunitiesPanel({
         </p>
       ) : (
         <p className="mb-3 text-xs text-muted">
-          Fill Home / Draw / Away above for 1X2 MPTO edges, or type a book price on any row
-          below to see that market&apos;s edge.
+          {showConfidence
+            ? "Type a book price on a row (or in the quick fields). Edge and stake use this league's historical hit rate when confidence is available. Action is Pass / Watch / Bet from that same history."
+            : "Fill Home / Draw / Away above for 1X2 MPTO edges, or type a book price on any row below to see that market's edge."}
         </p>
       )}
 
@@ -393,49 +537,80 @@ function ValueOpportunitiesPanel({
               <p className="mb-2 text-[11px] text-muted">{section.hint}</p>
             ) : null}
             <div className="table-h-scroll">
-              <table className="w-full min-w-[28rem] text-left text-sm sm:min-w-[36rem]">
+              <table
+                className={`w-full text-left text-sm ${
+                  showConfidence ? "min-w-[52rem]" : "min-w-[28rem] sm:min-w-[36rem]"
+                }`}
+              >
                 <thead>
                   <tr className="border-b border-glass-border text-[11px] uppercase text-muted">
                     <th className="py-2 pr-2">Market</th>
+                    {showConfidence ? <th className="py-2 pr-2">Confidence</th> : null}
                     <th className="py-2 pr-2">Model %</th>
                     <th className="py-2 pr-2">Fair odds</th>
                     <th className="py-2 pr-2">Book</th>
-                    <th className="py-2">Edge</th>
+                    <th className="py-2">{showConfidence ? "Hist edge" : "Edge"}</th>
+                    {showConfidence ? <th className="py-2 pl-2">Stake</th> : null}
+                    {showConfidence ? <th className="py-2 pl-2">Action</th> : null}
                   </tr>
                 </thead>
                 <tbody>
-                  {section.rows.map((r) => (
-                    <tr key={r.id} className="border-b border-glass-border/60">
-                      <td className="py-2 pr-2 font-medium">{r.market}</td>
-                      <td className="py-2 pr-2 tabular-nums">{pct(r.modelProb)}</td>
-                      <td className="py-2 pr-2 tabular-nums">
-                        {r.fairOdds?.toFixed(2) ?? "-"}
-                      </td>
-                      <td className="py-2 pr-2">
-                        <input
-                          className="w-20 rounded-lg border border-glass-border bg-surface px-2 py-1 text-sm tabular-nums"
-                          inputMode="decimal"
-                          placeholder="e.g. 2.10"
-                          value={book[r.id] ?? ""}
-                          onChange={(e) => setBookOdds(r.id, e.target.value)}
-                          aria-label={`Book odds for ${r.market}`}
-                        />
-                      </td>
-                      <td
-                        className={`py-2 tabular-nums font-semibold ${
-                          r.edgePct == null
-                            ? "text-muted"
-                            : r.edgePct >= 0
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-rose-600 dark:text-rose-400"
-                        }`}
-                      >
-                        {r.edgePct == null
-                          ? "-"
-                          : `${r.edgePct >= 0 ? "+" : ""}${r.edgePct.toFixed(1)}%`}
-                      </td>
-                    </tr>
-                  ))}
+                  {section.rows.map((r) => {
+                    const edgePct = showConfidence
+                      ? (r.histEdgePct ?? r.modelEdgePct)
+                      : r.modelEdgePct;
+                    return (
+                      <tr key={r.id} className="border-b border-glass-border/60 align-top">
+                        <td className="py-2.5 pr-2 font-medium">{r.market}</td>
+                        {showConfidence ? (
+                          <td className="py-2.5 pr-2">
+                            {r.confidence ? <ConfidenceCell lookup={r.confidence} /> : "-"}
+                          </td>
+                        ) : null}
+                        <td className="py-2.5 pr-2 tabular-nums">{pct(r.modelProb)}</td>
+                        <td className="py-2.5 pr-2 tabular-nums">
+                          {r.fairOdds?.toFixed(2) ?? "-"}
+                        </td>
+                        <td className="py-2.5 pr-2">
+                          <input
+                            className="w-20 rounded-lg border border-glass-border bg-surface px-2 py-1 text-sm tabular-nums"
+                            inputMode="decimal"
+                            placeholder="e.g. 2.10"
+                            value={book[r.id] ?? ""}
+                            onChange={(e) => setBookOdds(r.id, e.target.value)}
+                            aria-label={`Book odds for ${r.market}`}
+                          />
+                        </td>
+                        <td
+                          className={`py-2.5 tabular-nums font-semibold ${
+                            edgePct == null
+                              ? "text-muted"
+                              : edgePct >= 0
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-rose-600 dark:text-rose-400"
+                          }`}
+                        >
+                          {edgePct == null
+                            ? "-"
+                            : `${edgePct >= 0 ? "+" : ""}${edgePct.toFixed(1)}%`}
+                        </td>
+                        {showConfidence ? (
+                          <td className="py-2.5 pl-2">
+                            <StakeCell
+                              bookOdds={r.bookOdds}
+                              kelly={r.kelly}
+                              confidenceTier={r.confidence?.tier}
+                            />
+                          </td>
+                        ) : null}
+                        {showConfidence ? (
+                          <td className="py-2.5 pl-2">
+                            {r.action ? <ActionCell decision={r.action} /> : "-"}
+                          </td>
+                        ) : null}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

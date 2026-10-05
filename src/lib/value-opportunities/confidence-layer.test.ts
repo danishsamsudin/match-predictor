@@ -12,7 +12,7 @@ import {
   wilsonLower,
   type ConfidenceEvalRow,
   type ConfidenceLayerConfig,
-} from "@/lib/nations-league/confidence-layer";
+} from "@/lib/value-opportunities/confidence-layer";
 
 function rows(n: number, pred: number, hitRate: number, key = "btts:yes"): ConfidenceEvalRow[] {
   const hits = Math.round(n * hitRate);
@@ -150,5 +150,10 @@ describe("valueRowIdToMarketKey", () => {
     expect(valueRowIdToMarketKey("eh--1-h")).toBe("european_handicap:-1_home");
     expect(valueRowIdToMarketKey("eh-1-a")).toBe("european_handicap:+1_away");
     expect(valueRowIdToMarketKey("tt-home-over-1.5")).toBe("team_total:home_over_1.5");
+    expect(valueRowIdToMarketKey("ah-home--0.5")).toBe("asian_handicap:home_-0.5");
+    expect(valueRowIdToMarketKey("ah-away-0.5")).toBe("asian_handicap:away_0.5");
+    expect(valueRowIdToMarketKey("shots-over-22.5")).toBe("shots_ou:over_22.5");
+    expect(valueRowIdToMarketKey("shots-under-20.5")).toBe("shots_ou:under_20.5");
+    expect(valueRowIdToMarketKey("sot-over-8.5")).toBe("sot_over:8.5");
   });
 });

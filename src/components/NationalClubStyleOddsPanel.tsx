@@ -11,18 +11,18 @@ import {
   valueRowIdToMarketKey,
   type ConfidenceLookup,
   type ConfidenceTier,
-} from "@/lib/nations-league/confidence-layer";
+} from "@/lib/value-opportunities/confidence-layer";
 import {
   shrunkProbability,
   suggestKellyStake,
   type KellyStakeResult,
-} from "@/lib/nations-league/kelly-stake";
+} from "@/lib/value-opportunities/kelly-stake";
 import {
   formatValueAction,
   suggestValueAction,
   type ValueAction,
   type ValueActionResult,
-} from "@/lib/nations-league/value-action";
+} from "@/lib/value-opportunities/value-action";
 import type { PredictionResult } from "@/lib/types/prediction";
 
 function pct(n: number): string {

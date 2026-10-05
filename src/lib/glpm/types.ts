@@ -978,6 +978,60 @@ export type GlpmCxSeasonSimRunsTable = {
   Relationships: [];
 };
 
+export type GlpmMarketEvaluationsTable = {
+  Row: {
+    match_sm_id: number;
+    league_sm_id: number;
+    market_id: string;
+    market_key: string;
+    predicted: Record<string, unknown>;
+    actual: Record<string, unknown>;
+    loss_metric: string;
+    loss_value: number;
+    model_version: string;
+    match_date: string | null;
+    computed_at: string;
+  };
+  Insert: {
+    match_sm_id: number;
+    league_sm_id: number;
+    market_id: string;
+    market_key?: string;
+    predicted?: Record<string, unknown>;
+    actual?: Record<string, unknown>;
+    loss_metric?: string;
+    loss_value?: number;
+    model_version: string;
+    match_date?: string | null;
+    computed_at?: string;
+  };
+  Update: Partial<GlpmMarketEvaluationsTable["Insert"]>;
+  Relationships: [];
+};
+
+export type GlpmCalibrationConfigTable = {
+  Row: {
+    id: string;
+    league_sm_id: number;
+    version: string;
+    effective_from: string;
+    constants: Record<string, unknown>;
+    metrics: Record<string, unknown>;
+    created_at: string;
+  };
+  Insert: {
+    id?: string;
+    league_sm_id: number;
+    version: string;
+    effective_from?: string;
+    constants?: Record<string, unknown>;
+    metrics?: Record<string, unknown>;
+    created_at?: string;
+  };
+  Update: Partial<GlpmCalibrationConfigTable["Insert"]>;
+  Relationships: [];
+};
+
 export type GlpmPrimaryRatingType =
   | "attack"
   | "defence"
@@ -1296,6 +1350,8 @@ export type GlpmTables = {
   glpm_prediction_history: GlpmPredictionHistoryTable;
   glpm_cx_prediction_history: GlpmCxPredictionHistoryTable;
   glpm_cx_season_sim_runs: GlpmCxSeasonSimRunsTable;
+  glpm_market_evaluations: GlpmMarketEvaluationsTable;
+  glpm_calibration_config: GlpmCalibrationConfigTable;
   glpm_team_primary_ratings: GlpmTeamPrimaryRatingsTable;
   glpm_team_rating_vectors: GlpmTeamRatingVectorsTable;
   glpm_team_component_ratings: GlpmTeamComponentRatingsTable;

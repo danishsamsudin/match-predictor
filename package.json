@@ -130,6 +130,8 @@
     "glpm:predict-matchup": "bash scripts/ml/run-predict-from-vectors.sh",
     "glpm:predict-matchup:dry": "python3 scripts/glpm_predict_from_vectors.py --dry-run",
     "glpm:upcoming-predictions": "npx tsx scripts/glpm-upcoming-predictions.ts",
+    "glpm:evaluate-markets": "npx tsx scripts/glpm-evaluate-markets.ts",
+    "glpm:calibrate-confidence": "npx tsx scripts/glpm-calibrate-confidence.ts",
     "glpm:sync-venues": "npx tsx scripts/glpm-sync-venues.ts",
     "glpm:validate": "bash scripts/ml/run-validation.sh",
     "glpm:validate:dry": "python3 scripts/glpm_run_validation.py --dry-run",

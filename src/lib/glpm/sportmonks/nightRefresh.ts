@@ -340,11 +340,49 @@ export async function runGlpmNightRefresh(
     notes.push("skipPredict=true");
   }
 
+  // Value Opportunities: score finished locks → rebuild per-league confidence layers.
+  if (!dryRun) {
+    const evalRun = await runNpm("glpm:evaluate-markets", [], cwd);
+    trainLog.push({
+      seasonId: 0,
+      script: "glpm:evaluate-markets",
+      ok: evalRun.status === 0,
+      detail:
+        evalRun.status === 0
+          ? (evalRun.stdout || "").trim().slice(-240) || "ok"
+          : (evalRun.stderr || evalRun.stdout).slice(-400),
+    });
+    if (evalRun.status !== 0) {
+      notes.push("WARNING glpm:evaluate-markets failed (non-fatal)");
+    } else {
+      notes.push("market evaluations refreshed");
+      const confRun = await runNpm("glpm:calibrate-confidence", [], cwd);
+      trainLog.push({
+        seasonId: 0,
+        script: "glpm:calibrate-confidence",
+        ok: confRun.status === 0,
+        detail:
+          confRun.status === 0
+            ? (confRun.stdout || "").trim().slice(-240) || "ok"
+            : (confRun.stderr || confRun.stdout).slice(-400),
+      });
+      if (confRun.status !== 0) {
+        notes.push("WARNING glpm:calibrate-confidence failed (non-fatal)");
+      } else {
+        notes.push("per-league confidence layers rebuilt");
+      }
+    }
+  } else {
+    notes.push("dryRun — skip market evaluate / confidence calibrate");
+  }
+
   const trainFailed = trainLog.some(
     (t) =>
       !t.ok &&
       t.script !== "glpm:bayesian-update" &&
-      t.script !== "glpm:backfill-vs-style"
+      t.script !== "glpm:backfill-vs-style" &&
+      t.script !== "glpm:evaluate-markets" &&
+      t.script !== "glpm:calibrate-confidence"
   );
   const predictFailed = predictions ? !predictions.ok : false;
   const ok = !trainFailed && !predictFailed;

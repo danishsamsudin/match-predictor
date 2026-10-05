@@ -1,18 +1,19 @@
 /**
- * Rebuild Nations League confidence floors from locked evaluation history.
+ * Rebuild per-league GLPM confidence layers from locked market evaluations.
  *
- * Usage: npx tsx scripts/nl-calibrate-confidence.ts
+ * Usage: npx tsx scripts/glpm-calibrate-confidence.ts
+ *        npx tsx scripts/glpm-calibrate-confidence.ts --league 8
  */
-import { calibrateConfidenceLayer } from "../src/lib/nations-league/confidence-layer";
-import {
-  extractMarketConfidenceRows,
-  extractPlayerPropConfidenceRows,
-} from "../src/lib/nations-league/extract-confidence-eval-rows";
+import { calibrateConfidenceLayer } from "../src/lib/value-opportunities/confidence-layer";
+import { extractMarketConfidenceRows } from "../src/lib/value-opportunities/extract-confidence-eval-rows";
 import { fetchAllRows } from "../src/lib/nations-league/fetch-all-rows";
 import {
-  loadNlCalibrationConfig,
-  NL_CALIBRATION_DEFAULTS,
-} from "../src/lib/nations-league/nl-calibration-config";
+  GLPM_HOME_LEAGUE_IDS,
+  glpmConfidenceVersionPrefix,
+  loadGlpmCalibrationConfig,
+  mergeGlpmCalibration,
+} from "../src/lib/glpm/glpm-calibration-config";
+import { GLPM_LEAGUE_META } from "../src/lib/glpm/live-scores/league-meta";
 import { tryCreateServiceClient } from "../src/lib/supabase";
 
 function loadEnvLocal() {
@@ -34,12 +35,12 @@ function formatFloor(value: number | null): string {
   return `${(value * 100).toFixed(0)}%+`;
 }
 
-async function main() {
-  loadEnvLocal();
+async function calibrateLeague(leagueSmId: number) {
   const supabase = tryCreateServiceClient();
   if (!supabase) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
 
-  const current = await loadNlCalibrationConfig();
+  const name = GLPM_LEAGUE_META[leagueSmId]?.name ?? `league ${leagueSmId}`;
+  const current = await loadGlpmCalibrationConfig(leagueSmId, supabase);
 
   const marketRows = await fetchAllRows<{
     market_id: string;
@@ -47,39 +48,24 @@ async function main() {
     predicted: Record<string, unknown> | null;
     actual: Record<string, unknown> | null;
     match_date: string | null;
+    league_sm_id: number;
   }>({
     supabase,
-    table: "nations_league_market_evaluations",
-    select: "market_id, market_key, predicted, actual, match_date",
+    table: "glpm_market_evaluations",
+    select: "market_id, market_key, predicted, actual, match_date, league_sm_id",
+    filter: (q) => q.eq("league_sm_id", leagueSmId),
   });
 
-  const propRows = await fetchAllRows<{
-    market: string;
-    predicted_prob: number | null;
-    hit: boolean | null;
-    match_date: string | null;
-    prop_source: string | null;
-  }>({
-    supabase,
-    table: "nations_league_player_prop_evaluations",
-    select: "market, predicted_prob, hit, match_date, prop_source",
-  });
-
-  const lockedProps = propRows.filter((r) => r.prop_source !== "bootstrap");
-  const rows = [
-    ...extractMarketConfidenceRows(marketRows),
-    ...extractPlayerPropConfidenceRows(lockedProps),
-  ];
-
+  const rows = extractMarketConfidenceRows(marketRows);
   if (!rows.length) {
-    console.log("No locked evaluation rows yet - confidence layer left unchanged.");
+    console.log(`[${name}] No locked evaluation rows yet - confidence layer left unchanged.`);
     return;
   }
 
   const layer = calibrateConfidenceLayer({
     rows,
     previous: current.confidenceLayer ?? null,
-    versionPrefix: "nl-confidence",
+    versionPrefix: glpmConfidenceVersionPrefix(leagueSmId),
   });
 
   const strongMarkets = Object.values(layer.markets)
@@ -89,15 +75,15 @@ async function main() {
     m.bins.some((b) => b.n > 0 && b.tier !== "none")
   );
 
-  const version = layer.version;
-  const { error: insertErr } = await supabase.from("nations_league_calibration_config").insert({
-    version,
-    constants: {
-      ...NL_CALIBRATION_DEFAULTS,
-      ...current,
-      confidenceLayer: layer,
-      modelVersion: current.modelVersion,
-    },
+  const merged = mergeGlpmCalibration({
+    ...current,
+    confidenceLayer: layer,
+  });
+
+  const { error: insertErr } = await supabase.from("glpm_calibration_config").insert({
+    league_sm_id: leagueSmId,
+    version: layer.version,
+    constants: merged,
     metrics: {
       note: `Confidence layer rebuilt on ${rows.length} locked lines (${layer.trainN} train / ${layer.holdoutN} holdout). ${strongMarkets.length} market(s) have a Strong band.`,
       confidence_train_n: layer.trainN,
@@ -107,30 +93,34 @@ async function main() {
     },
     effective_from: new Date().toISOString(),
   });
-  if (insertErr) throw new Error(insertErr.message);
+  if (insertErr) throw new Error(`[${name}] ${insertErr.message}`);
 
-  console.log(`Saved confidence layer: ${version}`);
+  console.log(`[${name}] Saved confidence layer: ${layer.version}`);
   console.log(
-    `  Train lines: ${layer.trainN}. Holdout lines: ${layer.holdoutN}. Markets: ${Object.keys(layer.markets).length}. With a usable band: ${weakOrBetter.length}.`
+    `  Train lines: ${layer.trainN}. Holdout: ${layer.holdoutN}. Markets: ${Object.keys(layer.markets).length}. Usable bands: ${weakOrBetter.length}.`
   );
   if (!strongMarkets.length) {
-    console.log("  No Strong bands yet - history is still too thin or poorly calibrated for decision-ready picks.");
+    console.log("  No Strong bands yet.");
   } else {
-    for (const market of strongMarkets.slice(0, 12)) {
+    for (const market of strongMarkets.slice(0, 8)) {
       console.log(
         `  Strong ${market.marketKey}: model ${formatFloor(market.strongFloor)} (n=${market.n})`
       );
     }
   }
-  const sampleWeak = weakOrBetter
-    .flatMap((m) =>
-      m.bins
-        .filter((b) => b.tier === "weak" || b.tier === "moderate")
-        .map((b) => `${m.marketKey}@${b.label}=${b.tier}`)
-    )
-    .slice(0, 8);
-  if (sampleWeak.length) {
-    console.log(`  Sample usable bands: ${sampleWeak.join("; ")}`);
+}
+
+async function main() {
+  loadEnvLocal();
+  const argv = process.argv.slice(2);
+  const leagueIdx = argv.indexOf("--league");
+  const only =
+    leagueIdx >= 0 && argv[leagueIdx + 1] != null
+      ? [Number(argv[leagueIdx + 1])].filter(Number.isFinite)
+      : GLPM_HOME_LEAGUE_IDS;
+
+  for (const leagueSmId of only) {
+    await calibrateLeague(leagueSmId);
   }
 }
 

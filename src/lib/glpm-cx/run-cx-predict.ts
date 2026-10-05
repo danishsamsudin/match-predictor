@@ -39,7 +39,6 @@ import {
   type CxPlayerPropsEstimate,
 } from "@/lib/glpm-cx/satellites/player-props";
 import {
-  EMPTY_SHOT_MARKETS,
   estimateShotMarkets,
   type CxShotMarketsEstimate,
 } from "@/lib/glpm-cx/satellites/shot-markets";
@@ -47,6 +46,8 @@ import { aggregateVsStyleLift } from "@/lib/glpm-cx/vs-style";
 import { resolveStatsSeasonId, TRAIN_FALLBACK_BY_LEAGUE } from "@/lib/glpm/resolve-train-season";
 import { resolveVectorSeasonId } from "@/lib/glpm/resolve-vector-season";
 import { shortGlpmSeasonLabel } from "@/lib/glpm/hub-prediction-map";
+import { loadGlpmCalibrationConfig } from "@/lib/glpm/glpm-calibration-config";
+import type { ConfidenceLayerConfig } from "@/lib/value-opportunities/confidence-layer";
 
 type Client = SupabaseClient<Database>;
 
@@ -93,6 +94,8 @@ export type GlpmCxPredictPayload = {
   priorSeasonCompare: GlpmCxPriorSeasonCompare | null;
   /** Why violet brackets are missing, when the fixture season has no distinct model. */
   seasonCompareNote: string | null;
+  /** Per-league Value Opportunities confidence layer (null when not yet calibrated). */
+  confidenceLayer: ConfidenceLayerConfig | null;
 };
 
 export type GlpmCxPriorSeasonCompare = {
@@ -285,9 +288,15 @@ export async function runGlpmCxPredict(
     awayFin = null;
     events = { ...EMPTY_EVENT_MARKETS, statsSeasonId };
     props = EMPTY_PLAYER_PROPS;
-    shots = { ...EMPTY_SHOT_MARKETS, statsSeasonId };
     homeVs = [];
     awayVs = [];
+    // Still lock shot/SoT markets for Value Opportunities confidence learning.
+    shots = await estimateShotMarkets(client, {
+      homeTeamSmId: input.homeTeamSmId,
+      awayTeamSmId: input.awayTeamSmId,
+      seasonId: statsSeasonId,
+      statsSeasonIsCurrent,
+    });
   } else {
     const extras = await Promise.all([
       loadTeamInsightRatings(client, {
@@ -500,6 +509,19 @@ export async function runGlpmCxPredict(
           lineup,
           statsSeasonId,
           eventMlActive: events.mlActive,
+          /** Locked shot/SoT market probs for post-match confidence learning. */
+          shotMarkets: {
+            homeShots: shots.homeShots,
+            awayShots: shots.awayShots,
+            totalShots: shots.totalShots,
+            homeSot: shots.homeSot,
+            awaySot: shots.awaySot,
+            totalSot: shots.totalSot,
+            shotsOverUnder: shots.shotsOverUnder,
+            sotOver: shots.sotOver,
+            source: shots.source,
+            mlActive: shots.mlActive,
+          },
         },
         model_version: CX_MODEL_VERSION,
         executed_at: new Date().toISOString(),
@@ -507,6 +529,19 @@ export async function runGlpmCxPredict(
       .select("id")
       .maybeSingle();
     if (!error && data?.id) predictionId = String(data.id);
+  }
+
+  let confidenceLayer: ConfidenceLayerConfig | null = null;
+  if (competitionId != null) {
+    try {
+      const calib = await loadGlpmCalibrationConfig(competitionId, client);
+      const markets = calib.confidenceLayer?.markets ?? {};
+      confidenceLayer =
+        Object.keys(markets).length > 0 ? calib.confidenceLayer : null;
+    } catch (err) {
+      console.warn("[glpm-cx] confidence layer load failed", err);
+      confidenceLayer = null;
+    }
   }
 
   return {
@@ -557,5 +592,6 @@ export async function runGlpmCxPredict(
     predictionId,
     priorSeasonCompare,
     seasonCompareNote,
+    confidenceLayer,
   };
 }

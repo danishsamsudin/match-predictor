@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { ConfidenceLookup } from "@/lib/nations-league/confidence-layer";
+import type { ConfidenceLookup } from "@/lib/value-opportunities/confidence-layer";
 import {
   fullKellyFraction,
   KELLY_MAX_STAKE_FRACTION,
   shrunkProbability,
   suggestKellyStake,
-} from "@/lib/nations-league/kelly-stake";
+} from "@/lib/value-opportunities/kelly-stake";
 
 function lookup(partial: Partial<ConfidenceLookup> = {}): ConfidenceLookup {
   return {
