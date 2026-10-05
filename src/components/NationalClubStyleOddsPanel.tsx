@@ -76,7 +76,11 @@ function confidenceTierBlurb(tier: ConfidenceTier): string {
   if (tier === "weak") {
     return "Enough history to size a small stake from the hit rate, but the model % may still be optimistic.";
   }
-  return "Not enough reliable history in this band - stake stays 0u.";
+  return "Not enough reliable history in this band - stake stays €0.00.";
+}
+
+function formatStakeEuros(amount: number): string {
+  return `€${amount.toFixed(2)}`;
 }
 
 function ConfidencePopup({ lookup }: { lookup: ConfidenceLookup }) {
@@ -196,16 +200,20 @@ function StakeCell({
     return (
       <div title={kelly.reason}>
         <p className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-          {(kelly.fraction * 100).toFixed(1)}%
+          {formatStakeEuros(kelly.units)}
         </p>
-        <p className="text-[11px] tabular-nums text-muted">{kelly.units.toFixed(1)}u</p>
+        <p className="text-[11px] tabular-nums text-muted">
+          {(kelly.fraction * 100).toFixed(1)}% of bankroll
+        </p>
       </div>
     );
   }
   if (confidenceTier === "none") {
     return (
       <div title={kelly?.reason ?? "Not enough history for a stake."}>
-        <p className="text-xs font-medium text-muted">0u</p>
+        <p className="text-xs font-medium tabular-nums text-muted">
+          {formatStakeEuros(0)}
+        </p>
         <p className="text-[11px] leading-snug text-muted">No history</p>
       </div>
     );
@@ -213,7 +221,9 @@ function StakeCell({
   if (kelly?.minBookOdds != null) {
     return (
       <div title={kelly.reason}>
-        <p className="text-xs font-medium text-muted">0u</p>
+        <p className="text-xs font-medium tabular-nums text-muted">
+          {formatStakeEuros(0)}
+        </p>
         <p className="text-[11px] leading-snug text-amber-800 dark:text-amber-300">
           Need ≥ <span className="tabular-nums">{kelly.minBookOdds.toFixed(2)}</span>
         </p>
@@ -222,7 +232,9 @@ function StakeCell({
   }
   return (
     <div title={kelly?.reason ?? "No stake"}>
-      <p className="text-xs font-medium text-muted">0u</p>
+      <p className="text-xs font-medium tabular-nums text-muted">
+        {formatStakeEuros(0)}
+      </p>
       <p className="text-[11px] leading-snug text-muted">No stake</p>
     </div>
   );
@@ -514,9 +526,10 @@ export function NationalClubStyleOddsPanel({
       tipBody={
         <>
           Model % is the Graham grid price. Confidence compares that band to past locked
-          results. Stake is fractional Kelly on the historical hit rate. Action is one
-          shared rule for every market: Bet only when Moderate/Strong history clears
-          Kelly; Watch for weak history or model-only edges; Pass otherwise.
+          results. Stake is fractional Kelly on the historical hit rate, shown in euros for
+          your bankroll. Action is one shared rule for every market: Bet only when
+          Moderate/Strong history clears Kelly; Watch for weak history or model-only edges;
+          Pass otherwise.
         </>
       }
     >
@@ -536,13 +549,14 @@ export function NationalClubStyleOddsPanel({
         ))}
         {showConfidence ? (
           <label className="block space-y-1">
-            <span className="text-[10px] uppercase tracking-wide text-muted">Bankroll units</span>
+            <span className="text-[10px] uppercase tracking-wide text-muted">Bankroll (€)</span>
             <input
               className="w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
               inputMode="decimal"
               value={bankroll}
               onChange={(e) => setBankroll(e.target.value)}
-              aria-label="Bankroll units for Kelly stake"
+              aria-label="Bankroll in euros for Kelly stake"
+              placeholder="e.g. 100"
             />
           </label>
         ) : null}
