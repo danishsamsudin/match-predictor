@@ -19,6 +19,11 @@ export const NL_GRAHAM_DELTA_WEIGHTS = {
 
 export const NL_GRAHAM_DELTA_S_CAP = 220;
 export const NL_GRAHAM_1X2_TEMPERATURE = 1.15;
+/**
+ * True home advantage for NL (home/away legs). Weather / host / altitude stay off:
+ * European home grounds + HA already absorb "home climate".
+ */
+export const NL_HOME_ADVANTAGE = 1.08;
 export const NL_GRAHAM_MOMENTUM_GAMMA = 0.018;
 export const NL_GRAHAM_MOMENTUM_CLAMP = 0.65;
 export const NL_GRAHAM_STRENGTH_EXPONENT = 0.0026;

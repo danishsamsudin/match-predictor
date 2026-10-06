@@ -112,6 +112,9 @@ describe("NL calibration defaults (window-aware)", () => {
     expect(NL_CALIBRATION_DEFAULTS.talentDecayPerMatch).toBe(NL_TALENT_DECAY_PER_MATCH);
     expect(NL_CALIBRATION_DEFAULTS.talentDecayPerMatch).toBeGreaterThan(0);
     expect(NL_CALIBRATION_DEFAULTS.modelVersion).toBe(NL_GRAHAM_MODEL_VERSION);
+    expect(NL_CALIBRATION_DEFAULTS.oneXTwoTemperature).toBeGreaterThan(1);
+    expect(NL_CALIBRATION_DEFAULTS.homeAdvantage).toBeGreaterThan(1);
+    expect(NL_CALIBRATION_DEFAULTS.wcLowEventRhoBoost).toBeGreaterThan(0);
   });
 
   it("decays talent weight as window matchCount rises", () => {

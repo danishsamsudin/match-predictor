@@ -24,10 +24,12 @@ import type {
 } from "@/lib/world-cup/wc-calibration-config";
 import { normalizeDeltaWeights } from "@/lib/world-cup/wc-calibration-config";
 import {
+  NL_GRAHAM_1X2_TEMPERATURE,
   NL_GRAHAM_DELTA_WEIGHTS,
   NL_GRAHAM_MODEL_VERSION,
   NL_GRAHAM_MOMENTUM_GAMMA,
   NL_GRAHAM_MU_XG,
+  NL_HOME_ADVANTAGE,
   NL_LINEUP_ATTACK_BLEND,
   NL_LINEUP_DEFENSE_BLEND,
   NL_TALENT_DECAY_MATCH_CAP,
@@ -65,6 +67,8 @@ const DEFAULTS: WcCalibrationConstants = {
   wcLineupAttackBlend: NL_LINEUP_ATTACK_BLEND,
   wcLineupDefenseBlend: NL_LINEUP_DEFENSE_BLEND,
   wcLowEventRhoBoost: 0.02,
+  oneXTwoTemperature: NL_GRAHAM_1X2_TEMPERATURE,
+  homeAdvantage: NL_HOME_ADVANTAGE,
   optaFeatureWeights: {},
   processFeatureWeights: {},
   eventModelCoeffs: {

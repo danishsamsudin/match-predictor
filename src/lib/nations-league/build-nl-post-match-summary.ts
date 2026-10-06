@@ -30,6 +30,66 @@ function actualOutcome(home: number, away: number): "home" | "draw" | "away" {
   return "draw";
 }
 
+/** Normalize hub probs that may be stored as 0-1 fractions or 0-100 percents. */
+function toUnitProb(home: number, draw: number, away: number): {
+  home: number;
+  draw: number;
+  away: number;
+} {
+  const sum = home + draw + away;
+  if (!(sum > 0) || !Number.isFinite(sum)) return { home: 0, draw: 0, away: 0 };
+  if (sum > 1.5) return { home: home / 100, draw: draw / 100, away: away / 100 };
+  return { home, draw, away };
+}
+
+export type Locked1x2EvalRow = {
+  home: number;
+  draw: number;
+  away: number;
+  actualHome: number;
+  actualAway: number;
+  brier1x2: number;
+};
+
+export type Locked1x2WindowStats = {
+  n: number;
+  hits: number;
+  avgBrier: number;
+  avgPredDraw: number;
+  actualDrawRate: number;
+};
+
+/** Summary stats for a chronological slice of locked 1X2 evaluations (oldest → newest). */
+export function summarizeLocked1x2Window(rows: Locked1x2EvalRow[]): Locked1x2WindowStats {
+  if (!rows.length) {
+    return { n: 0, hits: 0, avgBrier: 0, avgPredDraw: 0, actualDrawRate: 0 };
+  }
+  let hits = 0;
+  let brier = 0;
+  let predDraw = 0;
+  let draws = 0;
+  for (const row of rows) {
+    const p = toUnitProb(row.home, row.draw, row.away);
+    const fav = pickFavored(p.home, p.draw, p.away);
+    const act = actualOutcome(row.actualHome, row.actualAway);
+    if (fav === act) hits += 1;
+    brier += Number.isFinite(row.brier1x2) ? row.brier1x2 : 0;
+    predDraw += p.draw;
+    if (act === "draw") draws += 1;
+  }
+  return {
+    n: rows.length,
+    hits,
+    avgBrier: brier / rows.length,
+    avgPredDraw: predDraw / rows.length,
+    actualDrawRate: draws / rows.length,
+  };
+}
+
+function format1x2WindowLine(label: string, stats: Locked1x2WindowStats): string {
+  return `- ${label} (n=${stats.n}): picked correct home / draw / away in ${stats.hits} of ${stats.n}; avg Brier ${stats.avgBrier.toFixed(3)}.`;
+}
+
 function formatFloor(value: number | null): string {
   if (value == null) return "no Strong band yet";
   return `model ${(value * 100).toFixed(0)}%+`;
@@ -78,27 +138,36 @@ export async function buildNlPostMatchSummary(
     .from("nations_league_prediction_evaluations")
     .select("match_id, actual_score_home, actual_score_away, market_scores, computed_at")
     .order("computed_at", { ascending: false })
-    .limit(40);
+    .limit(200);
 
   const { data: preds } = await supabase
     .from("nations_league_predictions")
     .select("match_id, home_win_pct, draw_pct, away_win_pct");
   const predByMatch = new Map((preds ?? []).map((p) => [String(p.match_id), p]));
 
-  const finished = (evals ?? []).slice(0, 8);
-  let hits = 0;
-  let brier = 0;
-  for (const row of finished) {
-    const pred = predByMatch.get(String(row.match_id));
+  // Newest-first unique match rows, then reverse to chronological for window slices.
+  const seenMatch = new Set<string>();
+  const lockedNewestFirst: Locked1x2EvalRow[] = [];
+  for (const row of evals ?? []) {
+    const id = String(row.match_id);
+    if (seenMatch.has(id)) continue;
+    seenMatch.add(id);
+    const pred = predByMatch.get(id);
     const ms = (row.market_scores ?? {}) as Record<string, unknown>;
-    const home = Number(pred?.home_win_pct ?? (ms.predicted1x2 as { home?: number } | undefined)?.home ?? 0);
-    const draw = Number(pred?.draw_pct ?? (ms.predicted1x2 as { draw?: number } | undefined)?.draw ?? 0);
-    const away = Number(pred?.away_win_pct ?? (ms.predicted1x2 as { away?: number } | undefined)?.away ?? 0);
-    if (pickFavored(home, draw, away) === actualOutcome(row.actual_score_home, row.actual_score_away)) {
-      hits += 1;
-    }
-    brier += Number(ms.brier1x2 ?? 0);
+    const predicted = ms.predicted1x2 as { home?: number; draw?: number; away?: number } | undefined;
+    lockedNewestFirst.push({
+      home: Number(pred?.home_win_pct ?? predicted?.home ?? 0),
+      draw: Number(pred?.draw_pct ?? predicted?.draw ?? 0),
+      away: Number(pred?.away_win_pct ?? predicted?.away ?? 0),
+      actualHome: Number(row.actual_score_home),
+      actualAway: Number(row.actual_score_away),
+      brier1x2: Number(ms.brier1x2 ?? 0),
+    });
   }
+  const lockedChronological = [...lockedNewestFirst].reverse();
+  const window8 = summarizeLocked1x2Window(lockedChronological.slice(-8));
+  const window24 = summarizeLocked1x2Window(lockedChronological.slice(-24));
+  const windowAll = summarizeLocked1x2Window(lockedChronological);
 
   const { data: props } = await supabase
     .from("nations_league_player_prop_evaluations")
@@ -145,19 +214,26 @@ export async function buildNlPostMatchSummary(
     "How the match odds did recently",
   ];
 
-  if (!finished.length) {
+  if (!windowAll.n) {
     lines.push(
       "- We do not yet have enough finished matches with a locked pre-kickoff line to judge home / draw / away accuracy."
     );
   } else {
-    const avgBrier = brier / finished.length;
+    if (window8.n) lines.push(format1x2WindowLine("Last 8", window8));
+    if (window24.n > window8.n) lines.push(format1x2WindowLine("Last 24", window24));
+    if (windowAll.n > window24.n) {
+      lines.push(format1x2WindowLine("All locked", windowAll));
+    } else if (windowAll.n > window8.n && windowAll.n === window24.n) {
+      lines.push(format1x2WindowLine("All locked", windowAll));
+    }
+    const drawGapPp = (windowAll.actualDrawRate - windowAll.avgPredDraw) * 100;
     lines.push(
-      `- On the last ${finished.length} finished matches with locked odds, the model picked the correct home / draw / away result in ${hits} of ${finished.length}.`
+      `- Draw calibration (all locked): model averaged ${(windowAll.avgPredDraw * 100).toFixed(1)}% draw versus ${(windowAll.actualDrawRate * 100).toFixed(1)}% actual draws (${drawGapPp >= 0 ? "+" : ""}${drawGapPp.toFixed(1)} pp gap).`
     );
     lines.push(
-      avgBrier < 0.45
-        ? "- The probability quality on those matches looks reasonably sharp."
-        : "- The probability quality on those matches is still mixed; treat big favourites carefully."
+      window8.avgBrier < 0.45 && windowAll.avgBrier < 0.5
+        ? "- Probability quality (Brier) looks reasonably sharp; still prefer longer windows over the last-8 pick rate."
+        : "- Probability quality (Brier) is still mixed; treat big favourites carefully and prefer last-24 / all-locked over the last-8 pick rate."
     );
   }
 

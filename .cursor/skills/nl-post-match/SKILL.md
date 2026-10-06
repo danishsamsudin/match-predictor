@@ -74,7 +74,7 @@ npm run nl:recompute-ratings
 10. **Retune side markets and player markets**.
 11. **Rebuild confidence layer** - Reliability bins vs real hits; Strong / Moderate / Weak / None floors with holdout guard. Extra alias: `nl:calibrate-confidence`.
 12. **Machine-learning check** - Backfill frozen snapshots and deploy a small nudge only if recent test matches do not get worse.
-13. **Hub republish + plain-language summary** printed at the end of the terminal run.
+13. **Hub republish + plain-language summary** printed at the end of the terminal run (1X2: last 8 / 24 / all + Brier + draw calibration gap; main retune may nudge τ / low-event ρ boost / HA under holdout guard).
 
 `npm run nl:postmatch` is the only user command. Extra aliases (`nl:evaluate`, `nl:calibrate`, `nl:ml-train`, `nl:calibrate-confidence`) are for debugging.
 

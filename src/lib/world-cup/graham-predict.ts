@@ -299,6 +299,7 @@ export async function runGrahamWorldCupPredict(input: {
       away_xg: awayXg,
       rho,
       rho_base: rhoBase,
+      rho_low_event: lowEvent,
       rho_low_event_boost: rhoLowEventBoost,
       gamma_home: gammaHome,
       gamma_away: gammaAway,

@@ -150,6 +150,33 @@ async function main() {
     }
   }
 
+  // 1X2 shape knobs: ρ boost (draw mass on low-event games), temperature, home advantage.
+  // Searched after the ΔS grid so we do not explode the nested loop; holdout still guards deploy.
+  const shapeScalarKeys = [
+    "wcLowEventRhoBoost",
+    "oneXTwoTemperature",
+    "homeAdvantage",
+  ] as const;
+  const shapeScales = [0.92, 0.96, 1, 1.04, 1.08];
+  for (const key of shapeScalarKeys) {
+    for (const scale of shapeScales) {
+      const baseVal = best[key];
+      const trial: WcCalibrationConstants = {
+        ...best,
+        [key]: clampDelta(baseVal * scale, defaults[key], maxPct),
+        deltaWeights: { ...best.deltaWeights },
+      };
+      const trialScore = scoreTrial(
+        avgCompositeLossForSnapshots(trainEval, trial, trial.modelVersion),
+        avgBrier1x2ForSnapshots(trainEval, trial, trial.modelVersion)
+      );
+      if (trialScore < bestTrainScore) {
+        bestTrainScore = trialScore;
+        best = trial;
+      }
+    }
+  }
+
   const baselineTrainScore = scoreTrial(baselineTrainComposite, baselineTrainBrier);
   const trainImproved = calibrationGridImproved(bestTrainScore, baselineTrainScore);
   const bestTrainComposite = avgCompositeLossForSnapshots(trainEval, best, best.modelVersion);
@@ -198,7 +225,10 @@ async function main() {
       holdout_count: holdout.length,
       evaluation_count: allRows.length,
       method: "walkforward_nl_graham",
-      note: `Main match model retuned on ${train.length} earlier matches; checked on ${holdout.length} recent matches.`,
+      one_x_two_temperature: best.oneXTwoTemperature,
+      home_advantage: best.homeAdvantage,
+      wc_low_event_rho_boost: best.wcLowEventRhoBoost,
+      note: `Main match model retuned on ${train.length} earlier matches; checked on ${holdout.length} recent matches (incl. τ / ρ boost / HA).`,
     },
     effective_from: new Date().toISOString(),
   });
@@ -213,6 +243,9 @@ async function main() {
       `  recent-match score: ${baselineHoldoutComposite.toFixed(4)} → ${bestHoldoutComposite.toFixed(4)}`
     );
   }
+  console.log(
+    `  1X2 shape: τ=${best.oneXTwoTemperature.toFixed(3)} HA=${best.homeAdvantage.toFixed(3)} lowEventρ+=${best.wcLowEventRhoBoost.toFixed(3)}`
+  );
 }
 
 main().catch((err) => {

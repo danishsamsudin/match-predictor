@@ -192,7 +192,13 @@ export function recomputeXgFromSnapshot(
   homeXg *= snapNumOr(snapshot, 1, "host_nation_boost");
   // Nations League plays true home and away legs, so the lift lives on the snapshot
   // rather than in a neutral-venue gamma. World Cup snapshots have no such key.
-  homeXg *= snapNumOr(snapshot, 1, "home_advantage");
+  // When calibrating, prefer the candidate homeAdvantage so HA can be retuned.
+  if (typeof snapshot.home_advantage === "number") {
+    homeXg *=
+      typeof calibration.homeAdvantage === "number"
+        ? calibration.homeAdvantage
+        : (snapshot.home_advantage as number);
+  }
 
   awayXg *= snapNumOr(snapshot, 1, "gamma_away");
   awayXg *= snapNumOr(snapshot, 1, "delta_final_away");
@@ -210,9 +216,11 @@ export function recomputeXgFromSnapshot(
   let rho = snapNumOr(snapshot, 0, "rho");
   if (typeof snapshot.rho_base === "number") {
     const rhoBase = snapshot.rho_base as number;
-    const lowBoost = typeof snapshot.rho_low_event_boost === "number"
-      ? (snapshot.rho_low_event_boost as number)
-      : 0;
+    const wasLowEvent =
+      snapshot.rho_low_event === true ||
+      (typeof snapshot.rho_low_event_boost === "number" &&
+        (snapshot.rho_low_event_boost as number) > 0);
+    const lowBoost = wasLowEvent ? calibration.wcLowEventRhoBoost : 0;
     rho = attenuateRhoForExpectedGoalGap(rhoBase + lowBoost, homeXg, awayXg);
   }
 
@@ -228,9 +236,12 @@ export function recomputeHubPredictionFromSnapshot(
   const mutualDraw = String(snapshot.scenario ?? "").includes("mutual_draw");
   const gridOptions = snapshotGridOptions(snapshot, calibration, homeXg, awayXg);
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, mutualDraw, gridOptions);
-  // Each competition sharpens its 1X2 probabilities by a different amount, so honour the
-  // temperature frozen on the snapshot and only fall back to the World Cup value.
-  const tau = snapNumOr(snapshot, GRAHAM_1X2_TEMPERATURE, "one_x_two_temperature");
+  // Prefer candidate calibration temperature so τ can be retuned; fall back to the
+  // value frozen on the snapshot, then the World Cup default.
+  const tau =
+    typeof calibration.oneXTwoTemperature === "number"
+      ? calibration.oneXTwoTemperature
+      : snapNumOr(snapshot, GRAHAM_1X2_TEMPERATURE, "one_x_two_temperature");
   const temperedH = Math.pow(outcomes.homeWin, tau);
   const temperedD = Math.pow(outcomes.draw, tau);
   const temperedA = Math.pow(outcomes.awayWin, tau);

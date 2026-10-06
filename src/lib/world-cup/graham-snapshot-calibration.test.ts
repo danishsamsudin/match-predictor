@@ -81,4 +81,27 @@ describe("graham-snapshot-calibration", () => {
     const tunedXg = recomputeXgFromSnapshot(withProcess, tuned).homeXg;
     expect(tunedXg).not.toBe(baseXg);
   });
+
+  it("retunes home advantage when snapshot has home_advantage", () => {
+    const cal = getDefaultWcCalibrationConstants();
+    const nlSnap = { ...snapshot, home_advantage: 1.08, rho_base: -0.05 };
+    const base = recomputeXgFromSnapshot(nlSnap, { ...cal, homeAdvantage: 1.08 });
+    const softer = recomputeXgFromSnapshot(nlSnap, { ...cal, homeAdvantage: 1.02 });
+    expect(softer.homeXg).toBeLessThan(base.homeXg);
+  });
+
+  it("applies calibration low-event rho boost when snapshot flagged low-event", () => {
+    const cal = getDefaultWcCalibrationConstants();
+    const lowEventSnap = {
+      ...snapshot,
+      rho_base: -0.05,
+      rho_low_event: true,
+      rho_low_event_boost: 0.02,
+      home_xg: 1.2,
+      away_xg: 1.1,
+    };
+    const mild = recomputeXgFromSnapshot(lowEventSnap, { ...cal, wcLowEventRhoBoost: 0.01 });
+    const strong = recomputeXgFromSnapshot(lowEventSnap, { ...cal, wcLowEventRhoBoost: 0.06 });
+    expect(strong.rho).toBeGreaterThan(mild.rho);
+  });
 });

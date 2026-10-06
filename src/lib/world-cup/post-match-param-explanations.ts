@@ -108,6 +108,19 @@ export const PARAM_EXPLANATIONS: Record<string, ParamExplanation> = {
     ifIncreased: "0-0 and 1-1 draws get more weight in cautious matchups.",
     ifDecreased: "Draw probability stays closer to the pure Poisson/Dixon-Coles baseline.",
   },
+  oneXTwoTemperature: {
+    label: "1X2 temperature (τ)",
+    whatItIs:
+      "Softens raw Poisson home / draw / away probabilities. τ > 1 lifts draw and underdog share.",
+    ifIncreased: "Big favourites are priced less extremely; draws and dogs gain probability.",
+    ifDecreased: "1X2 stays closer to the raw score-grid favourite.",
+  },
+  homeAdvantage: {
+    label: "Home advantage (xG multiplier)",
+    whatItIs: "Multiplies home expected goals for true home/away competitions (Nations League).",
+    ifIncreased: "Home win and home team totals rise; away favourites soften.",
+    ifDecreased: "Home edge shrinks toward a more neutral venue.",
+  },
   setPieceXgMultiplier: {
     label: "Set-piece xG multiplier",
     whatItIs:
@@ -175,6 +188,8 @@ const SCALAR_KEYS = [
   "wcLineupAttackBlend",
   "wcLineupDefenseBlend",
   "wcLowEventRhoBoost",
+  "oneXTwoTemperature",
+  "homeAdvantage",
   "setPieceXgMultiplier",
   "setPieceDefLeakWeight",
   "goalOverdispersionK",

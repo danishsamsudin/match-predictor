@@ -100,7 +100,7 @@ awayXg = awayXg_baseline × σ_away
 
 | Multiplier | Typical value | Meaning |
 |------------|---------------|---------|
-| Home advantage | **1.08** | True home venues (weather / altitude off for NL) |
+| Home advantage | **1.08** (calibration `homeAdvantage`) | True home venues (weather / altitude off for NL) |
 | σ (motivation) | ~**1.04** promotion/relegation stakes, ~**0.94** dead rubber | From league standings scenario |
 | Rotation / rest | σ reduced when rest is short | Congestion within the NL window |
 
@@ -118,18 +118,19 @@ Win / draw / away % are **not** a direct softmax of ΔS. They come from a full *
 
 1. Take final `homeXg` and `awayXg` as Poisson (or negative-binomial if overdispersion `K > 0`) means.
 2. Apply a **Dixon-Coles** low-score correlation ρ (boosts / damps 0-0, 1-0, 0-1, 1-1). ρ depends on total xG and strength gap, plus a motivation offset, and is attenuated when the two xG values are far apart.
-3. Optionally mix in a small **red-card** scenario (base ≈ 4%, scaled by discipline load).
-4. Sum all home-win cells, draw cells, and away-win cells → raw `P(H)`, `P(D)`, `P(A)`.
+3. **Low-event ρ boost** - when both teams have in-window chance index < 1.2 (and at least one finished window match each), add `wcLowEventRhoBoost` from calibration (default **0.02**) before attenuation. Frozen on the snapshot as `rho_low_event` / `rho_low_event_boost` so post-match retunes can vary the boost.
+4. Optionally mix in a small **red-card** scenario (base ≈ 4%, scaled by discipline load).
+5. Sum all home-win cells, draw cells, and away-win cells → raw `P(H)`, `P(D)`, `P(A)`.
 
 ### Temperature (softening)
 
-Raw Poisson grids often make favorites look too strong. NL applies temperature **τ = 1.15**:
+Raw Poisson grids often make favorites look too strong. NL applies temperature **τ** from calibration (`oneXTwoTemperature`, default **1.15**):
 
 ```
 p'_i = p_i^τ / (p_H^τ + p_D^τ + p_A^τ)
 ```
 
-With τ > 1 this **softens favorites** and lifts draw / underdog share relative to the raw grid.
+With τ > 1 this **softens favorites** and lifts draw / underdog share relative to the raw grid. `nl:calibrate-graham` may nudge τ, `wcLowEventRhoBoost`, and `homeAdvantage` under a holdout guard.
 
 Published fields:
 
@@ -171,8 +172,9 @@ Hub source tag: `graham-nl-hub`.
 | Base μ₀ | 1.28 |
 | Strength exponent c | 0.0026 |
 | ΔS cap | ±220 |
-| Home advantage | 1.08 |
-| 1X2 temperature τ | 1.15 |
+| Home advantage | 1.08 (tunable) |
+| 1X2 temperature τ | 1.15 (tunable) |
+| Low-event ρ boost | 0.02 (tunable) |
 | xG-Elo base K | 0.32 |
 | WCTR base K | 0.55 |
 | Form decay φ | 0.00048 / day |

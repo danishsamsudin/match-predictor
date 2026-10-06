@@ -10,6 +10,7 @@ import {
 import type { MarketModelsConfig } from "@/lib/world-cup/market-models/types";
 import type { ConfidenceLayerConfig } from "@/lib/nations-league/confidence-layer";
 import {
+  GRAHAM_1X2_TEMPERATURE,
   GRAHAM_DELTA_WEIGHTS,
   GRAHAM_MODEL_VERSION,
   GRAHAM_MOMENTUM_CLAMP,
@@ -70,6 +71,17 @@ export interface WcCalibrationConstants {
   wcLineupAttackBlend: number;
   wcLineupDefenseBlend: number;
   wcLowEventRhoBoost: number;
+  /**
+   * Temperature τ on raw Poisson 1X2 before publish / snapshot recompute.
+   * τ > 1 softens favorites and lifts draw / underdog share.
+   */
+  oneXTwoTemperature: number;
+  /**
+   * True home advantage multiplier on home xG (Nations League).
+   * World Cup stays near 1 (neutral / host handled elsewhere); only applied
+   * during snapshot recompute when the locked snapshot has `home_advantage`.
+   */
+  homeAdvantage: number;
   /** L1-learned Opta aggregate coefficients (zeroed features excluded at inference). */
   optaFeatureWeights: Record<string, number>;
   /** L1-learned StatsBomb/historical process feature coefficients. */
@@ -149,6 +161,8 @@ const DEFAULTS: WcCalibrationConstants = {
   wcLineupAttackBlend: 0.35,
   wcLineupDefenseBlend: 0.35,
   wcLowEventRhoBoost: 0.025,
+  oneXTwoTemperature: GRAHAM_1X2_TEMPERATURE,
+  homeAdvantage: 1,
   optaFeatureWeights: {},
   processFeatureWeights: {},
   eventModelCoeffs: {
@@ -279,6 +293,8 @@ function mergeConstants(raw: Record<string, unknown> | null): WcCalibrationConst
     wcLineupAttackBlend: Number(raw.wcLineupAttackBlend ?? DEFAULTS.wcLineupAttackBlend),
     wcLineupDefenseBlend: Number(raw.wcLineupDefenseBlend ?? DEFAULTS.wcLineupDefenseBlend),
     wcLowEventRhoBoost: Number(raw.wcLowEventRhoBoost ?? DEFAULTS.wcLowEventRhoBoost),
+    oneXTwoTemperature: Number(raw.oneXTwoTemperature ?? DEFAULTS.oneXTwoTemperature),
+    homeAdvantage: Number(raw.homeAdvantage ?? DEFAULTS.homeAdvantage),
     optaFeatureWeights:
       (raw.optaFeatureWeights as Record<string, number> | undefined) ?? {},
     processFeatureWeights:

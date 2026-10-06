@@ -12,6 +12,7 @@ import { resolveNlFixtureMotivation } from "@/lib/nations-league/motivation";
 import {
   NL_GRAHAM_1X2_TEMPERATURE,
   NL_GRAHAM_MODEL_VERSION,
+  NL_HOME_ADVANTAGE,
 } from "@/lib/nations-league/nl-graham-model-config";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { resolveGrahamExpectedGoals } from "@/lib/world-cup/graham-expected-goals";
@@ -58,12 +59,8 @@ async function loadMedianSquadValueForNlTeams(): Promise<number> {
   return values[Math.floor(values.length / 2)] ?? 120_000_000;
 }
 
-/**
- * Home advantage for NL (true home/away). Weather / host / altitude stay off:
- * European home grounds + HA already absorb "home climate"; we lack stadium
- * lat/lon coverage for all 54 nations comparable to WC co-host venues.
- */
-export const NL_HOME_ADVANTAGE = 1.08;
+/** @deprecated Prefer `NL_HOME_ADVANTAGE` from nl-graham-model-config. */
+export { NL_HOME_ADVANTAGE };
 
 export async function runNlGrahamPredict(input: {
   match: WcMatchRow;
@@ -188,7 +185,11 @@ export async function runNlGrahamPredict(input: {
     md3MutualRotationPenaltyScale: calibration.md3MutualRotationPenaltyScale,
   });
 
-  let homeXg = baseline.homeXg * NL_HOME_ADVANTAGE * adjusted.sigmaHome;
+  const homeAdvantage = calibration.homeAdvantage ?? NL_HOME_ADVANTAGE;
+  const oneXTwoTemperature =
+    calibration.oneXTwoTemperature ?? NL_GRAHAM_1X2_TEMPERATURE;
+
+  let homeXg = baseline.homeXg * homeAdvantage * adjusted.sigmaHome;
   let awayXg = baseline.awayXg * adjusted.sigmaAway;
 
   const rhoBase =
@@ -197,7 +198,15 @@ export async function runNlGrahamPredict(input: {
       awayXg,
       (baseline.snapshot.delta_fifa as number) ?? 0
     ) + motivation.rhoOffset;
-  const rho = attenuateRhoForExpectedGoalGap(rhoBase, homeXg, awayXg);
+  // Mirror WC: when both sides show low in-window chance creation, boost Dixon-Coles ρ
+  // so 0-0 / 1-1 mass rises (NL league-phase draws were systematically underpriced).
+  const lowEvent =
+    homeNlForm.avgChanceIndex < 1.2 &&
+    awayNlForm.avgChanceIndex < 1.2 &&
+    homeNlForm.matchCount > 0 &&
+    awayNlForm.matchCount > 0;
+  const rhoLowEventBoost = lowEvent ? calibration.wcLowEventRhoBoost : 0;
+  const rho = attenuateRhoForExpectedGoalGap(rhoBase + rhoLowEventBoost, homeXg, awayXg);
 
   const gridOptions = {
     goalOverdispersionK: resolveEffectiveOverdispersionK(
@@ -215,7 +224,12 @@ export async function runNlGrahamPredict(input: {
   };
 
   const outcomes = outcomesFromGuardedGrid(homeXg, awayXg, rho, false, gridOptions);
-  const tempered = temper1x2Probs(outcomes.homeWin, outcomes.draw, outcomes.awayWin);
+  const tempered = temper1x2Probs(
+    outcomes.homeWin,
+    outcomes.draw,
+    outcomes.awayWin,
+    oneXTwoTemperature
+  );
   const grid = buildGuardedScoreMatrix(homeXg, awayXg, rho, false, gridOptions);
 
   const talentDecayApplied =
@@ -235,13 +249,19 @@ export async function runNlGrahamPredict(input: {
     snapshot: {
       source: "graham-nl-hub",
       tournament: "nations-league-2026",
+      ...baseline.snapshot,
+      // Final HA / motivation-adjusted means must win over baseline λ/μ.
       home_xg: homeXg,
       away_xg: awayXg,
       lambda: homeXg,
       mu: awayXg,
       rho,
       rho_base: rhoBase,
-      home_advantage: NL_HOME_ADVANTAGE,
+      // Frozen so post-match recalibration can rebuild this exact line from the snapshot
+      // alone, without re-deriving form, motivation, or discipline inputs.
+      rho_low_event: lowEvent,
+      rho_low_event_boost: rhoLowEventBoost,
+      home_advantage: homeAdvantage,
       sigma_home: adjusted.sigmaHome,
       sigma_away: adjusted.sigmaAway,
       scenario: adjusted.scenario,
@@ -260,10 +280,7 @@ export async function runNlGrahamPredict(input: {
       nl_rest_days_away: awayRestDays,
       rotation_index_home: rotationIndexHome,
       rotation_index_away: rotationIndexAway,
-      ...baseline.snapshot,
-      // Frozen so post-match recalibration can rebuild this exact line from the snapshot
-      // alone, without re-deriving form, motivation, or discipline inputs.
-      one_x_two_temperature: NL_GRAHAM_1X2_TEMPERATURE,
+      one_x_two_temperature: oneXTwoTemperature,
       goal_overdispersion_k: gridOptions.goalOverdispersionK,
       red_card_match_base_prob: gridOptions.redCardMatchBaseProb,
       red_card_attack_penalty: gridOptions.redCardAttackPenalty,
