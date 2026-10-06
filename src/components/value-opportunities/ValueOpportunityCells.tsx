@@ -127,7 +127,14 @@ function ConfidencePopup({ lookup }: { lookup: ConfidenceLookup }) {
   );
 }
 
-export function ConfidenceCell({ lookup }: { lookup: ConfidenceLookup }) {
+export function ConfidenceCell({
+  lookup,
+  compact = false,
+}: {
+  lookup: ConfidenceLookup;
+  /** Single-line badge for compact Value Opportunities rows. */
+  compact?: boolean;
+}) {
   const tier = lookup.tier;
   const style = TIER_STYLES[tier];
   const ariaLabel =
@@ -136,7 +143,7 @@ export function ConfidenceCell({ lookup }: { lookup: ConfidenceLookup }) {
       : `${formatConfidenceTier(tier)} confidence: no history yet. Tap for explanation.`;
 
   return (
-    <div className="min-w-[7.5rem]">
+    <div className={compact ? undefined : "min-w-[7.5rem]"}>
       <Tooltip
         label="Confidence explained"
         content={<ConfidencePopup lookup={lookup} />}
@@ -145,13 +152,17 @@ export function ConfidenceCell({ lookup }: { lookup: ConfidenceLookup }) {
         <button
           type="button"
           aria-label={ariaLabel}
-          className={`inline-flex max-w-full cursor-help flex-col items-start gap-1 rounded-md px-2 py-1 text-left ring-1 ring-inset transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${style.badge}`}
+          className={`inline-flex max-w-full cursor-help rounded-md px-2 py-1 text-left ring-1 ring-inset transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${style.badge} ${
+            compact
+              ? "items-center gap-1.5"
+              : "flex-col items-start gap-1"
+          }`}
         >
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} aria-hidden />
             {formatConfidenceTier(tier)}
           </span>
-          {lookup.n > 0 ? (
+          {!compact && lookup.n > 0 ? (
             <span className="text-[11px] font-medium leading-snug opacity-80">
               Hit{" "}
               <span className="tabular-nums">
@@ -160,11 +171,17 @@ export function ConfidenceCell({ lookup }: { lookup: ConfidenceLookup }) {
               {" · "}
               <span className="tabular-nums">{lookup.n}</span> games
             </span>
-          ) : (
+          ) : null}
+          {!compact && lookup.n <= 0 ? (
             <span className="text-[11px] font-medium leading-snug opacity-80">
               No history yet
             </span>
-          )}
+          ) : null}
+          {compact && lookup.n > 0 ? (
+            <span className="text-[11px] font-medium tabular-nums opacity-80">
+              {(lookup.historicalHitRate * 100).toFixed(0)}%
+            </span>
+          ) : null}
         </button>
       </Tooltip>
     </div>
@@ -175,15 +192,31 @@ export function StakeCell({
   bookOdds,
   kelly,
   confidenceTier,
+  compact = false,
 }: {
   bookOdds: number | null;
   kelly?: KellyStakeResult;
   confidenceTier?: ConfidenceLookup["tier"];
+  /** Inline single-line stake for compact Value Opportunities rows. */
+  compact?: boolean;
 }) {
   if (bookOdds == null) {
     return <span className="text-muted">-</span>;
   }
   if (kelly && kelly.fraction > 0) {
+    if (compact) {
+      return (
+        <span
+          title={kelly.reason}
+          className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
+        >
+          {formatStakeEuros(kelly.units)}
+          <span className="ml-1 font-medium text-muted">
+            ({(kelly.fraction * 100).toFixed(1)}%)
+          </span>
+        </span>
+      );
+    }
     return (
       <div title={kelly.reason}>
         <p className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
@@ -196,6 +229,16 @@ export function StakeCell({
     );
   }
   if (confidenceTier === "none") {
+    if (compact) {
+      return (
+        <span
+          title={kelly?.reason ?? "Not enough history for a stake."}
+          className="font-medium tabular-nums text-muted"
+        >
+          {formatStakeEuros(0)} · no history
+        </span>
+      );
+    }
     return (
       <div title={kelly?.reason ?? "Not enough history for a stake."}>
         <p className="text-xs font-medium tabular-nums text-muted">
@@ -206,6 +249,13 @@ export function StakeCell({
     );
   }
   if (kelly?.minBookOdds != null) {
+    if (compact) {
+      return (
+        <span title={kelly.reason} className="font-medium text-amber-800 dark:text-amber-300">
+          Need ≥ <span className="tabular-nums">{kelly.minBookOdds.toFixed(2)}</span>
+        </span>
+      );
+    }
     return (
       <div title={kelly.reason}>
         <p className="text-xs font-medium tabular-nums text-muted">
@@ -215,6 +265,13 @@ export function StakeCell({
           Need ≥ <span className="tabular-nums">{kelly.minBookOdds.toFixed(2)}</span>
         </p>
       </div>
+    );
+  }
+  if (compact) {
+    return (
+      <span title={kelly?.reason ?? "No stake"} className="font-medium tabular-nums text-muted">
+        {formatStakeEuros(0)}
+      </span>
     );
   }
   return (

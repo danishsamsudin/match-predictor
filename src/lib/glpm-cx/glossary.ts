@@ -103,13 +103,13 @@ export const GLPM_CX_GLOSSARY = {
   },
   asianHandicap: {
     label: "Asian handicap",
-    what: "Cover probabilities for common handicap lines from the home perspective.",
+    what: "Cover probabilities with Toto-style labels: home keeps the line, away shows the mirror (e.g. England -1.5 / Czechia +1.5).",
     how: "Derived from the score matrix margins (including half and quarter lines). Presentation only - not a separate rating model.",
   },
   europeanHandicap: {
     label: "European handicap (3-way)",
-    what: "Home / Draw / Away on a handicap-adjusted score. Toto lines from -3 to -1 and +1 to +3 (no EH 0).",
-    how: "For each scoreline, margin = home goals - away goals + line. Positive margin is Home, zero is Draw, negative is Away. Same active score matrix as 1X2.",
+    what: "Toto-style Handicap Resultaat: each selection shows the team (or Draw) with that side's handicap, e.g. England -1.0 / Draw -1.0 / Czechia +1.0. Lines from -3 to -1 and +1 to +3 (no EH 0).",
+    how: "Internally the line is from the home perspective (margin = home goals - away goals + homeLine). Away is labeled with the mirrored sign. Positive margin is Home, zero is Draw, negative is Away. Same active score matrix as 1X2.",
   },
   goalRanges: {
     label: "Goal ranges",

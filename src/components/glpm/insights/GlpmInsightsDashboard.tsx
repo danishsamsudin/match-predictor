@@ -2,8 +2,6 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { InsightCard } from "@/components/glpm/insights/InsightCard";
-import { BookSourceBadge } from "@/components/value-opportunities/BookSourceBadge";
-import { OddsAutoFillBanner } from "@/components/value-opportunities/OddsAutoFillBanner";
 import { useOddsAutoFill } from "@/components/value-opportunities/useOddsAutoFill";
 import type { OddsBookSource } from "@/lib/odds-api/types";
 import { isSupportedOddsLeague } from "@/lib/odds-api/config";
@@ -41,8 +39,9 @@ import {
   deriveMarketsFromScoreMatrix,
   sliceScoreMatrix,
   SCORE_HEATMAP_MAX_GOALS,
+  totoAsianHandicapLabels,
+  totoEuropeanHandicapLabels,
 } from "@/lib/glpm-cx/derived-markets";
-import { computeValueEdges } from "@/lib/prediction/odds-value";
 import {
   lookupConfidence,
   valueRowIdToMarketKey,
@@ -57,12 +56,13 @@ import {
   suggestValueAction,
   type ValueActionResult,
 } from "@/lib/value-opportunities/value-action";
+import { TIER_STYLES } from "@/components/value-opportunities/ValueOpportunityCells";
 import {
-  ActionCell,
-  ConfidenceCell,
-  StakeCell,
-  TIER_STYLES,
-} from "@/components/value-opportunities/ValueOpportunityCells";
+  ValueOpportunityFilters,
+  valueActionFilterEmptyMessage,
+  type ValueActionFilter,
+} from "@/components/value-opportunities/ValueOpportunityFilters";
+import { ValueOpportunityRow } from "@/components/value-opportunities/ValueOpportunityRow";
 
 function pct(n: number): string {
   return `${(n * 100).toFixed(1)}%`;
@@ -181,10 +181,6 @@ function ScoreHeatmap({
   );
 }
 
-function formatEhLine(line: number): string {
-  if (line > 0) return `+${line}`;
-  return String(line);
-}
 
 function ValueOpportunitiesPanel({
   payload,
@@ -233,6 +229,7 @@ function ValueOpportunitiesPanel({
   const [book, setBook] = useState<Record<string, string>>({});
   const [bookSource, setBookSource] = useState<Record<string, OddsBookSource>>({});
   const [bankroll, setBankroll] = useState("100");
+  const [actionFilter, setActionFilter] = useState<ValueActionFilter>("all");
   const bankrollValue = Number(bankroll);
   const bankrollNum =
     Number.isFinite(bankrollValue) && bankrollValue > 0 ? bankrollValue : 100;
@@ -360,20 +357,20 @@ function ValueOpportunitiesPanel({
 
     const ehRows: ValueRow[] = [];
     for (const line of activeDerived.europeanHandicap ?? []) {
-      const tag = formatEhLine(line.line);
+      const labels = totoEuropeanHandicapLabels(line.line, homeLabel, awayLabel);
       ehRows.push(
-        makeRow(`eh-${line.line}-h`, `EH ${tag} Home`, line.home),
-        makeRow(`eh-${line.line}-d`, `EH ${tag} Draw`, line.draw),
-        makeRow(`eh-${line.line}-a`, `EH ${tag} Away`, line.away)
+        makeRow(`eh-${line.line}-h`, labels.home, line.home),
+        makeRow(`eh-${line.line}-d`, labels.draw, line.draw),
+        makeRow(`eh-${line.line}-a`, labels.away, line.away)
       );
     }
 
     const ahRows: ValueRow[] = [];
     for (const line of activeDerived.asianHandicap ?? []) {
-      const tag = formatEhLine(line.line);
+      const labels = totoAsianHandicapLabels(line.line, homeLabel, awayLabel);
       ahRows.push(
-        makeRow(`ah-home-${line.line}`, `AH ${tag} Home`, line.homeCover),
-        makeRow(`ah-away-${line.line}`, `AH ${tag} Away`, line.awayCover)
+        makeRow(`ah-home-${line.line}`, labels.home, line.homeCover),
+        makeRow(`ah-away-${line.line}`, labels.away, line.awayCover)
       );
     }
 
@@ -454,26 +451,17 @@ function ValueOpportunitiesPanel({
     showConfidence,
   ]);
 
-  const oneX2Edges = useMemo(() => {
-    const parse = (id: string): number | null => {
-      const n = Number((book[id] ?? "").trim());
-      return Number.isFinite(n) && n > 1 ? n : null;
-    };
-    const h = parse("1x2-home");
-    const d = parse("1x2-draw");
-    const a = parse("1x2-away");
-    if (h == null || d == null || a == null) return null;
-    return computeValueEdges(
-      {
-        homeWinPct: markets.homeWin * 100,
-        drawPct: markets.draw * 100,
-        awayWinPct: markets.awayWin * 100,
-      },
-      { home: h, draw: d, away: a }
-    );
-  }, [book, markets]);
+  const filteredSections = useMemo(() => {
+    if (!showConfidence || actionFilter === "all") return sections;
+    return sections
+      .map((section) => ({
+        ...section,
+        rows: section.rows.filter((r) => r.action?.action === actionFilter),
+      }))
+      .filter((section) => section.rows.length > 0);
+  }, [sections, showConfidence, actionFilter]);
 
-  const edgeChart = sections
+  const edgeChart = filteredSections
     .flatMap((s) => s.rows)
     .filter((r) => (showConfidence ? r.histEdgePct : r.modelEdgePct) != null)
     .map((r) => ({
@@ -481,61 +469,25 @@ function ValueOpportunitiesPanel({
       edgePct: (showConfidence ? r.histEdgePct : r.modelEdgePct) as number,
     }));
 
-  const quickBookFields = [
-    ["1x2-home", "Home"],
-    ["1x2-draw", "Draw"],
-    ["1x2-away", "Away"],
-    ["btts-yes", "BTTS yes"],
-    ["ou-over-2.5", "Over 2.5"],
-    ["ah-home--0.5", "AH -0.5"],
-  ] as const;
-
   return (
     <InsightCard
       title="Value opportunities"
       glossaryKey="valueEdge"
-      howToRead={
-        showConfidence
-          ? "Book odds auto-fill from Pinnacle (or Unibet when longer) across 1X2, BTTS, O/U, AH, and team totals when the API has them. Confidence, stake, and Pass/Watch/Bet use this league's historical hit rates at this model %, not the raw model % alone."
-          : "Book odds auto-fill from Pinnacle (or Unibet when longer) across 1X2, BTTS, O/U, AH, and team totals when the API has them. Positive edge means the book price is longer than the model. Confidence / Stake / Action appear after this league has enough locked finished evaluations."
-      }
+      howToRead=""
     >
-      {oddsLeagueSupported ? <OddsAutoFillBanner state={oddsAutoFill} /> : null}
-
-      <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {quickBookFields.map(([id, label]) => (
-          <label key={id} className="block space-y-1">
-            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted">
-              {label}
-              <BookSourceBadge
-                source={bookSource[id]}
-                unibetPreferred={bookSource[id] === "unibet"}
-              />
-            </span>
-            <input
-              className="w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
-              inputMode="decimal"
-              placeholder="e.g. 2.10"
-              value={book[id] ?? ""}
-              onChange={(e) => setBookOdds(id, e.target.value)}
-              aria-label={`Book odds for ${label}`}
-            />
-          </label>
-        ))}
-        {showConfidence ? (
-          <label className="block space-y-1">
-            <span className="text-[10px] uppercase tracking-wide text-muted">Bankroll (€)</span>
-            <input
-              className="w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
-              inputMode="decimal"
-              value={bankroll}
-              onChange={(e) => setBankroll(e.target.value)}
-              aria-label="Bankroll in euros for Kelly stake"
-              placeholder="e.g. 100"
-            />
-          </label>
-        ) : null}
-      </div>
+      {showConfidence ? (
+        <label className="mb-3 block max-w-[10rem] space-y-1">
+          <span className="text-[10px] uppercase tracking-wide text-muted">Bankroll (€)</span>
+          <input
+            className="w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
+            inputMode="decimal"
+            value={bankroll}
+            onChange={(e) => setBankroll(e.target.value)}
+            aria-label="Bankroll in euros for Kelly stake"
+            placeholder="e.g. 100"
+          />
+        </label>
+      ) : null}
 
       {showConfidence ? (
         <div className="mb-3 flex flex-wrap gap-2 text-[11px]">
@@ -559,116 +511,51 @@ function ValueOpportunitiesPanel({
         </div>
       ) : null}
 
-      {oneX2Edges ? (
-        <p className="mb-3 text-xs text-muted">
-          1X2 MPTO edges: H {oneX2Edges.homeEdgePct.toFixed(1)}% · D{" "}
-          {oneX2Edges.drawEdgePct.toFixed(1)}% · A {oneX2Edges.awayEdgePct.toFixed(1)}%
-        </p>
-      ) : (
-        <p className="mb-3 text-xs text-muted">
-          {showConfidence
-            ? "Type a book price on a row (or in the quick fields). Edge and stake use this league's historical hit rate when confidence is available. Action is Pass / Watch / Bet from that same history."
-            : "Fill Home / Draw / Away above for 1X2 MPTO edges, or type a book price on any row below to see that market's edge."}
-        </p>
-      )}
+      <div className="mb-3">
+        <ValueOpportunityFilters
+          value={actionFilter}
+          onChange={setActionFilter}
+          showActionFilters={showConfidence}
+        />
+      </div>
 
       {edgeChart.length ? <EdgeBars data={edgeChart} /> : null}
 
-      <div className="mt-3 space-y-6">
-        {sections.map((section) => (
-          <div key={section.title}>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              {section.title}
-            </p>
-            {section.hint ? (
-              <p className="mb-2 text-[11px] text-muted">{section.hint}</p>
-            ) : null}
-            <div className="table-h-scroll">
-              <table
-                className={`w-full text-left text-sm ${
-                  showConfidence ? "min-w-[52rem]" : "min-w-[28rem] sm:min-w-[36rem]"
-                }`}
-              >
-                <thead>
-                  <tr className="border-b border-glass-border text-[11px] uppercase text-muted">
-                    <th className="py-2 pr-2">Market</th>
-                    {showConfidence ? <th className="py-2 pr-2">Confidence</th> : null}
-                    <th className="py-2 pr-2">Model %</th>
-                    <th className="py-2 pr-2">Fair odds</th>
-                    <th className="py-2 pr-2">Book</th>
-                    <th className="py-2">{showConfidence ? "Hist edge" : "Edge"}</th>
-                    {showConfidence ? <th className="py-2 pl-2">Stake</th> : null}
-                    {showConfidence ? <th className="py-2 pl-2">Action</th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {section.rows.map((r) => {
-                    const edgePct = showConfidence
-                      ? (r.histEdgePct ?? r.modelEdgePct)
-                      : r.modelEdgePct;
-                    return (
-                      <tr key={r.id} className="border-b border-glass-border/60 align-top">
-                        <td className="py-2.5 pr-2 font-medium">{r.market}</td>
-                        {showConfidence ? (
-                          <td className="py-2.5 pr-2">
-                            {r.confidence ? <ConfidenceCell lookup={r.confidence} /> : "-"}
-                          </td>
-                        ) : null}
-                        <td className="py-2.5 pr-2 tabular-nums">{pct(r.modelProb)}</td>
-                        <td className="py-2.5 pr-2 tabular-nums">
-                          {r.fairOdds?.toFixed(2) ?? "-"}
-                        </td>
-                        <td className="py-2.5 pr-2">
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              className="w-20 rounded-lg border border-glass-border bg-surface px-2 py-1 text-sm tabular-nums"
-                              inputMode="decimal"
-                              placeholder="e.g. 2.10"
-                              value={book[r.id] ?? ""}
-                              onChange={(e) => setBookOdds(r.id, e.target.value)}
-                              aria-label={`Book odds for ${r.market}`}
-                            />
-                            <BookSourceBadge
-                              source={bookSource[r.id]}
-                              unibetPreferred={bookSource[r.id] === "unibet"}
-                            />
-                          </div>
-                        </td>
-                        <td
-                          className={`py-2.5 tabular-nums font-semibold ${
-                            edgePct == null
-                              ? "text-muted"
-                              : edgePct >= 0
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : "text-rose-600 dark:text-rose-400"
-                          }`}
-                        >
-                          {edgePct == null
-                            ? "-"
-                            : `${edgePct >= 0 ? "+" : ""}${edgePct.toFixed(1)}%`}
-                        </td>
-                        {showConfidence ? (
-                          <td className="py-2.5 pl-2">
-                            <StakeCell
-                              bookOdds={r.bookOdds}
-                              kelly={r.kelly}
-                              confidenceTier={r.confidence?.tier}
-                            />
-                          </td>
-                        ) : null}
-                        {showConfidence ? (
-                          <td className="py-2.5 pl-2">
-                            {r.action ? <ActionCell decision={r.action} /> : "-"}
-                          </td>
-                        ) : null}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+      <div className="mt-3 space-y-5">
+        {filteredSections.length === 0 ? (
+          <p className="py-4 text-sm text-muted">
+            {valueActionFilterEmptyMessage(actionFilter)}
+          </p>
+        ) : (
+          filteredSections.map((section) => (
+            <div key={section.title}>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                {section.title}
+              </p>
+              {section.hint ? (
+                <p className="mb-1 text-[11px] text-muted">{section.hint}</p>
+              ) : null}
+              <div className="border-t border-glass-border/80">
+                {section.rows.map((r) => {
+                  const edgePct = showConfidence
+                    ? (r.histEdgePct ?? r.modelEdgePct)
+                    : r.modelEdgePct;
+                  return (
+                    <ValueOpportunityRow
+                      key={r.id}
+                      row={r}
+                      bookValue={book[r.id] ?? ""}
+                      bookSource={bookSource[r.id]}
+                      showConfidence={showConfidence}
+                      edgePct={edgePct}
+                      onBookChange={setBookOdds}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </InsightCard>
   );

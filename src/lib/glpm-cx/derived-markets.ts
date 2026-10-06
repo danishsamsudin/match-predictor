@@ -109,6 +109,45 @@ function inGoalRange(goals: number, lo: number, hi: number): boolean {
   return goals >= lo && goals <= hi;
 }
 
+/** Toto-style signed handicap tag, e.g. -1 → "-1.0", +1.5 → "+1.5". */
+export function formatSignedHandicap(line: number): string {
+  if (!Number.isFinite(line)) return "-";
+  if (line === 0) return "0.0";
+  const sign = line > 0 ? "+" : "-";
+  return `${sign}${Math.abs(line).toFixed(1)}`;
+}
+
+/**
+ * Toto Handicap Resultaat labels: home keeps `homeLine`, away gets the mirror,
+ * draw uses the same tag as home (the market line id).
+ * Example homeLine=-1 → "England -1.0" / "Draw -1.0" / "Czechia +1.0".
+ */
+export function totoEuropeanHandicapLabels(
+  homeLine: number,
+  homeName: string,
+  awayName: string
+): { home: string; draw: string; away: string } {
+  const homeTag = formatSignedHandicap(homeLine);
+  const awayTag = formatSignedHandicap(-homeLine);
+  return {
+    home: `${homeName} ${homeTag}`,
+    draw: `Draw ${homeTag}`,
+    away: `${awayName} ${awayTag}`,
+  };
+}
+
+/** Toto Asian handicap labels: home keeps `homeLine`, away gets the mirror. */
+export function totoAsianHandicapLabels(
+  homeLine: number,
+  homeName: string,
+  awayName: string
+): { home: string; away: string } {
+  return {
+    home: `${homeName} ${formatSignedHandicap(homeLine)}`,
+    away: `${awayName} ${formatSignedHandicap(-homeLine)}`,
+  };
+}
+
 /** Toto-style 3-way European handicap from the home perspective. */
 export function europeanHandicapFromMatrix(
   matrix: number[][],

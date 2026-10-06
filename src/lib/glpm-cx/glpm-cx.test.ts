@@ -5,7 +5,16 @@ import {
   cxTravelMultiplier,
   cxWeatherMultiplier,
 } from "@/lib/glpm-cx/apply-cx";
-import { deriveMarketsFromScoreMatrix, europeanHandicapFromMatrix, inferStyleLabels, sliceScoreMatrix, styleMatchupBadges } from "@/lib/glpm-cx/derived-markets";
+import {
+  deriveMarketsFromScoreMatrix,
+  europeanHandicapFromMatrix,
+  formatSignedHandicap,
+  inferStyleLabels,
+  sliceScoreMatrix,
+  styleMatchupBadges,
+  totoAsianHandicapLabels,
+  totoEuropeanHandicapLabels,
+} from "@/lib/glpm-cx/derived-markets";
 import { predictMatch } from "@/lib/glpm/engine";
 import { GLPM_CX_GLOSSARY, glossaryTipBody } from "@/lib/glpm-cx/glossary";
 import { poissonOverProb } from "@/lib/glpm-cx/satellites/player-props";
@@ -145,6 +154,25 @@ describe("glpm-cx derived markets", () => {
     expect(eh.home).toBeCloseTo(0.25, 5);
     expect(eh.draw).toBeCloseTo(0.3, 5);
     expect(eh.away).toBeCloseTo(0.35, 5);
+  });
+
+  it("labels european/asian handicap Toto-style with mirrored away signs", () => {
+    expect(formatSignedHandicap(-1)).toBe("-1.0");
+    expect(formatSignedHandicap(1.5)).toBe("+1.5");
+    expect(totoEuropeanHandicapLabels(-1, "England", "Czechia")).toEqual({
+      home: "England -1.0",
+      draw: "Draw -1.0",
+      away: "Czechia +1.0",
+    });
+    expect(totoEuropeanHandicapLabels(1, "England", "Czechia")).toEqual({
+      home: "England +1.0",
+      draw: "Draw +1.0",
+      away: "Czechia -1.0",
+    });
+    expect(totoAsianHandicapLabels(-1.5, "England", "Czechia")).toEqual({
+      home: "England -1.5",
+      away: "Czechia +1.5",
+    });
   });
 
   it("match goal ranges partition; team bands follow Toto", () => {
