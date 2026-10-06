@@ -1,4 +1,3 @@
-import { shouldUseMockApis } from "@/lib/config/api-mode";
 import { cachedFetch, TTL } from "@/lib/cache/api-cache";
 import {
   ODDS_CACHE_TTL_MS,
@@ -87,7 +86,7 @@ async function loadLeagueOdds(sportKey: string): Promise<{
 }> {
   const result = await cachedFetch<CachedLeagueOdds>({
     provider: "odds",
-    cacheKey: `odds:league:${sportKey}:h2h-totals`,
+    cacheKey: `odds:league:${sportKey}:h2h-totals:v2`,
     ttlMs: ODDS_CACHE_TTL_MS,
     dailyLimit: ODDS_DAILY_CREDIT_LIMIT,
     fetcher: async () => {
@@ -155,13 +154,6 @@ export async function getMatchValueOdds(
     return emptyResult({
       message:
         "Odds auto-fill is offline until THE_ODDS_API_KEY is set (free key at the-odds-api.com).",
-    });
-  }
-
-  if (shouldUseMockApis()) {
-    return emptyResult({
-      message:
-        "Odds auto-fill is skipped while USE_MOCK_APIS=true (avoids spending free-tier credits).",
     });
   }
 
@@ -260,7 +252,7 @@ export async function warmLeagueOdds(sportKey: string): Promise<{
   fromCache: boolean;
   remaining: number | null;
 }> {
-  if (!hasOddsApiKey() || shouldUseMockApis()) {
+  if (!hasOddsApiKey()) {
     return { credits: 0, eventCount: 0, fromCache: false, remaining: null };
   }
   const league = await loadLeagueOdds(sportKey);

@@ -67,6 +67,8 @@ export function useOddsAutoFill({
 
         const res = await fetch(`/api/odds/value-opportunities?${params}`, {
           signal: controller.signal,
+          credentials: "same-origin",
+          cache: "no-store",
         });
         const body = (await res.json()) as MatchOddsResult & { error?: string };
         if (cancelled) return;

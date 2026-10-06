@@ -8,10 +8,17 @@ export function OddsAutoFillBanner({ state }: { state: OddsAutoFillState }) {
 
   if (status === "idle") return null;
 
+  const tone =
+    status === "ready"
+      ? "border-emerald-500/30 bg-emerald-500/5"
+      : status === "loading"
+        ? "border-glass-border bg-surface/60"
+        : "border-amber-500/35 bg-amber-500/5";
+
   return (
-    <div className="mb-3 space-y-2 rounded-lg border border-glass-border bg-surface/60 px-3 py-2.5">
+    <div className={`mb-3 space-y-2 rounded-lg border px-3 py-2.5 ${tone}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted">
+        <p className="text-xs text-foreground/90">
           {status === "loading"
             ? "Pulling Pinnacle / Unibet odds…"
             : status === "ready"

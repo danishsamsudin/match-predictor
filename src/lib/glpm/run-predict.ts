@@ -408,6 +408,7 @@ export async function runGlpmPredict(
     homeTeam: teamBlock(home, styleSummary(homeStyleRow)),
     awayTeam: teamBlock(away, styleSummary(awayStyleRow)),
     seasonId,
+    competitionId,
     vectorSeasonId,
     matchSmId: input.matchSmId ?? null,
     homeXg: pred.homeXg,

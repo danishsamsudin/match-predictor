@@ -30,6 +30,8 @@ export type GlpmPredictUiPayload = {
     style: GlpmStyleSummary | null;
   };
   seasonId: number;
+  /** SportMonks competition / league id (e.g. 8 = Premier League). */
+  competitionId: number | null;
   /** Season whose rating vectors were actually loaded (may differ when collapsed). */
   vectorSeasonId: number;
   matchSmId: number | null;

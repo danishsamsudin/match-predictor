@@ -199,8 +199,12 @@ function ValueOpportunitiesPanel({
   const awayLabel = payload.base.awayTeam.name;
   const confidenceLayer = useCx ? payload.confidenceLayer : null;
   const showConfidence = Boolean(confidenceLayer);
+  const resolvedLeagueSmId =
+    (leagueSmId != null && Number.isFinite(leagueSmId) ? leagueSmId : null) ??
+    payload.base.competitionId ??
+    null;
   const oddsLeagueSupported =
-    leagueSmId != null && isSupportedOddsLeague(leagueSmId);
+    resolvedLeagueSmId != null && isSupportedOddsLeague(resolvedLeagueSmId);
 
   const markets = useCx
     ? payload.cx
@@ -255,7 +259,7 @@ function ValueOpportunitiesPanel({
   );
 
   const oddsAutoFill = useOddsAutoFill({
-    leagueSmId: oddsLeagueSupported ? leagueSmId : null,
+    leagueSmId: oddsLeagueSupported ? resolvedLeagueSmId : null,
     homeTeamName: homeLabel,
     awayTeamName: awayLabel,
     onFill: applyAutoFill,

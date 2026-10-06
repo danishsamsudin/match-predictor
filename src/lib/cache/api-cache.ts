@@ -27,7 +27,9 @@ function todayDateString(): string {
 export async function cachedFetch<T>(
   opts: CachedFetchOptions<T>
 ): Promise<CachedFetchResult<T>> {
-  if (shouldUseMockApis()) {
+  // Football/weather mocks skip the network. Odds has its own key and must still
+  // hit The Odds API (and cache) when THE_ODDS_API_KEY is configured.
+  if (shouldUseMockApis() && opts.provider !== "odds") {
     return { data: await opts.fetcher(), fromCache: false };
   }
 

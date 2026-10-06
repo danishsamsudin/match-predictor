@@ -84,18 +84,17 @@ export async function fetchOddsEvents(sportKey: string): Promise<OddsApiFetchRes
 /**
  * Paid: featured odds for a whole sport/league.
  * Cost ≈ (# markets returned) × 1 (bookmakers group).
+ * No commenceTime filter - The Odds API already returns the upcoming board;
+ * filtering midweek was dropping weekend fixtures.
  */
 export async function fetchLeagueFeaturedOdds(
   sportKey: string
 ): Promise<OddsApiFetchResult<OddsApiEvent[]>> {
-  const { from, to } = windowIsoRange();
   return oddsGet<OddsApiEvent[]>(`/v4/sports/${sportKey}/odds`, {
     bookmakers: ODDS_BOOKMAKERS,
     markets: ODDS_FEATURED_MARKETS,
     oddsFormat: "decimal",
     dateFormat: "iso",
-    commenceTimeFrom: from,
-    commenceTimeTo: to,
   });
 }
 
