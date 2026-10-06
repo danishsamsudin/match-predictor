@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const HINT =
-  "GET|POST /api/cron/odds-api-warm?run=true — warms The Odds API featured odds (Pinnacle + Unibet NL) for GLPM leagues with fixtures in the next ~36h. Free /events probe first; paid /odds only when needed.";
+  "GET|POST /api/cron/odds-api-warm?run=true — warms The Odds API featured odds (Pinnacle + Unibet NL) for GLPM leagues with fixtures in the next ~7 days. Free /events probe first; paid /odds only when needed.";
 
 /**
  * Day-before / day-of warm: only spend credits on leagues that actually have

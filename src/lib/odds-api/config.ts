@@ -39,13 +39,14 @@ export const ODDS_EVENT_EXTRA_MARKETS = "btts" as const;
 export const ODDS_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
 /**
- * Soft daily credit budget so a busy month stays under the free 500.
- * League featured fetch ≈ 1–2 credits; event BTTS ≈ 1 credit.
+ * Daily soft cap so free-tier 500 credits/month is not blown in a few days.
+ * One league featured call is typically 1–2 credits; response is cached 12h.
  */
 export const ODDS_DAILY_CREDIT_LIMIT = 15;
 
-/** Look ahead this many hours when warming / matching fixtures. */
-export const ODDS_LOOKAHEAD_HOURS = 36;
+/** Look ahead this many hours when warming / matching fixtures.
+ * Wide enough for midweek prep of weekend matchdays (not only day-before). */
+export const ODDS_LOOKAHEAD_HOURS = 7 * 24;
 
 /** Include fixtures that kicked off up to this many hours ago (late fills). */
-export const ODDS_LOOKBACK_HOURS = 3;
+export const ODDS_LOOKBACK_HOURS = 6;
