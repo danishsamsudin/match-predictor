@@ -1,7 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { InsightCard } from "@/components/glpm/insights/InsightCard";
+import { BookSourceBadge } from "@/components/value-opportunities/BookSourceBadge";
+import { OddsAutoFillBanner } from "@/components/value-opportunities/OddsAutoFillBanner";
+import { useOddsAutoFill } from "@/components/value-opportunities/useOddsAutoFill";
+import type { OddsBookSource } from "@/lib/odds-api/types";
+import { isSupportedOddsLeague } from "@/lib/odds-api/config";
 import {
   BttsPanel,
   CxFactorPanel,
@@ -184,14 +189,18 @@ function formatEhLine(line: number): string {
 function ValueOpportunitiesPanel({
   payload,
   useCx,
+  leagueSmId,
 }: {
   payload: GlpmCxPredictPayload;
   useCx: boolean;
+  leagueSmId?: number | null;
 }) {
   const homeLabel = payload.base.homeTeam.name;
   const awayLabel = payload.base.awayTeam.name;
   const confidenceLayer = useCx ? payload.confidenceLayer : null;
   const showConfidence = Boolean(confidenceLayer);
+  const oddsLeagueSupported =
+    leagueSmId != null && isSupportedOddsLeague(leagueSmId);
 
   const markets = useCx
     ? payload.cx
@@ -218,6 +227,7 @@ function ValueOpportunitiesPanel({
   }, [useCx, payload]);
 
   const [book, setBook] = useState<Record<string, string>>({});
+  const [bookSource, setBookSource] = useState<Record<string, OddsBookSource>>({});
   const [bankroll, setBankroll] = useState("100");
   const bankrollValue = Number(bankroll);
   const bankrollNum =
@@ -225,7 +235,32 @@ function ValueOpportunitiesPanel({
 
   const setBookOdds = (id: string, value: string) => {
     setBook((b) => ({ ...b, [id]: value }));
+    setBookSource((s) => {
+      if (!(id in s)) return s;
+      const next = { ...s };
+      delete next[id];
+      return next;
+    });
   };
+
+  const applyAutoFill = useCallback(
+    (
+      bookByRowId: Record<string, string>,
+      sourceByRowId: Record<string, OddsBookSource>
+    ) => {
+      setBook((prev) => ({ ...prev, ...bookByRowId }));
+      setBookSource((prev) => ({ ...prev, ...sourceByRowId }));
+    },
+    []
+  );
+
+  const oddsAutoFill = useOddsAutoFill({
+    leagueSmId: oddsLeagueSupported ? leagueSmId : null,
+    homeTeamName: homeLabel,
+    awayTeamName: awayLabel,
+    onFill: applyAutoFill,
+    enabled: oddsLeagueSupported,
+  });
 
   type ValueRow = {
     id: string;
@@ -457,14 +492,22 @@ function ValueOpportunitiesPanel({
       glossaryKey="valueEdge"
       howToRead={
         showConfidence
-          ? "Enter book decimal odds to compare with model fair odds. Confidence, stake, and Pass/Watch/Bet use this league's historical hit rates at this model %, not the raw model % alone."
-          : "Enter book decimal odds below or on each row to compare with model fair odds. Positive edge means the book price is longer than the model. Confidence / Stake / Action appear after this league has enough locked finished evaluations."
+          ? "Book odds auto-fill from Pinnacle (or Unibet when longer). Confidence, stake, and Pass/Watch/Bet use this league's historical hit rates at this model %, not the raw model % alone."
+          : "Book odds auto-fill from Pinnacle (or Unibet when longer). Positive edge means the book price is longer than the model. Confidence / Stake / Action appear after this league has enough locked finished evaluations."
       }
     >
+      {oddsLeagueSupported ? <OddsAutoFillBanner state={oddsAutoFill} /> : null}
+
       <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {quickBookFields.map(([id, label]) => (
           <label key={id} className="block space-y-1">
-            <span className="text-[10px] uppercase tracking-wide text-muted">{label}</span>
+            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted">
+              {label}
+              <BookSourceBadge
+                source={bookSource[id]}
+                unibetPreferred={bookSource[id] === "unibet"}
+              />
+            </span>
             <input
               className="w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
               inputMode="decimal"
@@ -572,14 +615,20 @@ function ValueOpportunitiesPanel({
                           {r.fairOdds?.toFixed(2) ?? "-"}
                         </td>
                         <td className="py-2.5 pr-2">
-                          <input
-                            className="w-20 rounded-lg border border-glass-border bg-surface px-2 py-1 text-sm tabular-nums"
-                            inputMode="decimal"
-                            placeholder="e.g. 2.10"
-                            value={book[r.id] ?? ""}
-                            onChange={(e) => setBookOdds(r.id, e.target.value)}
-                            aria-label={`Book odds for ${r.market}`}
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              className="w-20 rounded-lg border border-glass-border bg-surface px-2 py-1 text-sm tabular-nums"
+                              inputMode="decimal"
+                              placeholder="e.g. 2.10"
+                              value={book[r.id] ?? ""}
+                              onChange={(e) => setBookOdds(r.id, e.target.value)}
+                              aria-label={`Book odds for ${r.market}`}
+                            />
+                            <BookSourceBadge
+                              source={bookSource[r.id]}
+                              unibetPreferred={bookSource[r.id] === "unibet"}
+                            />
+                          </div>
                         </td>
                         <td
                           className={`py-2.5 tabular-nums font-semibold ${
@@ -623,8 +672,11 @@ function ValueOpportunitiesPanel({
 
 export function GlpmInsightsDashboard({
   payload,
+  leagueSmId = null,
 }: {
   payload: GlpmCxPredictPayload;
+  /** SportMonks competition id - used to auto-fill Odds API books. */
+  leagueSmId?: number | null;
 }) {
   const [useCx, setUseCx] = useState(true);
   const homeLabel = payload.base.homeTeam.name;
@@ -1265,7 +1317,11 @@ export function GlpmInsightsDashboard({
           />
         </InsightCard>
 
-        <ValueOpportunitiesPanel payload={payload} useCx={useCx} />
+        <ValueOpportunitiesPanel
+          payload={payload}
+          useCx={useCx}
+          leagueSmId={leagueSmId}
+        />
 
         <InsightCard title="Corners & cards (satellite)" glossaryKey="cornersCards">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

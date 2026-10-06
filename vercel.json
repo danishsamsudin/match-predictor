@@ -18,6 +18,10 @@
       "schedule": "15 16 * * *"
     },
     {
+      "path": "/api/cron/odds-api-warm?run=true",
+      "schedule": "30 16 * * *"
+    },
+    {
       "path": "/api/cron/player-availabilities?run=true",
       "schedule": "0 8 * * *"
     },

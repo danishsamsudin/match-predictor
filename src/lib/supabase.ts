@@ -42,14 +42,14 @@ export type Database = {
       api_cache: {
         Row: {
           cache_key: string;
-          provider: "football" | "weather";
+          provider: "football" | "weather" | "odds";
           response: unknown;
           fetched_at: string;
           expires_at: string;
         };
         Insert: {
           cache_key: string;
-          provider: "football" | "weather";
+          provider: "football" | "weather" | "odds";
           response: unknown;
           fetched_at?: string;
           expires_at: string;
@@ -63,12 +63,12 @@ export type Database = {
       };
       api_usage_daily: {
         Row: {
-          provider: "football" | "weather";
+          provider: "football" | "weather" | "odds";
           usage_date: string;
           call_count: number;
         };
         Insert: {
-          provider: "football" | "weather";
+          provider: "football" | "weather" | "odds";
           usage_date?: string;
           call_count?: number;
         };

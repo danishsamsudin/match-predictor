@@ -46,6 +46,7 @@ Set `AUTH_USERNAME`, `AUTH_PASSWORD`, and `AUTH_SECRET` in `.env.local` before s
 | `SYNC_CRON_SECRET` | Bearer token for `POST /api/cron/sync` |
 | `SYNC_CRON_HOUR_UTC` | Earliest UTC hour for the daily sync (default `6`) |
 | `USE_MOCK_APIS` | Set `true` to use mock data (no external API calls) |
+| `THE_ODDS_API_KEY` | Free key from [The Odds API](https://the-odds-api.com/) for Value Opportunities auto-fill (Pinnacle + Unibet NL) |
 | `SOCCERDATA_ENABLED` | Set `false` to disable the [SoccerData](https://soccerdata.readthedocs.io/) bridge (default: enabled) |
 | `SOCCERDATA_PYTHON` | Python binary with `soccerdata` installed (default `python3`) |
 | `SOCCERDATA_DIR` | Cache directory (default `~/soccerdata`) |

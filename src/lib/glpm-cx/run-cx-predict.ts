@@ -532,9 +532,20 @@ export async function runGlpmCxPredict(
   }
 
   let confidenceLayer: ConfidenceLayerConfig | null = null;
-  if (competitionId != null) {
+  // Prefer the early competitionId; if the caller omitted seasonId, fall back to
+  // the effective season used for the prediction so VO confidence still attaches.
+  let layerLeagueId = competitionId;
+  if (layerLeagueId == null && seasonId != null) {
+    const { data: seasonRow } = await client
+      .from("glpm_seasons")
+      .select("competition_id")
+      .eq("sm_id", seasonId)
+      .maybeSingle();
+    layerLeagueId = seasonRow?.competition_id ?? null;
+  }
+  if (layerLeagueId != null) {
     try {
-      const calib = await loadGlpmCalibrationConfig(competitionId, client);
+      const calib = await loadGlpmCalibrationConfig(layerLeagueId, client);
       const markets = calib.confidenceLayer?.markets ?? {};
       confidenceLayer =
         Object.keys(markets).length > 0 ? calib.confidenceLayer : null;

@@ -388,7 +388,10 @@ export function GlpmClubPredictor({
 
       {result ? (
         <div className="mx-auto w-full max-w-6xl">
-          <GlpmInsightsDashboard payload={result} />
+          <GlpmInsightsDashboard
+            payload={result}
+            leagueSmId={competitionId ? Number(competitionId) : null}
+          />
         </div>
       ) : null}
     </div>

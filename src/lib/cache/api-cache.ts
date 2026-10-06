@@ -3,7 +3,7 @@ import { getWeatherDailyApiLimit } from "@/lib/config/data-source";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { RateLimitError } from "@/lib/types/prediction";
 
-type ApiProvider = "football" | "weather";
+type ApiProvider = "football" | "weather" | "odds";
 
 interface CachedFetchOptions<T> {
   provider: ApiProvider;
@@ -106,6 +106,8 @@ export async function cachedFetch<T>(
 export const TTL = {
   WEATHER: 6 * 60 * 60 * 1000,
   FOOTBALL: 12 * 60 * 60 * 1000,
+  /** Odds API: day-before evening through day-of morning. */
+  ODDS: 12 * 60 * 60 * 1000,
 } as const;
 
 export const DAILY_LIMITS = {
@@ -113,4 +115,6 @@ export const DAILY_LIMITS = {
     return getWeatherDailyApiLimit();
   },
   football: 2,
+  /** Soft cap so free-tier 500 credits/month is not blown in a few days. */
+  odds: 15,
 } as const;
