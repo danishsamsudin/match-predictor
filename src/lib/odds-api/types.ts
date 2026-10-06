@@ -7,6 +7,8 @@ export type OddsApiOutcome = {
   name: string;
   price: number;
   point?: number;
+  /** Present on team totals / some prop markets (team name). */
+  description?: string;
 };
 
 export type OddsApiMarket = {

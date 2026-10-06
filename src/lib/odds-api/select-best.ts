@@ -2,9 +2,17 @@ import type {
   OddsApiBookmaker,
   OddsApiEvent,
   OddsApiMarket,
+  OddsApiOutcome,
   OddsBookSource,
   SelectedBookOdds,
 } from "@/lib/odds-api/types";
+
+/** Match O/U lines shown on Value Opportunities. */
+const OU_LINES = [0.5, 1.5, 2.5, 3.5] as const;
+/** Asian handicap lines shown on Value Opportunities (home perspective). */
+const AH_LINES = [-1.5, -0.5, 0.5, 1.5] as const;
+/** Team total lines shown on Value Opportunities. */
+const TT_LINES = [0.5, 1.5, 2.5] as const;
 
 function isPinnacle(key: string): boolean {
   return key === "pinnacle";
@@ -20,21 +28,28 @@ function bookSource(key: string): OddsBookSource | null {
   return null;
 }
 
-function marketByKey(
+function marketsByKeys(
   book: OddsApiBookmaker | undefined,
-  marketKey: string
-): OddsApiMarket | undefined {
-  return book?.markets.find((m) => m.key === marketKey);
+  keys: string[]
+): OddsApiMarket[] {
+  if (!book) return [];
+  return book.markets.filter((m) => keys.includes(m.key));
 }
 
 function outcomePrice(
-  market: OddsApiMarket | undefined,
-  predicate: (o: { name: string; point?: number }) => boolean
+  markets: OddsApiMarket[],
+  predicate: (o: OddsApiOutcome) => boolean
 ): number | null {
-  if (!market) return null;
-  const hit = market.outcomes.find(predicate);
-  if (!hit || !(hit.price > 1)) return null;
-  return hit.price;
+  for (const market of markets) {
+    const hit = market.outcomes.find(predicate);
+    if (hit && hit.price > 1) return hit.price;
+  }
+  return null;
+}
+
+function pointsClose(a: number | undefined, b: number): boolean {
+  if (a == null || !Number.isFinite(a)) return false;
+  return Math.abs(a - b) < 1e-6;
 }
 
 /**
@@ -52,7 +67,6 @@ export function preferBestPrice(
   if (unibet == null && pinnacle != null) {
     return { price: pinnacle, source: "pinnacle", unibetPreferred: false };
   }
-  // Both present: Unibet only wins when strictly better for us.
   if (unibet! > pinnacle!) {
     return { price: unibet!, source: "unibet", unibetPreferred: true };
   }
@@ -91,9 +105,15 @@ function pushSelected(
   });
 }
 
+function teamLabelMatch(outcome: OddsApiOutcome, teamName: string): boolean {
+  const desc = (outcome.description ?? "").trim();
+  if (!desc) return false;
+  return desc === teamName || desc.toLowerCase() === teamName.toLowerCase();
+}
+
 /**
  * Map an Odds API event (with bookmakers) onto Value Opportunities row ids.
- * Covers 1X2, BTTS, and totals lines we show (0.5 / 1.5 / 2.5 / 3.5).
+ * Uses featured + alternate markets when present (O/U lines, AH, team totals, BTTS, 1X2).
  */
 export function mapEventToValueRows(event: OddsApiEvent): SelectedBookOdds[] {
   const { pinnacle, unibet } = splitBooks(event);
@@ -101,8 +121,8 @@ export function mapEventToValueRows(event: OddsApiEvent): SelectedBookOdds[] {
   const home = event.home_team;
   const away = event.away_team;
 
-  const pinH2h = marketByKey(pinnacle, "h2h");
-  const uniH2h = marketByKey(unibet, "h2h");
+  const pinH2h = marketsByKeys(pinnacle, ["h2h", "h2h_3_way"]);
+  const uniH2h = marketsByKeys(unibet, ["h2h", "h2h_3_way"]);
 
   pushSelected(
     rows,
@@ -123,8 +143,8 @@ export function mapEventToValueRows(event: OddsApiEvent): SelectedBookOdds[] {
     outcomePrice(uniH2h, (o) => o.name === away)
   );
 
-  const pinBtts = marketByKey(pinnacle, "btts");
-  const uniBtts = marketByKey(unibet, "btts");
+  const pinBtts = marketsByKeys(pinnacle, ["btts"]);
+  const uniBtts = marketsByKeys(unibet, ["btts"]);
   pushSelected(
     rows,
     "btts-yes",
@@ -138,20 +158,19 @@ export function mapEventToValueRows(event: OddsApiEvent): SelectedBookOdds[] {
     outcomePrice(uniBtts, (o) => o.name.toLowerCase() === "no")
   );
 
-  const totalsLines = [0.5, 1.5, 2.5, 3.5];
-  const pinTotals = marketByKey(pinnacle, "totals");
-  const uniTotals = marketByKey(unibet, "totals");
-  for (const line of totalsLines) {
+  const pinTotals = marketsByKeys(pinnacle, ["totals", "alternate_totals"]);
+  const uniTotals = marketsByKeys(unibet, ["totals", "alternate_totals"]);
+  for (const line of OU_LINES) {
     pushSelected(
       rows,
       `ou-over-${line}`,
       outcomePrice(
         pinTotals,
-        (o) => o.name.toLowerCase() === "over" && o.point === line
+        (o) => o.name.toLowerCase() === "over" && pointsClose(o.point, line)
       ),
       outcomePrice(
         uniTotals,
-        (o) => o.name.toLowerCase() === "over" && o.point === line
+        (o) => o.name.toLowerCase() === "over" && pointsClose(o.point, line)
       )
     );
     pushSelected(
@@ -159,11 +178,117 @@ export function mapEventToValueRows(event: OddsApiEvent): SelectedBookOdds[] {
       `ou-under-${line}`,
       outcomePrice(
         pinTotals,
-        (o) => o.name.toLowerCase() === "under" && o.point === line
+        (o) => o.name.toLowerCase() === "under" && pointsClose(o.point, line)
       ),
       outcomePrice(
         uniTotals,
-        (o) => o.name.toLowerCase() === "under" && o.point === line
+        (o) => o.name.toLowerCase() === "under" && pointsClose(o.point, line)
+      )
+    );
+  }
+
+  const pinSpreads = marketsByKeys(pinnacle, ["spreads", "alternate_spreads"]);
+  const uniSpreads = marketsByKeys(unibet, ["spreads", "alternate_spreads"]);
+  for (const line of AH_LINES) {
+    pushSelected(
+      rows,
+      `ah-home-${line}`,
+      outcomePrice(
+        pinSpreads,
+        (o) => o.name === home && pointsClose(o.point, line)
+      ),
+      outcomePrice(
+        uniSpreads,
+        (o) => o.name === home && pointsClose(o.point, line)
+      )
+    );
+    pushSelected(
+      rows,
+      `ah-away-${line}`,
+      outcomePrice(
+        pinSpreads,
+        (o) => o.name === away && pointsClose(o.point, -line)
+      ),
+      outcomePrice(
+        uniSpreads,
+        (o) => o.name === away && pointsClose(o.point, -line)
+      )
+    );
+  }
+
+  const pinTt = marketsByKeys(pinnacle, ["team_totals", "alternate_team_totals"]);
+  const uniTt = marketsByKeys(unibet, ["team_totals", "alternate_team_totals"]);
+  for (const line of TT_LINES) {
+    pushSelected(
+      rows,
+      `tt-home-over-${line}`,
+      outcomePrice(
+        pinTt,
+        (o) =>
+          o.name.toLowerCase() === "over" &&
+          pointsClose(o.point, line) &&
+          teamLabelMatch(o, home)
+      ),
+      outcomePrice(
+        uniTt,
+        (o) =>
+          o.name.toLowerCase() === "over" &&
+          pointsClose(o.point, line) &&
+          teamLabelMatch(o, home)
+      )
+    );
+    pushSelected(
+      rows,
+      `tt-home-under-${line}`,
+      outcomePrice(
+        pinTt,
+        (o) =>
+          o.name.toLowerCase() === "under" &&
+          pointsClose(o.point, line) &&
+          teamLabelMatch(o, home)
+      ),
+      outcomePrice(
+        uniTt,
+        (o) =>
+          o.name.toLowerCase() === "under" &&
+          pointsClose(o.point, line) &&
+          teamLabelMatch(o, home)
+      )
+    );
+    pushSelected(
+      rows,
+      `tt-away-over-${line}`,
+      outcomePrice(
+        pinTt,
+        (o) =>
+          o.name.toLowerCase() === "over" &&
+          pointsClose(o.point, line) &&
+          teamLabelMatch(o, away)
+      ),
+      outcomePrice(
+        uniTt,
+        (o) =>
+          o.name.toLowerCase() === "over" &&
+          pointsClose(o.point, line) &&
+          teamLabelMatch(o, away)
+      )
+    );
+    pushSelected(
+      rows,
+      `tt-away-under-${line}`,
+      outcomePrice(
+        pinTt,
+        (o) =>
+          o.name.toLowerCase() === "under" &&
+          pointsClose(o.point, line) &&
+          teamLabelMatch(o, away)
+      ),
+      outcomePrice(
+        uniTt,
+        (o) =>
+          o.name.toLowerCase() === "under" &&
+          pointsClose(o.point, line) &&
+          teamLabelMatch(o, away)
       )
     );
   }

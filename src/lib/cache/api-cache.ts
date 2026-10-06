@@ -118,5 +118,5 @@ export const DAILY_LIMITS = {
   },
   football: 2,
   /** Soft cap so free-tier 500 credits/month is not blown in a few days. */
-  odds: 15,
+  odds: 40,
 } as const;

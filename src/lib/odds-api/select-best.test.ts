@@ -122,4 +122,81 @@ describe("mapEventToValueRows", () => {
     expect(byId["ou-over-2.5"]?.price).toBe(1.9);
     expect(byId["btts-yes"]?.source).toBe("unibet");
   });
+
+  it("maps alternate O/U lines, AH, and team totals", () => {
+    const event: OddsApiEvent = {
+      id: "deep",
+      sport_key: "soccer_epl",
+      commence_time: "2026-10-10T14:00:00Z",
+      home_team: "Arsenal",
+      away_team: "Leeds United",
+      bookmakers: [
+        {
+          key: "pinnacle",
+          title: "Pinnacle",
+          markets: [
+            {
+              key: "alternate_totals",
+              outcomes: [
+                { name: "Over", price: 1.72, point: 3.5 },
+                { name: "Under", price: 2.18, point: 3.5 },
+                { name: "Over", price: 2.05, point: 1.5 },
+                { name: "Under", price: 1.8, point: 1.5 },
+              ],
+            },
+            {
+              key: "alternate_spreads",
+              outcomes: [
+                { name: "Arsenal", price: 1.95, point: -0.5 },
+                { name: "Leeds United", price: 1.91, point: 0.5 },
+                { name: "Arsenal", price: 1.72, point: 0.5 },
+                { name: "Leeds United", price: 2.2, point: -0.5 },
+              ],
+            },
+            {
+              key: "alternate_team_totals",
+              outcomes: [
+                {
+                  name: "Over",
+                  price: 1.85,
+                  point: 1.5,
+                  description: "Arsenal",
+                },
+                {
+                  name: "Under",
+                  price: 1.95,
+                  point: 1.5,
+                  description: "Arsenal",
+                },
+                {
+                  name: "Over",
+                  price: 2.1,
+                  point: 0.5,
+                  description: "Leeds United",
+                },
+                {
+                  name: "Under",
+                  price: 1.75,
+                  point: 0.5,
+                  description: "Leeds United",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const rows = mapEventToValueRows(event);
+    const byId = Object.fromEntries(rows.map((r) => [r.rowId, r]));
+
+    expect(byId["ou-over-3.5"]?.price).toBe(1.72);
+    expect(byId["ou-under-1.5"]?.price).toBe(1.8);
+    expect(byId["ah-home--0.5"]?.price).toBe(1.95);
+    expect(byId["ah-away--0.5"]?.price).toBe(1.91);
+    expect(byId["ah-home-0.5"]?.price).toBe(1.72);
+    expect(byId["ah-away-0.5"]?.price).toBe(2.2);
+    expect(byId["tt-home-over-1.5"]?.price).toBe(1.85);
+    expect(byId["tt-away-under-0.5"]?.price).toBe(1.75);
+  });
 });

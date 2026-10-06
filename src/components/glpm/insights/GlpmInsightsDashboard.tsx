@@ -496,8 +496,8 @@ function ValueOpportunitiesPanel({
       glossaryKey="valueEdge"
       howToRead={
         showConfidence
-          ? "Book odds auto-fill from Pinnacle (or Unibet when longer). Confidence, stake, and Pass/Watch/Bet use this league's historical hit rates at this model %, not the raw model % alone."
-          : "Book odds auto-fill from Pinnacle (or Unibet when longer). Positive edge means the book price is longer than the model. Confidence / Stake / Action appear after this league has enough locked finished evaluations."
+          ? "Book odds auto-fill from Pinnacle (or Unibet when longer) across 1X2, BTTS, O/U, AH, and team totals when the API has them. Confidence, stake, and Pass/Watch/Bet use this league's historical hit rates at this model %, not the raw model % alone."
+          : "Book odds auto-fill from Pinnacle (or Unibet when longer) across 1X2, BTTS, O/U, AH, and team totals when the API has them. Positive edge means the book price is longer than the model. Confidence / Stake / Action appear after this league has enough locked finished evaluations."
       }
     >
       {oddsLeagueSupported ? <OddsAutoFillBanner state={oddsAutoFill} /> : null}

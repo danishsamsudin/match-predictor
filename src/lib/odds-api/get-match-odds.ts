@@ -114,7 +114,7 @@ async function loadEventExtras(
   try {
     const result = await cachedFetch<CachedEventExtras>({
       provider: "odds",
-      cacheKey: `odds:event:${sportKey}:${eventId}:btts`,
+      cacheKey: `odds:event:${sportKey}:${eventId}:deep:v3`,
       ttlMs: ODDS_CACHE_TTL_MS,
       dailyLimit: ODDS_DAILY_CREDIT_LIMIT,
       fetcher: async () => {

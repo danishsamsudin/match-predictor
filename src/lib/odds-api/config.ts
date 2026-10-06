@@ -30,19 +30,21 @@ export const ODDS_BOOKMAKERS = "pinnacle,unibet_nl" as const;
 export const ODDS_FEATURED_MARKETS = "h2h,totals" as const;
 
 /**
- * Extra markets via /events/{id}/odds (BTTS is not on the featured endpoint).
- * Kept separate so we only spend credits when the user opens a match.
+ * Extra markets via /events/{id}/odds.
+ * Cost = unique markets returned × 1 bookmaker-group (empty markets are free).
+ * Cached per event for 12h so opening the same match again is free.
  */
-export const ODDS_EVENT_EXTRA_MARKETS = "btts" as const;
+export const ODDS_EVENT_EXTRA_MARKETS =
+  "btts,spreads,alternate_spreads,alternate_totals,team_totals,alternate_team_totals" as const;
 
 /** Cache TTL: covers evening day-before check through morning day-of. */
 export const ODDS_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
 /**
- * Daily soft cap so free-tier 500 credits/month is not blown in a few days.
- * One league featured call is typically 1–2 credits; response is cached 12h.
+ * Soft daily credit budget. Event deep-market calls can cost ~3–6 credits each;
+ * 12h cache keeps real month usage well under the free 500.
  */
-export const ODDS_DAILY_CREDIT_LIMIT = 15;
+export const ODDS_DAILY_CREDIT_LIMIT = 40;
 
 /** Look ahead this many hours when warming / matching fixtures.
  * Wide enough for midweek prep of weekend matchdays (not only day-before). */
