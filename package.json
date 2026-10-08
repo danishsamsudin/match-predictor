@@ -96,6 +96,7 @@
     "glpm:sm-refresh-schedules": "npx tsx scripts/glpm-sportmonks-refresh-schedules.ts",
     "glpm:sm-refresh-kickoffs": "npx tsx scripts/glpm-refresh-upcoming-kickoffs.ts",
     "glpm:sm-daily-sync": "npx tsx scripts/glpm-sportmonks-daily-sync.ts",
+    "glpm:data-freshness": "npx tsx scripts/glpm-data-freshness.ts",
     "glpm:night-refresh": "npx tsx scripts/glpm-night-refresh.ts",
     "glpm:fetch-ppda": "npx tsx scripts/glpm-fetch-ppda.ts",
     "glpm:fetch-understat-shots": "npx tsx scripts/glpm-fetch-understat-shots.ts",

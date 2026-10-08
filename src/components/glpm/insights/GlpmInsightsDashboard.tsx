@@ -476,10 +476,10 @@ function ValueOpportunitiesPanel({
       howToRead=""
     >
       {showConfidence ? (
-        <label className="mb-3 block max-w-[10rem] space-y-1">
+        <label className="mb-3 block w-full max-w-[10rem] space-y-1">
           <span className="text-[10px] uppercase tracking-wide text-muted">Bankroll (€)</span>
           <input
-            className="w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
+            className="h-9 w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
             inputMode="decimal"
             value={bankroll}
             onChange={(e) => setBankroll(e.target.value)}
@@ -490,7 +490,7 @@ function ValueOpportunitiesPanel({
       ) : null}
 
       {showConfidence ? (
-        <div className="mb-3 flex flex-wrap gap-2 text-[11px]">
+        <div className="mb-3 flex flex-wrap gap-1.5 text-[11px] sm:gap-2">
           {(
             [
               ["strong", "Strong"],
@@ -505,7 +505,9 @@ function ValueOpportunitiesPanel({
             >
               <span className={`h-1.5 w-1.5 rounded-full ${TIER_STYLES[tier].dot}`} />
               {label}
-              <span className="font-normal opacity-70">· {TIER_STYLES[tier].label}</span>
+              <span className="hidden font-normal opacity-70 sm:inline">
+                · {TIER_STYLES[tier].label}
+              </span>
             </span>
           ))}
         </div>
@@ -519,23 +521,27 @@ function ValueOpportunitiesPanel({
         />
       </div>
 
-      {edgeChart.length ? <EdgeBars data={edgeChart} /> : null}
+      {edgeChart.length ? (
+        <div className="mb-1 overflow-x-auto">
+          <EdgeBars data={edgeChart} />
+        </div>
+      ) : null}
 
-      <div className="mt-3 space-y-5">
+      <div className="mt-3 space-y-4">
         {filteredSections.length === 0 ? (
           <p className="py-4 text-sm text-muted">
             {valueActionFilterEmptyMessage(actionFilter)}
           </p>
         ) : (
           filteredSections.map((section) => (
-            <div key={section.title}>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            <section key={section.title} className="min-w-0">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
                 {section.title}
               </p>
               {section.hint ? (
-                <p className="mb-1 text-[11px] text-muted">{section.hint}</p>
+                <p className="mb-1.5 text-[11px] leading-snug text-muted">{section.hint}</p>
               ) : null}
-              <div className="border-t border-glass-border/80">
+              <div className="rounded-xl border border-glass-border/80 bg-surface/15 px-3">
                 {section.rows.map((r) => {
                   const edgePct = showConfidence
                     ? (r.histEdgePct ?? r.modelEdgePct)
@@ -553,7 +559,7 @@ function ValueOpportunitiesPanel({
                   );
                 })}
               </div>
-            </div>
+            </section>
           ))
         )}
       </div>

@@ -10,18 +10,22 @@ const FILTER_OPTIONS: ValueActionFilter[] = ["all", "bet", "watch", "pass"];
 
 export function OddsReturnLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted">
       <span className="font-medium text-foreground/80">Book return</span>
       <span className="inline-flex items-center gap-1.5">
         <span className={`h-1.5 w-1.5 rounded-full ${oddsReturnDotClass("low")}`} />
         <span className="text-rose-700 dark:text-rose-300">&lt; 1.40</span>
       </span>
-      <span className="text-muted/50">·</span>
+      <span className="hidden text-muted/50 sm:inline" aria-hidden>
+        ·
+      </span>
       <span className="inline-flex items-center gap-1.5">
         <span className={`h-1.5 w-1.5 rounded-full ${oddsReturnDotClass("mid")}`} />
         <span className="text-amber-800 dark:text-amber-300">1.40 - 1.75</span>
       </span>
-      <span className="text-muted/50">·</span>
+      <span className="hidden text-muted/50 sm:inline" aria-hidden>
+        ·
+      </span>
       <span className="inline-flex items-center gap-1.5">
         <span className={`h-1.5 w-1.5 rounded-full ${oddsReturnDotClass("high")}`} />
         <span className="text-emerald-700 dark:text-emerald-300">&gt; 1.75</span>
@@ -45,11 +49,11 @@ export function ValueOpportunityFilters({
   }
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+    <div className="flex flex-col gap-2.5">
       <div
         role="tablist"
         aria-label="Filter by action"
-        className="inline-flex flex-wrap gap-1 rounded-lg border border-glass-border bg-surface/60 p-1"
+        className="grid w-full grid-cols-4 gap-1 rounded-lg border border-glass-border bg-surface/60 p-1 sm:inline-flex sm:w-auto"
       >
         {FILTER_OPTIONS.map((option) => {
           const selected = value === option;
@@ -61,7 +65,7 @@ export function ValueOpportunityFilters({
               role="tab"
               aria-selected={selected}
               onClick={() => onChange(option)}
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+              className={`min-h-9 rounded-md px-2 py-2 text-xs font-semibold transition sm:min-h-0 sm:px-2.5 sm:py-1 ${
                 selected
                   ? "bg-foreground text-background shadow-sm"
                   : "text-muted hover:bg-surface hover:text-foreground"
