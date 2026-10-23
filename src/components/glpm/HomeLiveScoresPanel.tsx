@@ -425,14 +425,28 @@ function LiveMetricsStrip({
   );
 }
 
+/** Short clock labels so the live pill fits beside crests on narrow screens. */
+function compactLiveStatus(statusLabel: string): string {
+  const raw = statusLabel.trim();
+  const lower = raw.toLowerCase();
+  if (lower === "1st half" || lower === "first half") return "1H";
+  if (lower === "2nd half" || lower === "second half") return "2H";
+  if (lower === "half time" || lower === "ht") return "HT";
+  if (lower === "et" || lower.startsWith("extra")) return "ET";
+  if (lower.includes("pen")) return "PEN";
+  if (lower === "live") return "LIVE";
+  return raw.length > 6 ? raw.slice(0, 5) : raw;
+}
+
 function LiveScoreCard({ match }: { match: LiveScoreMatch }) {
   const momentCount = match.timeline.length;
-  const [expanded, setExpanded] = useState(momentCount > 0);
+  const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
   const flagSrc = match.countryIso ? countryFlagUrl(match.countryIso) : null;
-  const clock =
+  const statusShort = compactLiveStatus(match.statusLabel);
+  const clockAria =
     match.minute != null
-      ? `${match.statusLabel} · ${match.minute}'`
+      ? `${match.statusLabel} ${match.minute}'`
       : match.statusLabel;
 
   const expandLabel = expanded
@@ -472,18 +486,32 @@ function LiveScoreCard({ match }: { match: LiveScoreMatch }) {
       <div className="mt-5 flex items-start gap-2 sm:gap-4">
         <TeamSide name={match.homeTeamName} logoUrl={match.homeLogoUrl} />
 
-        <div className="flex w-[6.5rem] shrink-0 flex-col items-center justify-center gap-2 pt-1 sm:w-36">
+        <div className="flex min-w-[4.75rem] shrink-0 flex-col items-center justify-center gap-2 pt-1 sm:min-w-[7.5rem]">
           <p className="font-mono text-2xl font-bold tabular-nums tracking-tight text-foreground sm:text-4xl">
             {match.homeScore}
             <span className="mx-1 text-muted sm:mx-2">-</span>
             {match.awayScore}
           </p>
-          <span className="live-status-pill inline-flex max-w-full items-center justify-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide">
+          <span
+            className="live-status-pill inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide sm:px-2.5 sm:text-[11px]"
+            title={clockAria}
+            aria-label={clockAria}
+          >
             <span className="relative flex h-1.5 w-1.5 shrink-0">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-70" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" />
             </span>
-            <span className="truncate">{clock}</span>
+            <span className="tabular-nums">
+              {statusShort}
+              {match.minute != null ? (
+                <>
+                  <span className="mx-1 text-rose-500/70 dark:text-rose-300/70" aria-hidden>
+                    ·
+                  </span>
+                  {match.minute}&apos;
+                </>
+              ) : null}
+            </span>
           </span>
         </div>
 
@@ -575,11 +603,11 @@ export function HomeLiveScoresPanel({ board: initialBoard }: { board: LiveScores
   const hasResults = finishedToday.length > 0 || yesterday.length > 0;
 
   const intro = isPreview
-    ? "Preview layout. Expand a live card for scorers, cards, and stats. Tap a finished result below to compare prediction vs outcome."
+    ? "Preview layout. Expand a live card for scorers, cards, and stats. Tap a finished result for match details."
     : hasLive
-      ? "In-play fixtures with a live timeline. This board refreshes about every minute while the tab is open."
+      ? "In-play fixtures with a live timeline. Expand a card for moments and stats. This board refreshes about every minute while the tab is open."
       : finishedToday.length > 0
-        ? "No matches in play. Tap a finished result below to compare prediction vs outcome."
+        ? "No matches in play. Tap a finished result for scorers and prediction vs outcome."
         : hasResults
           ? "No live matches right now. Tap a yesterday score below to compare prediction vs outcome."
           : "No live matches right now. Check back around kickoff for scorers, cards, and live stats.";

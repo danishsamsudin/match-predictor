@@ -84,10 +84,17 @@ function HeaderTip({
   );
 }
 
-/** Opaque sticky cell bg so scrolled metrics do not show through. */
-const STICKY_BG =
-  "bg-[color:var(--background)] dark:bg-[color:var(--background)]";
-const STICKY_HEAD_BG = "bg-surface";
+/**
+ * Opaque sticky cell backgrounds so horizontally scrolled metrics cannot
+ * show through (translucent surface / tint classes are not enough).
+ */
+const STICKY_BG = "bg-[var(--background)]";
+const STICKY_HEAD_BG = "bg-[var(--background)]";
+const STICKY_TEAM_NEUTRAL = "bg-[var(--background)]";
+const STICKY_TEAM_OVER =
+  "bg-[color-mix(in_srgb,rgb(16,185,129)_12%,var(--background))] dark:bg-[color-mix(in_srgb,rgb(52,211,153)_14%,var(--background))]";
+const STICKY_TEAM_UNDER =
+  "bg-[color-mix(in_srgb,rgb(244,63,94)_12%,var(--background))] dark:bg-[color-mix(in_srgb,rgb(251,113,133)_14%,var(--background))]";
 
 const stickyRankClass =
   `sticky left-0 z-20 w-10 min-w-10 max-w-10 ${STICKY_BG}`;
@@ -184,12 +191,12 @@ export function GlpmXgTable({
             // # > Pos: better table place than xG rank (overperforming). # = Pos: in line.
             const teamBg =
               row.tablePos == null
-                ? `${STICKY_BG} text-foreground`
+                ? `${STICKY_TEAM_NEUTRAL} text-foreground`
                 : xgRank >= row.tablePos
                   ? // # >= Pos: matching or outperforming the table
-                    "bg-emerald-500/[0.07] text-foreground dark:bg-emerald-400/[0.08]"
+                    `${STICKY_TEAM_OVER} text-foreground`
                   : // # < Pos: underperforming vs xG rank
-                    "bg-rose-500/[0.07] text-foreground dark:bg-rose-400/[0.08]";
+                    `${STICKY_TEAM_UNDER} text-foreground`;
 
             return (
               <tr
