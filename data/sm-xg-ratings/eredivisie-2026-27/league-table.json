@@ -1,0 +1,200 @@
+[
+  {
+    "team_sm_id": 73,
+    "team": "Feyenoord",
+    "matches": 9,
+    "goals": 31.0,
+    "ga": 10.0,
+    "xG": 25.263199999999998,
+    "xGA": 9.0558,
+    "goals_minus_xg": 5.736800000000002,
+    "number": 1
+  },
+  {
+    "team_sm_id": 629,
+    "team": "Ajax",
+    "matches": 9,
+    "goals": 27.0,
+    "ga": 12.0,
+    "xG": 24.010900000000003,
+    "xGA": 11.276,
+    "goals_minus_xg": 2.989099999999997,
+    "number": 2
+  },
+  {
+    "team_sm_id": 682,
+    "team": "PSV",
+    "matches": 9,
+    "goals": 27.0,
+    "ga": 12.0,
+    "xG": 22.217200000000002,
+    "xGA": 11.101899999999999,
+    "goals_minus_xg": 4.782799999999998,
+    "number": 3
+  },
+  {
+    "team_sm_id": 61,
+    "team": "AZ Alkmaar",
+    "matches": 9,
+    "goals": 20.0,
+    "ga": 10.0,
+    "xG": 21.695899999999998,
+    "xGA": 9.6502,
+    "goals_minus_xg": -1.6958999999999982,
+    "number": 4
+  },
+  {
+    "team_sm_id": 593,
+    "team": "FC Twente",
+    "matches": 9,
+    "goals": 17.0,
+    "ga": 10.0,
+    "xG": 20.5562,
+    "xGA": 7.7331,
+    "goals_minus_xg": -3.5562000000000005,
+    "number": 5
+  },
+  {
+    "team_sm_id": 664,
+    "team": "Go Ahead Eagles",
+    "matches": 10,
+    "goals": 23.0,
+    "ga": 23.0,
+    "xG": 18.0118,
+    "xGA": 17.7485,
+    "goals_minus_xg": 4.988199999999999,
+    "number": 6
+  },
+  {
+    "team_sm_id": 919,
+    "team": "Sparta Rotterdam",
+    "matches": 9,
+    "goals": 16.0,
+    "ga": 22.0,
+    "xG": 16.9117,
+    "xGA": 19.1954,
+    "goals_minus_xg": -0.9116999999999997,
+    "number": 7
+  },
+  {
+    "team_sm_id": 494,
+    "team": "NEC Nijmegen",
+    "matches": 9,
+    "goals": 15.0,
+    "ga": 16.0,
+    "xG": 16.696999999999996,
+    "xGA": 15.585099999999999,
+    "goals_minus_xg": -1.6969999999999956,
+    "number": 8
+  },
+  {
+    "team_sm_id": 2345,
+    "team": "FC Groningen",
+    "matches": 9,
+    "goals": 22.0,
+    "ga": 19.0,
+    "xG": 15.2331,
+    "xGA": 18.201800000000002,
+    "goals_minus_xg": 6.7669,
+    "number": 9
+  },
+  {
+    "team_sm_id": 1053,
+    "team": "SC Heerenveen",
+    "matches": 9,
+    "goals": 15.0,
+    "ga": 11.0,
+    "xG": 13.6159,
+    "xGA": 14.2691,
+    "goals_minus_xg": 1.3841,
+    "number": 10
+  },
+  {
+    "team_sm_id": 1550,
+    "team": "Telstar",
+    "matches": 10,
+    "goals": 12.0,
+    "ga": 21.0,
+    "xG": 13.4777,
+    "xGA": 21.977099999999997,
+    "goals_minus_xg": -1.4777000000000005,
+    "number": 11
+  },
+  {
+    "team_sm_id": 1652,
+    "team": "Excelsior",
+    "matches": 9,
+    "goals": 16.0,
+    "ga": 18.0,
+    "xG": 13.133799999999999,
+    "xGA": 16.1284,
+    "goals_minus_xg": 2.866200000000001,
+    "number": 12
+  },
+  {
+    "team_sm_id": 1435,
+    "team": "SC Cambuur",
+    "matches": 9,
+    "goals": 13.0,
+    "ga": 21.0,
+    "xG": 12.586,
+    "xGA": 16.290799999999997,
+    "goals_minus_xg": 0.4139999999999997,
+    "number": 13
+  },
+  {
+    "team_sm_id": 750,
+    "team": "FC Utrecht",
+    "matches": 9,
+    "goals": 16.0,
+    "ga": 26.0,
+    "xG": 12.543899999999999,
+    "xGA": 17.316000000000003,
+    "goals_minus_xg": 3.456100000000001,
+    "number": 14
+  },
+  {
+    "team_sm_id": 669,
+    "team": "Willem II",
+    "matches": 9,
+    "goals": 9.0,
+    "ga": 26.0,
+    "xG": 12.116100000000001,
+    "xGA": 20.3536,
+    "goals_minus_xg": -3.116100000000001,
+    "number": 15
+  },
+  {
+    "team_sm_id": 1016,
+    "team": "PEC Zwolle",
+    "matches": 9,
+    "goals": 10.0,
+    "ga": 22.0,
+    "xG": 10.6272,
+    "xGA": 20.1128,
+    "goals_minus_xg": -0.6272000000000002,
+    "number": 16
+  },
+  {
+    "team_sm_id": 1128,
+    "team": "ADO Den Haag",
+    "matches": 9,
+    "goals": 11.0,
+    "ga": 20.0,
+    "xG": 8.437800000000001,
+    "xGA": 17.4431,
+    "goals_minus_xg": 2.562199999999999,
+    "number": 17
+  },
+  {
+    "team_sm_id": 1459,
+    "team": "Fortuna Sittard",
+    "matches": 9,
+    "goals": 16.0,
+    "ga": 17.0,
+    "xG": 8.0328,
+    "xGA": 21.7295,
+    "goals_minus_xg": 7.9672,
+    "number": 18
+  }
+]

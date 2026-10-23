@@ -19,3 +19,8 @@ export type { SportmonksClientOptions } from "./client";
 export * from "./types";
 export * from "./statTypes";
 export * from "./constants";
+export {
+  attachExpectedXgToFixtures,
+  mergeExpectedRowsIntoFixture,
+  groupExpectedRowsByFixtureId,
+} from "./attachExpectedXg";

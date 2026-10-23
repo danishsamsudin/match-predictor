@@ -38,7 +38,7 @@ export type AppNavLink =
 export const APP_NAV_LINKS: readonly AppNavLink[] = [
   { href: "/home", label: "Home" },
   { href: "/predict", label: "Predict" },
-  { href: "/league", label: "League" },
+  { href: "/league", label: "xG" },
   {
     label: "Tournaments",
     children: [

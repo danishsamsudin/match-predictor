@@ -13,7 +13,7 @@ const companyLinks = [
 const productLinks = [
   { href: "/home", label: "App home" },
   { href: "/predict", label: "Predict" },
-  { href: "/league", label: "League" },
+  { href: "/league", label: "xG" },
   { href: "/nations-league", label: "Nations League" },
   { href: "/world-cup", label: "World Cup" },
   { href: "/predictions", label: "History" },

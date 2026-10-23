@@ -4,7 +4,7 @@
  * so frozen GLPM predict path is never wired to these features.
  */
 
-export const CX_MODEL_VERSION = "glpm_cx_v1.1";
+export const CX_MODEL_VERSION = "glpm_cx_v1.2";
 
 export type CxContextConfig = {
   restBaselineDays: number;
@@ -166,8 +166,16 @@ export function applyCxToXg(args: {
   const homeCombined = homeRest * homeTravel * homeAlt * homeWeather * homeLineup;
   const awayCombined = awayRest * awayTravel * awayAlt * awayWeather * awayLineup;
 
-  const homeXg = clampXg(args.homeXg * homeCombined, config);
-  const awayXg = clampXg(args.awayXg * awayCombined, config);
+  // Context dampers (rest/travel/weather/alt) systematically push Unders when ≤1.
+  // Preserve pre-CX total goals while keeping the post-multiplier home/away share
+  // (lineup can still move the split via combinedMult).
+  const rawHome = args.homeXg * homeCombined;
+  const rawAway = args.awayXg * awayCombined;
+  const baseTotal = Math.max(1e-6, args.homeXg + args.awayXg);
+  const rawTotal = Math.max(1e-6, rawHome + rawAway);
+  const meanPreserveScale = baseTotal / rawTotal;
+  const homeXg = clampXg(rawHome * meanPreserveScale, config);
+  const awayXg = clampXg(rawAway * meanPreserveScale, config);
 
   const buildSteps = (
     base: number,
@@ -176,6 +184,7 @@ export function applyCxToXg(args: {
     alt: number,
     weather: number,
     lineup: number,
+    preserve: number,
     final: number
   ) => [
     { name: "GLPM base", value: base },
@@ -184,6 +193,7 @@ export function applyCxToXg(args: {
     { name: "× Altitude", value: alt },
     { name: "× Weather", value: weather },
     { name: "× Lineup", value: lineup },
+    { name: "× Mean-preserve", value: preserve },
     { name: "CX xG", value: final },
   ];
 
@@ -199,9 +209,18 @@ export function applyCxToXg(args: {
       altitudeMult: homeAlt,
       weatherMult: homeWeather,
       lineupMult: homeLineup,
-      combinedMult: homeCombined,
+      combinedMult: homeCombined * meanPreserveScale,
       baseXg: args.homeXg,
-      steps: buildSteps(args.homeXg, homeRest, homeTravel, homeAlt, homeWeather, homeLineup, homeXg),
+      steps: buildSteps(
+        args.homeXg,
+        homeRest,
+        homeTravel,
+        homeAlt,
+        homeWeather,
+        homeLineup,
+        meanPreserveScale,
+        homeXg
+      ),
     },
     away: {
       restDays: args.away.restDays,
@@ -211,9 +230,18 @@ export function applyCxToXg(args: {
       altitudeMult: awayAlt,
       weatherMult: awayWeather,
       lineupMult: awayLineup,
-      combinedMult: awayCombined,
+      combinedMult: awayCombined * meanPreserveScale,
       baseXg: args.awayXg,
-      steps: buildSteps(args.awayXg, awayRest, awayTravel, awayAlt, awayWeather, awayLineup, awayXg),
+      steps: buildSteps(
+        args.awayXg,
+        awayRest,
+        awayTravel,
+        awayAlt,
+        awayWeather,
+        awayLineup,
+        meanPreserveScale,
+        awayXg
+      ),
     },
   };
 }

@@ -10,6 +10,7 @@ import {
   hasOddsApiKey,
   type OddsApiQuota,
 } from "@/lib/odds-api/client";
+import { archiveLeagueOddsEvents } from "@/lib/glpm/odds-snapshots";
 import { findMatchingEvent } from "@/lib/odds-api/match-teams";
 import { mapEventToValueRows, rowsToBookMaps } from "@/lib/odds-api/select-best";
 import type { MatchOddsResult, OddsApiEvent, OddsApiBookmaker } from "@/lib/odds-api/types";
@@ -195,6 +196,13 @@ export async function getMatchValueOdds(
   }
 
   let event = match.event;
+  // Near-kickoff / Value Opportunities path: archive this event snapshot (best-effort).
+  void archiveLeagueOddsEvents({
+    sportKey,
+    leagueSmId: input.leagueSmId,
+    events: [event],
+  }).catch(() => undefined);
+
   if (input.includeExtras !== false) {
     const extras = await loadEventExtras(sportKey, event.id);
     creditsUsed += extras.credits;
@@ -251,9 +259,16 @@ export async function warmLeagueOdds(sportKey: string): Promise<{
   eventCount: number;
   fromCache: boolean;
   remaining: number | null;
+  events: OddsApiEvent[];
 }> {
   if (!hasOddsApiKey()) {
-    return { credits: 0, eventCount: 0, fromCache: false, remaining: null };
+    return {
+      credits: 0,
+      eventCount: 0,
+      fromCache: false,
+      remaining: null,
+      events: [],
+    };
   }
   const league = await loadLeagueOdds(sportKey);
   return {
@@ -261,6 +276,7 @@ export async function warmLeagueOdds(sportKey: string): Promise<{
     eventCount: league.payload.events.length,
     fromCache: league.fromCache,
     remaining: league.payload.quota.remaining,
+    events: league.payload.events,
   };
 }
 

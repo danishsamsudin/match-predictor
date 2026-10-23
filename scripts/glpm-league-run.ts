@@ -567,7 +567,7 @@ async function main() {
     skipStep(tracker, "Bayesian temporal smoothing", "--skip-bayesian");
   }
 
-  // ── Season A/D/FR overlay (Understat or standings GF/GA) ─────────────
+  // ── Season A/D/FR overlay (Understat, SM xG, or standings GF/GA) ─────
   if (!seasonRatingOverlayAvailable(Number(seasonId))) {
     skipStep(tracker, "Season A/D/FR overlay", "no overlay for this season");
   } else {

@@ -17,6 +17,8 @@ export type ScoreGridCalibrationParams = {
   lambdaGapScale: number;
   attenuateRhoForGap: boolean;
   gapPositiveRho: boolean;
+  /** League home-advantage multiplier (default 1.12). */
+  homeAdvantage: number;
 };
 
 export type ScoreGridCalibrationArtifact = {
@@ -59,6 +61,7 @@ function parseArtifact(raw: Record<string, unknown>): ScoreGridCalibrationArtifa
       lambdaGapScale: Number(p.lambda_gap_scale ?? 1),
       attenuateRhoForGap: p.attenuate_rho_for_gap !== false,
       gapPositiveRho: p.gap_positive_rho !== false,
+      homeAdvantage: Number(p.home_advantage ?? 1.12),
     },
     halfLifeDays: Number(raw.half_life_days ?? 220),
     nMatches: Number(raw.n_matches ?? 0),
@@ -137,4 +140,12 @@ export function lambdaGapScaleFromCalibration(
   artifact: ScoreGridCalibrationArtifact | null
 ): number {
   return artifact?.params.lambdaGapScale ?? 1;
+}
+
+export function homeAdvantageFromCalibration(
+  artifact: ScoreGridCalibrationArtifact | null
+): number | undefined {
+  if (!artifact) return undefined;
+  const ha = artifact.params.homeAdvantage;
+  return Number.isFinite(ha) && ha > 0 ? ha : undefined;
 }

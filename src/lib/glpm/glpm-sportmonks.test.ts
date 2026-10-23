@@ -214,6 +214,31 @@ describe("GLPM SportMonks primary mappers", () => {
     expect(home.open_play_xg).toBeCloseTo(1.55);
   });
 
+  it("merges /expected/fixtures rows into empty xGFixture", async () => {
+    const { mergeExpectedRowsIntoFixture } = await import("../sportmonks/attachExpectedXg");
+    const base: SmFixture = {
+      ...fixture,
+      xGFixture: [],
+      statistics: (fixture.statistics ?? []).filter(
+        (s) => s.type_id !== 5304 && s.type_id !== 5305 && s.type_id !== 9687
+      ),
+    };
+    const merged = mergeExpectedRowsIntoFixture(base, [
+      { fixture_id: fixture.id, type_id: 5304, participant_id: 19, data: { value: 1.42 } },
+      { fixture_id: fixture.id, type_id: 5304, participant_id: 18, data: { value: 0.91 } },
+    ]);
+    const stats = mapSportmonksTeamStats({
+      fixture: merged,
+      homeId: 19,
+      awayId: 18,
+    });
+    expect(stats.find((s) => s.is_home)!.xg).toBeCloseTo(1.42);
+    expect(stats.find((s) => !s.is_home)!.xg).toBeCloseTo(0.91);
+    expect((stats.find((s) => s.is_home)!.payload as { xg_proxy?: boolean }).xg_proxy).toBe(
+      false
+    );
+  });
+
   it("uses xGFixture when statistics lack Expected Goals", () => {
     const noXgStatsFixture: SmFixture = {
       ...fixture,

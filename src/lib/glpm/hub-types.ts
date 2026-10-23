@@ -2,6 +2,10 @@
  * Client-safe hub payload types.
  */
 
+import type { GlpmXgTableRow } from "@/lib/glpm/xg-table";
+
+export type { GlpmXgTableRow };
+
 export type GlpmHubPredictionSource = "cx" | "stored" | "live" | "prior";
 
 export type GlpmHubWeather = {
@@ -145,5 +149,29 @@ export type GlpmHubPayload = {
   ratingLeaders: GlpmHubRatingLeader[];
   recent: GlpmHubRecentMatch[];
   upcoming: GlpmHubUpcomingMatch[];
+  updatedAt: string;
+};
+
+/** Catalog + season xG table for `/league` (keeps home hub payload separate). */
+export type GlpmXgHubPayload = {
+  competition: { smId: number; name: string; areaName: string | null } | null;
+  season: { smId: number; name: string | null } | null;
+  competitions: Array<{
+    smId: number;
+    name: string;
+    areaName: string | null;
+    defaultSeasonId: number | null;
+  }>;
+  seasons: Array<{
+    smId: number;
+    name: string | null;
+    competitionId: number;
+    hasVectors: boolean;
+    hasFinishedMatches: boolean;
+    hasUpcomingMatches: boolean;
+    isPredictReady: boolean;
+  }>;
+  xgTable: GlpmXgTableRow[];
+  mostlyProxyXg: boolean;
   updatedAt: string;
 };

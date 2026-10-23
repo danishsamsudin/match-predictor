@@ -73,8 +73,11 @@ describe("glpm-cx applyCxToXg", () => {
         lineupMult: 1,
       },
     });
-    expect(out.homeXg).toBeCloseTo(1.8, 5);
-    expect(out.awayXg).toBeCloseTo(1.9, 5);
+    // Mean-preserve: raw 1.8 / 1.9 rescaled to keep total goals = 4.
+    const scale = 4 / (1.8 + 1.9);
+    expect(out.homeXg).toBeCloseTo(1.8 * scale, 5);
+    expect(out.awayXg).toBeCloseTo(1.9 * scale, 5);
+    expect(out.homeXg + out.awayXg).toBeCloseTo(4, 5);
   });
 
   it("computes rest/travel helpers", () => {

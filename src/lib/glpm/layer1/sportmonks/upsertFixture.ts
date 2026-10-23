@@ -297,7 +297,7 @@ export function mapSportmonksTeamStats(args: {
         set_piece_xg_source: setPieceSplit.source,
         open_play_xg_source: setPieceSplit.source,
         plan_note:
-          "SportMonks xG Basic + proxies: Expected from statistics/xGFixture when present; PPDA from passes/defensive actions; build-up from key+long passes and dangerous attacks; field_tilt from DA/SIB/possession shares; set_piece_xg from xGSP or corners×0.035",
+          "SportMonks xG Basic + proxies: Expected from /expected/fixtures (merged into xGFixture) or statistics when present; PPDA from passes/defensive actions; build-up from key+long passes and dangerous attacks; field_tilt from DA/SIB/possession shares; set_piece_xg from xGSP or corners×0.035",
         build_up_proxy: progressivePasses != null || finalThirdEntries != null,
         field_tilt_proxy: fieldTilt != null,
         set_piece_xg_proxy: setPieceSplit.source === "sportmonks_proxy",

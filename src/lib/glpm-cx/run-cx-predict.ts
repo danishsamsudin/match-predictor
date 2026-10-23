@@ -19,7 +19,15 @@ import {
   type TeamInsightRatings,
 } from "@/lib/glpm/load-insight-ratings";
 import { applyCxToXg, CX_MODEL_VERSION, type CxApplyResult } from "@/lib/glpm-cx/apply-cx";
+import { applyFormToXg, loadFormFactors } from "@/lib/glpm-cx/form-factor";
 import { buildCxContextFeatures, type CxBuiltFeatures } from "@/lib/glpm-cx/context-features";
+import {
+  applySharpShrink,
+  calibrateBttsYes,
+  calibrateOverProb,
+  resolveGlpmMarketModels,
+  resolveGlpmSharpShrink,
+} from "@/lib/glpm/market-models";
 import {
   computeCxLineupImpact,
   type CxLineupImpact,
@@ -202,7 +210,11 @@ export async function runGlpmCxPredict(
   }
 
   const calibration = loadScoreGridCalibration(competitionId);
-  const predConfig = predictionConfigFromCalibration(calibration);
+  const predConfig = {
+    ...predictionConfigFromCalibration(calibration),
+    // Extra scoreline resolution for AH/EH tails (±1.5 / ±2+).
+    maxGoals: 12,
+  };
 
   // Early-season product rule: main markets stay on the mapped prior season
   // (25/26). Violet brackets show the fixture season (26/27) when trained.
@@ -369,12 +381,78 @@ export async function runGlpmCxPredict(
     },
   });
 
-  const cx = marketsFromPredict(
-    apply.homeXg,
-    apply.awayXg,
+  let formHomeXg = apply.homeXg;
+  let formAwayXg = apply.awayXg;
+  try {
+    const form = await loadFormFactors({
+      client,
+      homeTeamSmId: input.homeTeamSmId,
+      awayTeamSmId: input.awayTeamSmId,
+      beforeKickoffIso: null,
+    });
+    if (form.nHome >= 3 && form.nAway >= 3) {
+      const formed = applyFormToXg(apply.homeXg, apply.awayXg, form);
+      formHomeXg = formed.homeXg;
+      formAwayXg = formed.awayXg;
+    }
+  } catch {
+    // Non-fatal: keep CX λ without form.
+  }
+
+  const cxRaw = marketsFromPredict(
+    formHomeXg,
+    formAwayXg,
     CX_MODEL_VERSION,
     predConfig
   );
+
+  const leagueCalibration =
+    competitionId != null
+      ? await loadGlpmCalibrationConfig(competitionId, client)
+      : null;
+  const marketModels = resolveGlpmMarketModels(leagueCalibration);
+  const sharpShrink = resolveGlpmSharpShrink(leagueCalibration);
+
+  const calibratedBttsYes = calibrateBttsYes({
+    rawYes: cxRaw.bttsYes,
+    homeXg: formHomeXg,
+    awayXg: formAwayXg,
+    coeffs: marketModels.btts,
+  });
+  const calibratedOverUnder: Record<string, { over: number; under: number }> = {};
+  for (const [line, ou] of Object.entries(cxRaw.overUnder)) {
+    const coeffs = marketModels.overUnder[line];
+    let over = calibrateOverProb({ rawOver: ou.over, coeffs });
+    over = applySharpShrink(
+      over,
+      null,
+      sharpShrink.alphaByMarket[`ou-${line}`] ?? sharpShrink.alphaByMarket.ou ?? 0
+    );
+    calibratedOverUnder[line] = { over, under: Math.max(0, 1 - over) };
+  }
+  const bttsYesFinal = applySharpShrink(
+    calibratedBttsYes,
+    null,
+    sharpShrink.alphaByMarket.btts ?? 0
+  );
+
+  const cx: GlpmCxMarketBlock = {
+    ...cxRaw,
+    homeXg: formHomeXg,
+    awayXg: formAwayXg,
+    bttsYes: bttsYesFinal,
+    bttsNo: Math.max(0, 1 - bttsYesFinal),
+    overUnder: calibratedOverUnder,
+    derived: deriveMarketsFromScoreMatrix({
+      scoreMatrix: cxRaw.scoreMatrix,
+      homeWin: cxRaw.homeWin,
+      draw: cxRaw.draw,
+      awayWin: cxRaw.awayWin,
+      bttsYes: bttsYesFinal,
+      bttsNo: Math.max(0, 1 - bttsYesFinal),
+      overUnder: calibratedOverUnder,
+    }),
+  };
 
   let priorSeasonCompare: GlpmCxPriorSeasonCompare | null = null;
   let seasonCompareNote: string | null = null;

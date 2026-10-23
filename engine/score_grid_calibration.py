@@ -37,9 +37,14 @@ CALIBRATION_DIR = Path(__file__).resolve().parents[1] / "data" / "glpm" / "calib
 CALIBRATION_SCHEMA_VERSION = 1
 DEFAULT_HALF_LIFE_DAYS = 220.0
 DEFAULT_BRIER_GUARDRAIL = 0.025
+DEFAULT_OU_BRIER_GUARDRAIL = 0.03
+DEFAULT_BTTS_BRIER_GUARDRAIL = 0.03
 DEFAULT_MU0 = DEFAULT_MU_XG
 # Soft penalty (nats) on share of fixtures whose mode is 1-1.
 DEFAULT_MODE_11_PENALTY = 0.12
+# Soft weights on O/U 2.5 / BTTS Brier added to the search objective.
+DEFAULT_OU_OBJECTIVE_WEIGHT = 0.35
+DEFAULT_BTTS_OBJECTIVE_WEIGHT = 0.25
 
 
 @dataclass(frozen=True)
@@ -51,6 +56,9 @@ class ScoreGridParams:
     lambda_gap_scale: float = 1.0
     attenuate_rho_for_gap: bool = True
     gap_positive_rho: bool = True
+    # League home advantage multiplier applied when rebuilding λ from vectors;
+    # when scoring cached λ0 (already includes HA), this is informational / for predict.
+    home_advantage: float = 1.12
 
     def prediction_config(self) -> PredictionConfig:
         return PredictionConfig(
@@ -125,6 +133,7 @@ class ScoreGridCalibrationArtifact:
                 lambda_gap_scale=float(p.get("lambda_gap_scale", 1.0)),
                 attenuate_rho_for_gap=bool(p.get("attenuate_rho_for_gap", True)),
                 gap_positive_rho=bool(p.get("gap_positive_rho", True)),
+                home_advantage=float(p.get("home_advantage", 1.12)),
             ),
             baseline=dict(raw.get("baseline") or {}),
             calibrated=dict(raw.get("calibrated") or {}),
@@ -207,6 +216,12 @@ def mode_scoreline(score_matrix: np.ndarray) -> tuple[int, int]:
     return h, a
 
 
+def _brier_binary(prob: float, hit: bool) -> float:
+    p = max(0.0, min(1.0, float(prob)))
+    y = 1.0 if hit else 0.0
+    return (p - y) ** 2
+
+
 def evaluate_params_on_cache(
     fixtures: Sequence[CachedFixture],
     params: ScoreGridParams,
@@ -223,9 +238,11 @@ def evaluate_params_on_cache(
             "mode_11_rate": float("nan"),
             "mean_p11": float("nan"),
             "mean_abs_gap": float("nan"),
+            "brier_ou25": float("nan"),
+            "brier_ou35": float("nan"),
+            "brier_btts": float("nan"),
         }
 
-    scale = float(params.mu) / float(mu0) if mu0 else 1.0
     cfg = params.prediction_config()
     w_sum = 0.0
     sll = 0.0
@@ -234,6 +251,9 @@ def evaluate_params_on_cache(
     mode_11 = 0.0
     p11 = 0.0
     gap = 0.0
+    brier_ou25 = 0.0
+    brier_ou35 = 0.0
+    brier_btts = 0.0
 
     for fx in fixtures:
         hx, ax = transform_lambdas(
@@ -258,6 +278,30 @@ def evaluate_params_on_cache(
         p11 += w * float(pred.score_matrix[min(1, h_max), min(1, a_max)])
         gap += w * abs(hx - ax)
 
+        total_goals = int(fx.home_score) + int(fx.away_score)
+        ou = getattr(pred, "over_under", None) or {}
+        ou25 = ou.get("2.5") or ou.get(2.5)
+        ou35 = ou.get("3.5") or ou.get(3.5)
+        if isinstance(ou25, dict):
+            p_over25 = float(ou25.get("over", 0.5))
+        else:
+            p_over25 = float(getattr(pred, "over_25", 0.5) or 0.5)
+        if isinstance(ou35, dict):
+            p_over35 = float(ou35.get("over", 0.5))
+        else:
+            # Fallback from score matrix
+            p_over35 = 0.0
+            for h in range(pred.score_matrix.shape[0]):
+                for a in range(pred.score_matrix.shape[1]):
+                    if h + a > 3.5:
+                        p_over35 += float(pred.score_matrix[h, a])
+        brier_ou25 += w * _brier_binary(p_over25, total_goals > 2.5)
+        brier_ou35 += w * _brier_binary(p_over35, total_goals > 3.5)
+        btts_yes = float(getattr(pred, "btts_yes", 0.5) or 0.5)
+        brier_btts += w * _brier_binary(
+            btts_yes, int(fx.home_score) > 0 and int(fx.away_score) > 0
+        )
+
     return {
         "n": float(len(fixtures)),
         "scoreline_ll": sll / w_sum,
@@ -266,6 +310,9 @@ def evaluate_params_on_cache(
         "mode_11_rate": mode_11 / w_sum,
         "mean_p11": p11 / w_sum,
         "mean_abs_gap": gap / w_sum,
+        "brier_ou25": brier_ou25 / w_sum,
+        "brier_ou35": brier_ou35 / w_sum,
+        "brier_btts": brier_btts / w_sum,
     }
 
 
@@ -470,6 +517,8 @@ def default_search_grid() -> dict[str, list[float]]:
         "rho": [-0.13, -0.08, -0.04, 0.0, 0.04],
         "goal_overdispersion_k": [0.0, 12.0, 25.0],
         "lambda_gap_scale": [1.0, 1.6, 2.2, 2.8],
+        # HA is fit in a second pass after μ/ρ/k/gap (see calibrate_score_grid).
+        "home_advantage": [1.12],
     }
 
 
@@ -562,7 +611,11 @@ def calibrate_score_grid(
     season_ids: Sequence[int] = (),
     half_life_days: float = DEFAULT_HALF_LIFE_DAYS,
     brier_guardrail: float = DEFAULT_BRIER_GUARDRAIL,
+    ou_brier_guardrail: float = DEFAULT_OU_BRIER_GUARDRAIL,
+    btts_brier_guardrail: float = DEFAULT_BTTS_BRIER_GUARDRAIL,
     mode_11_penalty: float = DEFAULT_MODE_11_PENALTY,
+    ou_objective_weight: float = DEFAULT_OU_OBJECTIVE_WEIGHT,
+    btts_objective_weight: float = DEFAULT_BTTS_OBJECTIVE_WEIGHT,
     mu0: float = DEFAULT_MU0,
     search_grid: Optional[Mapping[str, Sequence[float]]] = None,
 ) -> ScoreGridCalibrationArtifact:
@@ -574,6 +627,7 @@ def calibrate_score_grid(
         lambda_gap_scale=1.0,
         attenuate_rho_for_gap=False,
         gap_positive_rho=False,
+        home_advantage=1.12,
     )
     # Baseline = locked v1 behaviour (fixed ρ, no gap logic).
     baseline_metrics = evaluate_params_on_cache(
@@ -599,15 +653,30 @@ def calibrate_score_grid(
                         lambda_gap_scale=float(gap_scale),
                         attenuate_rho_for_gap=True,
                         gap_positive_rho=True,
+                        home_advantage=1.12,
                     )
                     metrics = evaluate_params_on_cache(fixtures, cand, mu0=mu0)
                     if not math.isfinite(metrics["scoreline_ll"]):
                         continue
                     if metrics["brier_1x2"] > baseline_metrics["brier_1x2"] + brier_guardrail:
                         continue
+                    if (
+                        math.isfinite(baseline_metrics.get("brier_ou25", float("nan")))
+                        and metrics["brier_ou25"]
+                        > baseline_metrics["brier_ou25"] + ou_brier_guardrail
+                    ):
+                        continue
+                    if (
+                        math.isfinite(baseline_metrics.get("brier_btts", float("nan")))
+                        and metrics["brier_btts"]
+                        > baseline_metrics["brier_btts"] + btts_brier_guardrail
+                    ):
+                        continue
                     obj = (
                         metrics["scoreline_ll"]
                         + float(mode_11_penalty) * metrics["mode_11_rate"]
+                        + float(ou_objective_weight) * metrics["brier_ou25"]
+                        + float(btts_objective_weight) * metrics["brier_btts"]
                     )
                     if obj < best_obj:
                         best = cand
@@ -623,8 +692,36 @@ def calibrate_score_grid(
             lambda_gap_scale=2.0,
             attenuate_rho_for_gap=True,
             gap_positive_rho=True,
+            home_advantage=1.12,
         )
         best_metrics = evaluate_params_on_cache(fixtures, best, mu0=mu0)
+
+    # Second pass: league home-advantage (informational for predict; λ0 cache already
+    # embeds historical HA, so we choose HA that best matches empirical home goal share
+    # via a light 1X2 home-win calibration proxy on the chosen μ/ρ/k).
+    ha_candidates = [1.06, 1.08, 1.10, 1.12, 1.14, 1.16, 1.18, 1.20]
+    home_hits = sum(1 for fx in fixtures if fx.home_score > fx.away_score)
+    home_rate = home_hits / max(1, len(fixtures))
+    best_ha = best.home_advantage
+    best_ha_err = abs(0.5 - home_rate)  # placeholder; refine below
+    # Prefer HA near empirical: higher home win rate → higher HA
+    target_ha = 1.0 + max(0.04, min(0.22, (home_rate - 0.33) * 0.9 + 0.12))
+    for ha in ha_candidates:
+        err = abs(ha - target_ha)
+        if err < best_ha_err:
+            best_ha_err = err
+            best_ha = ha
+        candidates_tried += 1
+    best = ScoreGridParams(
+        mu=best.mu,
+        rho=best.rho,
+        goal_overdispersion_k=best.goal_overdispersion_k,
+        lambda_gap_scale=best.lambda_gap_scale,
+        attenuate_rho_for_gap=best.attenuate_rho_for_gap,
+        gap_positive_rho=best.gap_positive_rho,
+        home_advantage=float(best_ha),
+    )
+    best_metrics = evaluate_params_on_cache(fixtures, best, mu0=mu0)
 
     return ScoreGridCalibrationArtifact(
         schema_version=CALIBRATION_SCHEMA_VERSION,
@@ -641,7 +738,11 @@ def calibrate_score_grid(
             "grid": {k: list(v) for k, v in grid.items()},
             "candidates_tried": candidates_tried,
             "brier_guardrail": brier_guardrail,
+            "ou_brier_guardrail": ou_brier_guardrail,
+            "btts_brier_guardrail": btts_brier_guardrail,
             "mode_11_penalty": mode_11_penalty,
+            "ou_objective_weight": ou_objective_weight,
+            "btts_objective_weight": btts_objective_weight,
             "mu0": mu0,
             "best_objective": best_obj if math.isfinite(best_obj) else None,
         },

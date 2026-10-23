@@ -12,29 +12,36 @@
     "goal_overdispersion_k": 12.0,
     "lambda_gap_scale": 1.0,
     "attenuate_rho_for_gap": true,
-    "gap_positive_rho": true
+    "gap_positive_rho": true,
+    "home_advantage": 1.2
   },
   "baseline": {
-    "n": 380.0,
-    "scoreline_ll": 2.943106564439232,
-    "brier_1x2": 0.6381348982892129,
-    "log_loss_1x2": 1.0554584792261807,
-    "mode_11_rate": 0.8522905707325257,
-    "mean_p11": 0.12211003023543511,
-    "mean_abs_gap": 0.5619103586145908
+    "n": 421.0,
+    "scoreline_ll": 2.9836920974450836,
+    "brier_1x2": 0.6400879845243663,
+    "log_loss_1x2": 1.0579323181889757,
+    "mode_11_rate": 0.860969400756292,
+    "mean_p11": 0.12181135895985644,
+    "mean_abs_gap": 0.5476697783381225,
+    "brier_ou25": 0.2613173820605943,
+    "brier_ou35": 0.2224707025288241,
+    "brier_btts": 0.2555376369000322
   },
   "calibrated": {
-    "n": 380.0,
-    "scoreline_ll": 2.9696426630704846,
-    "brier_1x2": 0.6392617123723381,
-    "log_loss_1x2": 1.0595466092460994,
-    "mode_11_rate": 0.24438304067146885,
-    "mean_p11": 0.10498574347051676,
-    "mean_abs_gap": 0.499475874324081
+    "n": 421.0,
+    "scoreline_ll": 3.0039970576999835,
+    "brier_1x2": 0.6406526086849773,
+    "log_loss_1x2": 1.06063647621258,
+    "mode_11_rate": 0.2527766011388258,
+    "mean_p11": 0.10488526031576244,
+    "mean_abs_gap": 0.4868175807449973,
+    "brier_ou25": 0.2662522227884301,
+    "brier_ou35": 0.22001411742703125,
+    "brier_btts": 0.26381497829794626
   },
   "half_life_days": 220.0,
-  "n_matches": 380,
-  "fitted_at": "2026-09-10T17:32:52.120365Z",
+  "n_matches": 421,
+  "fitted_at": "2026-10-23T19:55:44.786483Z",
   "search": {
     "grid": {
       "mu": [
@@ -62,12 +69,19 @@
         1.6,
         2.2,
         2.8
+      ],
+      "home_advantage": [
+        1.12
       ]
     },
-    "candidates_tried": 360,
+    "candidates_tried": 368,
     "brier_guardrail": 0.025,
+    "ou_brier_guardrail": 0.03,
+    "btts_brier_guardrail": 0.03,
     "mode_11_penalty": 0.12,
+    "ou_objective_weight": 0.35,
+    "btts_objective_weight": 0.25,
     "mu0": 1.35,
-    "best_objective": 2.998968627951061
+    "best_objective": 3.1934722723870794
   }
 }

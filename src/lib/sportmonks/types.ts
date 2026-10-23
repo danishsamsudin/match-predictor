@@ -59,6 +59,7 @@ export type SmXgFixtureRow = {
   participant_id?: number;
   data?: { value?: number | string | null };
   value?: number | string | null;
+  location?: "home" | "away" | string | null;
 };
 
 export type SmLeague = {

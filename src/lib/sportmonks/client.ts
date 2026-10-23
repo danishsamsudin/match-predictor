@@ -6,8 +6,16 @@
  * Fixture includes for SportMonks Starter + xG Basic (see {@link PLAN_FIXTURE_INCLUDE}).
  */
 
-import type { SmApiResponse, SmCoach, SmFixture, SmPagination, SmPlayer, SmTeam } from "./types";
-import { DEFAULT_GLPM_LEAGUE_IDS } from "./constants";
+import type {
+  SmApiResponse,
+  SmCoach,
+  SmFixture,
+  SmPagination,
+  SmPlayer,
+  SmTeam,
+  SmXgFixtureRow,
+} from "./types";
+import { chunkIds, DEFAULT_GLPM_LEAGUE_IDS } from "./constants";
 
 export {
   SM_LEAGUE,
@@ -42,7 +50,9 @@ const DEFAULT_BASE = "https://api.sportmonks.com/v3/football";
 
 /**
  * Fixture includes for SportMonks Starter + xG Basic.
- * xGFixture supplies Expected metrics; lineups.details.type supplies GK counting stats.
+ * `xGFixture` is often empty even with xG Basic; prefer {@link SportmonksClient.listExpectedFixtureStats}
+ * (`/expected/fixtures`) and {@link attachExpectedXgToFixtures}.
+ * lineups.details.type supplies GK counting stats.
  */
 export const PLAN_FIXTURE_INCLUDE = [
   "round",
@@ -275,12 +285,15 @@ export class SportmonksClient {
     const maxPages = options?.maxPages ?? Infinity;
 
     while (pages < maxPages) {
-      const pageQuery: Record<string, string | number | boolean | undefined> = {
-        ...query,
-        ...(cursor ? { cursor } : { per_page: query?.per_page ?? 50 }),
-      };
+      const { per_page: perPageFromQuery, ...queryRest } = query ?? {};
+      // SportMonks rejects per_page when a cursor is present.
+      const pageQuery: Record<string, string | number | boolean | undefined> = cursor
+        ? { ...queryRest, cursor }
+        : { ...queryRest, per_page: perPageFromQuery ?? 50 };
       const res = await this.get<SmApiResponse<T[]>>(path, pageQuery);
       const page = Array.isArray(res.data) ? res.data : [];
+      // SportMonks sometimes sets has_more with an empty next page — stop early.
+      if (!page.length) break;
       rows.push(...page);
       pages += 1;
 
@@ -291,6 +304,79 @@ export class SportmonksClient {
     }
 
     return rows;
+  }
+
+  /**
+   * Team-level expected metrics (xG Basic / Advanced).
+   * Prefer this over fixture `include=xGFixture`, which is often empty on Starter+xG Basic.
+   */
+  listExpectedFixtureStats(
+    query?: Record<string, string | number | boolean | undefined>,
+    options?: { maxPages?: number }
+  ) {
+    return this.listAllPages<SmXgFixtureRow>("/expected/fixtures", query, options);
+  }
+
+  /**
+   * Expected rows for specific fixtures.
+   *
+   * `filters=fixtureIds:…` is unreliable on xG Basic (often returns unrelated
+   * recent rows). We still try it first, then scan the global
+   * `/expected/fixtures` feed (newest first) until every id has Expected Goals
+   * (5304) or `maxScanPages` is hit.
+   */
+  async getExpectedFixtureStatsByFixtureIds(
+    fixtureIds: number[],
+    options?: { chunkSize?: number; maxScanPages?: number }
+  ): Promise<SmXgFixtureRow[]> {
+    const unique = [...new Set(fixtureIds.filter((id) => Number.isFinite(id) && id > 0))];
+    if (!unique.length) return [];
+
+    const want = new Set(unique);
+    const out: SmXgFixtureRow[] = [];
+    const xgHits = new Map<number, number>();
+
+    const take = (row: SmXgFixtureRow) => {
+      const fid = Number(row.fixture_id);
+      if (!want.has(fid)) return;
+      out.push(row);
+      if (Number(row.type_id) === 5304) {
+        xgHits.set(fid, (xgHits.get(fid) ?? 0) + 1);
+      }
+    };
+    const allHaveXg = () => unique.every((id) => (xgHits.get(id) ?? 0) >= 1);
+
+    const chunkSize = options?.chunkSize ?? 25;
+    for (const chunk of chunkIds(unique, chunkSize)) {
+      const res = await this.get<SmApiResponse<SmXgFixtureRow[]>>("/expected/fixtures", {
+        filters: `fixtureIds:${chunk.join(",")}`,
+        per_page: 50,
+      });
+      for (const row of Array.isArray(res.data) ? res.data : []) take(row);
+    }
+    if (allHaveXg()) return out;
+
+    const maxScanPages = options?.maxScanPages ?? 220;
+    let cursor: string | undefined;
+    for (let pageIdx = 0; pageIdx < maxScanPages; pageIdx += 1) {
+      const pageQuery: Record<string, string | number | boolean | undefined> = cursor
+        ? { cursor }
+        : { per_page: 50 };
+      const res = await this.get<SmApiResponse<SmXgFixtureRow[]>>(
+        "/expected/fixtures",
+        pageQuery
+      );
+      const page = Array.isArray(res.data) ? res.data : [];
+      if (!page.length) break;
+      for (const row of page) take(row);
+      if (allHaveXg()) break;
+
+      const next = sportmonksNextCursorToken(res.pagination?.next_cursor);
+      if (!res.pagination?.has_more || !next) break;
+      cursor = next;
+    }
+
+    return out;
   }
 
   listTeams(query?: Record<string, string | number | boolean | undefined>) {

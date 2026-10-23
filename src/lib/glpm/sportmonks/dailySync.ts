@@ -148,6 +148,7 @@ export async function runMorningPhase(options: DailySyncOptions = {}): Promise<D
   const ingest = await ingestFixturePayloads(supabase, toIngest, {
     buildFeatures: false,
     dryRun,
+    client: sm,
   });
 
   // Morning only loads yesterday + today. Also refresh kickoffs for the next
@@ -367,6 +368,7 @@ export async function runResultsPhase(options: DailySyncOptions = {}): Promise<D
     buildFeatures: true,
     forceFeatures: true,
     dryRun,
+    client: sm,
   });
   const merged = mergeSummaries(ingest, catchUp);
 

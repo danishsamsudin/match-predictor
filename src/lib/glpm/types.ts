@@ -1329,7 +1329,51 @@ export type GlpmDailySyncWindowsTable = {
   Relationships: [];
 };
 
+export type GlpmOddsSnapshotsTable = {
+  Row: {
+    id: number;
+    match_sm_id: number | null;
+    league_sm_id: number;
+    sport_key: string;
+    odds_event_id: string | null;
+    home_team: string | null;
+    away_team: string | null;
+    commence_time: string | null;
+    captured_at: string;
+    book: string;
+    market_key: string;
+    selection: string;
+    line: number | null;
+    decimal_odds: number;
+    implied_prob: number | null;
+    fair_prob: number | null;
+    source: string;
+  };
+  Insert: {
+    id?: number;
+    match_sm_id?: number | null;
+    league_sm_id: number;
+    sport_key: string;
+    odds_event_id?: string | null;
+    home_team?: string | null;
+    away_team?: string | null;
+    commence_time?: string | null;
+    captured_at?: string;
+    book: string;
+    market_key: string;
+    selection: string;
+    line?: number | null;
+    decimal_odds: number;
+    implied_prob?: number | null;
+    fair_prob?: number | null;
+    source?: string;
+  };
+  Update: Partial<GlpmOddsSnapshotsTable["Insert"]>;
+  Relationships: [];
+};
+
 export type GlpmTables = {
+  glpm_odds_snapshots: GlpmOddsSnapshotsTable;
   glpm_provider_payloads: GlpmProviderPayloadsTable;
   glpm_provider_entity_map: GlpmProviderEntityMapTable;
   glpm_competitions: GlpmCompetitionsTable;

@@ -13,6 +13,7 @@ import {
 import {
   applyLambdaGapScale,
   competitionMuFromCalibration,
+  homeAdvantageFromCalibration,
   lambdaGapScaleFromCalibration,
   loadScoreGridCalibration,
   predictionConfigFromCalibration,
@@ -134,13 +135,15 @@ function predictFromVectors(
   const calibration = loadScoreGridCalibration(competitionId);
   const calibratedMu = competitionMuFromCalibration(calibration);
   const predConfig = predictionConfigFromCalibration(calibration);
+  const calibratedHa = homeAdvantageFromCalibration(calibration);
   const xg = estimateExpectedGoals(
     toRatingVectorInput(home),
     toRatingVectorInput(away),
     {
       isNeutralVenue: false,
       ...(calibratedMu != null ? { competitionMu: calibratedMu } : {}),
-    }
+    },
+    calibratedHa != null ? { homeAdvantage: calibratedHa } : undefined
   );
   const scaled = applyLambdaGapScale(
     xg.homeXg,

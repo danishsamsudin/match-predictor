@@ -104,7 +104,7 @@ export function HomeLeagueFixturesPanel({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-bold text-foreground">Upcoming Fixtures</h2>
         <Link href={hubHref} className="shrink-0 text-sm font-semibold text-primary hover:underline">
-          View full hub →
+          League xG →
         </Link>
       </div>
       <p className="mb-4 text-sm text-muted">

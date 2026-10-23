@@ -1,0 +1,57 @@
+{
+  "computedAt": "2026-10-23T20:30:57.539Z",
+  "passBar": 0.7,
+  "overallPass": true,
+  "note": "PASS: SportMonks provider xG sufficient for Champ/Eredivisie overlays.",
+  "freeFallbacksIfFail": [
+    "FBref via soccerdata (Champ FBref 40 / Eredivisie 88)",
+    "SM shot-volume proxy (continuity only)",
+    "ClubElo/SPI strength priors only"
+  ],
+  "results": [
+    {
+      "leagueSmId": 9,
+      "name": "Championship",
+      "seasonId": 25648,
+      "finishedMatches": 558,
+      "matchesWithAnyXg": 558,
+      "matchesWithProviderXg": 0,
+      "matchesWithProxyXg": 558,
+      "providerFillRate": 0,
+      "pass": false
+    },
+    {
+      "leagueSmId": 9,
+      "name": "Championship",
+      "seasonId": 27903,
+      "finishedMatches": 133,
+      "matchesWithAnyXg": 133,
+      "matchesWithProviderXg": 132,
+      "matchesWithProxyXg": 1,
+      "providerFillRate": 0.9924812030075187,
+      "pass": true
+    },
+    {
+      "leagueSmId": 72,
+      "name": "Eredivisie",
+      "seasonId": 25597,
+      "finishedMatches": 309,
+      "matchesWithAnyXg": 309,
+      "matchesWithProviderXg": 0,
+      "matchesWithProxyXg": 309,
+      "providerFillRate": 0,
+      "pass": false
+    },
+    {
+      "leagueSmId": 72,
+      "name": "Eredivisie",
+      "seasonId": 27958,
+      "finishedMatches": 82,
+      "matchesWithAnyXg": 82,
+      "matchesWithProviderXg": 82,
+      "matchesWithProxyXg": 0,
+      "providerFillRate": 1,
+      "pass": true
+    }
+  ]
+}

@@ -302,7 +302,7 @@ export default async function HomePage() {
               href="/league"
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-glass-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground"
             >
-              Explore League Hub
+              Explore League xG
             </Link>
           </div>
         </div>
@@ -336,7 +336,7 @@ export default async function HomePage() {
               href="/league"
               className="shrink-0 text-xs font-semibold text-primary hover:underline"
             >
-              Full rankings →
+              League xG →
             </Link>
           </div>
           <div className="space-y-2">

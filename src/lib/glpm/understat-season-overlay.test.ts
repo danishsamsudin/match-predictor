@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   seasonRatingOverlayAvailable,
+  smXgSeasonOverlayAvailable,
   standingsSeasonOverlayAvailable,
   understatSeasonOverlayAvailable,
   UNDERSTAT_SEASON_OVERLAY_IDS,
   STANDINGS_SEASON_OVERLAY_IDS,
+  SM_XG_SEASON_OVERLAY_IDS,
 } from "./understat-season-overlay";
 import { SM_SEASON_2025_26, SM_SEASON_2026_27 } from "@/lib/sportmonks/constants";
 
@@ -20,6 +22,13 @@ describe("season rating overlays", () => {
     expect(UNDERSTAT_SEASON_OVERLAY_IDS.has(SM_SEASON_2026_27.PREMIER_LEAGUE)).toBe(
       true
     );
+  });
+
+  it("prefers SM provider xG overlays for Champ/Ere 26/27", () => {
+    expect(SM_XG_SEASON_OVERLAY_IDS.has(SM_SEASON_2026_27.CHAMPIONSHIP)).toBe(true);
+    expect(SM_XG_SEASON_OVERLAY_IDS.has(SM_SEASON_2026_27.EREDIVISIE)).toBe(true);
+    expect(smXgSeasonOverlayAvailable(SM_SEASON_2025_26.CHAMPIONSHIP)).toBe(false);
+    expect(smXgSeasonOverlayAvailable(SM_SEASON_2026_27.CHAMPIONSHIP)).toBe(true);
   });
 
   it("covers standings overlays for Championship and Eredivisie", () => {
@@ -38,6 +47,7 @@ describe("season rating overlays", () => {
     expect(understatSeasonOverlayAvailable(25583)).toBe(true);
     expect(standingsSeasonOverlayAvailable(25583)).toBe(false);
     expect(seasonRatingOverlayAvailable(25597)).toBe(true);
+    expect(seasonRatingOverlayAvailable(SM_SEASON_2026_27.CHAMPIONSHIP)).toBe(true);
     expect(seasonRatingOverlayAvailable(99999)).toBe(false);
   });
 });

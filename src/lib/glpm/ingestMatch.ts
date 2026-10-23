@@ -11,6 +11,7 @@ export function isWyscoutEnrichEnabled(): boolean {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../supabase";
 import type { SportmonksClient } from "../sportmonks/client";
+import { attachExpectedXgToFixtures } from "../sportmonks/attachExpectedXg";
 import type { SmApiResponse, SmFixture } from "../sportmonks/types";
 import { upsertSportmonksFixtureBundle } from "./layer1/sportmonks/upsertFixture";
 import { buildAndUpsertMatchTeamFeatures } from "./layer2/buildMatchTeamFeatures";
@@ -124,5 +125,6 @@ export async function ingestMatchFromSportmonks(
       ? (res as SmApiResponse<SmFixture>).data
       : (res as SmFixture);
   if (!fixture.id) fixture.id = fixtureId;
-  return ingestMatchFromSportmonksPayload(supabase, fixture, options);
+  const [enriched] = await attachExpectedXgToFixtures(client, [fixture]);
+  return ingestMatchFromSportmonksPayload(supabase, enriched ?? fixture, options);
 }

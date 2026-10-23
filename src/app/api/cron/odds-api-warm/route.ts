@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isGlpmCronAuthorized } from "@/lib/glpm/sportmonks/cronRoute";
+import { archiveLeagueOddsEvents } from "@/lib/glpm/odds-snapshots";
 import { ODDS_SPORT_BY_LEAGUE_SM_ID } from "@/lib/odds-api/config";
 import { fetchOddsEvents, hasOddsApiKey } from "@/lib/odds-api/client";
 import { warmLeagueOdds } from "@/lib/odds-api/get-match-odds";
@@ -33,9 +34,12 @@ async function runWarm() {
     credits: number;
     eventCount: number;
     remaining: number | null;
+    archivedRows: number;
+    archiveError?: string;
   }> = [];
 
   let creditsSpent = 0;
+  let archivedRows = 0;
 
   for (const [leagueSmIdRaw, sportKey] of Object.entries(ODDS_SPORT_BY_LEAGUE_SM_ID)) {
     const leagueSmId = Number(leagueSmIdRaw);
@@ -52,12 +56,19 @@ async function runWarm() {
         credits: 0,
         eventCount: 0,
         remaining: events.quota.remaining,
+        archivedRows: 0,
       });
       continue;
     }
 
     const warmed = await warmLeagueOdds(sportKey);
     creditsSpent += warmed.credits;
+    const archived = await archiveLeagueOddsEvents({
+      sportKey,
+      leagueSmId,
+      events: warmed.events,
+    });
+    archivedRows += archived.inserted;
     leagues.push({
       sportKey,
       leagueSmId,
@@ -67,14 +78,17 @@ async function runWarm() {
       credits: warmed.credits,
       eventCount: warmed.eventCount,
       remaining: warmed.remaining,
+      archivedRows: archived.inserted,
+      ...(archived.error ? { archiveError: archived.error } : {}),
     });
   }
 
   return {
     ok: true,
     creditsSpent,
+    archivedRows,
     leagues,
-    note: "Featured markets cost ~1–2 credits per league when cache misses. Empty leagues skip paid calls.",
+    note: "Featured markets cost ~1–2 credits per league when cache misses. Empty leagues skip paid calls. Snapshots archived to glpm_odds_snapshots.",
   };
 }
 

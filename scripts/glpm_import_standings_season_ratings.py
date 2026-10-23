@@ -248,10 +248,20 @@ def import_season(cfg: dict[str, Any], env: dict[str, str], *, dry_run: bool) ->
     now = datetime.now(timezone.utc).isoformat()
     upserts = []
     preview = []
+    # Early-season shrink toward 60 when sample is thin (Champ/Eredivisie have no Understat).
+    # After ~20 matches full weight; before that blend percentiles with center 60.
+    EARLY_FULL_MATCHES = 20.0
+
     for i, r in enumerate(table):
-        r_attack = attack[i]
-        r_defence = defence[i]
-        r_finishing = finishing[i]
+        mp = max(1, int(r["matches"]))
+        shrink_w = min(1.0, mp / EARLY_FULL_MATCHES)
+
+        def shrink_rating(raw: float) -> float:
+            return round(60.0 * (1.0 - shrink_w) + float(raw) * shrink_w, 2)
+
+        r_attack = shrink_rating(attack[i])
+        r_defence = shrink_rating(defence[i])
+        r_finishing = shrink_rating(finishing[i])
         quality = round((r_attack + r_defence + r_finishing) / 3.0, 2)
         prev = existing_by_id.get(int(r["team_sm_id"]), {})
         r_gk = float(prev.get("r_goalkeeper") or 60.0)
@@ -271,6 +281,8 @@ def import_season(cfg: dict[str, Any], env: dict[str, str], *, dry_run: bool) ->
             **prev_meta,
             "source": "standings_goals_season_import",
             "season_label": cfg["label"],
+            "early_season_shrink_w": round(shrink_w, 3),
+            "sm_xg_note": "Standings GF/GA fallback - prefer glpm_import_sm_xg_season_ratings.py when provider fill ≥70%",
             "imported_at": now,
             "standings": {
                 "league_rank": r["number"],

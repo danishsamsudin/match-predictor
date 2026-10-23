@@ -10,6 +10,7 @@ import {
   PLAN_FIXTURE_INCLUDE,
   type SportmonksClient,
 } from "../../sportmonks/client";
+import { attachExpectedXgToFixtures } from "../../sportmonks/attachExpectedXg";
 import type { SmFixture } from "../../sportmonks/types";
 import { ingestMatchFromSportmonksPayload, type IngestMatchResult } from "../ingestMatch";
 
@@ -20,6 +21,11 @@ export type BatchIngestOptions = {
   forceFeatures?: boolean;
   dryRun?: boolean;
   include?: string;
+  /** Skip `/expected/fixtures` merge (default: attach when a SportMonks client is available). */
+  skipExpectedXg?: boolean;
+  client?: SportmonksClient;
+  /** Cap global `/expected/fixtures` scan pages when fixtureIds filter misses. */
+  expectedXgMaxScanPages?: number;
 };
 
 export type BatchIngestSummary = {
@@ -46,7 +52,21 @@ export async function ingestFixturePayloads(
     return summary;
   }
 
-  for (const fixture of fixtures) {
+  let payloads = fixtures;
+  if (!options?.skipExpectedXg && fixtures.length) {
+    try {
+      const client = options?.client ?? createSportmonksClient();
+      payloads = await attachExpectedXgToFixtures(client, fixtures, {
+        maxScanPages: options?.expectedXgMaxScanPages,
+      });
+    } catch (err) {
+      summary.errors.push(
+        `expected/fixtures enrich failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  for (const fixture of payloads) {
     summary.attempted += 1;
     try {
       const result = await ingestMatchFromSportmonksPayload(supabase, fixture, {
@@ -70,7 +90,7 @@ export async function ingestFixturePayloads(
 export async function ingestFixturesByIds(
   supabase: Client,
   fixtureIds: number[],
-  options?: BatchIngestOptions & { client?: SportmonksClient }
+  options?: BatchIngestOptions
 ): Promise<BatchIngestSummary> {
   const client = options?.client ?? createSportmonksClient();
   const include = options?.include ?? PLAN_FIXTURE_INCLUDE;
@@ -90,7 +110,7 @@ export async function ingestFixturesByIds(
   if (options?.dryRun) {
     return { ...emptySummary(), attempted: unique.length };
   }
-  return ingestFixturePayloads(supabase, all, options);
+  return ingestFixturePayloads(supabase, all, { ...options, client });
 }
 
 export function fixtureToMatchdayRef(f: SmFixture) {

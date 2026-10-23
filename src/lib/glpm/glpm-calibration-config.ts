@@ -11,15 +11,28 @@ import { tryCreateServiceClient, type Database } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { GLPM_LEAGUE_META } from "@/lib/glpm/live-scores/league-meta";
 import { SM_LEAGUE } from "@/lib/sportmonks/constants";
+import {
+  EMPTY_SHARP_SHRINK,
+  type GlpmSharpShrinkConfig,
+} from "@/lib/glpm/market-models";
+import {
+  getDefaultMarketModelsConfig,
+  mergeMarketModelsConfig,
+} from "@/lib/world-cup/market-models/defaults";
+import type { MarketModelsConfig } from "@/lib/world-cup/market-models/types";
 
 export type GlpmCalibrationConstants = {
   confidenceLayer: ConfidenceLayerConfig;
   modelVersion: string;
+  marketModels: MarketModelsConfig;
+  sharpShrink: GlpmSharpShrinkConfig;
 };
 
 export const GLPM_CALIBRATION_DEFAULTS: GlpmCalibrationConstants = {
   confidenceLayer: { ...EMPTY_CONFIDENCE_LAYER, markets: {} },
-  modelVersion: "glpm_cx_v1",
+  modelVersion: "glpm_cx_v1.2",
+  marketModels: getDefaultMarketModelsConfig(),
+  sharpShrink: { ...EMPTY_SHARP_SHRINK },
 };
 
 export const GLPM_HOME_LEAGUE_IDS: number[] = [
@@ -42,12 +55,28 @@ export function glpmConfidenceVersionPrefix(leagueSmId: number): string {
 export function mergeGlpmCalibration(
   raw: Partial<GlpmCalibrationConstants> | Record<string, unknown> | null | undefined
 ): GlpmCalibrationConstants {
-  if (!raw) return { ...GLPM_CALIBRATION_DEFAULTS, confidenceLayer: { ...EMPTY_CONFIDENCE_LAYER, markets: {} } };
+  if (!raw) {
+    return {
+      ...GLPM_CALIBRATION_DEFAULTS,
+      confidenceLayer: { ...EMPTY_CONFIDENCE_LAYER, markets: {} },
+      marketModels: getDefaultMarketModelsConfig(),
+      sharpShrink: { ...EMPTY_SHARP_SHRINK },
+    };
+  }
+  const sharpRaw = (raw as { sharpShrink?: GlpmSharpShrinkConfig }).sharpShrink;
   return {
     modelVersion: String(raw.modelVersion ?? GLPM_CALIBRATION_DEFAULTS.modelVersion),
     confidenceLayer: mergeConfidenceLayer(
       raw.confidenceLayer as Partial<ConfidenceLayerConfig> | undefined
     ),
+    marketModels: mergeMarketModelsConfig(
+      (raw as { marketModels?: Partial<MarketModelsConfig> }).marketModels
+    ),
+    sharpShrink: {
+      alphaByMarket: { ...(sharpRaw?.alphaByMarket ?? {}) },
+      updatedAt: String(sharpRaw?.updatedAt ?? ""),
+      nSnapshots: Number(sharpRaw?.nSnapshots ?? 0) || 0,
+    },
   };
 }
 

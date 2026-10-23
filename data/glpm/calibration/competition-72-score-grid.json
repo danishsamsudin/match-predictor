@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "competition_id": 72,
+  "competition_name": "Eredivisie",
+  "season_ids": [
+    25597,
+    27958
+  ],
+  "params": {
+    "mu": 1.42,
+    "rho": 0.04,
+    "goal_overdispersion_k": 0.0,
+    "lambda_gap_scale": 1.0,
+    "attenuate_rho_for_gap": true,
+    "gap_positive_rho": true,
+    "home_advantage": 1.2
+  },
+  "baseline": {
+    "n": 362.0,
+    "scoreline_ll": 3.186270598550006,
+    "brier_1x2": 0.6198126363988723,
+    "log_loss_1x2": 1.034319589500832,
+    "mode_11_rate": 0.6990024508387993,
+    "mean_p11": 0.10266776542135686,
+    "mean_abs_gap": 0.6840781261364339,
+    "brier_ou25": 0.23350525357892205,
+    "brier_ou35": 0.2656256251588015,
+    "brier_btts": 0.22654703537742613
+  },
+  "calibrated": {
+    "n": 362.0,
+    "scoreline_ll": 3.1965217943468174,
+    "brier_1x2": 0.626399664248566,
+    "log_loss_1x2": 1.0465509626995257,
+    "mode_11_rate": 0.4002207998258758,
+    "mean_p11": 0.08080893862655775,
+    "mean_abs_gap": 0.7195488437879534,
+    "brier_ou25": 0.23364562050102775,
+    "brier_ou35": 0.26595168667367575,
+    "brier_btts": 0.226494399772191
+  },
+  "half_life_days": 220.0,
+  "n_matches": 362,
+  "fitted_at": "2026-10-23T19:58:51.262942Z",
+  "search": {
+    "grid": {
+      "mu": [
+        1.2,
+        1.28,
+        1.35,
+        1.42,
+        1.5,
+        1.58
+      ],
+      "rho": [
+        -0.13,
+        -0.08,
+        -0.04,
+        0.0,
+        0.04
+      ],
+      "goal_overdispersion_k": [
+        0.0,
+        12.0,
+        25.0
+      ],
+      "lambda_gap_scale": [
+        1.0,
+        1.6,
+        2.2,
+        2.8
+      ],
+      "home_advantage": [
+        1.12
+      ]
+    },
+    "candidates_tried": 368,
+    "brier_guardrail": 0.025,
+    "ou_brier_guardrail": 0.03,
+    "btts_brier_guardrail": 0.03,
+    "mode_11_penalty": 0.12,
+    "ou_objective_weight": 0.35,
+    "btts_objective_weight": 0.25,
+    "mu0": 1.35,
+    "best_objective": 3.38294785744433
+  }
+}

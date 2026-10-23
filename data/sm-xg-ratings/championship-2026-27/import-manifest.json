@@ -1,0 +1,256 @@
+{
+  "key": "championship-2026-sm-xg",
+  "season_sm_id": 27903,
+  "competition_sm_id": 9,
+  "as_of_date": "2026-09-09",
+  "model_version": "sm_xg_season_v1",
+  "teams_imported": 24,
+  "max_matches": 11,
+  "provider_fill_rate": 0.9924812030075187,
+  "leaderboard_preview": [
+    {
+      "rank": 1,
+      "team": "West Ham United",
+      "quality_overall": 75.49,
+      "r_attack": 82.0,
+      "r_defence": 69.33,
+      "r_finishing": 75.15,
+      "xg": 25.38,
+      "xga": 13.98
+    },
+    {
+      "rank": 2,
+      "team": "Middlesbrough",
+      "quality_overall": 72.3,
+      "r_attack": 75.15,
+      "r_defence": 77.22,
+      "r_finishing": 64.54,
+      "xg": 21.64,
+      "xga": 12.11
+    },
+    {
+      "rank": 3,
+      "team": "Wolverhampton Wanderers",
+      "quality_overall": 71.96,
+      "r_attack": 68.13,
+      "r_defence": 82.0,
+      "r_finishing": 65.74,
+      "xg": 18.63,
+      "xga": 11.01
+    },
+    {
+      "rank": 4,
+      "team": "Birmingham City",
+      "quality_overall": 69.81,
+      "r_attack": 70.52,
+      "r_defence": 71.96,
+      "r_finishing": 66.94,
+      "xg": 19.49,
+      "xga": 13.57
+    },
+    {
+      "rank": 5,
+      "team": "Southampton",
+      "quality_overall": 68.21,
+      "r_attack": 71.96,
+      "r_defence": 63.35,
+      "r_finishing": 69.33,
+      "xg": 19.65,
+      "xga": 16.2
+    },
+    {
+      "rank": 6,
+      "team": "Swansea City",
+      "quality_overall": 67.55,
+      "r_attack": 66.94,
+      "r_defence": 73.55,
+      "r_finishing": 62.15,
+      "xg": 17.02,
+      "xga": 13.45
+    },
+    {
+      "rank": 7,
+      "team": "Wrexham",
+      "quality_overall": 66.88,
+      "r_attack": 57.37,
+      "r_defence": 75.15,
+      "r_finishing": 68.13,
+      "xg": 14.1,
+      "xga": 12.84
+    },
+    {
+      "rank": 8,
+      "team": "Portsmouth",
+      "quality_overall": 64.94,
+      "r_attack": 64.54,
+      "r_defence": 70.52,
+      "r_finishing": 59.76,
+      "xg": 15.81,
+      "xga": 13.71
+    },
+    {
+      "rank": 9,
+      "team": "Millwall",
+      "quality_overall": 64.68,
+      "r_attack": 73.55,
+      "r_defence": 66.94,
+      "r_finishing": 53.54,
+      "xg": 21.59,
+      "xga": 15.25
+    },
+    {
+      "rank": 10,
+      "team": "West Bromwich Albion",
+      "quality_overall": 64.15,
+      "r_attack": 65.74,
+      "r_defence": 65.74,
+      "r_finishing": 60.96,
+      "xg": 16.19,
+      "xga": 15.37
+    },
+    {
+      "rank": 11,
+      "team": "Queens Park Rangers",
+      "quality_overall": 63.14,
+      "r_attack": 69.33,
+      "r_defence": 68.13,
+      "r_finishing": 51.95,
+      "xg": 18.83,
+      "xga": 14.26
+    },
+    {
+      "rank": 12,
+      "team": "Norwich City",
+      "quality_overall": 62.07,
+      "r_attack": 62.15,
+      "r_defence": 53.54,
+      "r_finishing": 70.52,
+      "xg": 15.57,
+      "xga": 18.68
+    },
+    {
+      "rank": 13,
+      "team": "Burnley",
+      "quality_overall": 61.83,
+      "r_attack": 58.56,
+      "r_defence": 54.98,
+      "r_finishing": 71.96,
+      "xg": 14.27,
+      "xga": 18.2
+    },
+    {
+      "rank": 14,
+      "team": "Cardiff City",
+      "quality_overall": 61.51,
+      "r_attack": 77.22,
+      "r_defence": 59.76,
+      "r_finishing": 47.56,
+      "xg": 22.26,
+      "xga": 17.33
+    },
+    {
+      "rank": 15,
+      "team": "Sheffield United",
+      "quality_overall": 60.82,
+      "r_attack": 50.35,
+      "r_defence": 58.56,
+      "r_finishing": 73.55,
+      "xg": 12.2,
+      "xga": 17.74
+    },
+    {
+      "rank": 16,
+      "team": "Bristol City",
+      "quality_overall": 60.56,
+      "r_attack": 59.76,
+      "r_defence": 64.54,
+      "r_finishing": 57.37,
+      "xg": 14.52,
+      "xga": 15.56
+    },
+    {
+      "rank": 17,
+      "team": "Stoke City",
+      "quality_overall": 59.12,
+      "r_attack": 38.0,
+      "r_defence": 57.37,
+      "r_finishing": 82.0,
+      "xg": 10.55,
+      "xga": 18.07
+    },
+    {
+      "rank": 18,
+      "team": "Blackburn Rovers",
+      "quality_overall": 58.91,
+      "r_attack": 47.56,
+      "r_defence": 51.95,
+      "r_finishing": 77.22,
+      "xg": 10.56,
+      "xga": 19.72
+    },
+    {
+      "rank": 19,
+      "team": "Bolton Wanderers",
+      "quality_overall": 58.09,
+      "r_attack": 63.35,
+      "r_defence": 47.56,
+      "r_finishing": 63.35,
+      "xg": 15.7,
+      "xga": 20.51
+    },
+    {
+      "rank": 20,
+      "team": "Charlton Athletic",
+      "quality_overall": 56.09,
+      "r_attack": 53.54,
+      "r_defence": 56.17,
+      "r_finishing": 58.56,
+      "xg": 12.43,
+      "xga": 18.07
+    },
+    {
+      "rank": 21,
+      "team": "Preston North End",
+      "quality_overall": 55.43,
+      "r_attack": 54.98,
+      "r_defence": 60.96,
+      "r_finishing": 50.35,
+      "xg": 12.92,
+      "xga": 17.15
+    },
+    {
+      "rank": 22,
+      "team": "Lincoln City",
+      "quality_overall": 53.7,
+      "r_attack": 60.96,
+      "r_defence": 62.15,
+      "r_finishing": 38.0,
+      "xg": 15.52,
+      "xga": 16.96
+    },
+    {
+      "rank": 23,
+      "team": "Derby County",
+      "quality_overall": 52.43,
+      "r_attack": 51.95,
+      "r_defence": 50.35,
+      "r_finishing": 54.98,
+      "xg": 12.36,
+      "xga": 19.99
+    },
+    {
+      "rank": 24,
+      "team": "Watford",
+      "quality_overall": 50.11,
+      "r_attack": 56.17,
+      "r_defence": 38.0,
+      "r_finishing": 56.17,
+      "xg": 13.1,
+      "xga": 20.6
+    }
+  ],
+  "dry_run": false,
+  "finished_matches": 133,
+  "matches_with_provider_xg": 132,
+  "matches_with_proxy_only": 1
+}

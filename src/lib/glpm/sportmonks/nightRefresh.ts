@@ -263,7 +263,7 @@ export async function runGlpmNightRefresh(
       // Bayesian failure is non-fatal (same as league-run).
 
       // Proxy-only SportMonks xG trains invert A/D/FR. Re-apply season overlays
-      // (Understat for Big-5 covered leagues; GF/GA for Championship/Eredivisie).
+      // (Understat Big-5; SM provider xG for Champ/Ere 26/27; GF/GA standings fallback).
       const overlay = await reapplySeasonRatingOverlay(seasonId, cwd);
       if (overlay.attempted) {
         trainLog.push({
@@ -370,6 +370,83 @@ export async function runGlpmNightRefresh(
         notes.push("WARNING glpm:calibrate-confidence failed (non-fatal)");
       } else {
         notes.push("per-league confidence layers rebuilt");
+
+        const baselineRun = await runNpm("glpm:reliability-baseline", [], cwd);
+        trainLog.push({
+          seasonId: 0,
+          script: "glpm:reliability-baseline",
+          ok: baselineRun.status === 0,
+          detail:
+            baselineRun.status === 0
+              ? (baselineRun.stdout || "").trim().slice(-240) || "ok"
+              : (baselineRun.stderr || baselineRun.stdout).slice(-400),
+        });
+        if (baselineRun.status !== 0) {
+          notes.push("WARNING glpm:reliability-baseline failed (non-fatal)");
+        } else {
+          notes.push("reliability baseline refreshed");
+        }
+
+        const marketCalRun = await runNpm(
+          "glpm:calibrate-market-models",
+          [],
+          cwd
+        );
+        trainLog.push({
+          seasonId: 0,
+          script: "glpm:calibrate-market-models",
+          ok: marketCalRun.status === 0,
+          detail:
+            marketCalRun.status === 0
+              ? (marketCalRun.stdout || "").trim().slice(-240) || "ok"
+              : (marketCalRun.stderr || marketCalRun.stdout).slice(-400),
+        });
+        if (marketCalRun.status !== 0) {
+          notes.push("WARNING glpm:calibrate-market-models failed (non-fatal)");
+        } else {
+          notes.push("per-league market models recalibrated");
+        }
+
+        // Weekly score-grid + sharp-shrink (UTC Monday = day 1).
+        const utcDay = new Date().getUTCDay();
+        if (utcDay === 1) {
+          for (const competitionId of [8, 9, 72, 82, 384]) {
+            const sg = await runNpm(
+              "glpm:calibrate-score-grid",
+              ["--competition-id", String(competitionId)],
+              cwd
+            );
+            trainLog.push({
+              seasonId: competitionId,
+              script: "glpm:calibrate-score-grid",
+              ok: sg.status === 0,
+              detail:
+                sg.status === 0
+                  ? (sg.stdout || "").trim().slice(-200) || "ok"
+                  : (sg.stderr || sg.stdout).slice(-400),
+            });
+            if (sg.status !== 0) {
+              notes.push(
+                `WARNING glpm:calibrate-score-grid competition ${competitionId} failed (non-fatal)`
+              );
+            }
+          }
+          const shrink = await runNpm("glpm:calibrate-sharp-shrink", [], cwd);
+          trainLog.push({
+            seasonId: 0,
+            script: "glpm:calibrate-sharp-shrink",
+            ok: shrink.status === 0,
+            detail:
+              shrink.status === 0
+                ? (shrink.stdout || "").trim().slice(-200) || "ok"
+                : (shrink.stderr || shrink.stdout).slice(-400),
+          });
+          if (shrink.status !== 0) {
+            notes.push("WARNING glpm:calibrate-sharp-shrink failed (non-fatal)");
+          } else {
+            notes.push("weekly sharp-shrink / score-grid block finished");
+          }
+        }
       }
     }
   } else {
@@ -382,7 +459,11 @@ export async function runGlpmNightRefresh(
       t.script !== "glpm:bayesian-update" &&
       t.script !== "glpm:backfill-vs-style" &&
       t.script !== "glpm:evaluate-markets" &&
-      t.script !== "glpm:calibrate-confidence"
+      t.script !== "glpm:calibrate-confidence" &&
+      t.script !== "glpm:reliability-baseline" &&
+      t.script !== "glpm:calibrate-market-models" &&
+      t.script !== "glpm:calibrate-score-grid" &&
+      t.script !== "glpm:calibrate-sharp-shrink"
   );
   const predictFailed = predictions ? !predictions.ok : false;
   const ok = !trainFailed && !predictFailed;

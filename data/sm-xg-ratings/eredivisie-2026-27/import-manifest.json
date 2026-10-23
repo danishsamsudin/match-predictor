@@ -1,0 +1,196 @@
+{
+  "key": "eredivisie-2026-sm-xg",
+  "season_sm_id": 27958,
+  "competition_sm_id": 72,
+  "as_of_date": "2026-09-09",
+  "model_version": "sm_xg_season_v1",
+  "teams_imported": 18,
+  "max_matches": 10,
+  "provider_fill_rate": 1.0,
+  "leaderboard_preview": [
+    {
+      "rank": 1,
+      "team": "Feyenoord",
+      "quality_overall": 74.23,
+      "r_attack": 78.0,
+      "r_defence": 73.23,
+      "r_finishing": 71.47,
+      "xg": 25.26,
+      "xga": 9.06
+    },
+    {
+      "rank": 2,
+      "team": "PSV",
+      "quality_overall": 69.8,
+      "r_attack": 71.47,
+      "r_defence": 69.71,
+      "r_finishing": 68.21,
+      "xg": 22.22,
+      "xga": 11.1
+    },
+    {
+      "rank": 3,
+      "team": "Ajax",
+      "quality_overall": 69.0,
+      "r_attack": 73.23,
+      "r_defence": 68.21,
+      "r_finishing": 65.56,
+      "xg": 24.01,
+      "xga": 11.28
+    },
+    {
+      "rank": 4,
+      "team": "Go Ahead Eagles",
+      "quality_overall": 65.75,
+      "r_attack": 67.65,
+      "r_defence": 58.83,
+      "r_finishing": 70.78,
+      "xg": 18.01,
+      "xga": 17.75
+    },
+    {
+      "rank": 5,
+      "team": "AZ Alkmaar",
+      "quality_overall": 65.32,
+      "r_attack": 69.71,
+      "r_defence": 71.47,
+      "r_finishing": 54.79,
+      "xg": 21.7,
+      "xga": 9.65
+    },
+    {
+      "rank": 6,
+      "team": "FC Groningen",
+      "quality_overall": 64.59,
+      "r_attack": 62.91,
+      "r_defence": 57.62,
+      "r_finishing": 73.23,
+      "xg": 15.23,
+      "xga": 18.2
+    },
+    {
+      "rank": 7,
+      "team": "SC Heerenveen",
+      "quality_overall": 63.35,
+      "r_attack": 61.59,
+      "r_defence": 66.88,
+      "r_finishing": 61.59,
+      "xg": 13.62,
+      "xga": 14.27
+    },
+    {
+      "rank": 8,
+      "team": "FC Twente",
+      "quality_overall": 62.74,
+      "r_attack": 68.21,
+      "r_defence": 78.0,
+      "r_finishing": 42.0,
+      "xg": 20.56,
+      "xga": 7.73
+    },
+    {
+      "rank": 9,
+      "team": "Excelsior",
+      "quality_overall": 62.47,
+      "r_attack": 58.94,
+      "r_defence": 64.23,
+      "r_finishing": 64.23,
+      "xg": 13.13,
+      "xga": 16.13
+    },
+    {
+      "rank": 10,
+      "team": "FC Utrecht",
+      "quality_overall": 61.59,
+      "r_attack": 56.29,
+      "r_defence": 61.59,
+      "r_finishing": 66.88,
+      "xg": 12.54,
+      "xga": 17.32
+    },
+    {
+      "rank": 11,
+      "team": "NEC Nijmegen",
+      "quality_overall": 60.94,
+      "r_attack": 64.23,
+      "r_defence": 65.56,
+      "r_finishing": 53.03,
+      "xg": 16.7,
+      "xga": 15.59
+    },
+    {
+      "rank": 12,
+      "team": "SC Cambuur",
+      "quality_overall": 60.27,
+      "r_attack": 57.62,
+      "r_defence": 62.91,
+      "r_finishing": 60.27,
+      "xg": 12.59,
+      "xga": 16.29
+    },
+    {
+      "rank": 13,
+      "team": "Sparta Rotterdam",
+      "quality_overall": 59.82,
+      "r_attack": 65.56,
+      "r_defence": 56.29,
+      "r_finishing": 57.62,
+      "xg": 16.91,
+      "xga": 19.2
+    },
+    {
+      "rank": 14,
+      "team": "ADO Den Haag",
+      "quality_overall": 58.15,
+      "r_attack": 51.27,
+      "r_defence": 60.27,
+      "r_finishing": 62.91,
+      "xg": 8.44,
+      "xga": 17.44
+    },
+    {
+      "rank": 15,
+      "team": "Fortuna Sittard",
+      "quality_overall": 57.09,
+      "r_attack": 42.0,
+      "r_defence": 51.27,
+      "r_finishing": 78.0,
+      "xg": 8.03,
+      "xga": 21.73
+    },
+    {
+      "rank": 16,
+      "team": "PEC Zwolle",
+      "quality_overall": 55.59,
+      "r_attack": 53.03,
+      "r_defence": 54.79,
+      "r_finishing": 58.94,
+      "xg": 10.63,
+      "xga": 20.11
+    },
+    {
+      "rank": 17,
+      "team": "Willem II",
+      "quality_overall": 53.03,
+      "r_attack": 54.79,
+      "r_defence": 53.03,
+      "r_finishing": 51.27,
+      "xg": 12.12,
+      "xga": 20.35
+    },
+    {
+      "rank": 18,
+      "team": "Telstar",
+      "quality_overall": 52.06,
+      "r_attack": 60.3,
+      "r_defence": 40.0,
+      "r_finishing": 55.88,
+      "xg": 13.48,
+      "xga": 21.98
+    }
+  ],
+  "dry_run": false,
+  "finished_matches": 82,
+  "matches_with_provider_xg": 82,
+  "matches_with_proxy_only": 0
+}

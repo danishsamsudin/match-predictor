@@ -15,6 +15,7 @@ import {
   loadScoreGridCalibration,
   predictionConfigFromCalibration,
   competitionMuFromCalibration,
+  homeAdvantageFromCalibration,
   applyLambdaGapScale,
   lambdaGapScaleFromCalibration,
 } from "@/lib/glpm/score-grid-calibration";
@@ -366,10 +367,12 @@ export async function runGlpmPredict(
     baseContext.competitionMu = calibratedMu;
   }
 
+  const calibratedHa = homeAdvantageFromCalibration(calibration);
   const xg = estimateExpectedGoals(
     toRatingVectorInput(home),
     toRatingVectorInput(away),
-    baseContext
+    baseContext,
+    calibratedHa != null ? { homeAdvantage: calibratedHa } : undefined
   );
   const scaled = applyLambdaGapScale(
     xg.homeXg,

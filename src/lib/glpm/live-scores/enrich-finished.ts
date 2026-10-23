@@ -15,6 +15,7 @@ import {
 import {
   applyLambdaGapScale,
   competitionMuFromCalibration,
+  homeAdvantageFromCalibration,
   lambdaGapScaleFromCalibration,
   loadScoreGridCalibration,
   predictionConfigFromCalibration,
@@ -146,10 +147,12 @@ function predictCardFromVectors(
 } {
   const calibration = loadScoreGridCalibration(competitionId);
   const calibratedMu = competitionMuFromCalibration(calibration);
+  const calibratedHa = homeAdvantageFromCalibration(calibration);
   const predConfig = predictionConfigFromCalibration(calibration);
-  const cfg = defaultXgEngineConfig(
-    calibratedMu != null ? { mu: calibratedMu } : undefined
-  );
+  const cfg = defaultXgEngineConfig({
+    ...(calibratedMu != null ? { mu: calibratedMu } : {}),
+    ...(calibratedHa != null ? { homeAdvantage: calibratedHa } : {}),
+  });
   const homeIn = ratingInputFromVector(home);
   const awayIn = ratingInputFromVector(away);
   const xg = estimateExpectedGoals(
