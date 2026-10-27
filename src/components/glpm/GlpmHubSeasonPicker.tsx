@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { GlpmHubPayload } from "@/lib/glpm/hub-types";
+import { isPriorGlpmSeasonId } from "@/lib/sportmonks/constants";
 
 export function GlpmHubSeasonPicker({
   payload,
@@ -14,9 +15,14 @@ export function GlpmHubSeasonPicker({
   competitionId: string | null;
 }) {
   const router = useRouter();
-  const seasons = competitionId
-    ? payload.seasons.filter((s) => String(s.competitionId) === competitionId)
-    : payload.seasons;
+  const seasons = useMemo(() => {
+    const pool = competitionId
+      ? payload.seasons.filter((s) => String(s.competitionId) === competitionId)
+      : payload.seasons;
+    // Keep 25/26 in the DB; hide it from the hub picker once 26/27 exists.
+    const current = pool.filter((s) => !isPriorGlpmSeasonId(s.smId));
+    return current.length ? current : pool;
+  }, [payload.seasons, competitionId]);
 
   function navigate(next: { competitionId?: string; seasonId?: string }) {
     const params = new URLSearchParams();

@@ -9,6 +9,7 @@ import { PromotedTeamWarningIcon } from "@/components/glpm/PromotedTeamWarningIc
 import type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";
 import type { EntityType } from "@/lib/types/football-lookup";
 import { sanitizeUserFacingMessage } from "@/lib/api/user-facing-messages";
+import { isPriorGlpmSeasonId } from "@/lib/sportmonks/constants";
 
 type CompetitionOption = {
   id: number;
@@ -98,13 +99,14 @@ export function GlpmClubPredictor({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
   }, []);
 
-  const seasonsForCompetition = useMemo(
-    () =>
-      competitionId
-        ? seasons.filter((s) => String(s.competitionId) === competitionId)
-        : seasons,
-    [seasons, competitionId]
-  );
+  const seasonsForCompetition = useMemo(() => {
+    const pool = competitionId
+      ? seasons.filter((s) => String(s.competitionId) === competitionId)
+      : seasons;
+    // Keep 25/26 in the DB; hide it from the predict picker once 26/27 exists.
+    const current = pool.filter((s) => !isPriorGlpmSeasonId(s.id));
+    return current.length ? current : pool;
+  }, [seasons, competitionId]);
 
   useEffect(() => {
     if (!competitionId) return;
@@ -229,7 +231,7 @@ export function GlpmClubPredictor({
         <PageHero
           eyebrow="Graham League Prediction Model"
           title="Club matchup"
-          description="Compare two clubs with frozen GLPM ratings plus the Contextual Extension (rest, travel, weather, lineup) and insight charts. Main figures use 25/26 trained ratings; violet brackets show 26/27 when that season is trained."
+          description="Compare two clubs with frozen GLPM ratings plus the Contextual Extension (rest, travel, weather, lineup) and insight charts. Markets use the current 26/27 season."
         />
       </div>
 

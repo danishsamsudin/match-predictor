@@ -1,0 +1,87 @@
+# Force-refresh homepage upcoming card markets so they match Predict (GLPM-CX).
+#
+# Runs off-peak (04:00 UTC ≈ 05:00 CET / quiet EU morning) so CX writes and hub
+# pack rebuilds do not compete with daytime traffic.
+#
+# Required secrets:
+#   SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)
+#   SUPABASE_SERVICE_ROLE_KEY
+#
+# Manual: Actions → "GLPM home card sync" → Run workflow
+
+name: GLPM home card sync
+
+on:
+  schedule:
+    # Daily off-peak — before the 05:30 Vercel catch-up cron
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      max_per_competition:
+        description: "Max open fixtures to rescore per league (default 48)"
+        required: false
+        default: "48"
+      no_force:
+        description: "If true, skip fixtures that already have a same-day CX row"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      verify_only:
+        description: "If true, only compare hub packs to latest CX (no writes)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: glpm-home-card-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Sync home card CX + hub packs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          EXTRA=()
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MAX="${{ inputs.max_per_competition }}"
+            if [ -n "$MAX" ]; then
+              EXTRA+=(--max "$MAX")
+            fi
+            if [ "${{ inputs.no_force }}" = "true" ]; then
+              EXTRA+=(--no-force)
+            fi
+            if [ "${{ inputs.verify_only }}" = "true" ]; then
+              EXTRA+=(--verify-only)
+            fi
+          else
+            EXTRA+=(--force --max 48)
+          fi
+          echo "Running: npm run glpm:home-card-sync -- ${EXTRA[*]-}"
+          npm run glpm:home-card-sync -- "${EXTRA[@]}"

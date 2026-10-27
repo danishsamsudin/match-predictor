@@ -109,8 +109,7 @@ export function HomeLeagueFixturesPanel({
       </div>
       <p className="mb-4 text-sm text-muted">
         Scroll sideways through the next week of fixtures. Flip any card for O/U, BTTS, and fair
-        odds. When both seasons are trained, main figures use 25/26 ratings and violet brackets
-        show 26/27.
+        odds. Figures use the current 26/27 season.
       </p>
 
       {tabs.length ? (

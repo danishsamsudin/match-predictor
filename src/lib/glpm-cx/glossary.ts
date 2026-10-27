@@ -17,13 +17,13 @@ export type GlossaryEntry = {
 export const GLPM_CX_GLOSSARY = {
   modelBadge: {
     label: "GLPM vs GLPM-CX",
-    what: "GLPM is the locked club model (ratings → xG → Dixon–Coles). GLPM-CX is a separate Contextual Extension that starts from that base and adjusts for rest, travel, altitude, weather, and lineup.",
-    how: "CX never retrains the seven rating engines or changes GLPM interaction weights. It multiplies base expected goals, then re-runs Dixon–Coles only.",
+    what: "GLPM is the locked club model (ratings → xG → Dixon-Coles). GLPM-CX is a separate Contextual Extension that starts from that base and adjusts for rest, travel, altitude, weather, lineup, and recency form.",
+    how: "CX never retrains the seven rating engines or changes GLPM interaction weights. It multiplies base expected goals, then re-runs Dixon-Coles only.",
   },
   homeAwayXg: {
     label: "Match overview",
     what: "Win chance for home, draw, and away, with model fair odds under each outcome. The tiles are expected goals and fair home/away prices.",
-    how: "1X2 probabilities come from the Dixon-Coles score matrix. Fair odds = 1 / model probability. xG is the model projection of how many goals each side is expected to score. CX may then scale those λ values with context multipliers.",
+    how: "1X2 probabilities come from the Dixon-Coles score matrix. Fair odds = 1 / model probability. xG is the model projection of how many goals each side is expected to score. CX may then scale those λ values with context multipliers (including capped recency form).",
     caveat:
       "For 2025/26 SportMonks seasons, many training rows use shot-based xG proxies when provider xG is missing. Ratings still train, but treat absolute xG as an estimate.",
   },
@@ -159,8 +159,8 @@ export const GLPM_CX_GLOSSARY = {
   },
   xgWaterfall: {
     label: "Base xG to CX-adjusted xG",
-    what: "Five context multipliers (rest, travel, altitude, weather, lineup) scale base xG. 1.000 means that factor does not move the projection.",
-    how: "Starts from frozen GLPM xG, then multiplies rest, travel, altitude, weather, and lineup independently per side. Typical dry PL compares with ~7 days rest, travel under 500 km, and no confirmed XI stay at 1.000 on every factor; measurable rain or high wind moves the weather step.",
+    what: "Context multipliers (rest, travel, altitude, weather, lineup, form) scale base xG. 1.000 means that factor does not move the projection.",
+    how: "Starts from frozen GLPM xG, then multiplies rest, travel, altitude, weather, and lineup independently per side. Form then nudges λ from recent team xG for/against vs this pair (last 6 matches, capped ±7%), only when both sides have at least 3 samples. Typical dry PL compares with ~7 days rest, travel under 500 km, and no confirmed XI stay at 1.000 on those factors; form can still move CX markets.",
   },
   finishingDelta: {
     label: "Finishing differential (Goals vs xG)",

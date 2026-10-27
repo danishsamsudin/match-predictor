@@ -315,12 +315,7 @@ export async function loadGlpmHubPayload(
     competitionId != null ? TRAIN_FALLBACK_BY_LEAGUE[competitionId] ?? null : null;
   const priorSeasonId =
     priorSeasonIdRaw != null && priorSeasonIdRaw !== seasonId ? priorSeasonIdRaw : null;
-  const priorSeasonMeta =
-    priorSeasonId != null ? seasonList.find((s) => s.smId === priorSeasonId) ?? null : null;
   const currentSeasonLabel = shortGlpmSeasonLabel(seasonMeta?.name, seasonId);
-  const priorSeasonLabel = priorSeasonId
-    ? shortGlpmSeasonLabel(priorSeasonMeta?.name, priorSeasonId)
-    : null;
 
   const [seasonTeamIds, finishedMatchesResult, openMatchesResult] = await Promise.all([
     loadSeasonTeamIds(client, seasonId),
@@ -762,45 +757,25 @@ export async function loadGlpmHubPayload(
 
     const homeCurrent = seasonVectors.get(m.home_team_sm_id) ?? null;
     const awayCurrent = seasonVectors.get(m.away_team_sm_id) ?? null;
-    const liveFixtureSeason =
+    // Main card markets use the fixture season (26/27). Prior-season vectors
+    // stay loaded for promoted-team warnings only.
+    const liveMain =
       homeCurrent && awayCurrent
         ? predictFromVectors(homeCurrent, awayCurrent, competitionId)
         : null;
-
-    const homePrior = priorSeasonVectors.get(m.home_team_sm_id) ?? null;
-    const awayPrior = priorSeasonVectors.get(m.away_team_sm_id) ?? null;
-    // Main card markets prefer prior-season (25/26) trained vectors.
-    const liveMain =
-      homePrior && awayPrior
-        ? predictFromVectors(homePrior, awayPrior, competitionId)
-        : liveFixtureSeason;
-    // Violet brackets = fixture-season (26/27) when it differs from main.
-    const predictionPriorSeason =
-      liveMain &&
-      liveFixtureSeason &&
-      (Math.abs(liveMain.homeXg - liveFixtureSeason.homeXg) > 0.005 ||
-        Math.abs(liveMain.awayXg - liveFixtureSeason.awayXg) > 0.005 ||
-        Math.abs(liveMain.homeWin - liveFixtureSeason.homeWin) > 0.0005 ||
-        Math.abs(liveMain.awayWin - liveFixtureSeason.awayWin) > 0.0005)
-        ? liveFixtureSeason
-        : null;
+    const predictionPriorSeason = null;
 
     const live = liveMain ?? (home && away ? predictFromVectors(home.vector, away.vector, competitionId) : null);
-    const usedPriorMain = Boolean(liveMain && homePrior && awayPrior);
     const liveSource =
       liveMain != null
-        ? usedPriorMain
-          ? ("prior" as const)
-          : ("live" as const)
+        ? ("live" as const)
         : home && away
           ? predictionSourceFromResolved(home, away, false)
           : null;
     const { prediction, predictionSource } = liveMain
       ? {
           prediction: liveMain,
-          predictionSource: usedPriorMain
-            ? ("prior" as const)
-            : ("live" as const),
+          predictionSource: "live" as const,
         }
       : resolveUpcomingCardPrediction({
           cxRow: cxStored ?? null,
@@ -821,12 +796,8 @@ export async function loadGlpmHubPayload(
       gameweek: m.gameweek,
       prediction,
       predictionPriorSeason,
-      predictionSeasonLabel: liveMain
-        ? homePrior && awayPrior
-          ? priorSeasonLabel
-          : currentSeasonLabel
-        : null,
-      predictionPriorSeasonLabel: predictionPriorSeason ? currentSeasonLabel : null,
+      predictionSeasonLabel: liveMain ? currentSeasonLabel : null,
+      predictionPriorSeasonLabel: null,
       predictionSource,
       homePromotedWarning: shouldWarnPromotedTeam({
         isPromoted: promotedTeamIds.has(m.home_team_sm_id),

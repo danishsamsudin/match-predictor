@@ -29,6 +29,15 @@ export const DEFAULT_GLPM_LEAGUE_IDS: number[] = Object.values(SM_LEAGUE);
 
 export const DEFAULT_GLPM_SEASON_IDS_2026_27: number[] = Object.values(SM_SEASON_2026_27);
 
+/** Prior-season SportMonks IDs kept in the DB but hidden from product pickers. */
+export const PRIOR_GLPM_SEASON_IDS_2025_26: ReadonlySet<number> = new Set(
+  Object.values(SM_SEASON_2025_26)
+);
+
+export function isPriorGlpmSeasonId(seasonId: number): boolean {
+  return PRIOR_GLPM_SEASON_IDS_2025_26.has(seasonId);
+}
+
 export function parseIdList(raw: string | undefined, fallback: number[]): number[] {
   if (!raw?.trim()) return fallback;
   const ids = raw

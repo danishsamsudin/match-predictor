@@ -42,7 +42,7 @@
       "schedule": "15 4 * * *"
     },
     {
-      "path": "/api/cron/glpm-upcoming-predictions?run=true",
+      "path": "/api/cron/glpm-upcoming-predictions?run=true&force=true&maxPerCompetition=24",
       "schedule": "30 5 * * *"
     },
     {

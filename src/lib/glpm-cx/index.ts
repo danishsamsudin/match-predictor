@@ -9,5 +9,8 @@ export {
   SCORE_HEATMAP_MAX_GOALS,
 } from "@/lib/glpm-cx/derived-markets";
 export { runGlpmCxPredict } from "@/lib/glpm-cx/run-cx-predict";
-export type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";
+export type {
+  GlpmCxFormAdjustment,
+  GlpmCxPredictPayload,
+} from "@/lib/glpm-cx/run-cx-predict";
 export { GLPM_CX_GLOSSARY, glossaryTipBody } from "@/lib/glpm-cx/glossary";

@@ -128,8 +128,9 @@ export async function loadGlpmSeasonReadiness(
 
 /**
  * Seasons are assumed newest-first (start_date desc).
- * Prefer the latest season with discriminating vectors, else any vectors,
- * else upcoming fixtures, else finished matches.
+ * Prefer the current fixture season (open matches), then latest trained /
+ * finished seasons. Keeps predict/hub defaults on 26/27 while prior seasons
+ * remain available in the DB.
  */
 export function pickDefaultGlpmSeasonId(
   seasons: GlpmSeasonRef[],
@@ -143,13 +144,21 @@ export function pickDefaultGlpmSeasonId(
   if (!pool.length) return null;
 
   for (const s of pool) {
+    const r = readiness.get(s.smId);
+    if (r?.hasUpcomingMatches && r.hasDiscriminatingVectors) return s.smId;
+  }
+  for (const s of pool) {
+    const r = readiness.get(s.smId);
+    if (r?.hasUpcomingMatches && r.hasVectors) return s.smId;
+  }
+  for (const s of pool) {
+    if (readiness.get(s.smId)?.hasUpcomingMatches) return s.smId;
+  }
+  for (const s of pool) {
     if (readiness.get(s.smId)?.hasDiscriminatingVectors) return s.smId;
   }
   for (const s of pool) {
     if (readiness.get(s.smId)?.hasVectors) return s.smId;
-  }
-  for (const s of pool) {
-    if (readiness.get(s.smId)?.hasUpcomingMatches) return s.smId;
   }
   for (const s of pool) {
     if (readiness.get(s.smId)?.hasFinishedMatches) return s.smId;

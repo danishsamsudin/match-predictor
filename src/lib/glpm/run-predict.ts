@@ -152,8 +152,8 @@ async function loadCompetitionDestinationAnchor(
  * for clubs new to the competition.
  *
  * When `vectorSeasonFallback` is true (default), calibrator-collapsed seasons
- * borrow the mapped prior season. Insights season-compare turns this off so
- * the main line stays on the fixture season and violet brackets can differ.
+ * borrow the mapped prior season. Predict UI turns this off so markets stay on
+ * the fixture season (26/27) instead of silently using prior-season vectors.
  */
 async function loadVectorForPredict(
   client: Client,

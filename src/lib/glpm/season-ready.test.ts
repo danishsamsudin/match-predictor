@@ -67,6 +67,32 @@ describe("pickRatingSeasonId", () => {
     );
   });
 
+  it("prefers current upcoming season over prior discriminating season", () => {
+    const map = new Map<number, GlpmSeasonReadiness>([
+      [
+        SM_SEASON_2026_27.PREMIER_LEAGUE,
+        readiness({
+          hasUpcomingMatches: true,
+          hasVectors: true,
+          // Early-season calibrator collapse: still prefer fixture season.
+          hasDiscriminatingVectors: false,
+        }),
+      ],
+      [
+        SM_SEASON_2025_26.PREMIER_LEAGUE,
+        readiness({
+          hasFinishedMatches: true,
+          hasVectors: true,
+          hasDiscriminatingVectors: true,
+        }),
+      ],
+    ]);
+
+    expect(pickDefaultGlpmSeasonId(seasons, map, SM_LEAGUE.PREMIER_LEAGUE)).toBe(
+      SM_SEASON_2026_27.PREMIER_LEAGUE
+    );
+  });
+
   it("falls back to TRAIN_FALLBACK when completed season flags are missing", () => {
     const map = new Map<number, GlpmSeasonReadiness>([
       [

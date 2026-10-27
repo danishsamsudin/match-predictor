@@ -26,7 +26,6 @@ import {
 import { InfoTip } from "@/components/ui/InfoTip";
 import type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";
 import { GLPM_CX_GLOSSARY, glossaryTipBody } from "@/lib/glpm-cx/glossary";
-import { SeasonCompareValue } from "@/components/glpm/SeasonCompareValue";
 import { fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
 import { PRIMARY_LABELS, PRIMARY_ORDER } from "@/lib/glpm/engine";
 import {
@@ -592,12 +591,6 @@ export function GlpmInsightsDashboard({
     modelVersion: payload.base.predModelVersion,
   };
 
-  const prior = payload.priorSeasonCompare;
-  const seasonCompareNote = payload.seasonCompareNote;
-  const priorTitle = prior
-    ? `${prior.seasonLabel} trained ratings`
-    : null;
-  const priorSeasonLabel = prior?.seasonLabel ?? null;
   const over25 = markets.overUnder["2.5"]?.over ?? 0;
 
   const radarData = PRIMARY_ORDER.map((key) => ({
@@ -696,7 +689,9 @@ export function GlpmInsightsDashboard({
     restDays: number | null,
     restNote: string | null,
     weatherSummary: string | null,
-    lineupSummary: string
+    lineupSummary: string,
+    formMult: number,
+    postApplyXg: number
   ): CxFactorStep[] => {
     const factors: Array<{ name: string; multiplier: number; detail: string }> = [
       {
@@ -751,6 +746,16 @@ export function GlpmInsightsDashboard({
       });
       running = next;
     }
+    // Form multiplies post-apply λ (after mean-preserve), not the raw product of the five factors.
+    running = postApplyXg;
+    const formXg = Math.max(0.15, running * formMult);
+    steps.push({
+      name: "Form",
+      multiplier: formMult,
+      xg: formXg,
+      delta: formXg - running,
+      detail: "",
+    });
     return steps;
   };
 
@@ -760,7 +765,9 @@ export function GlpmInsightsDashboard({
     payload.context.homeRestDays,
     payload.context.homeRestNote ?? null,
     payload.context.weatherSummary,
-    payload.lineup.summary
+    payload.lineup.summary,
+    payload.form.homeMult,
+    payload.apply.homeXg
   );
   const awayCxSteps = buildCxSteps(
     payload.apply.away,
@@ -768,7 +775,9 @@ export function GlpmInsightsDashboard({
     payload.context.awayRestDays,
     payload.context.awayRestNote ?? null,
     payload.context.weatherSummary,
-    payload.lineup.summary
+    payload.lineup.summary,
+    payload.form.awayMult,
+    payload.apply.awayXg
   );
 
   const vsStyleBars = [
@@ -813,8 +822,8 @@ export function GlpmInsightsDashboard({
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-muted">
           {useCx
-            ? "Includes rest, travel, weather, and lineup. Switch to the base model to ignore context."
-            : "Base ratings only. Switch to With context to include rest, travel, weather, and lineup."}
+            ? "Includes rest, travel, weather, lineup, and recency form. Switch to the base model to ignore context."
+            : "Base ratings only. Switch to With context to include rest, travel, weather, lineup, and form."}
         </p>
         <div className="mt-3 flex gap-5 text-sm">
           <button
@@ -856,31 +865,11 @@ export function GlpmInsightsDashboard({
               awayLabel={awayLabel}
               homeTeamId={payload.base.homeTeam.smId}
               awayTeamId={payload.base.awayTeam.smId}
-              priorHome={prior?.homeWin ?? null}
-              priorDraw={prior?.draw ?? null}
-              priorAway={prior?.awayWin ?? null}
-              priorTitle={priorTitle}
-              priorSeasonLabel={priorSeasonLabel}
             />
-            {prior ? (
-              <p className="text-xs text-muted">
-                Main figures are {prior.currentSeasonLabel} trained ratings. Violet brackets are{" "}
-                {prior.seasonLabel}.
-              </p>
-            ) : seasonCompareNote ? (
-              <p className="text-xs text-muted">{seasonCompareNote}</p>
-            ) : null}
             <div className="grid grid-cols-2 gap-3">
               <KpiMeter
                 label={`${homeLabel} xG`}
-                value={
-                  <SeasonCompareValue
-                    current={fmt(markets.homeXg)}
-                    prior={prior ? fmt(prior.homeXg) : null}
-                    priorTitle={priorTitle}
-                    priorSeasonLabel={priorSeasonLabel}
-                  />
-                }
+                value={fmt(markets.homeXg)}
                 hint={
                   useCx
                     ? `Base ${fmt(payload.base.homeXg)} → CX`
@@ -890,14 +879,7 @@ export function GlpmInsightsDashboard({
               />
               <KpiMeter
                 label={`${awayLabel} xG`}
-                value={
-                  <SeasonCompareValue
-                    current={fmt(markets.awayXg)}
-                    prior={prior ? fmt(prior.awayXg) : null}
-                    priorTitle={priorTitle}
-                    priorSeasonLabel={priorSeasonLabel}
-                  />
-                }
+                value={fmt(markets.awayXg)}
                 hint={
                   useCx
                     ? `Base ${fmt(payload.base.awayXg)} → CX`
@@ -907,49 +889,18 @@ export function GlpmInsightsDashboard({
               />
               <KpiMeter
                 label="Over 2.5"
-                value={
-                  <SeasonCompareValue
-                    current={pct(over25)}
-                    prior={prior ? pct(prior.over25) : null}
-                    priorTitle={priorTitle}
-                    priorSeasonLabel={priorSeasonLabel}
-                  />
-                }
+                value={pct(over25)}
                 hint="From this view's markets"
               />
-              <KpiMeter
-                label="BTTS yes"
-                value={
-                  <SeasonCompareValue
-                    current={pct(markets.bttsYes)}
-                    prior={prior ? pct(prior.bttsYes) : null}
-                    priorTitle={priorTitle}
-                    priorSeasonLabel={priorSeasonLabel}
-                  />
-                }
-              />
+              <KpiMeter label="BTTS yes" value={pct(markets.bttsYes)} />
               <KpiMeter
                 label="Fair home"
-                value={
-                  <SeasonCompareValue
-                    current={oddsLabel(markets.homeWin) ?? "-"}
-                    prior={prior ? oddsLabel(prior.homeWin) : null}
-                    priorTitle={priorTitle}
-                    priorSeasonLabel={priorSeasonLabel}
-                  />
-                }
+                value={oddsLabel(markets.homeWin) ?? "-"}
                 hint="1 / model %"
               />
               <KpiMeter
                 label="Fair away"
-                value={
-                  <SeasonCompareValue
-                    current={oddsLabel(markets.awayWin) ?? "-"}
-                    prior={prior ? oddsLabel(prior.awayWin) : null}
-                    priorTitle={priorTitle}
-                    priorSeasonLabel={priorSeasonLabel}
-                  />
-                }
+                value={oddsLabel(markets.awayWin) ?? "-"}
                 hint="1 / model %"
                 accent="accent"
               />

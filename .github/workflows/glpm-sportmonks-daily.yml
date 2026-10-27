@@ -19,6 +19,7 @@ name: GLPM SportMonks daily sync
 #   glpm-vs-style-backfill.yml  — manual bulk vs-style backfill
 #   glpm-standings-refresh.yml  — schedules + standings via production crons
 #   glpm-livescores.yml         — in-play livescores poll via production cron
+#   glpm-home-card-sync.yml     — off-peak daily force CX + hub packs (cards = Predict)
 
 on:
   schedule:

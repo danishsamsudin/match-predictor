@@ -82,7 +82,7 @@ export type GlpmHubUpcomingMatch = {
     over25: number;
     bttsYes: number;
   } | null;
-  /** Same markets from the prior-season trained vectors (e.g. 25/26 vs 26/27). */
+  /** Retired dual-season compare field; always null on the frontend. */
   predictionPriorSeason: {
     homeWin: number;
     draw: number;

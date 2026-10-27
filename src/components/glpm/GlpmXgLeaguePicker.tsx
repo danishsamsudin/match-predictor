@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { HomeLeagueTabs } from "@/components/glpm/HomeLeagueTabs";
 import type { GlpmXgHubPayload } from "@/lib/glpm/hub-types";
+import { isPriorGlpmSeasonId } from "@/lib/sportmonks/constants";
 
 export function GlpmXgLeaguePicker({
   payload,
@@ -15,9 +16,13 @@ export function GlpmXgLeaguePicker({
   competitionId: string | null;
 }) {
   const router = useRouter();
-  const seasons = competitionId
-    ? payload.seasons.filter((s) => String(s.competitionId) === competitionId)
-    : payload.seasons;
+  const seasons = useMemo(() => {
+    const pool = competitionId
+      ? payload.seasons.filter((s) => String(s.competitionId) === competitionId)
+      : payload.seasons;
+    const current = pool.filter((s) => !isPriorGlpmSeasonId(s.smId));
+    return current.length ? current : pool;
+  }, [payload.seasons, competitionId]);
 
   const leagueTabs = payload.competitions.map((c) => ({
     id: String(c.smId),

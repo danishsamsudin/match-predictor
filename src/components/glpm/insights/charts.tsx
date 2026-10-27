@@ -884,7 +884,11 @@ export function CxFactorPanel({
         <p className="text-xs text-muted">
           Context is neutral. Every multiplier is 1.000, so CX xG matches the base model.
         </p>
-      ) : null}
+      ) : (
+        <p className="text-xs text-muted">
+          Factors scale base xG in order. Form uses recent team xG for/against and is capped.
+        </p>
+      )}
       <div className="table-h-scroll">
         <table className="w-full text-sm">
           <thead>
@@ -899,12 +903,15 @@ export function CxFactorPanel({
               <tr key={row.name} className="border-b border-glass-border/60">
                 <td className="py-2 pr-3">
                   <p className="font-medium text-foreground">{row.name}</p>
-                  {Math.abs(row.homeMult - 1) >= 0.005 ||
-                  Math.abs(row.awayMult - 1) >= 0.005 ? (
+                  {(Math.abs(row.homeMult - 1) >= 0.005 ||
+                    Math.abs(row.awayMult - 1) >= 0.005) &&
+                  (row.homeDetail || row.awayDetail) ? (
                     <p className="text-[11px] text-muted">
-                      {row.homeDetail === row.awayDetail
+                      {row.homeDetail === row.awayDetail || !row.awayDetail
                         ? row.homeDetail
-                        : `${row.homeDetail} / ${row.awayDetail}`}
+                        : !row.homeDetail
+                          ? row.awayDetail
+                          : `${row.homeDetail} / ${row.awayDetail}`}
                     </p>
                   ) : null}
                 </td>
