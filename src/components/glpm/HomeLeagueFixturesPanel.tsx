@@ -131,12 +131,18 @@ export function HomeLeagueFixturesPanel({
         ) : dayWindow.length === 0 ? (
           <p className="text-sm text-muted">No upcoming fixtures for this league.</p>
         ) : (
-          <div className="glpm-fixtures-rail" role="list" aria-label="Upcoming fixtures by match day">
+          <div
+            // Remount on league change so horizontal scroll resets to the first matchday.
+            key={active.leagueName}
+            className="glpm-fixtures-rail"
+            role="list"
+            aria-label="Upcoming fixtures by match day"
+          >
             {dayWindow.map((day, dayIndex) => {
               const matches = byDay.get(day) ?? [];
               const dayTone = (dayIndex % 2 === 0 ? 0 : 1) as 0 | 1;
               return (
-                <Fragment key={day}>
+                <Fragment key={`${active.leagueName}-${day}`}>
                   <MatchdaySpine day={day} dayTone={dayTone} isFirst={dayIndex === 0} />
                   {matches.map((m) => (
                     <div
