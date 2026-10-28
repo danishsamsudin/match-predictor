@@ -1,17 +1,13 @@
 import type { ConfidenceLookup } from "@/lib/value-opportunities/confidence-layer";
 import type { KellyStakeResult } from "@/lib/value-opportunities/kelly-stake";
+import { SM_LEAGUE } from "@/lib/sportmonks/constants";
 
 /**
  * One shared action policy for every Value Opportunities market.
  *
  * Markets already specialize through the confidence layer (per-market reliability
- * bins). Re-deriving a separate BTTS / 1X2 / O/U heuristic would drift and fight
- * that layer. Keep this as a thin, fixed mapping of shared signals:
- * confidence tier + hist edge + Kelly stake (+ optional model edge as a Watch hint).
- *
- * Adaptation over time should come from recalibrating confidence / hit rates on
- * postmatch - not from rewriting per-market action formulas. Threshold constants
- * below can later be tuned from Pass/Watch/Bet P/L if we log recommendations.
+ * bins). A thin market-family gate sits in front so Goal Range / extreme Unders
+ * and weak away sides cannot clear Bet on raw model edge alone.
  */
 
 export type ValueAction = "pass" | "watch" | "bet";
@@ -22,13 +18,78 @@ export type ValueActionResult = {
   reason: string;
 };
 
+export type ValueActionGate = "prefer" | "haircut" | "block" | "neutral";
+
 /** Model edge (%) that can promote a history-fail row to Watch (price to chase). */
 export const VALUE_ACTION_MODEL_WATCH_EDGE_PCT = 3;
+
+const HAIRCUT_LEAGUE_IDS = new Set<number>([
+  SM_LEAGUE.CHAMPIONSHIP,
+  SM_LEAGUE.BUNDESLIGA,
+]);
 
 export function formatValueAction(action: ValueAction): string {
   if (action === "bet") return "Bet";
   if (action === "watch") return "Watch";
   return "Pass";
+}
+
+/**
+ * Classify a Value Opportunities row for the handicap-focused gate.
+ * `marketKey` is the confidence key from `valueRowIdToMarketKey`.
+ */
+export function classifyValueActionGate(input: {
+  marketKey?: string | null;
+  leagueSmId?: number | null;
+}): ValueActionGate {
+  const key = (input.marketKey ?? "").toLowerCase();
+  if (!key) return "neutral";
+
+  if (
+    key.startsWith("goal_range_") ||
+    key === "team_total:home_under_0.5" ||
+    key === "team_total:away_under_0.5" ||
+    key === "goals_over_under:under_1.5"
+  ) {
+    return "block";
+  }
+
+  const leagueHaircut =
+    input.leagueSmId != null && HAIRCUT_LEAGUE_IDS.has(Number(input.leagueSmId));
+
+  if (
+    key === "asian_handicap:away_-0.5" ||
+    key === "asian_handicap:away_0.5" ||
+    key === "asian_handicap:away_+0.5" ||
+    key === "double_chance:x2" ||
+    key === "win_probability:away"
+  ) {
+    return "haircut";
+  }
+
+  if (leagueHaircut) return "haircut";
+
+  if (
+    key.startsWith("european_handicap:") &&
+    (key.includes("-1_") || key.includes("+1_")) &&
+    (key.endsWith("_home") || key.endsWith("_draw"))
+  ) {
+    return "prefer";
+  }
+  if (
+    key === "asian_handicap:home_-0.5" ||
+    key === "asian_handicap:home_0.5" ||
+    key === "asian_handicap:home_+0.5" ||
+    key === "asian_handicap:home_1.5" ||
+    key === "asian_handicap:home_+1.5" ||
+    key === "double_chance:1x" ||
+    key === "win_probability:home" ||
+    key === "win_probability:draw"
+  ) {
+    return "prefer";
+  }
+
+  return "neutral";
 }
 
 export function suggestValueAction(input: {
@@ -37,14 +98,30 @@ export function suggestValueAction(input: {
   kelly?: KellyStakeResult;
   modelEdgePct: number | null;
   histEdgePct: number | null;
+  /** Confidence market key (e.g. `asian_handicap:home_-0.5`). */
+  marketKey?: string | null;
+  leagueSmId?: number | null;
 }): ValueActionResult {
   const { bookOdds, confidence, kelly, modelEdgePct, histEdgePct } = input;
+  const gate = classifyValueActionGate({
+    marketKey: input.marketKey ?? confidence?.marketKey,
+    leagueSmId: input.leagueSmId,
+  });
 
   if (bookOdds == null) {
     return {
       action: "pass",
       label: formatValueAction("pass"),
       reason: "Enter book odds before deciding.",
+    };
+  }
+
+  if (gate === "block") {
+    return {
+      action: "pass",
+      label: formatValueAction("pass"),
+      reason:
+        "Blocked market family (goal range / extreme under). Focus on AH, EH, DC, and 1X2 home/draw.",
     };
   }
 
@@ -57,6 +134,22 @@ export function suggestValueAction(input: {
   }
 
   if (kelly && kelly.fraction > 0) {
+    if (gate === "haircut") {
+      if (confidence.tier === "strong") {
+        return {
+          action: "bet",
+          label: formatValueAction("bet"),
+          reason: `${formatValueAction("bet")}: haircut side/league cleared Strong history plus Kelly.`,
+        };
+      }
+      return {
+        action: "watch",
+        label: formatValueAction("watch"),
+        reason:
+          "Haircut side or league - need Strong history before Bet; Watch only for now.",
+      };
+    }
+
     if (confidence.tier === "strong" || confidence.tier === "moderate") {
       return {
         action: "bet",
@@ -84,7 +177,8 @@ export function suggestValueAction(input: {
   if (
     modelEdgePct != null &&
     modelEdgePct >= VALUE_ACTION_MODEL_WATCH_EDGE_PCT &&
-    (histEdgePct == null || histEdgePct <= 0)
+    (histEdgePct == null || histEdgePct <= 0) &&
+    gate !== "haircut"
   ) {
     return {
       action: "watch",

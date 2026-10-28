@@ -306,9 +306,11 @@ function ValueOpportunitiesPanel({
             })
           : undefined;
       const histEdgePct =
-        confidence && bookOdds != null && confidence.n > 0
-          ? (shrunkProbability(modelProb, confidence) * bookOdds - 1) * 100
-          : null;
+        kelly != null && bookOdds != null
+          ? (kelly.pUsed * bookOdds - 1) * 100
+          : confidence && bookOdds != null && confidence.n > 0
+            ? (shrunkProbability(modelProb, confidence) * bookOdds - 1) * 100
+            : null;
       const action = showConfidence
         ? suggestValueAction({
             bookOdds,
@@ -316,6 +318,8 @@ function ValueOpportunitiesPanel({
             kelly,
             modelEdgePct,
             histEdgePct,
+            marketKey,
+            leagueSmId: resolvedLeagueSmId,
           })
         : undefined;
       return {
@@ -448,6 +452,7 @@ function ValueOpportunitiesPanel({
     confidenceLayer,
     bankrollNum,
     showConfidence,
+    resolvedLeagueSmId,
   ]);
 
   const filteredSections = useMemo(() => {

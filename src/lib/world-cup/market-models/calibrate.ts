@@ -104,6 +104,59 @@ export function calibrateMarketModelsFromEvaluations(input: {
     });
   }
 
+  const selectionKey = (r: MarketEvaluationRow): string | null => {
+    const pred = r.predicted as { selectionKey?: string; marketKey?: string };
+    const key = pred.selectionKey ?? pred.marketKey;
+    return typeof key === "string" && key.length ? key : null;
+  };
+
+  const tuneKeyedFamily = (
+    marketId: MarketModelId,
+    store: Record<string, LogisticStackCoeffs>
+  ) => {
+    const familyRows = evaluations.filter((r) => r.marketId === marketId);
+    if (familyRows.length < MIN_SAMPLES) {
+      insufficient.push(marketId);
+      return;
+    }
+    const byKey = new Map<string, MarketEvaluationRow[]>();
+    for (const row of familyRows) {
+      const key = selectionKey(row);
+      if (!key) continue;
+      const list = byKey.get(key) ?? [];
+      list.push(row);
+      byKey.set(key, list);
+    }
+    if (byKey.size === 0) {
+      // Fall back to one family-wide stack under "_all"
+      const tuned = tuneLogisticStack(
+        store._all ?? { ...store[Object.keys(store)[0]!] },
+        familyRows
+      );
+      store._all = tuned;
+      changes.push({
+        marketId,
+        description: `${marketId} family stack nudged (mlBlend → ${tuned.mlBlend.toFixed(2)}).`,
+      });
+      return;
+    }
+    for (const [key, rows] of byKey) {
+      if (rows.length < MIN_SAMPLES) continue;
+      const deployedStack = store[key] ?? store._all ?? Object.values(store)[0];
+      if (!deployedStack) continue;
+      const tuned = tuneLogisticStack(deployedStack, rows);
+      store[key] = tuned;
+      changes.push({
+        marketId,
+        description: `${marketId}:${key} stack nudged (mlBlend → ${tuned.mlBlend.toFixed(2)}).`,
+      });
+    }
+  };
+
+  tuneKeyedFamily("asian_handicap", next.asianHandicap);
+  tuneKeyedFamily("european_handicap", next.europeanHandicap);
+  tuneKeyedFamily("double_chance", next.doubleChance);
+
   const csRows = evaluations.filter((r) => r.marketId === "correct_score");
   if (csRows.length >= MIN_SAMPLES) {
     const hitRate = csRows.filter((r) => r.lossValue === 0).length / csRows.length;

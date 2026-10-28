@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { GLPM_LEAGUE_META } from "@/lib/glpm/live-scores/league-meta";
 import { SM_LEAGUE } from "@/lib/sportmonks/constants";
 import {
+  DEFAULT_SHARP_ALPHAS,
   EMPTY_SHARP_SHRINK,
   type GlpmSharpShrinkConfig,
 } from "@/lib/glpm/market-models";
@@ -26,13 +27,22 @@ export type GlpmCalibrationConstants = {
   modelVersion: string;
   marketModels: MarketModelsConfig;
   sharpShrink: GlpmSharpShrinkConfig;
+  /**
+   * Power tempering on published 1X2 (τ > 1 softens favorites in the WC/NL convention).
+   * Double chance is recomputed from the tempered triple.
+   */
+  oneXTwoTemperature: number;
 };
+
+/** Default club 1X2 temperature - mild favorite softening. */
+export const GLPM_1X2_TEMPERATURE_DEFAULT = 1.12;
 
 export const GLPM_CALIBRATION_DEFAULTS: GlpmCalibrationConstants = {
   confidenceLayer: { ...EMPTY_CONFIDENCE_LAYER, markets: {} },
   modelVersion: "glpm_cx_v1.2",
   marketModels: getDefaultMarketModelsConfig(),
   sharpShrink: { ...EMPTY_SHARP_SHRINK },
+  oneXTwoTemperature: GLPM_1X2_TEMPERATURE_DEFAULT,
 };
 
 export const GLPM_HOME_LEAGUE_IDS: number[] = [
@@ -61,9 +71,14 @@ export function mergeGlpmCalibration(
       confidenceLayer: { ...EMPTY_CONFIDENCE_LAYER, markets: {} },
       marketModels: getDefaultMarketModelsConfig(),
       sharpShrink: { ...EMPTY_SHARP_SHRINK },
+      oneXTwoTemperature: GLPM_1X2_TEMPERATURE_DEFAULT,
     };
   }
   const sharpRaw = (raw as { sharpShrink?: GlpmSharpShrinkConfig }).sharpShrink;
+  const tauRaw = Number(
+    (raw as { oneXTwoTemperature?: number }).oneXTwoTemperature ??
+      GLPM_1X2_TEMPERATURE_DEFAULT
+  );
   return {
     modelVersion: String(raw.modelVersion ?? GLPM_CALIBRATION_DEFAULTS.modelVersion),
     confidenceLayer: mergeConfidenceLayer(
@@ -73,10 +88,15 @@ export function mergeGlpmCalibration(
       (raw as { marketModels?: Partial<MarketModelsConfig> }).marketModels
     ),
     sharpShrink: {
-      alphaByMarket: { ...(sharpRaw?.alphaByMarket ?? {}) },
+      alphaByMarket: {
+        ...DEFAULT_SHARP_ALPHAS,
+        ...(sharpRaw?.alphaByMarket ?? {}),
+      },
       updatedAt: String(sharpRaw?.updatedAt ?? ""),
       nSnapshots: Number(sharpRaw?.nSnapshots ?? 0) || 0,
     },
+    oneXTwoTemperature:
+      Number.isFinite(tauRaw) && tauRaw > 0 ? tauRaw : GLPM_1X2_TEMPERATURE_DEFAULT,
   };
 }
 

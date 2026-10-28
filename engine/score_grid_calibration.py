@@ -2,8 +2,8 @@
 League score-grid calibration: fit {mu, rho, goal_overdispersion_k} on
 prior + current seasons with exponential time weighting.
 
-Primary objective: weighted exact-score log loss.
-Guardrail: 1X2 Brier must not worsen by more than ``brier_guardrail``.
+Primary objective: margin / Asian Handicap / European Handicap Brier plus a
+normalised exact-score term. O/U and BTTS are deploy guardrails only.
 """
 
 from __future__ import annotations
@@ -35,16 +35,26 @@ from engine.xg_engine import estimate_expected_goals
 
 CALIBRATION_DIR = Path(__file__).resolve().parents[1] / "data" / "glpm" / "calibration"
 CALIBRATION_SCHEMA_VERSION = 1
-DEFAULT_HALF_LIFE_DAYS = 220.0
+DEFAULT_HALF_LIFE_DAYS = 90.0
 DEFAULT_BRIER_GUARDRAIL = 0.025
 DEFAULT_OU_BRIER_GUARDRAIL = 0.03
 DEFAULT_BTTS_BRIER_GUARDRAIL = 0.03
 DEFAULT_MU0 = DEFAULT_MU_XG
 # Soft penalty (nats) on share of fixtures whose mode is 1-1.
 DEFAULT_MODE_11_PENALTY = 0.12
-# Soft weights on O/U 2.5 / BTTS Brier added to the search objective.
-DEFAULT_OU_OBJECTIVE_WEIGHT = 0.35
-DEFAULT_BTTS_OBJECTIVE_WEIGHT = 0.25
+# Kept for CLI/back-compat; O/U and BTTS are no longer in the primary objective.
+DEFAULT_OU_OBJECTIVE_WEIGHT = 0.0
+DEFAULT_BTTS_OBJECTIVE_WEIGHT = 0.0
+# Margin-first objective weights (must sum with scoreline weight to 1.0).
+DEFAULT_MARGIN_OBJECTIVE_WEIGHT = 0.35
+DEFAULT_AH_OBJECTIVE_WEIGHT = 0.25
+DEFAULT_EH_OBJECTIVE_WEIGHT = 0.20
+DEFAULT_SCORELINE_OBJECTIVE_WEIGHT = 0.20
+# Approximate nat scale for normalising scoreline LL into Brier-like units.
+SCORELINE_LL_NORM = 3.0
+AH_FOCUS_LINES = (-1.5, -0.5, 0.5, 1.5)
+EH_FOCUS_LINES = (-1, 1)
+MARGIN_BUCKETS = ("le_m2", "m1", "draw", "p1", "ge_p2")
 
 
 @dataclass(frozen=True)
@@ -222,6 +232,60 @@ def _brier_binary(prob: float, hit: bool) -> float:
     return (p - y) ** 2
 
 
+def _margin_bucket(margin: int) -> str:
+    if margin <= -2:
+        return "le_m2"
+    if margin == -1:
+        return "m1"
+    if margin == 0:
+        return "draw"
+    if margin == 1:
+        return "p1"
+    return "ge_p2"
+
+
+def _margin_bucket_probs(score_matrix: np.ndarray) -> dict[str, float]:
+    out = {k: 0.0 for k in MARGIN_BUCKETS}
+    n_h, n_a = score_matrix.shape
+    for h in range(n_h):
+        for a in range(n_a):
+            out[_margin_bucket(h - a)] += float(score_matrix[h, a])
+    total = sum(out.values()) or 1.0
+    return {k: v / total for k, v in out.items()}
+
+
+def _asian_home_cover_prob(score_matrix: np.ndarray, line: float) -> float:
+    """Half-line AH: home covers when (home - away) > -line."""
+    p = 0.0
+    n_h, n_a = score_matrix.shape
+    for h in range(n_h):
+        for a in range(n_a):
+            if (h - a) > -line:
+                p += float(score_matrix[h, a])
+    return p
+
+
+def _european_handicap_probs(
+    score_matrix: np.ndarray, line: int
+) -> tuple[float, float, float]:
+    home = draw = away = 0.0
+    n_h, n_a = score_matrix.shape
+    for h in range(n_h):
+        for a in range(n_a):
+            p = float(score_matrix[h, a])
+            margin = h - a + line
+            if margin > 0:
+                home += p
+            elif margin == 0:
+                draw += p
+            else:
+                away += p
+    total = home + draw + away
+    if total <= 0:
+        return 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0
+    return home / total, draw / total, away / total
+
+
 def evaluate_params_on_cache(
     fixtures: Sequence[CachedFixture],
     params: ScoreGridParams,
@@ -229,19 +293,25 @@ def evaluate_params_on_cache(
     mu0: float = DEFAULT_MU0,
 ) -> dict[str, float]:
     """Score a candidate on cached baseline λ (μ0), rescaling by params.mu / mu0."""
+    empty = {
+        "n": 0.0,
+        "scoreline_ll": float("nan"),
+        "brier_1x2": float("nan"),
+        "log_loss_1x2": float("nan"),
+        "mode_11_rate": float("nan"),
+        "mean_p11": float("nan"),
+        "mean_abs_gap": float("nan"),
+        "brier_ou25": float("nan"),
+        "brier_ou35": float("nan"),
+        "brier_btts": float("nan"),
+        "brier_margin": float("nan"),
+        "brier_ah": float("nan"),
+        "brier_eh": float("nan"),
+        "home_cover_rate_pred": float("nan"),
+        "home_cover_rate_emp": float("nan"),
+    }
     if not fixtures:
-        return {
-            "n": 0.0,
-            "scoreline_ll": float("nan"),
-            "brier_1x2": float("nan"),
-            "log_loss_1x2": float("nan"),
-            "mode_11_rate": float("nan"),
-            "mean_p11": float("nan"),
-            "mean_abs_gap": float("nan"),
-            "brier_ou25": float("nan"),
-            "brier_ou35": float("nan"),
-            "brier_btts": float("nan"),
-        }
+        return empty
 
     cfg = params.prediction_config()
     w_sum = 0.0
@@ -254,6 +324,13 @@ def evaluate_params_on_cache(
     brier_ou25 = 0.0
     brier_ou35 = 0.0
     brier_btts = 0.0
+    brier_margin = 0.0
+    brier_ah = 0.0
+    brier_eh = 0.0
+    ah_terms = 0.0
+    eh_terms = 0.0
+    home_cover_pred = 0.0
+    home_cover_emp = 0.0
 
     for fx in fixtures:
         hx, ax = transform_lambdas(
@@ -289,7 +366,6 @@ def evaluate_params_on_cache(
         if isinstance(ou35, dict):
             p_over35 = float(ou35.get("over", 0.5))
         else:
-            # Fallback from score matrix
             p_over35 = 0.0
             for h in range(pred.score_matrix.shape[0]):
                 for a in range(pred.score_matrix.shape[1]):
@@ -302,6 +378,33 @@ def evaluate_params_on_cache(
             btts_yes, int(fx.home_score) > 0 and int(fx.away_score) > 0
         )
 
+        actual_margin = int(fx.home_score) - int(fx.away_score)
+        actual_bucket = _margin_bucket(actual_margin)
+        bucket_probs = _margin_bucket_probs(pred.score_matrix)
+        margin_loss = 0.0
+        for key, p_hat in bucket_probs.items():
+            margin_loss += _brier_binary(p_hat, key == actual_bucket)
+        brier_margin += w * (margin_loss / max(1, len(MARGIN_BUCKETS)))
+
+        for line in AH_FOCUS_LINES:
+            p_home = _asian_home_cover_prob(pred.score_matrix, float(line))
+            home_hit = actual_margin > -float(line)
+            brier_ah += w * _brier_binary(p_home, home_hit)
+            brier_ah += w * _brier_binary(1.0 - p_home, not home_hit)
+            ah_terms += 2.0 * w
+            if abs(float(line) - 0.5) < 1e-9:
+                home_cover_pred += w * p_home
+                home_cover_emp += w * (1.0 if home_hit else 0.0)
+
+        for line in EH_FOCUS_LINES:
+            p_h, p_d, p_a = _european_handicap_probs(pred.score_matrix, int(line))
+            adj = actual_margin + int(line)
+            side = "home" if adj > 0 else ("away" if adj < 0 else "draw")
+            brier_eh += w * _brier_binary(p_h, side == "home")
+            brier_eh += w * _brier_binary(p_d, side == "draw")
+            brier_eh += w * _brier_binary(p_a, side == "away")
+            eh_terms += 3.0 * w
+
     return {
         "n": float(len(fixtures)),
         "scoreline_ll": sll / w_sum,
@@ -313,6 +416,11 @@ def evaluate_params_on_cache(
         "brier_ou25": brier_ou25 / w_sum,
         "brier_ou35": brier_ou35 / w_sum,
         "brier_btts": brier_btts / w_sum,
+        "brier_margin": brier_margin / w_sum,
+        "brier_ah": brier_ah / max(ah_terms, 1e-9),
+        "brier_eh": brier_eh / max(eh_terms, 1e-9),
+        "home_cover_rate_pred": home_cover_pred / w_sum,
+        "home_cover_rate_emp": home_cover_emp / w_sum,
     }
 
 
@@ -518,8 +626,27 @@ def default_search_grid() -> dict[str, list[float]]:
         "goal_overdispersion_k": [0.0, 12.0, 25.0],
         "lambda_gap_scale": [1.0, 1.6, 2.2, 2.8],
         # HA is fit in a second pass after μ/ρ/k/gap (see calibrate_score_grid).
-        "home_advantage": [1.12],
+        "home_advantage": [1.05, 1.08, 1.10, 1.12, 1.15, 1.18, 1.20, 1.25],
     }
+
+
+def _margin_primary_objective(
+    metrics: Mapping[str, float],
+    *,
+    mode_11_penalty: float,
+    margin_weight: float = DEFAULT_MARGIN_OBJECTIVE_WEIGHT,
+    ah_weight: float = DEFAULT_AH_OBJECTIVE_WEIGHT,
+    eh_weight: float = DEFAULT_EH_OBJECTIVE_WEIGHT,
+    scoreline_weight: float = DEFAULT_SCORELINE_OBJECTIVE_WEIGHT,
+) -> float:
+    sll_norm = float(metrics["scoreline_ll"]) / SCORELINE_LL_NORM
+    return (
+        float(margin_weight) * float(metrics["brier_margin"])
+        + float(ah_weight) * float(metrics["brier_ah"])
+        + float(eh_weight) * float(metrics["brier_eh"])
+        + float(scoreline_weight) * sll_norm
+        + float(mode_11_penalty) * float(metrics["mode_11_rate"])
+    )
 
 
 def build_fixture_cache_from_prediction_history(
@@ -616,6 +743,10 @@ def calibrate_score_grid(
     mode_11_penalty: float = DEFAULT_MODE_11_PENALTY,
     ou_objective_weight: float = DEFAULT_OU_OBJECTIVE_WEIGHT,
     btts_objective_weight: float = DEFAULT_BTTS_OBJECTIVE_WEIGHT,
+    margin_objective_weight: float = DEFAULT_MARGIN_OBJECTIVE_WEIGHT,
+    ah_objective_weight: float = DEFAULT_AH_OBJECTIVE_WEIGHT,
+    eh_objective_weight: float = DEFAULT_EH_OBJECTIVE_WEIGHT,
+    scoreline_objective_weight: float = DEFAULT_SCORELINE_OBJECTIVE_WEIGHT,
     mu0: float = DEFAULT_MU0,
     search_grid: Optional[Mapping[str, Sequence[float]]] = None,
 ) -> ScoreGridCalibrationArtifact:
@@ -658,6 +789,8 @@ def calibrate_score_grid(
                     metrics = evaluate_params_on_cache(fixtures, cand, mu0=mu0)
                     if not math.isfinite(metrics["scoreline_ll"]):
                         continue
+                    if not math.isfinite(metrics.get("brier_margin", float("nan"))):
+                        continue
                     if metrics["brier_1x2"] > baseline_metrics["brier_1x2"] + brier_guardrail:
                         continue
                     if (
@@ -672,12 +805,17 @@ def calibrate_score_grid(
                         > baseline_metrics["brier_btts"] + btts_brier_guardrail
                     ):
                         continue
-                    obj = (
-                        metrics["scoreline_ll"]
-                        + float(mode_11_penalty) * metrics["mode_11_rate"]
-                        + float(ou_objective_weight) * metrics["brier_ou25"]
-                        + float(btts_objective_weight) * metrics["brier_btts"]
+                    # O/U / BTTS weights retained for CLI back-compat but default to 0.
+                    obj = _margin_primary_objective(
+                        metrics,
+                        mode_11_penalty=mode_11_penalty,
+                        margin_weight=margin_objective_weight,
+                        ah_weight=ah_objective_weight,
+                        eh_weight=eh_objective_weight,
+                        scoreline_weight=scoreline_objective_weight,
                     )
+                    obj += float(ou_objective_weight) * float(metrics["brier_ou25"])
+                    obj += float(btts_objective_weight) * float(metrics["brier_btts"])
                     if obj < best_obj:
                         best = cand
                         best_metrics = metrics
@@ -696,22 +834,35 @@ def calibrate_score_grid(
         )
         best_metrics = evaluate_params_on_cache(fixtures, best, mu0=mu0)
 
-    # Second pass: league home-advantage (informational for predict; λ0 cache already
-    # embeds historical HA, so we choose HA that best matches empirical home goal share
-    # via a light 1X2 home-win calibration proxy on the chosen μ/ρ/k).
-    ha_candidates = [1.06, 1.08, 1.10, 1.12, 1.14, 1.16, 1.18, 1.20]
-    home_hits = sum(1 for fx in fixtures if fx.home_score > fx.away_score)
-    home_rate = home_hits / max(1, len(fixtures))
+    # Second pass: pick HA that best matches empirical AH +0.5 home-cover rate
+    # (home/away asymmetry), falling back to home-win rate proxy.
+    ha_candidates = list(grid.get("home_advantage", [1.05, 1.12, 1.20, 1.25]))
+    emp_cover = float(best_metrics.get("home_cover_rate_emp") or 0.0)
+    if not math.isfinite(emp_cover) or emp_cover <= 0:
+        home_hits = sum(1 for fx in fixtures if fx.home_score > fx.away_score)
+        emp_cover = home_hits / max(1, len(fixtures))
     best_ha = best.home_advantage
-    best_ha_err = abs(0.5 - home_rate)  # placeholder; refine below
-    # Prefer HA near empirical: higher home win rate → higher HA
-    target_ha = 1.0 + max(0.04, min(0.22, (home_rate - 0.33) * 0.9 + 0.12))
+    best_ha_err = float("inf")
     for ha in ha_candidates:
-        err = abs(ha - target_ha)
+        candidates_tried += 1
+        cand = ScoreGridParams(
+            mu=best.mu,
+            rho=best.rho,
+            goal_overdispersion_k=best.goal_overdispersion_k,
+            lambda_gap_scale=best.lambda_gap_scale,
+            attenuate_rho_for_gap=best.attenuate_rho_for_gap,
+            gap_positive_rho=best.gap_positive_rho,
+            home_advantage=float(ha),
+        )
+        # λ0 cache already embeds historical HA; use cover-rate residual as proxy
+        # for published HA used at predict time.
+        m = evaluate_params_on_cache(fixtures, cand, mu0=mu0)
+        pred_cover = float(m.get("home_cover_rate_pred") or 0.5)
+        err = abs(pred_cover - emp_cover) + 0.15 * abs(float(ha) - 1.12)
         if err < best_ha_err:
             best_ha_err = err
-            best_ha = ha
-        candidates_tried += 1
+            best_ha = float(ha)
+            best_metrics = m
     best = ScoreGridParams(
         mu=best.mu,
         rho=best.rho,
@@ -722,6 +873,14 @@ def calibrate_score_grid(
         home_advantage=float(best_ha),
     )
     best_metrics = evaluate_params_on_cache(fixtures, best, mu0=mu0)
+    best_obj = _margin_primary_objective(
+        best_metrics,
+        mode_11_penalty=mode_11_penalty,
+        margin_weight=margin_objective_weight,
+        ah_weight=ah_objective_weight,
+        eh_weight=eh_objective_weight,
+        scoreline_weight=scoreline_objective_weight,
+    )
 
     return ScoreGridCalibrationArtifact(
         schema_version=CALIBRATION_SCHEMA_VERSION,
@@ -743,6 +902,10 @@ def calibrate_score_grid(
             "mode_11_penalty": mode_11_penalty,
             "ou_objective_weight": ou_objective_weight,
             "btts_objective_weight": btts_objective_weight,
+            "margin_objective_weight": margin_objective_weight,
+            "ah_objective_weight": ah_objective_weight,
+            "eh_objective_weight": eh_objective_weight,
+            "scoreline_objective_weight": scoreline_objective_weight,
             "mu0": mu0,
             "best_objective": best_obj if math.isfinite(best_obj) else None,
         },

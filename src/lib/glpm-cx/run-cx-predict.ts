@@ -29,10 +29,13 @@ import {
 import { buildCxContextFeatures, type CxBuiltFeatures } from "@/lib/glpm-cx/context-features";
 import {
   applySharpShrink,
+  calibrateBinaryProb,
   calibrateBttsYes,
   calibrateOverProb,
   resolveGlpmMarketModels,
   resolveGlpmSharpShrink,
+  resolveKeyedStack,
+  temper1x2Probs,
 } from "@/lib/glpm/market-models";
 import {
   computeCxLineupImpact,
@@ -59,7 +62,10 @@ import {
 import { aggregateVsStyleLift } from "@/lib/glpm-cx/vs-style";
 import { resolveStatsSeasonId } from "@/lib/glpm/resolve-train-season";
 import { resolveVectorSeasonId } from "@/lib/glpm/resolve-vector-season";
-import { loadGlpmCalibrationConfig } from "@/lib/glpm/glpm-calibration-config";
+import {
+  GLPM_1X2_TEMPERATURE_DEFAULT,
+  loadGlpmCalibrationConfig,
+} from "@/lib/glpm/glpm-calibration-config";
 import type { ConfidenceLayerConfig } from "@/lib/value-opportunities/confidence-layer";
 
 type Client = SupabaseClient<Database>;
@@ -464,22 +470,124 @@ export async function runGlpmCxPredict(
     sharpShrink.alphaByMarket.btts ?? 0
   );
 
+  const oneXTwoTemperature =
+    leagueCalibration?.oneXTwoTemperature ?? GLPM_1X2_TEMPERATURE_DEFAULT;
+  const tempered1x2 = temper1x2Probs(
+    cxRaw.homeWin,
+    cxRaw.draw,
+    cxRaw.awayWin,
+    oneXTwoTemperature
+  );
+  const ahAlpha =
+    sharpShrink.alphaByMarket.ah ??
+    sharpShrink.alphaByMarket.asian_handicap ??
+    0;
+  const ehAlpha =
+    sharpShrink.alphaByMarket.eh ??
+    sharpShrink.alphaByMarket.european_handicap ??
+    0;
+  const dcAlpha =
+    sharpShrink.alphaByMarket.dc ??
+    sharpShrink.alphaByMarket.double_chance ??
+    0;
+
+  const derivedRaw = deriveMarketsFromScoreMatrix({
+    scoreMatrix: cxRaw.scoreMatrix,
+    homeWin: tempered1x2.homeWin,
+    draw: tempered1x2.draw,
+    awayWin: tempered1x2.awayWin,
+    bttsYes: bttsYesFinal,
+    bttsNo: Math.max(0, 1 - bttsYesFinal),
+    overUnder: calibratedOverUnder,
+  });
+
+  const calibratedAh = derivedRaw.asianHandicap.map((row) => {
+    const homeKey = `home_${row.line}`;
+    const awayKey = `away_${row.line}`;
+    let homeCover = calibrateBinaryProb(
+      row.homeCover,
+      resolveKeyedStack(marketModels.asianHandicap, homeKey) ??
+        resolveKeyedStack(marketModels.asianHandicap, String(row.line))
+    );
+    let awayCover = calibrateBinaryProb(
+      row.awayCover,
+      resolveKeyedStack(marketModels.asianHandicap, awayKey) ??
+        resolveKeyedStack(marketModels.asianHandicap, String(row.line))
+    );
+    homeCover = applySharpShrink(homeCover, null, ahAlpha);
+    awayCover = applySharpShrink(awayCover, null, ahAlpha);
+    const sum = homeCover + awayCover || 1;
+    return {
+      ...row,
+      homeCover: homeCover / sum,
+      awayCover: awayCover / sum,
+    };
+  });
+
+  const calibratedEh = derivedRaw.europeanHandicap.map((row) => {
+    const tag = row.line > 0 ? `+${row.line}` : String(row.line);
+    let home = calibrateBinaryProb(
+      row.home,
+      resolveKeyedStack(marketModels.europeanHandicap, `${tag}_home`)
+    );
+    let draw = calibrateBinaryProb(
+      row.draw,
+      resolveKeyedStack(marketModels.europeanHandicap, `${tag}_draw`)
+    );
+    let away = calibrateBinaryProb(
+      row.away,
+      resolveKeyedStack(marketModels.europeanHandicap, `${tag}_away`)
+    );
+    home = applySharpShrink(home, null, ehAlpha);
+    draw = applySharpShrink(draw, null, ehAlpha);
+    away = applySharpShrink(away, null, ehAlpha);
+    const sum = home + draw + away || 1;
+    return {
+      ...row,
+      home: home / sum,
+      draw: draw / sum,
+      away: away / sum,
+    };
+  });
+
+  let dc1x = calibrateBinaryProb(
+    derivedRaw.doubleChance.homeOrDraw,
+    resolveKeyedStack(marketModels.doubleChance, "1x")
+  );
+  let dc12 = calibrateBinaryProb(
+    derivedRaw.doubleChance.homeOrAway,
+    resolveKeyedStack(marketModels.doubleChance, "12")
+  );
+  let dcX2 = calibrateBinaryProb(
+    derivedRaw.doubleChance.drawOrAway,
+    resolveKeyedStack(marketModels.doubleChance, "x2")
+  );
+  dc1x = applySharpShrink(dc1x, null, dcAlpha);
+  dc12 = applySharpShrink(dc12, null, dcAlpha);
+  dcX2 = applySharpShrink(dcX2, null, dcAlpha);
+
+  const derived: DerivedMarkets = {
+    ...derivedRaw,
+    asianHandicap: calibratedAh,
+    europeanHandicap: calibratedEh,
+    doubleChance: {
+      homeOrDraw: dc1x,
+      homeOrAway: dc12,
+      drawOrAway: dcX2,
+    },
+  };
+
   const cx: GlpmCxMarketBlock = {
     ...cxRaw,
     homeXg: formHomeXg,
     awayXg: formAwayXg,
+    homeWin: tempered1x2.homeWin,
+    draw: tempered1x2.draw,
+    awayWin: tempered1x2.awayWin,
     bttsYes: bttsYesFinal,
     bttsNo: Math.max(0, 1 - bttsYesFinal),
     overUnder: calibratedOverUnder,
-    derived: deriveMarketsFromScoreMatrix({
-      scoreMatrix: cxRaw.scoreMatrix,
-      homeWin: cxRaw.homeWin,
-      draw: cxRaw.draw,
-      awayWin: cxRaw.awayWin,
-      bttsYes: bttsYesFinal,
-      bttsNo: Math.max(0, 1 - bttsYesFinal),
-      overUnder: calibratedOverUnder,
-    }),
+    derived,
   };
 
   // Prior-season compare UI retired: keep null fields for payload compatibility.

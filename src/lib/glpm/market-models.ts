@@ -36,8 +36,23 @@ export type GlpmSharpShrinkConfig = {
   nSnapshots: number;
 };
 
+/** Defaults used when no Pinnacle archive is available yet. */
+export const DEFAULT_SHARP_ALPHAS: Record<string, number> = {
+  btts: 0.2,
+  ou: 0.2,
+  "ou-2.5": 0.2,
+  "ou-3.5": 0.2,
+  "1x2": 0.15,
+  ah: 0.25,
+  eh: 0.25,
+  dc: 0.2,
+  asian_handicap: 0.25,
+  european_handicap: 0.25,
+  double_chance: 0.2,
+};
+
 export const EMPTY_SHARP_SHRINK: GlpmSharpShrinkConfig = {
-  alphaByMarket: {},
+  alphaByMarket: { ...DEFAULT_SHARP_ALPHAS },
   updatedAt: "",
   nSnapshots: 0,
 };
@@ -57,9 +72,18 @@ export function resolveGlpmSharpShrink(
   calibration: GlpmCalibrationWithMarkets | null | undefined
 ): GlpmSharpShrinkConfig {
   const raw = calibration?.sharpShrink;
-  if (!raw || typeof raw !== "object") return { ...EMPTY_SHARP_SHRINK };
+  if (!raw || typeof raw !== "object") {
+    return {
+      alphaByMarket: { ...DEFAULT_SHARP_ALPHAS },
+      updatedAt: "",
+      nSnapshots: 0,
+    };
+  }
   return {
-    alphaByMarket: { ...(raw.alphaByMarket ?? {}) },
+    alphaByMarket: {
+      ...DEFAULT_SHARP_ALPHAS,
+      ...(raw.alphaByMarket ?? {}),
+    },
     updatedAt: String(raw.updatedAt ?? ""),
     nSnapshots: Number(raw.nSnapshots ?? 0) || 0,
   };
@@ -110,6 +134,42 @@ export function applySharpShrink(
   return (1 - a) * modelProb + a * sharpFairProb;
 }
 
+/** Implied probability from decimal odds (includes book vig; conservative fair proxy). */
+export function fairProbFromDecimalOdds(
+  decimalOdds: number | null | undefined
+): number | null {
+  if (decimalOdds == null || !Number.isFinite(decimalOdds) || decimalOdds <= 1) {
+    return null;
+  }
+  return Math.max(0.01, Math.min(0.99, 1 / decimalOdds));
+}
+
+/**
+ * Soften 1X2 favorites (τ > 1) via power tempering, matching WC/NL.
+ * DC should be recomputed from the tempered triple.
+ */
+export function temper1x2Probs(
+  homeWin: number,
+  draw: number,
+  awayWin: number,
+  tau = 1
+): { homeWin: number; draw: number; awayWin: number } {
+  const t = Number.isFinite(tau) && tau > 0 ? tau : 1;
+  if (Math.abs(t - 1) < 1e-9) {
+    const sum = homeWin + draw + awayWin || 1;
+    return {
+      homeWin: homeWin / sum,
+      draw: draw / sum,
+      awayWin: awayWin / sum,
+    };
+  }
+  const h = Math.pow(Math.max(1e-9, homeWin), t);
+  const d = Math.pow(Math.max(1e-9, draw), t);
+  const a = Math.pow(Math.max(1e-9, awayWin), t);
+  const sum = h + d + a || 1;
+  return { homeWin: h / sum, draw: d / sum, awayWin: a / sum };
+}
+
 /** Map GLPM evaluation market_id strings onto WC MarketModelId where possible. */
 export function mapGlpmMarketId(marketId: string): MarketModelId | null {
   const id = marketId.toLowerCase();
@@ -117,6 +177,8 @@ export function mapGlpmMarketId(marketId: string): MarketModelId | null {
   if (id.includes("over_under") || id.includes("goals_ou") || id === "ou")
     return "goals_over_under";
   if (id.includes("asian") || id.includes("ah_")) return "asian_handicap";
+  if (id.includes("european") || id.includes("eh_")) return "european_handicap";
+  if (id.includes("double_chance") || id === "dc") return "double_chance";
   return null;
 }
 
@@ -150,6 +212,12 @@ export function glpmEvalsToMarketRows(
             : false;
     const lineRaw = pred.line ?? (r.market_key ? Number(r.market_key) : undefined);
     const line = typeof lineRaw === "number" && Number.isFinite(lineRaw) ? lineRaw : undefined;
+    const selectionKey =
+      typeof r.market_key === "string" && r.market_key.length
+        ? r.market_key
+        : typeof pred.selectionKey === "string"
+          ? pred.selectionKey
+          : undefined;
     out.push({
       matchId: String(r.match_sm_id ?? r.market_key ?? ""),
       marketId,
@@ -157,6 +225,7 @@ export function glpmEvalsToMarketRows(
         yesPct: p * 100,
         overPct: p * 100,
         ...(line != null ? { line } : {}),
+        ...(selectionKey ? { selectionKey, marketKey: selectionKey } : {}),
       },
       actual: { yes: hit, over: hit },
       lossMetric: "brier",
@@ -168,6 +237,15 @@ export function glpmEvalsToMarketRows(
     });
   }
   return out;
+}
+
+/** Look up a keyed logistic stack with sensible fallbacks. */
+export function resolveKeyedStack(
+  store: Record<string, LogisticStackCoeffs> | undefined,
+  key: string
+): LogisticStackCoeffs | undefined {
+  if (!store) return undefined;
+  return store[key] ?? store._all ?? undefined;
 }
 
 export function calibrateGlpmMarketModelsFromRows(

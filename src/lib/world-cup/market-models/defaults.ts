@@ -84,6 +84,12 @@ export const DEFAULT_EXTENDED_EVENT: ExtendedEventCoeffs = {
 
 const OU_LINES = ["0.5", "1.5", "2.5", "3.5"] as const;
 const AH_LINES = ["-1.75", "-1.5", "-1.25", "-1", "-0.75", "-0.5", "-0.25", "0", "0.25", "0.5", "0.75", "1", "1.25", "1.5", "1.75"] as const;
+const AH_SIDE_KEYS = AH_LINES.flatMap((line) => [`home_${line}`, `away_${line}`] as const);
+const EH_LINES = ["-3", "-2", "-1", "+1", "+2", "+3"] as const;
+const EH_SIDE_KEYS = EH_LINES.flatMap(
+  (line) => [`${line}_home`, `${line}_draw`, `${line}_away`] as const
+);
+const DC_KEYS = ["1x", "12", "x2"] as const;
 
 function mergeLogisticStack(
   raw: Partial<LogisticStackCoeffs> | undefined,
@@ -183,6 +189,34 @@ export function getDefaultMarketModelsConfig(): MarketModelsConfig {
       totalXgSlope: 0.12,
     };
   }
+  for (const key of AH_SIDE_KEYS) {
+    const away = key.startsWith("away_");
+    asianHandicap[key] = {
+      ...DEFAULT_LOGISTIC_STACK,
+      intercept: away ? -0.04 : 0.02,
+      totalXgSlope: 0.12,
+      mlBlend: away ? 0.55 : 0.45,
+    };
+  }
+  const europeanHandicap: Record<string, LogisticStackCoeffs> = {};
+  for (const key of EH_SIDE_KEYS) {
+    const awayish = key.endsWith("_away");
+    europeanHandicap[key] = {
+      ...DEFAULT_LOGISTIC_STACK,
+      intercept: awayish ? -0.05 : 0.02,
+      totalXgSlope: 0.1,
+      mlBlend: awayish ? 0.55 : 0.45,
+    };
+  }
+  const doubleChance: Record<string, LogisticStackCoeffs> = {};
+  for (const key of DC_KEYS) {
+    doubleChance[key] = {
+      ...DEFAULT_LOGISTIC_STACK,
+      intercept: key === "x2" ? -0.04 : 0.02,
+      totalXgSlope: 0.08,
+      mlBlend: key === "x2" ? 0.55 : 0.45,
+    };
+  }
   return {
     btts: { ...DEFAULT_LOGISTIC_STACK, totalXgSlope: 0.28 },
     overUnder,
@@ -193,6 +227,8 @@ export function getDefaultMarketModelsConfig(): MarketModelsConfig {
     correctScore: { ...DEFAULT_CORRECT_SCORE },
     winningMargin: { ...DEFAULT_MARGIN_MODEL },
     asianHandicap,
+    europeanHandicap,
+    doubleChance,
     eventStats: {
       corners: {
         ...DEFAULT_EXTENDED_EVENT,
@@ -269,6 +305,28 @@ export function mergeMarketModelsConfig(
     }
   }
 
+  const europeanHandicap: Record<string, LogisticStackCoeffs> = {
+    ...defaults.europeanHandicap,
+  };
+  if (raw.europeanHandicap) {
+    for (const [key, coeffs] of Object.entries(raw.europeanHandicap)) {
+      europeanHandicap[key] = mergeLogisticStack(
+        coeffs,
+        europeanHandicap[key] ?? DEFAULT_LOGISTIC_STACK
+      );
+    }
+  }
+
+  const doubleChance: Record<string, LogisticStackCoeffs> = { ...defaults.doubleChance };
+  if (raw.doubleChance) {
+    for (const [key, coeffs] of Object.entries(raw.doubleChance)) {
+      doubleChance[key] = mergeLogisticStack(
+        coeffs,
+        doubleChance[key] ?? DEFAULT_LOGISTIC_STACK
+      );
+    }
+  }
+
   return {
     btts: mergeLogisticStack(raw.btts, defaults.btts),
     overUnder,
@@ -292,6 +350,8 @@ export function mergeMarketModelsConfig(
       priorBlend: Number(raw.winningMargin?.priorBlend ?? defaults.winningMargin.priorBlend),
     },
     asianHandicap,
+    europeanHandicap,
+    doubleChance,
     eventStats: {
       corners: mergeExtendedEvent(raw.eventStats?.corners, defaults.eventStats.corners),
       fouls: mergeExtendedEvent(raw.eventStats?.fouls, defaults.eventStats.fouls),

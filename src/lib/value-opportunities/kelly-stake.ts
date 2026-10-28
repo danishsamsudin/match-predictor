@@ -2,6 +2,10 @@ import {
   type ConfidenceLookup,
   type ConfidenceTier,
 } from "@/lib/value-opportunities/confidence-layer";
+import {
+  applySharpShrink,
+  fairProbFromDecimalOdds,
+} from "@/lib/glpm/market-models";
 
 export const KELLY_FRACTION_BY_TIER: Record<ConfidenceTier, number> = {
   strong: 0.25,
@@ -13,12 +17,16 @@ export const KELLY_FRACTION_BY_TIER: Record<ConfidenceTier, number> = {
 export const KELLY_MAX_STAKE_FRACTION = 0.025;
 export const KELLY_MIN_EDGE = 0.01;
 export const KELLY_SHRINK_PRIOR = 20;
+/** Default blend toward book-implied fair before hist shrink (handicap-heavy). */
+export const KELLY_BOOK_SHARP_ALPHA = 0.2;
 
 export type KellyStakeInput = {
   modelProb: number;
   decimalOdds: number;
   confidence: ConfidenceLookup;
   bankroll?: number;
+  /** Optional override for book fair blend (0–0.5). */
+  sharpAlpha?: number;
 };
 
 export type KellyStakeResult = {
@@ -93,7 +101,13 @@ export function suggestKellyStake(input: KellyStakeInput): KellyStakeResult {
     return empty("Enter decimal odds above 1.00 to size a stake.");
   }
 
-  const pUsed = shrunkProbability(input.modelProb, input.confidence);
+  const bookFair = fairProbFromDecimalOdds(odds);
+  const alpha =
+    input.sharpAlpha != null && Number.isFinite(input.sharpAlpha)
+      ? Math.max(0, Math.min(0.5, input.sharpAlpha))
+      : KELLY_BOOK_SHARP_ALPHA;
+  const towardBook = applySharpShrink(clamp01(input.modelProb), bookFair, alpha);
+  const pUsed = shrunkProbability(towardBook, input.confidence);
   const minBook = minBookOddsForEdge(pUsed);
   const implied = 1 / odds;
   const edge = pUsed - implied;

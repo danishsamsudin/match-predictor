@@ -104,9 +104,11 @@ export function NationalClubStyleOddsPanel({
             })
           : undefined;
       const histEdgePct =
-        confidence && bookOdds != null && confidence.tier !== "none"
-          ? (shrunkProbability(modelProb, confidence) * bookOdds - 1) * 100
-          : null;
+        kelly != null && bookOdds != null
+          ? (kelly.pUsed * bookOdds - 1) * 100
+          : confidence && bookOdds != null && confidence.tier !== "none"
+            ? (shrunkProbability(modelProb, confidence) * bookOdds - 1) * 100
+            : null;
       const action = showConfidence
         ? suggestValueAction({
             bookOdds,
@@ -114,6 +116,7 @@ export function NationalClubStyleOddsPanel({
             kelly,
             modelEdgePct,
             histEdgePct,
+            marketKey,
           })
         : undefined;
       return {

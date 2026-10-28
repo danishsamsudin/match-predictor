@@ -46,14 +46,16 @@ async function main() {
     return;
   }
   const n = count ?? 0;
+  // Always publish handicap-aware default alphas. When Pinnacle sample is thin,
+  // VO/Kelly still blends toward book fair via these alphas + live decimal odds.
   if (n < MIN_JOINED) {
     console.log(
-      `Sharp shrink: only ${n} Pinnacle snapshots (need ${MIN_JOINED}). Keeping prior alphas.`
+      `Sharp shrink: only ${n} Pinnacle snapshots (need ${MIN_JOINED} to fit). Writing handicap default alphas.`
     );
-    return;
   }
 
   // Conservative default alphas until CLV-joined sample is large enough to fit.
+  // Handicap families get a higher blend toward book fair (raw edges were inflated).
   const sharpShrink: GlpmSharpShrinkConfig = {
     alphaByMarket: {
       btts: DEFAULT_ALPHA,
@@ -61,6 +63,12 @@ async function main() {
       "ou-2.5": DEFAULT_ALPHA,
       "ou-3.5": DEFAULT_ALPHA,
       "1x2": 0.15,
+      ah: 0.25,
+      eh: 0.25,
+      dc: 0.2,
+      asian_handicap: 0.25,
+      european_handicap: 0.25,
+      double_chance: 0.2,
     },
     updatedAt: new Date().toISOString(),
     nSnapshots: n,

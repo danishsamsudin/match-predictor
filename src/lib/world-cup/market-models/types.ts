@@ -11,6 +11,8 @@ export type MarketModelId =
   | "correct_score"
   | "winning_margin"
   | "asian_handicap"
+  | "european_handicap"
+  | "double_chance"
   | "goals_over_under"
   | "btts"
   | "expected_goals"
@@ -27,6 +29,8 @@ export const ALL_MARKET_MODEL_IDS: MarketModelId[] = [
   "correct_score",
   "winning_margin",
   "asian_handicap",
+  "european_handicap",
+  "double_chance",
   "goals_over_under",
   "btts",
   "expected_goals",
@@ -114,6 +118,10 @@ export interface MarketModelsConfig {
   correctScore: CorrectScoreCoeffs;
   winningMargin: MarginModelCoeffs;
   asianHandicap: Record<string, LogisticStackCoeffs>;
+  /** Keys like `-1_home`, `+1_draw` (Toto EH settlement tags). */
+  europeanHandicap: Record<string, LogisticStackCoeffs>;
+  /** Keys: `1x`, `12`, `x2`. */
+  doubleChance: Record<string, LogisticStackCoeffs>;
   eventStats: {
     corners: ExtendedEventCoeffs;
     fouls: ExtendedEventCoeffs;

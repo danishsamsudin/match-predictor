@@ -3,7 +3,8 @@
 Calibrate GLPM score-grid params {mu, rho, k} for a competition.
 
 Uses prior full season + current season YTD with exponential time weighting.
-Primary objective: exact-score log loss. Guardrail: 1X2 Brier.
+Primary objective: margin / AH / EH Brier + normalised scoreline LL.
+Guardrails: 1X2 / O/U / BTTS Brier.
 
 Usage (from repo root):
   python3 scripts/glpm_calibrate_score_grid.py --competition-id 8
@@ -90,7 +91,7 @@ def main() -> int:
         dest="season_ids",
         help="Explicit season sm_ids (default: newest two for the competition)",
     )
-    parser.add_argument("--half-life-days", type=float, default=220.0)
+    parser.add_argument("--half-life-days", type=float, default=90.0)
     parser.add_argument("--min-matches", type=int, default=3)
     parser.add_argument(
         "--brier-guardrail",

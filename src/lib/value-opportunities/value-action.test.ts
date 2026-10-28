@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ConfidenceLookup } from "@/lib/value-opportunities/confidence-layer";
 import type { KellyStakeResult } from "@/lib/value-opportunities/kelly-stake";
-import { suggestValueAction } from "@/lib/value-opportunities/value-action";
+import { SM_LEAGUE } from "@/lib/sportmonks/constants";
+import {
+  classifyValueActionGate,
+  suggestValueAction,
+} from "@/lib/value-opportunities/value-action";
 
 function lookup(partial: Partial<ConfidenceLookup> = {}): ConfidenceLookup {
   return {
@@ -94,5 +98,56 @@ describe("suggestValueAction", () => {
     });
     expect(result.action).toBe("pass");
     expect(result.reason).toMatch(/2\.60/);
+  });
+
+  it("blocks goal range and extreme unders", () => {
+    expect(classifyValueActionGate({ marketKey: "goal_range_match:0-1" })).toBe(
+      "block"
+    );
+    const result = suggestValueAction({
+      bookOdds: 3.5,
+      confidence: lookup({ tier: "strong", marketKey: "goal_range_match:0-1" }),
+      kelly: kelly({ fraction: 0.02 }),
+      modelEdgePct: 20,
+      histEdgePct: 15,
+      marketKey: "goals_over_under:under_1.5",
+    });
+    expect(result.action).toBe("pass");
+    expect(result.reason).toMatch(/Blocked/i);
+  });
+
+  it("haircuts away sides unless Strong", () => {
+    const watch = suggestValueAction({
+      bookOdds: 2.4,
+      confidence: lookup({ tier: "moderate", marketKey: "double_chance:x2" }),
+      kelly: kelly({ fraction: 0.015 }),
+      modelEdgePct: 8,
+      histEdgePct: 6,
+      marketKey: "double_chance:x2",
+    });
+    expect(watch.action).toBe("watch");
+
+    const bet = suggestValueAction({
+      bookOdds: 2.4,
+      confidence: lookup({ tier: "strong", marketKey: "asian_handicap:away_-0.5" }),
+      kelly: kelly({ fraction: 0.015 }),
+      modelEdgePct: 8,
+      histEdgePct: 6,
+      marketKey: "asian_handicap:away_-0.5",
+    });
+    expect(bet.action).toBe("bet");
+  });
+
+  it("haircuts Championship and Bundesliga without Strong", () => {
+    const result = suggestValueAction({
+      bookOdds: 2.2,
+      confidence: lookup({ tier: "moderate" }),
+      kelly: kelly({ fraction: 0.01 }),
+      modelEdgePct: 5,
+      histEdgePct: 4,
+      marketKey: "asian_handicap:home_-0.5",
+      leagueSmId: SM_LEAGUE.CHAMPIONSHIP,
+    });
+    expect(result.action).toBe("watch");
   });
 });

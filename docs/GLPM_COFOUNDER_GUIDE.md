@@ -23,6 +23,8 @@
 13. [Operational runbook](#13-operational-runbook)
 14. [Glossary](#14-glossary)
 
+**Betting operators:** for AH / EH / DC / 1X2 staking rules after the handicap-focused upgrade, see [GLPM Handicap Betting Playbook](./GLPM_HANDICAP_BETTING_PLAYBOOK.md).
+
 ---
 
 ## 1. Executive summary

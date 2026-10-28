@@ -10,6 +10,8 @@ export const MARKET_MODEL_LABELS: Record<MarketModelId, string> = {
   correct_score: "Correct score",
   winning_margin: "Winning margin",
   asian_handicap: "Asian handicap",
+  european_handicap: "European handicap",
+  double_chance: "Double chance",
   goals_over_under: "Goals over/under",
   btts: "Both teams to score",
   expected_goals: "Expected goals",
