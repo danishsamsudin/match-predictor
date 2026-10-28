@@ -1565,6 +1565,8 @@ export function createServiceClient(): SupabaseClient<Database> {
   if (!serviceClient) {
     serviceClient = createClient<Database>(getSupabaseUrl(), getServiceRoleKey(), {
       auth: { persistSession: false, autoRefreshToken: false },
+      // Scripts/cron do not need Realtime; avoids Node <22 WebSocket hard-fail.
+      realtime: { params: { eventsPerSecond: 0 } },
     });
   }
   return serviceClient;
