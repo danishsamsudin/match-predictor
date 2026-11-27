@@ -43,23 +43,26 @@ export const TIER_STYLES: Record<
   },
 };
 
-const ACTION_STYLES: Record<
+export const ACTION_STYLES: Record<
   ValueAction,
-  { badge: string; text: string; blurb: string }
+  { badge: string; text: string; dot: string; blurb: string }
 > = {
   pass: {
     badge: "bg-rose-500/10 text-rose-700 ring-rose-500/20 dark:text-rose-400",
     text: "text-rose-600 dark:text-rose-400",
+    dot: "bg-rose-500",
     blurb: "Skip this price",
   },
   watch: {
     badge: "bg-amber-500/15 text-amber-700 ring-amber-500/25 dark:text-amber-400",
     text: "text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-500",
     blurb: "Interesting - do not force",
   },
   bet: {
     badge: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400",
     text: "text-emerald-600 dark:text-emerald-400",
+    dot: "bg-emerald-500",
     blurb: "History + price align",
   },
 };

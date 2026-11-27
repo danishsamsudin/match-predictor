@@ -68,6 +68,22 @@ describe("rowMatchesFilters", () => {
     );
   });
 
+  it("filters by action (OR)", () => {
+    const filters: ValueOpportunityFiltersState = {
+      ...DEFAULT_VALUE_FILTERS,
+      actions: ["bet", "watch"],
+    };
+    expect(
+      rowMatchesFilters({ ...baseRow, action: { action: "pass" } }, filters)
+    ).toBe(false);
+    expect(
+      rowMatchesFilters({ ...baseRow, action: { action: "bet" } }, filters)
+    ).toBe(true);
+    expect(rowMatchesFilters({ ...baseRow, action: null }, filters)).toBe(
+      false
+    );
+  });
+
   it("requires at least one selected signal", () => {
     const filters: ValueOpportunityFiltersState = {
       ...DEFAULT_VALUE_FILTERS,

@@ -1,4 +1,5 @@
 import type { ConfidenceTier } from "@/lib/value-opportunities/confidence-layer";
+import type { ValueAction } from "@/lib/value-opportunities/value-action";
 
 export type ValueSignalPreset =
   | "positive_model_edge"
@@ -11,6 +12,8 @@ export type HistEdgePreset = "any" | "gt0" | "gte3" | "gte5" | "gte8";
 export type ValueOpportunityFiltersState = {
   /** Empty = all tiers. OR within selection. */
   tiers: ConfidenceTier[];
+  /** Empty = all actions. OR within selection. */
+  actions: ValueAction[];
   histEdge: HistEdgePreset;
   modelOddsMin: string;
   modelOddsMax: string;
@@ -25,6 +28,7 @@ export type ValueOpportunityFiltersState = {
 
 export const DEFAULT_VALUE_FILTERS: ValueOpportunityFiltersState = {
   tiers: [],
+  actions: [],
   histEdge: "any",
   modelOddsMin: "",
   modelOddsMax: "",
@@ -44,6 +48,7 @@ export type FilterableValueRow = {
   histEdgePct: number | null;
   confidence?: { tier: ConfidenceTier; n: number } | null;
   kelly?: { fraction: number } | null;
+  action?: { action: ValueAction } | null;
 };
 
 function parseBound(raw: string): number | null {
@@ -110,6 +115,11 @@ export function rowMatchesFilters(
     if (!filters.tiers.includes(tier)) return false;
   }
 
+  if (filters.actions.length) {
+    const action = row.action?.action;
+    if (!action || !filters.actions.includes(action)) return false;
+  }
+
   if (!matchesHistEdge(row.histEdgePct, filters.histEdge)) return false;
 
   const modelOdds = modelOddsFromProb(row.modelProb);
@@ -136,6 +146,7 @@ export function rowMatchesFilters(
 export function valueFiltersActive(filters: ValueOpportunityFiltersState): boolean {
   return (
     filters.tiers.length > 0 ||
+    filters.actions.length > 0 ||
     filters.histEdge !== "any" ||
     Boolean(filters.modelOddsMin.trim()) ||
     Boolean(filters.modelOddsMax.trim()) ||

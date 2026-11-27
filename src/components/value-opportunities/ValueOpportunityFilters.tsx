@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { TIER_STYLES } from "@/components/value-opportunities/ValueOpportunityCells";
+import {
+  ACTION_STYLES,
+  TIER_STYLES,
+} from "@/components/value-opportunities/ValueOpportunityCells";
 import { oddsReturnDotClass } from "@/components/value-opportunities/oddsReturnTone";
 import { InfoTip } from "@/components/ui/InfoTip";
 import type { ConfidenceTier } from "@/lib/value-opportunities/confidence-layer";
 import { formatConfidenceTier } from "@/lib/value-opportunities/confidence-layer";
+import {
+  formatValueAction,
+  type ValueAction,
+} from "@/lib/value-opportunities/value-action";
 import {
   DEFAULT_VALUE_FILTERS,
   type HistEdgePreset,
@@ -20,6 +27,8 @@ export { valueFiltersEmptyMessage };
 export type { ValueOpportunityFiltersState };
 
 const TIER_OPTIONS: ConfidenceTier[] = ["strong", "moderate", "weak", "none"];
+
+const ACTION_OPTIONS: ValueAction[] = ["bet", "watch", "pass"];
 
 const HIST_EDGE_OPTIONS: { id: HistEdgePreset; label: string }[] = [
   { id: "any", label: "Any" },
@@ -139,6 +148,9 @@ function summarizeFilters(value: ValueOpportunityFiltersState): string {
   if (value.tiers.length) {
     parts.push(value.tiers.map(formatConfidenceTier).join("/"));
   }
+  if (value.actions.length) {
+    parts.push(value.actions.map(formatValueAction).join("/"));
+  }
   if (value.histEdge !== "any") {
     parts.push(
       HIST_EDGE_OPTIONS.find((o) => o.id === value.histEdge)?.label ?? value.histEdge
@@ -238,7 +250,7 @@ export function ValueOpportunityFilters({
       {open ? (
         <div className="space-y-4 rounded-2xl border border-glass-border bg-background p-4">
           {showConfidence ? (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-3">
               <div className="space-y-1.5">
                 <p className="type-meta font-semibold uppercase tracking-wide">
                   Confidence
@@ -259,6 +271,33 @@ export function ValueOpportunityFilters({
                           aria-hidden
                         />
                         {formatConfidenceTier(tier)}
+                      </Chip>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <p className="type-meta font-semibold uppercase tracking-wide">
+                  Action
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {ACTION_OPTIONS.map((action) => {
+                    const selected = value.actions.includes(action);
+                    return (
+                      <Chip
+                        key={action}
+                        active={selected}
+                        onClick={() =>
+                          patch({
+                            actions: toggleInList(value.actions, action),
+                          })
+                        }
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${ACTION_STYLES[action].dot}`}
+                          aria-hidden
+                        />
+                        {formatValueAction(action)}
                       </Chip>
                     );
                   })}
