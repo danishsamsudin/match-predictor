@@ -143,18 +143,16 @@ export function MatchPredictorShell({
 
   if (nationsLeagueShell) {
     return (
-      <form onSubmit={handleSubmit} className="w-full min-w-0 space-y-6">
-        <div className="mx-auto max-w-6xl px-0">
-          <PageHero
-            eyebrow="UEFA Nations League"
-            title="National matchup"
-            description="Pick a Nations League fixture or compare any two nations. Forecasts use the Graham model with form, ratings, and club-style market boards."
-          />
-        </div>
+      <form onSubmit={handleSubmit} className="w-full min-w-0 space-y-8">
+        <PageHero
+          eyebrow="UEFA Nations League"
+          title="National matchup"
+          description="Pick a Nations League fixture or compare any two nations. Forecasts use the Graham model with form, ratings, and club-style market boards."
+        />
 
-        <div className="liquid-glass-panel mx-auto min-w-0 max-w-6xl space-y-5 overflow-visible rounded-2xl p-4 sm:rounded-[2rem] sm:p-6">
+        <div className="min-w-0 space-y-5 border-b border-glass-border pb-8">
           {toolbar}
-          <p className="text-xs text-muted">
+          <p className="type-meta">
             National sides use the Graham stack for Nations League. Choose Fixture to load an
             upcoming match, or Compare any two teams in the tournament.
           </p>
@@ -168,19 +166,17 @@ export function MatchPredictorShell({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full min-w-0">
-      <div className="liquid-glass-panel relative w-full min-w-0 overflow-visible rounded-2xl p-4 transition-all duration-500 sm:rounded-[2rem] sm:p-8 lg:rounded-[2.5rem] lg:p-10">
-        <div className="relative z-10 flex flex-col gap-7 lg:gap-10">
-          <HeroSection />
+    <form onSubmit={handleSubmit} className="w-full min-w-0 space-y-8">
+      <div className="relative z-10 flex flex-col gap-7 border-b border-glass-border pb-8 lg:gap-8">
+        <HeroSection />
 
-          <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
-            {toolbar}
-            {teamsSection}
-            {squadXiSection}
-          </div>
-
-          {footer}
+        <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
+          {toolbar}
+          {teamsSection}
+          {squadXiSection}
         </div>
+
+        {footer}
       </div>
       {children}
     </form>

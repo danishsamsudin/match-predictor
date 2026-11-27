@@ -23,11 +23,16 @@ const PUBLIC_EXACT_PATHS = new Set([
   "/features",
   "/methodology",
   "/faq",
+  "/about",
+  "/compare",
+  "/sources",
   "/terms",
   "/privacy",
   "/disclaimer",
   "/api/auth/login",
   "/api/waitlist",
+  "/sitemap.xml",
+  "/robots.txt",
 ]);
 
 function isPublicPath(pathname: string): boolean {

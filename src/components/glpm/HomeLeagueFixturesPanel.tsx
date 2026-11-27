@@ -102,7 +102,7 @@ export function HomeLeagueFixturesPanel({
   return (
     <div className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-bold text-foreground">Upcoming Fixtures</h2>
+        <h2 className="type-section-title">Upcoming Fixtures</h2>
         <Link href={hubHref} className="shrink-0 text-sm font-semibold text-primary hover:underline">
           League xG →
         </Link>
@@ -153,6 +153,7 @@ export function HomeLeagueFixturesPanel({
                       <GlpmUpcomingFlipCard
                         match={m}
                         seasonId={active.seasonId}
+                        competitionId={active.competitionId}
                         dayTone={dayTone}
                       />
                     </div>

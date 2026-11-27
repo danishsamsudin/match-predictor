@@ -22,7 +22,7 @@ export function LegalDocLayout({
       </p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{title}</h1>
       <p className="mt-2 text-xs text-muted">{updatedLabel}</p>
-      <div className="liquid-glass-panel mt-8 space-y-5 rounded-2xl p-6 text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:p-8">
+      <div className="mt-8 space-y-5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
         {children}
       </div>
       <p className="mt-6 text-xs text-muted">

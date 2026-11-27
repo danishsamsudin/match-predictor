@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageShell } from "@/components/layout/PageShell";
 import { PageHero } from "@/components/match-predictor/PageHero";
 import { GroupMatrixGrid } from "@/components/world-cup/GroupMatrixGrid";
 import { RecentResultsSection, type RecentResultMatch } from "@/components/world-cup/RecentResultsSection";
@@ -32,14 +33,14 @@ export default async function WorldCupHubPage() {
 
   if (!payload) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-12">
+      <PageShell narrow>
         <PageHero
           eyebrow="FIFA World Cup 2026"
           title="World Cup hub"
           description="Hub data has not been computed yet. Use Refresh hub data after importing match files, or wait for the daily sync at 18:00 Amsterdam time."
         />
         <WorldCupRefreshButton />
-      </div>
+      </PageShell>
     );
   }
 
@@ -51,16 +52,19 @@ export default async function WorldCupHubPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <PageHero
-        eyebrow="FIFA World Cup 2026 · 48 teams"
-        title="World Cup bettor hub"
-        description="Group standings and model lines from the main national predictor (FIFA World Cup compare mode). Refreshes daily. Decimal odds by default."
-      />
-      <WorldCupRefreshButton initialUpdatedAt={payload.updatedAt} />
+    <PageShell>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <PageHero
+          className="mb-0 sm:mb-0"
+          eyebrow="FIFA World Cup 2026 · 48 teams"
+          title="World Cup bettor hub"
+          description="Group standings and model lines from the main national predictor (FIFA World Cup compare mode). Refreshes daily. Decimal odds by default."
+        />
+        <WorldCupRefreshButton initialUpdatedAt={payload.updatedAt} />
+      </div>
 
       <section className="mb-10">
-        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">Group stage</h2>
+        <h2 className="type-section-title mb-3">Group stage</h2>
         <WorldCupSectionHelp title="How to read these tables">
           <p>
             Standings update from results in the database. Points (Pts) and goal difference (GD)
@@ -81,9 +85,7 @@ export default async function WorldCupHubPage() {
       </section>
 
       <section className="mb-10">
-        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
-          Tournament forecast
-        </h2>
+        <h2 className="type-section-title mb-3">Tournament forecast</h2>
         <WorldCupSectionHelp title="Model bracket vs live projection">
           <p>
             This is a <strong>full-tournament model forecast</strong>: predicted scores are applied
@@ -102,9 +104,7 @@ export default async function WorldCupHubPage() {
 
       {payload.recent.length > 0 && (
         <section className="mb-10">
-          <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
-            Recent results
-          </h2>
+          <h2 className="type-section-title mb-3">Recent results</h2>
           <WorldCupSectionHelp title="Post-match stats">
             <p>
               Tap a result to expand a full-time summary — score, possession, expected goals,
@@ -128,9 +128,7 @@ export default async function WorldCupHubPage() {
       )}
 
       <section>
-        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
-          Upcoming · Value matrix
-        </h2>
+        <h2 className="type-section-title mb-3">Upcoming · Value matrix</h2>
         <WorldCupSectionHelp title="Model lines & value">
           <p>
             Fixtures are grouped by match day and sorted in official kickoff order (earliest first).
@@ -171,11 +169,11 @@ export default async function WorldCupHubPage() {
         />
       </section>
 
-      <p className="mt-8 text-center text-xs text-slate-500">
+      <p className="type-meta mt-8 text-center">
         <Link href="/sources" className="underline">
           Data sources & disclaimer
         </Link>
       </p>
-    </div>
+    </PageShell>
   );
 }

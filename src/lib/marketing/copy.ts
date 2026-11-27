@@ -8,16 +8,44 @@ export const FOOTER_DISCLAIMER =
 export const SHORT_DISCLAIMER =
   `${BRAND_NAME} provides statistical estimates for entertainment and research only. Outputs are not guaranteed, are not betting or financial advice, and you can lose money. Past results are not indicative of future results. 18+ only.`;
 
-export const LANDING_HEADLINE = "Match intel built for people who price games, not guess them.";
+export const LANDING_HEADLINE =
+  "Match intel for people who research fixtures - not tipster noise.";
 
 export const LANDING_SUPPORT =
-  "Win probabilities, expected goals, and market lines from club form, lineups, weather, and history - so you can research fixtures with clearer numbers.";
+  "Win probabilities, expected goals, fair odds, and Value Opportunities across five club leagues - built for entertainment and research, not advice.";
 
 export const LANDING_PROOF_PRIMARY =
-  "Founder research bankroll grew ~10x over ~4 weeks during World Cup 2026.";
+  "Model reliability across Premier League, Eredivisie, Serie A, Bundesliga, and Championship.";
 
 export const LANDING_PROOF_SECONDARY =
-  "Started from a small test stake. One period, one workflow - not a typical month.";
+  "Hit rates and calibration from locked league market evaluations - research metrics, not a betting P&L ledger.";
+
+export const COVERAGE_LEAGUES = [
+  "Premier League",
+  "Eredivisie",
+  "Serie A",
+  "Bundesliga",
+  "Championship",
+] as const;
+
+export const DATA_STACK_TEASER = [
+  {
+    name: "Match feeds",
+    detail: "Fixtures, results, lineups, and event stats from primary football data providers.",
+  },
+  {
+    name: "Odds & sharp lines",
+    detail: "Book prices and sharp-book references for fair-odds and Value Opportunities compare.",
+  },
+  {
+    name: "xG overlays",
+    detail: "Season xG-style context where available to ground team strength reads.",
+  },
+  {
+    name: "Weather",
+    detail: "Match-city forecasts so conditions sit next to the model card.",
+  },
+] as const;
 
 export type ValidationMetric = {
   label: string;
@@ -25,43 +53,29 @@ export type ValidationMetric = {
   detail: string;
 };
 
+/** Fallback tiles if baseline JSON is unavailable at build time. */
 export const VALIDATION_METRICS: ValidationMetric[] = [
   {
-    label: "Founder stretch",
-    value: "~10x",
-    detail: "Bankroll multiple in ~4 weeks (WC 2026 research window)",
+    label: "League coverage",
+    value: "5",
+    detail: "Premier League, Eredivisie, Serie A, Bundesliga, Championship",
   },
   {
-    label: "Priced-edge hit rate",
-    value: "~54-58%",
-    detail: "Of +EV sides closed green in the sample window",
+    label: "Market families",
+    value: "1X2 · BTTS · O/U",
+    detail: "Core lines from one coherent score story",
   },
   {
-    label: "Closing-line beat",
-    value: "~61%",
-    detail: "Tracked prices that beat closing line",
+    label: "Research framing",
+    value: "Model metrics",
+    detail: "Hit rate and calibration - not subscriber betting P&L",
   },
   {
-    label: "Avg flagged edge",
-    value: "+3.5% to +6%",
-    detail: "Vs book when a line is surfaced",
-  },
-  {
-    label: "Busy-week coverage",
-    value: "40-70",
-    detail: "Model lines surfaced in high-volume weeks",
-  },
-  {
-    label: "Peak drawdown",
-    value: "~18-25%",
-    detail: "Same WC window - variance cuts both ways",
-  },
-  {
-    label: "Time to read",
-    value: "< 2 min",
-    detail: "Median from fixture to model card",
+    label: "Access",
+    value: "Beta",
+    detail: "Signup, then approval before you can sign in",
   },
 ];
 
 export const PROOF_LEGAL_NOTE =
-  "Figures are founder / internal research samples, not audited performance or typical subscriber results. Past results are not indicative of future results. Limited sample size. High variance. Not betting advice.";
+  "Figures are model reliability research from locked league evaluations, not audited betting results or typical subscriber outcomes. Past results are not indicative of future results. Sample sizes vary by league and market. High variance. Not betting advice.";

@@ -2,24 +2,22 @@ export function PageHero({
   eyebrow,
   title,
   description,
+  className = "",
 }: {
   eyebrow: string;
   title: string;
   description?: string;
+  className?: string;
 }) {
   return (
-    <div className="mb-6 sm:mb-10">
-      <p className="page-hero-eyebrow mb-2 text-xs font-bold uppercase text-indigo-600 dark:text-cyan-400">
+    <div className={`mb-6 sm:mb-8${className ? ` ${className}` : ""}`}>
+      <p className="page-hero-eyebrow mb-2 type-meta font-bold uppercase text-indigo-600 dark:text-cyan-400">
         {eyebrow}
       </p>
-      <h1 className="hero-title-glow break-words text-3xl font-extrabold tracking-tighter sm:text-4xl md:text-5xl">
-        {title}
-      </h1>
-      {description && (
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-          {description}
-        </p>
-      )}
+      <h1 className="hero-title-glow type-page-title">{title}</h1>
+      {description ? (
+        <p className="type-body-muted mt-3 max-w-2xl">{description}</p>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DualPredictionResults } from "./match-predictor/DualPredictionResults";
 import { FixturePickerSheet } from "./match-predictor/FixturePickerSheet";
 import { MatchPredictorShell } from "./match-predictor/MatchPredictorShell";
@@ -8,8 +9,39 @@ import { SquadXiPicker } from "./match-predictor/SquadXiPicker";
 import { TeamPickerSheet } from "./match-predictor/TeamPickerSheet";
 import { usePredictionForm } from "./match-predictor/usePredictionForm";
 import { GlpmClubPredictor } from "./glpm/GlpmClubPredictor";
+import type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";
+import type { GlpmPickerBootstrap } from "@/lib/glpm/load-teams-for-season";
+import type { EntityType } from "@/lib/types/football-lookup";
 
-function PredictionFormInner() {
+function ClubPredictForm({
+  initialBootstrap,
+  initialResult,
+}: {
+  initialBootstrap?: GlpmPickerBootstrap | null;
+  initialResult?: GlpmCxPredictPayload | null;
+}) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [entityType, setEntityType] = useState<EntityType>("club");
+
+  return (
+    <GlpmClubPredictor
+      entityType={entityType}
+      onEntityTypeChange={(next) => {
+        setEntityType(next);
+        if (next === "national") {
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("entity", "national");
+          router.replace(`/predict?${params.toString()}`);
+        }
+      }}
+      initialBootstrap={initialBootstrap}
+      initialResult={initialResult}
+    />
+  );
+}
+
+function NationalPredictForm() {
   const form = usePredictionForm();
   const [homeSheetOpen, setHomeSheetOpen] = useState(false);
   const [awaySheetOpen, setAwaySheetOpen] = useState(false);
@@ -127,7 +159,7 @@ function PredictionFormInner() {
       />
 
       {form.loading && !form.result && Object.keys(form.resultsBySource).length === 0 && (
-        <div className="liquid-glass-panel mx-auto max-w-6xl animate-pulse rounded-[2rem] p-8">
+        <div className="animate-pulse space-y-3 rounded-2xl border border-glass-border p-6">
           <div className="mb-4 h-6 w-48 rounded bg-slate-200/80 dark:bg-slate-700/50" />
           <div className="mb-2 h-4 w-full rounded bg-slate-200/60 dark:bg-slate-700/40" />
           <div className="h-4 w-3/4 rounded bg-slate-200/60 dark:bg-slate-700/40" />
@@ -135,31 +167,61 @@ function PredictionFormInner() {
       )}
 
       {(form.result || Object.keys(form.resultsBySource).length > 0) && (
-        <div className="mx-auto w-full min-w-0 max-w-6xl">
-          <DualPredictionResults
-            resultsBySource={form.resultsBySource}
-            onRerunWithLineups={form.rerunWithCustomLineups}
-            loading={form.loading}
-            matchKey={`${form.homeTeamId}-${form.awayTeamId}-${form.date}`}
-            referenceLeagueId={Number(form.homeLeagueId)}
-          />
-        </div>
+        <DualPredictionResults
+          resultsBySource={form.resultsBySource}
+          onRerunWithLineups={form.rerunWithCustomLineups}
+          loading={form.loading}
+          matchKey={`${form.homeTeamId}-${form.awayTeamId}-${form.date}`}
+          referenceLeagueId={Number(form.homeLeagueId)}
+        />
       )}
     </div>
   );
 }
 
-export function PredictionForm() {
+function PredictionFormInner({
+  initialBootstrap,
+  initialResult,
+}: {
+  initialBootstrap?: GlpmPickerBootstrap | null;
+  initialResult?: GlpmCxPredictPayload | null;
+}) {
+  const searchParams = useSearchParams();
+  const entity = searchParams.get("entity");
+  const isClub = entity !== "national";
+
+  if (isClub) {
+    return (
+      <ClubPredictForm
+        initialBootstrap={initialBootstrap}
+        initialResult={initialResult}
+      />
+    );
+  }
+
+  return <NationalPredictForm />;
+}
+
+export function PredictionForm({
+  initialBootstrap,
+  initialResult,
+}: {
+  initialBootstrap?: GlpmPickerBootstrap | null;
+  initialResult?: GlpmCxPredictPayload | null;
+} = {}) {
   return (
     <Suspense
       fallback={
-        <div className="liquid-glass-panel mx-auto w-full max-w-6xl animate-pulse rounded-[2rem] p-8">
+        <div className="w-full animate-pulse space-y-3 rounded-2xl border border-glass-border p-6">
           <div className="mb-4 h-6 w-48 rounded bg-slate-200/80 dark:bg-slate-700/50" />
           <div className="h-4 w-full rounded bg-slate-200/60 dark:bg-slate-700/40" />
         </div>
       }
     >
-      <PredictionFormInner />
+      <PredictionFormInner
+        initialBootstrap={initialBootstrap}
+        initialResult={initialResult}
+      />
     </Suspense>
   );
 }

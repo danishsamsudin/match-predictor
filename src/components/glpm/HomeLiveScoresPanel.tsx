@@ -616,7 +616,7 @@ export function HomeLiveScoresPanel({ board: initialBoard }: { board: LiveScores
     <div className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <h2 className="text-xl font-bold text-foreground">Live Scores</h2>
+          <h2 className="type-section-title">Live Scores</h2>
           {hasLive && !isPreview ? (
             <span className="live-status-pill inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
               <span className="relative flex h-1.5 w-1.5">

@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { InsightCard } from "@/components/glpm/insights/InsightCard";
-import { EdgeBars } from "@/components/glpm/insights/charts";
 import { fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
 import {
   lookupConfidence,
@@ -23,13 +22,21 @@ import {
   totoAsianHandicapLabels,
   totoEuropeanHandicapLabels,
 } from "@/lib/glpm-cx/derived-markets";
-import { TIER_STYLES } from "@/components/value-opportunities/ValueOpportunityCells";
 import {
   ValueOpportunityFilters,
-  valueActionFilterEmptyMessage,
-  type ValueActionFilter,
+  valueFiltersEmptyMessage,
 } from "@/components/value-opportunities/ValueOpportunityFilters";
 import { ValueOpportunityRow } from "@/components/value-opportunities/ValueOpportunityRow";
+import {
+  VALUE_BOARD_COLS_BASIC,
+  VALUE_BOARD_COLS_CONF,
+  VALUE_BOARD_HEAD,
+} from "@/components/value-opportunities/value-board-layout";
+import {
+  DEFAULT_VALUE_FILTERS,
+  rowMatchesFilters,
+  type ValueOpportunityFiltersState,
+} from "@/lib/value-opportunities/row-filters";
 
 type ValueRow = {
   id: string;
@@ -64,7 +71,11 @@ export function NationalClubStyleOddsPanel({
 }) {
   const [book, setBook] = useState<Record<string, string>>({});
   const [bankroll, setBankroll] = useState("100");
-  const [actionFilter, setActionFilter] = useState<ValueActionFilter>("all");
+  const [voFilters, setVoFilters] =
+    useState<ValueOpportunityFiltersState>(DEFAULT_VALUE_FILTERS);
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<string, boolean>
+  >({});
   const analytics = result.analytics;
   const derived = result.derivedMarkets;
   const homeLabel = result.homeTeamName ?? "Home";
@@ -244,23 +255,17 @@ export function NationalClubStyleOddsPanel({
 
   if (!analytics || !sections.length) return null;
 
-  const filteredSections =
-    !showConfidence || actionFilter === "all"
-      ? sections
-      : sections
-          .map((section) => ({
-            ...section,
-            rows: section.rows.filter((r) => r.action?.action === actionFilter),
-          }))
-          .filter((section) => section.rows.length > 0);
-
-  const edgeChart = filteredSections
-    .flatMap((s) => s.rows)
-    .filter((r) => (showConfidence ? r.histEdgePct : r.modelEdgePct) != null)
-    .map((r) => ({
-      market: r.market,
-      edgePct: (showConfidence ? r.histEdgePct : r.modelEdgePct) as number,
-    }));
+  const totalRowCount = sections.reduce((n, section) => n + section.rows.length, 0);
+  const filteredSections = sections
+    .map((section) => ({
+      ...section,
+      rows: section.rows.filter((r) => rowMatchesFilters(r, voFilters)),
+    }))
+    .filter((section) => section.rows.length > 0);
+  const shownRowCount = filteredSections.reduce(
+    (n, section) => n + section.rows.length,
+    0
+  );
 
   return (
     <InsightCard
@@ -278,10 +283,12 @@ export function NationalClubStyleOddsPanel({
       }
     >
       {showConfidence ? (
-        <label className="mb-3 block w-full max-w-[10rem] space-y-1">
-          <span className="text-[10px] uppercase tracking-wide text-muted">Bankroll (€)</span>
+        <label className="mb-4 block w-full max-w-[10rem] space-y-1">
+          <span className="type-meta font-semibold uppercase tracking-wide">
+            Bankroll (€)
+          </span>
           <input
-            className="h-9 w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
+            className="h-9 w-full rounded-lg border border-glass-border bg-background px-2.5 text-sm tabular-nums"
             inputMode="decimal"
             value={bankroll}
             onChange={(e) => setBankroll(e.target.value)}
@@ -291,74 +298,84 @@ export function NationalClubStyleOddsPanel({
         </label>
       ) : null}
 
-      {showConfidence ? (
-        <div className="mb-3 flex flex-wrap gap-1.5 text-[11px] sm:gap-2">
-          {(
-            [
-              ["strong", "Strong"],
-              ["moderate", "Moderate"],
-              ["weak", "Weak"],
-              ["none", "None"],
-            ] as const
-          ).map(([tier, label]) => (
-            <span
-              key={tier}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium ring-1 ring-inset ${TIER_STYLES[tier].badge}`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${TIER_STYLES[tier].dot}`} />
-              {label}
-              <span className="hidden font-normal opacity-70 sm:inline">
-                · {TIER_STYLES[tier].label}
-              </span>
-            </span>
-          ))}
-        </div>
-      ) : null}
+      <ValueOpportunityFilters
+        value={voFilters}
+        onChange={setVoFilters}
+        showConfidence={showConfidence}
+        shownCount={shownRowCount}
+        totalCount={totalRowCount}
+      />
 
-      <div className="mb-3">
-        <ValueOpportunityFilters
-          value={actionFilter}
-          onChange={setActionFilter}
-          showActionFilters={showConfidence}
-        />
-      </div>
-
-      {edgeChart.length ? (
-        <div className="mb-1 overflow-x-auto">
-          <EdgeBars data={edgeChart} />
-        </div>
-      ) : null}
-
-      <div className="mt-3 space-y-4">
+      <div className="space-y-5">
         {filteredSections.length === 0 ? (
-          <p className="py-4 text-sm text-muted">
-            {valueActionFilterEmptyMessage(actionFilter)}
+          <p className="type-body-muted py-6 text-center">
+            {valueFiltersEmptyMessage(voFilters)}
           </p>
         ) : (
-          filteredSections.map((section) => (
-            <section key={section.title} className="min-w-0">
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-                {section.title}
-              </p>
-              <div className="rounded-xl border border-glass-border/80 bg-surface/15 px-3">
-                {section.rows.map((r) => {
-                  const edgePct = showConfidence
-                    ? (r.histEdgePct ?? r.modelEdgePct)
-                    : r.modelEdgePct;
-                  return (
-                    <ValueOpportunityRow
-                      key={r.id}
-                      row={r}
-                      bookValue={book[r.id] ?? ""}
-                      showConfidence={showConfidence}
-                      edgePct={edgePct}
-                      onBookChange={setBookOdds}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          ))
+          filteredSections.map((section) => {
+            const collapsed = Boolean(collapsedSections[section.title]);
+            return (
+              <section key={section.title} className="min-w-0">
+                <button
+                  type="button"
+                  aria-expanded={!collapsed}
+                  onClick={() =>
+                    setCollapsedSections((prev) => ({
+                      ...prev,
+                      [section.title]: !prev[section.title],
+                    }))
+                  }
+                  className="mb-2 flex w-full items-baseline justify-between gap-3 text-left"
+                >
+                  <span className="type-section-title text-base">{section.title}</span>
+                  <span className="type-meta shrink-0">
+                    {collapsed ? `${section.rows.length} markets ▾` : "Hide ▴"}
+                  </span>
+                </button>
+                {!collapsed ? (
+                  <div>
+                    <div
+                      className={`${VALUE_BOARD_HEAD} ${
+                        showConfidence
+                          ? VALUE_BOARD_COLS_CONF
+                          : VALUE_BOARD_COLS_BASIC
+                      }`}
+                    >
+                      <span>Market</span>
+                      <span className="text-right">Model</span>
+                      <span className="text-right">Fair</span>
+                      <span>Book</span>
+                      {showConfidence ? (
+                        <>
+                          <span>Confidence</span>
+                          <span className="text-right">Edge</span>
+                          <span>Stake</span>
+                          <span className="text-right">Action</span>
+                        </>
+                      ) : (
+                        <span className="text-right">Edge</span>
+                      )}
+                    </div>
+                    {section.rows.map((r) => {
+                      const edgePct = showConfidence
+                        ? (r.histEdgePct ?? r.modelEdgePct)
+                        : r.modelEdgePct;
+                      return (
+                        <ValueOpportunityRow
+                          key={r.id}
+                          row={r}
+                          bookValue={book[r.id] ?? ""}
+                          showConfidence={showConfidence}
+                          edgePct={edgePct}
+                          onBookChange={setBookOdds}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </section>
+            );
+          })
         )}
       </div>
     </InsightCard>

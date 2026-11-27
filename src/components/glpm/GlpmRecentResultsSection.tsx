@@ -35,9 +35,11 @@ function StatBar({
 export function GlpmRecentResultsSection({
   matches,
   seasonId,
+  competitionId,
 }: {
   matches: GlpmHubRecentMatch[];
   seasonId?: number | null;
+  competitionId?: number | null;
 }) {
   const [openId, setOpenId] = useState<number | null>(null);
 
@@ -112,7 +114,7 @@ export function GlpmRecentResultsSection({
                   </div>
                 ) : null}
                 <Link
-                  href={`/predict?entity=club&mode=compare&home=${m.homeTeamSmId}&away=${m.awayTeamSmId}${seasonId != null ? `&seasonId=${seasonId}` : ""}`}
+                  href={`/predict?entity=club&mode=compare&home=${m.homeTeamSmId}&away=${m.awayTeamSmId}${seasonId != null ? `&seasonId=${seasonId}` : ""}${competitionId != null ? `&competitionId=${competitionId}` : ""}`}
                   className="inline-flex text-sm font-semibold text-primary hover:underline"
                 >
                   Re-run in predictor →

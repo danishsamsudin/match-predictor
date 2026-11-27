@@ -101,7 +101,8 @@ export function shortGlpmSeasonLabel(
 
 export function buildGlpmCompareHref(
   match: { homeTeamSmId: number; awayTeamSmId: number; matchSmId: number },
-  seasonId?: number | null
+  seasonId?: number | null,
+  competitionId?: number | null
 ): string {
   const params = new URLSearchParams({
     entity: "club",
@@ -112,6 +113,9 @@ export function buildGlpmCompareHref(
   });
   if (seasonId != null) {
     params.set("seasonId", String(seasonId));
+  }
+  if (competitionId != null) {
+    params.set("competitionId", String(competitionId));
   }
   return `/predict?${params.toString()}`;
 }

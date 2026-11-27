@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createBetaAccess } from "@/lib/auth/beta-access";
 import { tryCreateServiceClient } from "@/lib/supabase";
 import { getPricingPlan, type PricingPlanId } from "@/lib/marketing/pricing";
 
@@ -12,6 +13,8 @@ type WaitlistBody = {
   phone?: string;
   country?: string;
   plan?: string;
+  billing?: string;
+  password?: string;
   source?: string;
   marketingOptIn?: boolean;
   ageConfirmed?: boolean;
@@ -50,7 +53,6 @@ async function insertWaitlistRow(
   client: SupabaseClient,
   row: Record<string, unknown>
 ): Promise<string | null> {
-  // Table added in migration 046; not yet in generated Database types.
   const untyped = client as unknown as {
     from: (table: string) => {
       insert: (
@@ -86,6 +88,8 @@ export async function POST(request: Request) {
 
   const source = (body.source ?? "pricing").slice(0, 40);
   const isSignup = source === "signup";
+  const billing =
+    body.billing === "annual" || body.billing === "monthly" ? body.billing : "monthly";
 
   if (isSignup) {
     if (!body.username?.trim() || !body.fullName?.trim() || !body.phone?.trim() || !body.country?.trim()) {
@@ -97,6 +101,57 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    const password = body.password ?? "";
+    if (password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+    }
+
+    const created = await createBetaAccess({
+      email,
+      username: body.username.trim(),
+      password,
+      fullName: body.fullName,
+      phone: body.phone,
+      country: body.country,
+      plan: planId,
+      billing,
+      source,
+      marketingOptIn: body.marketingOptIn,
+      ageConfirmed: body.ageConfirmed,
+      acceptTerms: body.acceptTerms,
+      acceptPrivacy: body.acceptPrivacy,
+      acceptDisclaimer: body.acceptDisclaimer,
+    });
+
+    if (!created.ok) {
+      return NextResponse.json({ error: created.error }, { status: 400 });
+    }
+
+    // Keep a lightweight interest row without the password.
+    const client = tryCreateServiceClient();
+    if (client) {
+      await insertWaitlistRow(client as SupabaseClient, {
+        email,
+        username: body.username.trim(),
+        full_name: body.fullName.trim(),
+        phone: body.phone.trim(),
+        country: body.country.trim(),
+        plan: planId,
+        source,
+        marketing_opt_in: Boolean(body.marketingOptIn),
+        age_confirmed: true,
+        accept_terms: true,
+        accept_privacy: true,
+        accept_disclaimer: true,
+        password_provided: true,
+      });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      status: "pending",
+      message: "Beta request received. You can sign in after approval.",
+    });
   }
 
   const row = {
@@ -112,7 +167,7 @@ export async function POST(request: Request) {
     accept_terms: body.acceptTerms ?? null,
     accept_privacy: body.acceptPrivacy ?? null,
     accept_disclaimer: body.acceptDisclaimer ?? null,
-    password_provided: Boolean(body.passwordProvided),
+    password_provided: false,
   };
 
   const client = tryCreateServiceClient();

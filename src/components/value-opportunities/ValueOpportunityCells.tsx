@@ -15,25 +15,29 @@ import {
 
 export const TIER_STYLES: Record<
   ConfidenceTier,
-  { badge: string; dot: string; label: string }
+  { badge: string; text: string; dot: string; label: string }
 > = {
   strong: {
-    badge: "bg-emerald-500/15 text-emerald-800 ring-emerald-500/25 dark:text-emerald-300",
+    badge: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400",
+    text: "text-emerald-600 dark:text-emerald-400",
     dot: "bg-emerald-500",
     label: "Decision-ready",
   },
   moderate: {
-    badge: "bg-sky-500/15 text-sky-900 ring-sky-500/25 dark:text-sky-300",
+    badge: "bg-sky-500/15 text-sky-700 ring-sky-500/25 dark:text-sky-400",
+    text: "text-sky-600 dark:text-sky-400",
     dot: "bg-sky-500",
     label: "Useful signal",
   },
   weak: {
-    badge: "bg-amber-500/15 text-amber-900 ring-amber-500/25 dark:text-amber-300",
+    badge: "bg-amber-500/15 text-amber-700 ring-amber-500/25 dark:text-amber-400",
+    text: "text-amber-600 dark:text-amber-400",
     dot: "bg-amber-500",
     label: "Thin / optimistic model",
   },
   none: {
-    badge: "bg-rose-500/10 text-rose-800 ring-rose-500/20 dark:text-rose-300",
+    badge: "bg-rose-500/10 text-rose-700 ring-rose-500/20 dark:text-rose-400",
+    text: "text-rose-600 dark:text-rose-400",
     dot: "bg-rose-500",
     label: "Do not rely",
   },
@@ -41,18 +45,21 @@ export const TIER_STYLES: Record<
 
 const ACTION_STYLES: Record<
   ValueAction,
-  { badge: string; blurb: string }
+  { badge: string; text: string; blurb: string }
 > = {
   pass: {
-    badge: "bg-rose-500/10 text-rose-800 ring-rose-500/20 dark:text-rose-300",
+    badge: "bg-rose-500/10 text-rose-700 ring-rose-500/20 dark:text-rose-400",
+    text: "text-rose-600 dark:text-rose-400",
     blurb: "Skip this price",
   },
   watch: {
-    badge: "bg-amber-500/15 text-amber-900 ring-amber-500/25 dark:text-amber-300",
+    badge: "bg-amber-500/15 text-amber-700 ring-amber-500/25 dark:text-amber-400",
+    text: "text-amber-600 dark:text-amber-400",
     blurb: "Interesting - do not force",
   },
   bet: {
-    badge: "bg-emerald-500/15 text-emerald-800 ring-emerald-500/25 dark:text-emerald-300",
+    badge: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/25 dark:text-emerald-400",
+    text: "text-emerald-600 dark:text-emerald-400",
     blurb: "History + price align",
   },
 };
@@ -143,7 +150,7 @@ export function ConfidenceCell({
       : `${formatConfidenceTier(tier)} confidence: no history yet. Tap for explanation.`;
 
   return (
-    <div className={compact ? undefined : "min-w-[7.5rem]"}>
+    <div className={compact ? "flex justify-center" : "min-w-[7.5rem]"}>
       <Tooltip
         label="Confidence explained"
         content={<ConfidencePopup lookup={lookup} />}
@@ -152,13 +159,13 @@ export function ConfidenceCell({
         <button
           type="button"
           aria-label={ariaLabel}
-          className={`inline-flex max-w-full cursor-help rounded-md px-2 py-1 text-left ring-1 ring-inset transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${style.badge} ${
+          className={`inline-flex max-w-full cursor-help transition hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${style.text} ${
             compact
               ? "items-center gap-1.5"
               : "flex-col items-start gap-1"
           }`}
         >
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold leading-none">
             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} aria-hidden />
             {formatConfidenceTier(tier)}
           </span>
@@ -178,7 +185,7 @@ export function ConfidenceCell({
             </span>
           ) : null}
           {compact && lookup.n > 0 ? (
-            <span className="text-[11px] font-medium tabular-nums opacity-80">
+            <span className="self-center text-sm font-semibold leading-none tabular-nums opacity-80">
               {(lookup.historicalHitRate * 100).toFixed(0)}%
             </span>
           ) : null}
@@ -192,11 +199,14 @@ export function StakeCell({
   bookOdds,
   kelly,
   confidenceTier,
+  bankroll,
   compact = false,
 }: {
   bookOdds: number | null;
   kelly?: KellyStakeResult;
   confidenceTier?: ConfidenceLookup["tier"];
+  /** Live bankroll so stake € updates when the input changes. */
+  bankroll?: number;
   /** Inline single-line stake for compact Value Opportunities rows. */
   compact?: boolean;
 }) {
@@ -204,14 +214,18 @@ export function StakeCell({
     return <span className="text-muted">-</span>;
   }
   if (kelly && kelly.fraction > 0) {
+    const stakeUnits =
+      bankroll != null && Number.isFinite(bankroll) && bankroll > 0
+        ? kelly.fraction * bankroll
+        : kelly.units;
     if (compact) {
       return (
         <span
           title={kelly.reason}
-          className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
+          className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400"
         >
-          {formatStakeEuros(kelly.units)}
-          <span className="ml-1 font-medium text-muted">
+          {formatStakeEuros(stakeUnits)}
+          <span className="ml-1 font-semibold text-muted">
             ({(kelly.fraction * 100).toFixed(1)}%)
           </span>
         </span>
@@ -220,7 +234,7 @@ export function StakeCell({
     return (
       <div title={kelly.reason}>
         <p className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-          {formatStakeEuros(kelly.units)}
+          {formatStakeEuros(stakeUnits)}
         </p>
         <p className="text-[11px] tabular-nums text-muted">
           {(kelly.fraction * 100).toFixed(1)}% of bankroll
@@ -233,7 +247,7 @@ export function StakeCell({
       return (
         <span
           title={kelly?.reason ?? "Not enough history for a stake."}
-          className="font-medium tabular-nums text-muted"
+          className="text-sm font-semibold tabular-nums text-muted"
         >
           {formatStakeEuros(0)} · no history
         </span>
@@ -251,7 +265,10 @@ export function StakeCell({
   if (kelly?.minBookOdds != null) {
     if (compact) {
       return (
-        <span title={kelly.reason} className="font-medium text-amber-800 dark:text-amber-300">
+        <span
+          title={kelly.reason}
+          className="text-sm font-semibold text-amber-800 dark:text-amber-300"
+        >
           Need ≥ <span className="tabular-nums">{kelly.minBookOdds.toFixed(2)}</span>
         </span>
       );
@@ -269,7 +286,10 @@ export function StakeCell({
   }
   if (compact) {
     return (
-      <span title={kelly?.reason ?? "No stake"} className="font-medium tabular-nums text-muted">
+      <span
+        title={kelly?.reason ?? "No stake"}
+        className="text-sm font-semibold tabular-nums text-muted"
+      >
         {formatStakeEuros(0)}
       </span>
     );
@@ -307,7 +327,7 @@ export function ActionCell({ decision }: { decision: ValueActionResult }) {
       <button
         type="button"
         aria-label={`${decision.label}: ${decision.reason}`}
-        className={`inline-flex cursor-help items-center rounded-md px-2 py-1 text-xs font-semibold ring-1 ring-inset transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${style.badge}`}
+        className={`inline-flex cursor-help items-center text-sm font-semibold transition hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${style.text}`}
       >
         {decision.label}
       </button>

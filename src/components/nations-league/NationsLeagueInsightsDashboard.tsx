@@ -420,41 +420,42 @@ export function NationsLeagueInsightsDashboard({
     !(result.entityType === "national" && result.mode === "compare");
 
   return (
-    <div className="liquid-glass-panel min-w-0 max-w-full overflow-x-auto rounded-2xl sm:rounded-[2rem]">
-      <div className="border-b border-glass-border px-4 py-4 sm:px-6">
+    <div className="min-w-0 max-w-full space-y-6">
+      <header className="space-y-2 border-b border-glass-border pb-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-semibold text-foreground sm:text-xl">
+          <h2 className="type-section-title">
             {homeLabel} <span className="font-normal text-muted">vs</span> {awayLabel}
           </h2>
           {result.mode === "compare" ? (
-            <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-medium text-accent-emphasis">
+            <span className="rounded-full bg-accent/15 px-2.5 py-0.5 type-meta font-medium text-accent-emphasis">
               Hypothetical match
             </span>
           ) : null}
-          <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary-emphasis">
+          <span className="rounded-full bg-primary/15 px-2.5 py-0.5 type-meta font-medium text-primary-emphasis">
             Nations League
           </span>
           {result.lineupSource === "manual_xi" ? (
-            <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 type-meta font-medium text-emerald-700 dark:text-emerald-300">
               Player xG · Your XI
             </span>
           ) : null}
           {result.lineupSource === "model_xi" ? (
-            <span className="rounded-full bg-slate-500/15 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
+            <span className="rounded-full bg-slate-500/15 px-2.5 py-0.5 type-meta font-medium text-slate-600 dark:text-slate-300">
               Team xG · Model squad
             </span>
           ) : null}
         </div>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
+        <p className="type-body-muted max-w-2xl">
           Graham model for UEFA Nations League - expected goals, markets, and edges in the same
           layout as club insights.
         </p>
-      </div>
+      </header>
 
-      <div className="min-w-0 space-y-6 p-4 sm:p-6">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-5">
         {/* 1. Match overview */}
         <InsightCard
           title="Match overview"
+          className="lg:col-span-2"
           howToRead="1X2 probabilities and key KPIs for this Nations League fixture."
           tipLabel="Match overview"
           tipBody={
@@ -517,6 +518,7 @@ export function NationsLeagueInsightsDashboard({
         {result.teamComparison ? (
           <InsightCard
             title="Team comparison"
+            className="lg:col-span-2"
             howToRead="Season averages and recent results for both nations."
           >
             <TeamComparisonPanel comparison={result.teamComparison} embedded />
@@ -524,17 +526,20 @@ export function NationsLeagueInsightsDashboard({
         ) : null}
 
         {showLineupEditor ? (
-          <LineupWhatIfEditor
-            result={result}
-            onRerun={onRerunWithLineups!}
-            loading={loading}
-          />
+          <div className="lg:col-span-2">
+            <LineupWhatIfEditor
+              result={result}
+              onRerun={onRerunWithLineups!}
+              loading={loading}
+            />
+          </div>
         ) : null}
 
         {/* 3. Goal markets */}
         {analytics && ouData.length ? (
           <InsightCard
             title="Goal markets"
+            className="lg:col-span-2"
             howToRead="Over/Under ladder, BTTS, and double chance from the same score grid."
           >
             <OuLadderBars data={ouData} />
@@ -602,6 +607,7 @@ export function NationsLeagueInsightsDashboard({
         {analytics?.scoreHeatmap?.length ? (
           <InsightCard
             title="Score probability matrix"
+            className="lg:col-span-2"
             howToRead="Each cell is the chance of that exact scoreline. Darker cells are more likely."
           >
             <ScoreHeatmap
@@ -776,26 +782,32 @@ export function NationsLeagueInsightsDashboard({
         ) : null}
 
         <FormMomentumCard result={result} homeLabel={homeLabel} awayLabel={awayLabel} />
-        <HistoricalMarketsCard result={result} homeLabel={homeLabel} awayLabel={awayLabel} />
+        <div className="lg:col-span-2">
+          <HistoricalMarketsCard result={result} homeLabel={homeLabel} awayLabel={awayLabel} />
+        </div>
 
         {/* 7. Value board */}
-        <NationalClubStyleOddsPanel result={result} hideAsianHandicap />
+        <div className="lg:col-span-2">
+          <NationalClubStyleOddsPanel result={result} hideAsianHandicap />
+        </div>
 
         {/* 8. Player props */}
         {result.playerProps ? (
-          <PlayerPropsPanel
-            props={result.playerProps}
-            homeLabel={homeLabel}
-            awayLabel={awayLabel}
-            matchKey={
-              matchKey ??
-              `${result.homeTeamName ?? "home"}-${result.awayTeamName ?? "away"}`
-            }
-          />
+          <div className="lg:col-span-2">
+            <PlayerPropsPanel
+              props={result.playerProps}
+              homeLabel={homeLabel}
+              awayLabel={awayLabel}
+              matchKey={
+                matchKey ??
+                `${result.homeTeamName ?? "home"}-${result.awayTeamName ?? "away"}`
+              }
+            />
+          </div>
         ) : null}
 
         {/* 9. Analysis */}
-        <div>
+        <div className="lg:col-span-2">
           <button
             type="button"
             onClick={() => setShowExplanation(!showExplanation)}
@@ -821,7 +833,7 @@ export function NationsLeagueInsightsDashboard({
         </div>
 
         {result.modelVersion ? (
-          <p className="text-center text-[11px] text-muted">{result.modelVersion}</p>
+          <p className="type-meta text-center lg:col-span-2">{result.modelVersion}</p>
         ) : null}
       </div>
     </div>

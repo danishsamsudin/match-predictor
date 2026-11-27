@@ -75,8 +75,88 @@ function marketFamily(marketId: string): string {
   if (id.includes("european") || id.includes("eh_")) return "eh";
   if (id.includes("team_total") || id.includes("tt_")) return "team_total";
   if (id.includes("double") || id.includes("dc_")) return "double_chance";
-  if (id.includes("1x2") || id === "match_result") return "1x2";
+  if (
+    id.includes("1x2") ||
+    id === "match_result" ||
+    id === "win_probability"
+  )
+    return "1x2";
   return "other";
+}
+
+/** Synthetic market_key for argmax-selection hit rates (1X2 / DC). */
+export const TOP_PICK_MARKET_KEY = "top_pick";
+
+function numField(
+  obj: Record<string, unknown> | null,
+  ...keys: string[]
+): number | null {
+  if (!obj) return null;
+  for (const key of keys) {
+    const raw = obj[key];
+    const n = typeof raw === "number" ? raw : Number(raw);
+    if (Number.isFinite(n)) return n > 1.0001 ? n / 100 : n;
+  }
+  return null;
+}
+
+/**
+ * 1X2 top pick: choose home/draw/away with highest model prob; hit if it matches outcome.
+ */
+function oneXTwoTopPick(
+  predicted: Record<string, unknown> | null,
+  actual: Record<string, unknown> | null
+): { pred: number; hit: boolean } | null {
+  const home = numField(predicted, "home", "homePct");
+  const draw = numField(predicted, "draw", "drawPct");
+  const away = numField(predicted, "away", "awayPct");
+  if (home == null || draw == null || away == null) return null;
+  const outcomeRaw = actual?.outcome;
+  const outcome =
+    typeof outcomeRaw === "string" ? outcomeRaw.toLowerCase() : null;
+  if (outcome !== "home" && outcome !== "draw" && outcome !== "away") return null;
+
+  let pick: "home" | "draw" | "away" = "home";
+  let pred = home;
+  if (draw > pred) {
+    pick = "draw";
+    pred = draw;
+  }
+  if (away > pred) {
+    pick = "away";
+    pred = away;
+  }
+  return { pred, hit: pick === outcome };
+}
+
+type DcSide = { key: string; pred: number; hit: boolean };
+
+/**
+ * DC top pick: among 1x / 12 / x2 for one match, take the highest-prob side and its hit.
+ */
+function doubleChanceTopPick(sides: DcSide[]): { pred: number; hit: boolean } | null {
+  if (sides.length === 0) return null;
+  let best = sides[0]!;
+  for (let i = 1; i < sides.length; i++) {
+    const s = sides[i]!;
+    if (s.pred > best.pred || (s.pred === best.pred && s.key < best.key)) {
+      best = s;
+    }
+  }
+  return { pred: best.pred, hit: best.hit };
+}
+
+function addSelection(acc: Acc, pred: number, hit: boolean, lossValue: number | null): void {
+  acc.n += 1;
+  if (hit) acc.hits += 1;
+  acc.predSum += pred;
+  const brier =
+    typeof lossValue === "number" && Number.isFinite(lossValue)
+      ? lossValue
+      : (pred - (hit ? 1 : 0)) ** 2;
+  acc.brierSum += brier;
+  acc.logLossSum += logLoss(pred, hit);
+  acc.logLossN += 1;
 }
 
 export function emptyBucket(): ReliabilityBucket {
@@ -148,6 +228,11 @@ export function buildReliabilityBaseline(
   const overall = newAcc();
   const byLeague = new Map<number, Map<string, Acc>>();
   const familyByLeague = new Map<number, Map<string, Acc>>();
+  /** Per-league accumulators for argmax selection metrics. */
+  const oneXTwoTopByLeague = new Map<number, Acc>();
+  const dcTopByLeague = new Map<number, Acc>();
+  /** DC sides grouped by league + match for top-pick aggregation. */
+  const dcByMatch = new Map<string, { league: number; sides: DcSide[] }>();
 
   for (const row of rows) {
     addRow(overall, row);
@@ -162,7 +247,41 @@ export function buildReliabilityBaseline(
     const fam = marketFamily(row.market_id);
     const f = familyByLeague.get(league)!;
     if (!f.has(fam)) f.set(fam, newAcc());
-    addRow(f.get(fam)!, row);
+
+    if (row.market_id === "win_probability") {
+      const pick = oneXTwoTopPick(row.predicted, row.actual);
+      if (pick) {
+        if (!oneXTwoTopByLeague.has(league)) oneXTwoTopByLeague.set(league, newAcc());
+        addSelection(oneXTwoTopByLeague.get(league)!, pick.pred, pick.hit, row.loss_value);
+        // Family bucket uses selection hit (raw win_probability has no binary hit).
+        addSelection(f.get(fam)!, pick.pred, pick.hit, row.loss_value);
+      }
+    } else {
+      addRow(f.get(fam)!, row);
+    }
+
+    if (
+      row.market_id === "double_chance" &&
+      (row.market_key === "1x" ||
+        row.market_key === "12" ||
+        row.market_key === "x2")
+    ) {
+      const pred = asProb(row.predicted);
+      const hit = asHit(row.actual);
+      const matchId = row.match_sm_id;
+      if (pred != null && hit != null && matchId != null) {
+        const gKey = `${league}::${matchId}`;
+        if (!dcByMatch.has(gKey)) dcByMatch.set(gKey, { league, sides: [] });
+        dcByMatch.get(gKey)!.sides.push({ key: row.market_key, pred, hit });
+      }
+    }
+  }
+
+  for (const group of dcByMatch.values()) {
+    const pick = doubleChanceTopPick(group.sides);
+    if (!pick) continue;
+    if (!dcTopByLeague.has(group.league)) dcTopByLeague.set(group.league, newAcc());
+    addSelection(dcTopByLeague.get(group.league)!, pick.pred, pick.hit, null);
   }
 
   const leagues: LeagueReliability[] = [];
@@ -184,6 +303,43 @@ export function buildReliabilityBaseline(
       nRows += bucket.n;
       marketList.push({ marketId, marketKey, ...bucket });
     }
+
+    const x12Acc = oneXTwoTopByLeague.get(leagueSmId);
+    if (x12Acc && x12Acc.n > 0) {
+      const bucket = finalizeBucket(
+        x12Acc.n,
+        x12Acc.hits,
+        x12Acc.predSum,
+        x12Acc.brierSum,
+        x12Acc.logLossSum,
+        x12Acc.logLossN
+      );
+      marketList.push({
+        marketId: "win_probability",
+        marketKey: TOP_PICK_MARKET_KEY,
+        ...bucket,
+      });
+      nRows += bucket.n;
+    }
+
+    const dcAcc = dcTopByLeague.get(leagueSmId);
+    if (dcAcc && dcAcc.n > 0) {
+      const bucket = finalizeBucket(
+        dcAcc.n,
+        dcAcc.hits,
+        dcAcc.predSum,
+        dcAcc.brierSum,
+        dcAcc.logLossSum,
+        dcAcc.logLossN
+      );
+      marketList.push({
+        marketId: "double_chance",
+        marketKey: TOP_PICK_MARKET_KEY,
+        ...bucket,
+      });
+      nRows += bucket.n;
+    }
+
     marketList.sort((a, b) => b.n - a.n);
     const byFamily: Record<string, ReliabilityBucket> = {};
     for (const [fam, acc] of familyByLeague.get(leagueSmId) ?? []) {

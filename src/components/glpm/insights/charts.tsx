@@ -111,78 +111,6 @@ const RADAR_SHORT: Record<string, string> = {
 
 type DualRadarPoint = { dimension: string; home: number; away: number };
 
-function RadarProfileCompare({
-  data,
-  homeLabel,
-  awayLabel,
-  max,
-}: {
-  data: DualRadarPoint[];
-  homeLabel: string;
-  awayLabel: string;
-  max: number;
-}) {
-  const rows = data.map((row) => ({
-    ...row,
-    gap: Math.abs(row.home - row.away),
-    leader: row.home === row.away ? "even" : row.home > row.away ? "home" : "away",
-  }));
-  const homeLeads = rows.filter((r) => r.leader === "home").length;
-  const awayLeads = rows.filter((r) => r.leader === "away").length;
-  const biggest = [...rows].sort((a, b) => b.gap - a.gap)[0];
-  const headline =
-    homeLeads === awayLeads
-      ? `The profiles are closely matched, with ${homeLeads} skills each.`
-      : homeLeads > awayLeads
-        ? `${homeLabel} leads ${homeLeads} of ${rows.length} skills.`
-        : `${awayLabel} leads ${awayLeads} of ${rows.length} skills.`;
-  const gapNote =
-    biggest && biggest.gap >= 1
-      ? `Largest gap is ${biggest.dimension} (${
-          biggest.leader === "home" ? homeLabel : awayLabel
-        } +${biggest.gap.toFixed(1)}).`
-      : "No skill is more than a point apart.";
-
-  return (
-    <div className="rounded-xl border border-glass-border bg-surface/50 p-3 sm:p-4">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-        Profile comparison
-      </p>
-      <p className="mt-1 text-sm leading-snug text-foreground">{headline}</p>
-      <p className="mt-0.5 text-[11px] leading-snug text-muted">{gapNote}</p>
-      <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
-        <span className="font-medium text-primary">{homeLabel}</span>
-        <span className="font-medium text-accent">{awayLabel}</span>
-      </div>
-      <div className="mt-2 space-y-2.5">
-        {rows.map((row) => (
-          <div key={row.dimension}>
-            <div className="mb-1 flex items-center justify-between text-xs">
-              <span className="tabular-nums text-primary">{row.home.toFixed(1)}</span>
-              <span className="font-medium text-foreground">{row.dimension}</span>
-              <span className="tabular-nums text-accent">{row.away.toFixed(1)}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-1">
-              <div className="flex h-2 justify-end overflow-hidden rounded-l-full bg-foreground/10">
-                <div
-                  className="h-full rounded-l-full bg-primary"
-                  style={{ width: `${(row.home / max) * 100}%` }}
-                />
-              </div>
-              <div className="flex h-2 overflow-hidden rounded-r-full bg-foreground/10">
-                <div
-                  className="h-full rounded-r-full bg-accent"
-                  style={{ width: `${(row.away / max) * 100}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function DualRadarChart({
   data,
   homeLabel,
@@ -198,8 +126,27 @@ export function DualRadarChart({
     ...d,
     axis: RADAR_SHORT[d.dimension] ?? d.dimension,
   }));
+  const gaps = data.map((row) => ({
+    ...row,
+    gap: Math.abs(row.home - row.away),
+    leader: row.home === row.away ? "even" : row.home > row.away ? "home" : "away",
+  }));
+  const homeLeads = gaps.filter((r) => r.leader === "home").length;
+  const awayLeads = gaps.filter((r) => r.leader === "away").length;
+  const biggest = [...gaps].sort((a, b) => b.gap - a.gap)[0];
+  const summary =
+    homeLeads === awayLeads
+      ? `Even profile (${homeLeads} each)`
+      : homeLeads > awayLeads
+        ? `${homeLabel} leads ${homeLeads}/${gaps.length}`
+        : `${awayLabel} leads ${awayLeads}/${gaps.length}`;
+  const gapNote =
+    biggest && biggest.gap >= 1
+      ? ` · largest gap ${biggest.dimension} (+${biggest.gap.toFixed(1)})`
+      : "";
+
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.9fr)] lg:items-start">
+    <div>
       <div className="h-72 w-full sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
           <RRadarChart data={plot} cx="50%" cy="52%" outerRadius="68%" margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
@@ -240,12 +187,10 @@ export function DualRadarChart({
           </RRadarChart>
         </ResponsiveContainer>
       </div>
-      <RadarProfileCompare
-        data={data}
-        homeLabel={homeLabel}
-        awayLabel={awayLabel}
-        max={max}
-      />
+      <p className="type-meta mt-1 text-center">
+        {summary}
+        {gapNote}
+      </p>
     </div>
   );
 }
@@ -668,17 +613,17 @@ export function GroupedCompareBars({
   awayLabel: string;
   valueSuffix?: string;
 }) {
-  const rowH = Math.max(220, data.length * 36);
+  const rowH = Math.max(160, data.length * 32 + 48);
   return (
-    <div className="w-full" style={{ height: Math.min(rowH, 420) }}>
+    <div className="w-full" style={{ height: Math.min(rowH, 280) }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 12, top: 4, bottom: 4 }} barGap={4}>
+        <BarChart data={data} layout="vertical" margin={{ left: 4, right: 8, top: 4, bottom: 0 }} barGap={3}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-foreground/10" horizontal={false} />
           <XAxis type="number" tick={{ fontSize: 11 }} />
           <YAxis
             type="category"
             dataKey="name"
-            width={96}
+            width={108}
             tick={{ fontSize: 11 }}
           />
           <Tooltip
@@ -688,8 +633,8 @@ export function GroupedCompareBars({
             }
           />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-          <Bar dataKey="home" name={homeLabel} fill={HOME_COLOR} radius={4} maxBarSize={14} />
-          <Bar dataKey="away" name={awayLabel} fill={AWAY_COLOR} radius={4} maxBarSize={14} />
+          <Bar dataKey="home" name={homeLabel} fill={HOME_COLOR} radius={4} maxBarSize={12} />
+          <Bar dataKey="away" name={awayLabel} fill={AWAY_COLOR} radius={4} maxBarSize={12} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -713,40 +658,51 @@ export function DomainCompareList({
     1
   );
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between text-[11px] text-muted">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between type-meta">
         <span className="font-medium text-primary">{homeLabel}</span>
         <span className="font-medium text-accent">{awayLabel}</span>
       </div>
       {groups.map((group) => (
         <div key={group.title}>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
+          <p className="mb-1 type-meta font-semibold uppercase tracking-wide">
             {group.title}
           </p>
-          <div className="space-y-2.5">
-            {group.rows.map((row) => (
-              <div key={row.name}>
-                <div className="mb-1 flex items-center justify-between text-xs">
-                  <span className="tabular-nums text-primary">{row.home.toFixed(1)}</span>
-                  <span className="font-medium text-foreground">{row.name}</span>
-                  <span className="tabular-nums text-accent">{row.away.toFixed(1)}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-1">
-                  <div className="flex h-2 justify-end overflow-hidden rounded-l-full bg-foreground/10">
-                    <div
-                      className="h-full rounded-l-full bg-primary"
-                      style={{ width: `${(row.home / max) * 100}%` }}
-                    />
+          <div>
+            {group.rows.map((row) => {
+              const homeW = (row.home / max) * 100;
+              const awayW = (row.away / max) * 100;
+              return (
+                <div
+                  key={row.name}
+                  className="border-b border-glass-border/50 py-2 last:border-b-0"
+                >
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="w-12 tabular-nums font-semibold text-primary">
+                      {row.home.toFixed(1)}
+                    </span>
+                    <span className="font-medium text-foreground">{row.name}</span>
+                    <span className="w-12 text-right tabular-nums font-semibold text-accent">
+                      {row.away.toFixed(1)}
+                    </span>
                   </div>
-                  <div className="flex h-2 overflow-hidden rounded-r-full bg-foreground/10">
-                    <div
-                      className="h-full rounded-r-full bg-accent"
-                      style={{ width: `${(row.away / max) * 100}%` }}
-                    />
+                  <div className="grid grid-cols-2 gap-1">
+                    <div className="flex h-1.5 justify-end overflow-hidden rounded-l-full bg-foreground/10">
+                      <div
+                        className="h-full rounded-l-full bg-primary"
+                        style={{ width: `${homeW}%` }}
+                      />
+                    </div>
+                    <div className="flex h-1.5 overflow-hidden rounded-r-full bg-foreground/10">
+                      <div
+                        className="h-full rounded-r-full bg-accent"
+                        style={{ width: `${awayW}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
@@ -764,10 +720,14 @@ export function MatchupTugList({
   awayLabel: string;
 }) {
   return (
-    <div className="space-y-4">
+    <div>
+      <div className="mb-1 flex items-center justify-between type-meta uppercase tracking-wide">
+        <span className="font-medium text-primary">{homeLabel}</span>
+        <span className="font-medium text-accent">{awayLabel}</span>
+      </div>
       {data.map((row) => {
         const homeLead = row.home >= row.away;
-        const edge = homeLead ? row.home - row.away : row.away - row.home;
+        const edge = Math.abs(row.home - row.away);
         const leader = homeLead ? homeLabel : awayLabel;
         const span = Math.max(Math.abs(row.home), Math.abs(row.away), 0.25);
         const homeW = (Math.abs(row.home) / span) * 100;
@@ -775,52 +735,43 @@ export function MatchupTugList({
         return (
           <div
             key={row.name}
-            className="rounded-2xl border border-glass-border bg-surface/50 px-3 py-3"
+            className="border-b border-glass-border/50 py-2 last:border-b-0"
+            title={row.detail}
           >
-            <div className="mb-2 flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-foreground">{row.name}</p>
-                <p className="text-[11px] text-muted">{row.detail}</p>
-              </div>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <p className="text-sm font-medium uppercase tracking-wide text-foreground">
+                {row.name}
+              </p>
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  homeLead
-                    ? "bg-primary/15 text-primary"
-                    : "bg-accent/15 text-accent"
+                className={`shrink-0 text-[10px] font-semibold tabular-nums ${
+                  homeLead ? "text-primary" : "text-accent"
                 }`}
               >
                 {leader} +{edge.toFixed(2)}
               </span>
             </div>
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <div className="text-right">
-                <p className="text-[10px] uppercase text-muted">{homeLabel}</p>
-                <p className="text-sm font-bold tabular-nums text-primary">
-                  {row.home >= 0 ? "+" : ""}
-                  {row.home.toFixed(2)}
-                </p>
-                <div className="mt-1 ml-auto h-2.5 w-full overflow-hidden rounded-full bg-foreground/10">
-                  <div
-                    className="ml-auto h-full rounded-full bg-primary"
-                    style={{ width: `${homeW}%` }}
-                  />
-                </div>
+            <div className="flex items-center justify-between gap-2 text-xs tabular-nums">
+              <span className="font-semibold text-primary">
+                {row.home >= 0 ? "+" : ""}
+                {row.home.toFixed(2)}
+              </span>
+              <span className="font-semibold text-accent">
+                {row.away >= 0 ? "+" : ""}
+                {row.away.toFixed(2)}
+              </span>
+            </div>
+            <div className="mt-1.5 grid grid-cols-2 gap-1">
+              <div className="flex h-1.5 justify-end overflow-hidden rounded-l-full bg-foreground/10">
+                <div
+                  className="h-full rounded-l-full bg-primary"
+                  style={{ width: `${homeW}%` }}
+                />
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground/5 text-[10px] font-semibold text-muted">
-                vs
-              </div>
-              <div>
-                <p className="text-[10px] uppercase text-muted">{awayLabel}</p>
-                <p className="text-sm font-bold tabular-nums text-accent">
-                  {row.away >= 0 ? "+" : ""}
-                  {row.away.toFixed(2)}
-                </p>
-                <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-foreground/10">
-                  <div
-                    className="h-full rounded-full bg-accent"
-                    style={{ width: `${awayW}%` }}
-                  />
-                </div>
+              <div className="flex h-1.5 overflow-hidden rounded-r-full bg-foreground/10">
+                <div
+                  className="h-full rounded-r-full bg-accent"
+                  style={{ width: `${awayW}%` }}
+                />
               </div>
             </div>
           </div>
@@ -864,96 +815,68 @@ export function CxFactorPanel({
     (r) => Math.abs(r.homeMult - 1) >= 0.005 || Math.abs(r.awayMult - 1) >= 0.005
   );
 
+  const homeDelta = (homeFinal?.xg ?? 0) - (homeBase?.xg ?? 0);
+  const awayDelta = (awayFinal?.xg ?? 0) - (awayBase?.xg ?? 0);
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <CxXgDelta
-          label={homeLabel}
-          from={homeBase?.xg ?? 0}
-          to={homeFinal?.xg ?? 0}
-          accent="home"
-        />
-        <CxXgDelta
-          label={awayLabel}
-          from={awayBase?.xg ?? 0}
-          to={awayFinal?.xg ?? 0}
-          accent="away"
-        />
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="type-meta text-primary">{homeLabel} xG</p>
+          <p className="text-lg font-semibold tabular-nums text-foreground">
+            {(homeBase?.xg ?? 0).toFixed(2)}
+            <span className="mx-1 text-xs font-medium text-muted">to</span>
+            {(homeFinal?.xg ?? 0).toFixed(2)}
+          </p>
+          <p className="type-meta tabular-nums">
+            {Math.abs(homeDelta) >= 0.005
+              ? `${homeDelta > 0 ? "+" : ""}${homeDelta.toFixed(3)}`
+              : "no change"}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="type-meta text-accent">{awayLabel} xG</p>
+          <p className="text-lg font-semibold tabular-nums text-foreground">
+            {(awayBase?.xg ?? 0).toFixed(2)}
+            <span className="mx-1 text-xs font-medium text-muted">to</span>
+            {(awayFinal?.xg ?? 0).toFixed(2)}
+          </p>
+          <p className="type-meta tabular-nums">
+            {Math.abs(awayDelta) >= 0.005
+              ? `${awayDelta > 0 ? "+" : ""}${awayDelta.toFixed(3)}`
+              : "no change"}
+          </p>
+        </div>
       </div>
       {!moved ? (
-        <p className="text-xs text-muted">
-          Context is neutral. Every multiplier is 1.000, so CX xG matches the base model.
-        </p>
-      ) : (
-        <p className="text-xs text-muted">
-          Factors scale base xG in order. Form uses recent team xG for/against and is capped.
-        </p>
-      )}
-      <div className="table-h-scroll">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-glass-border text-[11px] font-medium uppercase tracking-wide text-muted">
-              <th className="py-2 pr-3 text-left font-medium">Factor</th>
-              <th className="py-2 px-2 text-right font-medium text-primary">{homeLabel}</th>
-              <th className="py-2 pl-2 text-right font-medium text-accent">{awayLabel}</th>
+        <p className="type-meta">All multipliers at 1.000 - CX matches base.</p>
+      ) : null}
+      <table className="w-full table-fixed text-sm">
+        <thead>
+          <tr className="border-b border-glass-border type-meta uppercase">
+            <th className="py-2 pr-3 text-left font-medium">Factor</th>
+            <th className="truncate py-2 px-2 text-right font-medium text-primary">
+              {homeLabel}
+            </th>
+            <th className="truncate py-2 pl-2 text-right font-medium text-accent">
+              {awayLabel}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name} className="border-b border-glass-border/50">
+              <td className="py-2 pr-3 font-medium text-foreground">{row.name}</td>
+              <td className="py-2 px-2 text-right tabular-nums">
+                <CxMult value={row.homeMult} />
+              </td>
+              <td className="py-2 pl-2 text-right tabular-nums">
+                <CxMult value={row.awayMult} />
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.name} className="border-b border-glass-border/60">
-                <td className="py-2 pr-3">
-                  <p className="font-medium text-foreground">{row.name}</p>
-                  {(Math.abs(row.homeMult - 1) >= 0.005 ||
-                    Math.abs(row.awayMult - 1) >= 0.005) &&
-                  (row.homeDetail || row.awayDetail) ? (
-                    <p className="text-[11px] text-muted">
-                      {row.homeDetail === row.awayDetail || !row.awayDetail
-                        ? row.homeDetail
-                        : !row.homeDetail
-                          ? row.awayDetail
-                          : `${row.homeDetail} / ${row.awayDetail}`}
-                    </p>
-                  ) : null}
-                </td>
-                <td className="py-2 px-2 text-right tabular-nums">
-                  <CxMult value={row.homeMult} />
-                </td>
-                <td className="py-2 pl-2 text-right tabular-nums">
-                  <CxMult value={row.awayMult} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function CxXgDelta({
-  label,
-  from,
-  to,
-  accent,
-}: {
-  label: string;
-  from: number;
-  to: number;
-  accent: "home" | "away";
-}) {
-  const color = accent === "home" ? "text-primary" : "text-accent";
-  const changed = Math.abs(to - from) >= 0.005;
-  return (
-    <div className="rounded-xl border border-glass-border bg-surface/50 px-3 py-3">
-      <p className={`text-[11px] font-medium uppercase tracking-wide ${color}`}>{label}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">
-        {from.toFixed(2)}
-        <span className="mx-1.5 text-xs font-medium text-muted"> to </span>
-        {to.toFixed(2)}
-      </p>
-      <p className="text-[11px] tabular-nums text-muted">
-        {changed ? `${to - from > 0 ? "+" : ""}${(to - from).toFixed(3)} xG` : "no change"}
-      </p>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -974,8 +897,8 @@ function CxMult({ value }: { value: number }) {
 export function RestDaysCompare({
   homeDays,
   awayDays,
-  homeNote,
-  awayNote,
+  homeNote: _homeNote,
+  awayNote: _awayNote,
   homeLabel,
   awayLabel,
   estimated,
@@ -988,35 +911,23 @@ export function RestDaysCompare({
   awayLabel: string;
   estimated: boolean;
 }) {
+  void _homeNote;
+  void _awayNote;
   const scale = 14;
   const home = homeDays ?? 7;
   const away = awayDays ?? 7;
   return (
-    <div className="rounded-xl border border-glass-border bg-surface/50 p-3">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h5 className="text-sm font-semibold text-foreground">Days between matches</h5>
+    <div className="border-t border-glass-border pt-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h5 className="type-meta font-semibold uppercase tracking-wide">Rest</h5>
         {estimated ? (
-          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-            Estimated
-          </span>
+          <span className="type-meta text-amber-700 dark:text-amber-300">Estimated</span>
         ) : null}
       </div>
-      <RestMeter label={homeLabel} days={home} scale={scale} accent="home" />
-      <div className="mt-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <RestMeter label={homeLabel} days={home} scale={scale} accent="home" />
         <RestMeter label={awayLabel} days={away} scale={scale} accent="away" />
       </div>
-      <div className="relative mt-2 h-4 text-[11px] text-muted">
-        <span className="absolute left-0">0d</span>
-        <span className="absolute left-[50%] -translate-x-1/2">7d typical</span>
-        <span className="absolute right-0">14d+</span>
-      </div>
-      {(() => {
-        const notes = [...new Set([homeNote, awayNote].filter(Boolean))];
-        if (!notes.length) return null;
-        return (
-          <p className="mt-2 text-[11px] leading-relaxed text-muted">{notes.join(" ")}</p>
-        );
-      })()}
     </div>
   );
 }
@@ -1075,77 +986,43 @@ export function FinishingCompare({
   awayLabel: string;
 }) {
   if (!home && !away) {
-    return (
-      <p className="text-xs text-muted">
-        Finishing differential needs season goals and xG for both sides.
-      </p>
-    );
+    return <p className="type-meta">No season goals/xG for this pair yet.</p>;
   }
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {home ? <FinishingCard team={homeLabel} row={home} accent="home" /> : null}
-      {away ? <FinishingCard team={awayLabel} row={away} accent="away" /> : null}
-    </div>
-  );
-}
 
-function finishingSourceLabel(row: FinishingDifferential): string {
-  if (row.source === "understat") return `Understat · ${row.matches} matches`;
-  if (row.source === "provider") return `Provider xG · ${row.matches} matches`;
-  return `Proxy xG · ${row.matches} matches`;
-}
+  const cells = [
+    home ? { team: homeLabel, row: home, accent: "home" as const } : null,
+    away ? { team: awayLabel, row: away, accent: "away" as const } : null,
+  ].filter(Boolean) as Array<{
+    team: string;
+    row: FinishingDifferential;
+    accent: "home" | "away";
+  }>;
 
-function FinishingCard({
-  team,
-  row,
-  accent,
-}: {
-  team: string;
-  row: FinishingDifferential;
-  accent: "home" | "away";
-}) {
-  const max = Math.max(row.goals, row.xg, 1);
-  const over = row.delta >= 0;
   return (
-    <div className="rounded-xl border border-glass-border bg-surface/50 p-4">
-      <p className={`text-sm font-semibold ${accent === "home" ? "text-primary" : "text-accent"}`}>
-        {team}
-      </p>
-      <p
-        className={`mt-1 text-2xl font-semibold tabular-nums ${
-          over ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"
-        }`}
-      >
-        {over ? "+" : ""}
-        {row.delta.toFixed(1)}
-      </p>
-      <p className="text-[11px] text-muted">{finishingSourceLabel(row)}</p>
-      <div className="mt-3 space-y-2">
-        <div>
-          <div className="mb-0.5 flex justify-between text-[11px] text-muted">
-            <span>Goals</span>
-            <span className="tabular-nums font-medium text-foreground">{row.goals.toFixed(1)}</span>
+    <div className="grid gap-4 sm:grid-cols-2">
+      {cells.map(({ team, row, accent }) => {
+        const over = row.delta >= 0;
+        return (
+          <div key={team} className="border-b border-glass-border/50 pb-3 sm:border-b-0 sm:pb-0">
+            <p
+              className={`text-sm font-medium ${
+                accent === "home" ? "text-primary" : "text-accent"
+              }`}
+            >
+              {team}
+            </p>
+            <p
+              className={`mt-0.5 text-xl font-semibold tabular-nums ${
+                over ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"
+              }`}
+              title={`G ${row.goals.toFixed(1)} · xG ${row.xg.toFixed(1)} · n=${row.matches}`}
+            >
+              {over ? "+" : ""}
+              {row.delta.toFixed(1)}
+            </p>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
-            <div
-              className="h-full rounded-full bg-foreground/70"
-              style={{ width: `${(row.goals / max) * 100}%` }}
-            />
-          </div>
-        </div>
-        <div>
-          <div className="mb-0.5 flex justify-between text-[11px] text-muted">
-            <span>xG</span>
-            <span className="tabular-nums font-medium text-foreground">{row.xg.toFixed(1)}</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
-            <div
-              className={`h-full rounded-full ${accent === "home" ? "bg-primary" : "bg-accent"}`}
-              style={{ width: `${(row.xg / max) * 100}%` }}
-            />
-          </div>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -1156,9 +1033,9 @@ export function OuLadderBars({
   data: Array<{ line: string; over: number; under: number }>;
 }) {
   return (
-    <div className="h-56 w-full">
+    <div className="h-64 w-full min-w-0 lg:h-72">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data}>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-foreground/10" />
           <XAxis dataKey="line" tick={{ fontSize: 11 }} />
           <YAxis
@@ -1265,16 +1142,16 @@ export function TeamTotalsTable({
     <div className="table-h-scroll">
       <table className="w-full min-w-[28rem] text-sm">
         <thead>
-          <tr className="border-b border-glass-border text-[11px] font-medium uppercase tracking-wide text-muted">
-            <th className="py-2 pr-2 text-left font-medium">Line</th>
-            <th className="py-2 px-2 text-right font-medium text-primary" colSpan={2}>
+          <tr className="border-b border-glass-border type-meta uppercase h-9">
+            <th className="py-2 pr-2 text-left font-medium align-bottom">Line</th>
+            <th className="py-2 px-2 text-right font-medium text-primary align-bottom" colSpan={2}>
               {homeLabel}
             </th>
-            <th className="py-2 pl-2 text-right font-medium text-accent" colSpan={2}>
+            <th className="py-2 pl-2 text-right font-medium text-accent align-bottom" colSpan={2}>
               {awayLabel}
             </th>
           </tr>
-          <tr className="border-b border-glass-border text-[11px] uppercase tracking-wide text-muted">
+          <tr className="border-b border-glass-border type-meta uppercase h-8">
             <th className="py-1.5 pr-2 text-left font-medium" />
             <th className="py-1.5 px-2 text-right font-medium">Over</th>
             <th className="py-1.5 px-2 text-right font-medium">Under</th>
@@ -1284,7 +1161,7 @@ export function TeamTotalsTable({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.line} className="border-b border-glass-border/50">
+            <tr key={row.line} className="border-b border-glass-border/50 h-10">
               <td className="py-2 pr-2 tabular-nums font-medium">{row.line}</td>
               <td className="py-2 px-2 text-right tabular-nums">
                 {(row.homeOver * 100).toFixed(1)}%
@@ -1315,43 +1192,6 @@ function formatStyleMetric(
   return `${value.toFixed(digits)}${suffix}`;
 }
 
-function StyleMetricBlock({
-  title,
-  explanation,
-  homeLabel,
-  awayLabel,
-  homeValue,
-  awayValue,
-}: {
-  title: string;
-  explanation: string;
-  homeLabel: string;
-  awayLabel: string;
-  homeValue: string;
-  awayValue: string;
-}) {
-  return (
-    <div className="rounded-xl border border-glass-border bg-surface/50 p-3">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{title}</p>
-      <p className="mt-1 text-[11px] leading-snug text-muted">{explanation}</p>
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <div>
-          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-primary">
-            {homeLabel}
-          </p>
-          <p className="mt-0.5 text-2xl font-bold tabular-nums text-primary">{homeValue}</p>
-        </div>
-        <div className="text-right">
-          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-accent">
-            {awayLabel}
-          </p>
-          <p className="mt-0.5 text-2xl font-bold tabular-nums text-accent">{awayValue}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function StyleMetricsCompare({
   homeLabel,
   awayLabel,
@@ -1367,24 +1207,74 @@ export function StyleMetricsCompare({
   homePpda: number | null;
   awayPpda: number | null;
 }) {
+  const possHome = homePossession ?? 0;
+  const possAway = awayPossession ?? 0;
+  const ppdaHome = homePpda ?? 0;
+  const ppdaAway = awayPpda ?? 0;
+  const possMax = Math.max(possHome, possAway, 1);
+  const ppdaMax = Math.max(ppdaHome, ppdaAway, 1);
+
+  const rows = [
+    {
+      label: "Possession",
+      home: possHome,
+      away: possAway,
+      homeDisplay: formatStyleMetric(homePossession, 0, "%"),
+      awayDisplay: formatStyleMetric(awayPossession, 0, "%"),
+      max: possMax,
+      lowerIsBetter: false,
+    },
+    {
+      label: "PPDA",
+      home: ppdaHome,
+      away: ppdaAway,
+      homeDisplay: formatStyleMetric(homePpda, 1),
+      awayDisplay: formatStyleMetric(awayPpda, 1),
+      max: ppdaMax,
+      lowerIsBetter: true,
+    },
+  ];
+
   return (
-    <div className="space-y-3">
-      <StyleMetricBlock
-        title="Possession"
-        explanation="Share of the ball over the season. Higher means the team typically controls more of the match."
-        homeLabel={homeLabel}
-        awayLabel={awayLabel}
-        homeValue={formatStyleMetric(homePossession, 0, "%")}
-        awayValue={formatStyleMetric(awayPossession, 0, "%")}
-      />
-      <StyleMetricBlock
-        title="PPDA"
-        explanation="Passes per defensive action: opponent passes allowed before a tackle, interception, or clearance. Lower means a more intense press."
-        homeLabel={homeLabel}
-        awayLabel={awayLabel}
-        homeValue={formatStyleMetric(homePpda, 1)}
-        awayValue={formatStyleMetric(awayPpda, 1)}
-      />
+    <div>
+      <div className="mb-1 flex items-center justify-between type-meta">
+        <span className="font-medium text-primary">{homeLabel}</span>
+        <span className="font-medium text-accent">{awayLabel}</span>
+      </div>
+      {rows.map((row) => {
+        const homeW = (row.home / row.max) * 100;
+        const awayW = (row.away / row.max) * 100;
+        return (
+          <div
+            key={row.label}
+            className="border-b border-glass-border/50 py-2.5 last:border-b-0"
+          >
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="w-14 tabular-nums font-semibold text-primary">
+                {row.homeDisplay}
+              </span>
+              <span className="font-medium text-foreground">{row.label}</span>
+              <span className="w-14 text-right tabular-nums font-semibold text-accent">
+                {row.awayDisplay}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              <div className="flex h-1.5 justify-end overflow-hidden rounded-l-full bg-foreground/10">
+                <div
+                  className="h-full rounded-l-full bg-primary"
+                  style={{ width: `${homeW}%` }}
+                />
+              </div>
+              <div className="flex h-1.5 overflow-hidden rounded-r-full bg-foreground/10">
+                <div
+                  className="h-full rounded-r-full bg-accent"
+                  style={{ width: `${awayW}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1441,10 +1331,10 @@ export function KpiMeter({
         ? "text-accent"
         : "text-foreground";
   return (
-    <div className="rounded-xl border border-glass-border bg-surface/60 px-3 py-3">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p className={`mt-1 text-lg font-semibold tabular-nums ${color}`}>{value}</p>
-      {hint ? <p className="mt-1 text-[11px] text-muted">{hint}</p> : null}
+    <div className="min-w-0">
+      <p className="type-meta truncate">{label}</p>
+      <p className={`mt-0.5 text-lg font-semibold tabular-nums ${color}`}>{value}</p>
+      {hint ? <p className="type-meta mt-0.5 truncate">{hint}</p> : null}
     </div>
   );
 }

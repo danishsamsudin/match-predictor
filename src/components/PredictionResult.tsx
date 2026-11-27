@@ -144,17 +144,15 @@ export function PredictionResultCard({
   }
 
   return (
-    <div className="liquid-glass-panel min-w-0 max-w-full overflow-hidden rounded-2xl sm:rounded-[2rem]">
-      <div className="h-0.5 bg-gradient-to-r from-indigo-500 via-cyan-500 to-violet-500 dark:from-cyan-400 dark:via-fuchsia-500 dark:to-violet-400" />
-
-      <div className="border-b border-white/30 px-4 py-4 dark:border-slate-800/60 sm:px-6">
+    <div className="min-w-0 max-w-full space-y-6">
+      <header className="border-b border-glass-border pb-4">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-on-gradient shadow-lg shadow-primary/25">
             <TrendingUp className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Prediction Results</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <h2 className="type-section-title">Prediction Results</h2>
+            <p className="type-meta">
               {homeLabel} vs {awayLabel}
             </p>
           </div>
@@ -179,144 +177,161 @@ export function PredictionResultCard({
             </span>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="min-w-0 space-y-6 p-4 sm:p-6">
-        {/* Match overview - club-style: 1X2 then key KPIs */}
-        <WinProbabilityBar
-          home={result.homeWinPct}
-          draw={result.drawPct}
-          away={result.awayWinPct}
-          homeLabel={homeLabel}
-          awayLabel={awayLabel}
-        />
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-5">
+        <div className="liquid-glass-panel space-y-4 rounded-2xl p-4 sm:p-5 lg:col-span-2">
+          <WinProbabilityBar
+            home={result.homeWinPct}
+            draw={result.drawPct}
+            away={result.awayWinPct}
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
+          />
 
-        <MatchOverviewKpis
-          homeLabel={homeLabel}
-          awayLabel={awayLabel}
-          homeXg={result.expectedGoals.home}
-          awayXg={result.expectedGoals.away}
-          homeWinPct={result.homeWinPct}
-          awayWinPct={result.awayWinPct}
-          over25Pct={
-            analytics?.overUnder.find((l) => l.line === 2.5)?.overPct ?? null
-          }
-          bttsYesPct={analytics?.btts.yesPct ?? null}
-        />
+          <MatchOverviewKpis
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
+            homeXg={result.expectedGoals.home}
+            awayXg={result.expectedGoals.away}
+            homeWinPct={result.homeWinPct}
+            awayWinPct={result.awayWinPct}
+            over25Pct={
+              analytics?.overUnder.find((l) => l.line === 2.5)?.overPct ?? null
+            }
+            bttsYesPct={analytics?.btts.yesPct ?? null}
+          />
+        </div>
 
         {!compact && teamComparison ? (
-          <TeamComparisonPanel comparison={teamComparison} />
+          <div className="lg:col-span-2">
+            <TeamComparisonPanel comparison={teamComparison} />
+          </div>
         ) : null}
 
         {!compact &&
         onRerunWithLineups &&
         result.lineupSource !== "model_xi" &&
         !(result.entityType === "national" && result.mode === "compare") ? (
-          <LineupWhatIfEditor
-            result={result}
-            onRerun={onRerunWithLineups}
-            loading={loading}
-          />
+          <div className="lg:col-span-2">
+            <LineupWhatIfEditor
+              result={result}
+              onRerun={onRerunWithLineups}
+              loading={loading}
+            />
+          </div>
         ) : null}
 
-        {/* Goal markets / AH charts / score matrix - before value board */}
         {!compact ? (
-          <PredictionCharts result={displayResult} nationsLeagueUi={nationsLeagueUi} />
+          <div className="lg:col-span-2">
+            <PredictionCharts result={displayResult} nationsLeagueUi={nationsLeagueUi} />
+          </div>
         ) : null}
 
         {!compact && result.firstTeamToScorePct ? (
-          <FirstTeamToScoreSection
-            fts={result.firstTeamToScorePct}
-            homeLabel={homeLabel}
-            awayLabel={awayLabel}
-          />
+          <div className="lg:col-span-2">
+            <FirstTeamToScoreSection
+              fts={result.firstTeamToScorePct}
+              homeLabel={homeLabel}
+              awayLabel={awayLabel}
+            />
+          </div>
         ) : null}
 
         {!compact && !nationsLeagueUi ? (
-        <div>
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary-emphasis">
-              <Target className="h-3.5 w-3.5" />
-            </span>
-            Estimated Match Stats
-            <InfoTip label="What are estimated match stats?">
-              Extra match events the model estimates (like corners or cards). These are rough
-              averages - real matches can vary a lot.
-            </InfoTip>
-          </h3>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatBox
-              label="Corners"
-              value={formatEstimatedStat("corners", result.estimated.corners)}
-              accent="primary"
-              small
-              info={<>A corner kick happens when the ball goes out past the goal line off a defender.</>}
-            />
-            <StatBox
-              label="Fouls"
-              value={formatEstimatedStat("fouls", result.estimated.fouls)}
-              accent="neutral"
-              small
-              info={<>Rule breaks that usually stop play (trips, pushes, handball, etc.).</>}
-            />
-            <StatBox
-              label="Yellow Cards"
-              value={formatEstimatedStat("yellowCards", result.estimated.yellowCards)}
-              accent="accent"
-              small
-              info={<>Warnings from the referee. Two yellow cards for a player becomes a red card.</>}
-            />
-            <StatBox
-              label="Red Cards"
-              value={formatEstimatedStat("redCards", result.estimated.redCards)}
-              accent="neutral"
-              small
-              info={<>A player is sent off and their team plays with fewer players.</>}
-            />
+          <div className="liquid-glass-panel rounded-2xl p-4 sm:p-5 lg:col-span-2">
+            <h3 className="type-label mb-3 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary-emphasis">
+                <Target className="h-3.5 w-3.5" />
+              </span>
+              Estimated Match Stats
+              <InfoTip label="What are estimated match stats?">
+                Extra match events the model estimates (like corners or cards). These are rough
+                averages - real matches can vary a lot.
+              </InfoTip>
+            </h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatBox
+                label="Corners"
+                value={formatEstimatedStat("corners", result.estimated.corners)}
+                accent="primary"
+                small
+                info={<>A corner kick happens when the ball goes out past the goal line off a defender.</>}
+              />
+              <StatBox
+                label="Fouls"
+                value={formatEstimatedStat("fouls", result.estimated.fouls)}
+                accent="neutral"
+                small
+                info={<>Rule breaks that usually stop play (trips, pushes, handball, etc.).</>}
+              />
+              <StatBox
+                label="Yellow Cards"
+                value={formatEstimatedStat("yellowCards", result.estimated.yellowCards)}
+                accent="accent"
+                small
+                info={<>Warnings from the referee. Two yellow cards for a player becomes a red card.</>}
+              />
+              <StatBox
+                label="Red Cards"
+                value={formatEstimatedStat("redCards", result.estimated.redCards)}
+                accent="neutral"
+                small
+                info={<>A player is sent off and their team plays with fewer players.</>}
+              />
+            </div>
           </div>
-        </div>
         ) : null}
 
         {!compact && playerProps ? (
-          <PlayerPropsPanel
-            props={playerProps}
-            homeLabel={homeLabel}
-            awayLabel={awayLabel}
-            matchKey={
-              matchKey ??
-              `${result.homeTeamName ?? "home"}-${result.awayTeamName ?? "away"}`
-            }
-          />
+          <div className="lg:col-span-2">
+            <PlayerPropsPanel
+              props={playerProps}
+              homeLabel={homeLabel}
+              awayLabel={awayLabel}
+              matchKey={
+                matchKey ??
+                `${result.homeTeamName ?? "home"}-${result.awayTeamName ?? "away"}`
+              }
+            />
+          </div>
         ) : null}
 
-        {/* Value board last among markets - matches club insights order */}
         {!compact && !nationsLeagueUi ? (
-          <MarketComparisonPanel result={displayResult} />
+          <div className="lg:col-span-2">
+            <MarketComparisonPanel result={displayResult} />
+          </div>
         ) : null}
         {!compact ? (
-          <NationalClubStyleOddsPanel
-            result={displayResult}
-            hideAsianHandicap={nationsLeagueUi}
-          />
+          <div className="lg:col-span-2">
+            <NationalClubStyleOddsPanel
+              result={displayResult}
+              hideAsianHandicap={nationsLeagueUi}
+            />
+          </div>
         ) : null}
 
         {!compact ? (
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowExplanation(!showExplanation)}
-            className="flex w-full items-center justify-between rounded-2xl border border-white/30 bg-white/20 px-4 py-3 text-sm font-medium transition hover:bg-white/40 dark:border-slate-800/60 dark:bg-slate-900/30 dark:hover:bg-slate-800/50"
-          >
-            <span className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent-emphasis">
-                <TrendingUp className="h-3.5 w-3.5" />
+          <div className="lg:col-span-2">
+            <button
+              type="button"
+              onClick={() => setShowExplanation(!showExplanation)}
+              className="flex w-full items-center justify-between rounded-2xl border border-glass-border bg-surface/60 px-4 py-3 text-sm font-medium transition hover:bg-surface"
+            >
+              <span className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent-emphasis">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                </span>
+                Analysis Breakdown
               </span>
-              Analysis Breakdown
-            </span>
-            {showExplanation ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
-          </button>
-          {showExplanation && <AnalysisBreakdown explanation={result.explanation} />}
-        </div>
+              {showExplanation ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
+            </button>
+            {showExplanation ? (
+              <div className="mt-3">
+                <AnalysisBreakdown explanation={result.explanation} />
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </div>

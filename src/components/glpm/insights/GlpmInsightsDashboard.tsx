@@ -1,7 +1,17 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { InsightCard } from "@/components/glpm/insights/InsightCard";
+import {
+  InsightCard,
+  InsightChapter,
+} from "@/components/glpm/insights/InsightCard";
+import {
+  CompareRow,
+  DataTable,
+  MetricStrip,
+  SectionTip,
+} from "@/components/glpm/insights/primitives";
+import { HtmlOddsUpload } from "@/components/value-opportunities/HtmlOddsUpload";
 import { useOddsAutoFill } from "@/components/value-opportunities/useOddsAutoFill";
 import type { OddsBookSource } from "@/lib/odds-api/types";
 import { isSupportedOddsLeague } from "@/lib/odds-api/config";
@@ -11,10 +21,7 @@ import {
   DomainCompareList,
   DoubleChanceList,
   DualRadarChart,
-  EdgeBars,
   FinishingCompare,
-  GroupedCompareBars,
-  KpiMeter,
   MatchupTugList,
   OutcomeBar,
   OuLadderBars,
@@ -23,9 +30,7 @@ import {
   TeamTotalsTable,
   type CxFactorStep,
 } from "@/components/glpm/insights/charts";
-import { InfoTip } from "@/components/ui/InfoTip";
 import type { GlpmCxPredictPayload } from "@/lib/glpm-cx/run-cx-predict";
-import { GLPM_CX_GLOSSARY, glossaryTipBody } from "@/lib/glpm-cx/glossary";
 import { fairOddsFromProb } from "@/lib/glpm/hub-prediction-map";
 import { PRIMARY_LABELS, PRIMARY_ORDER } from "@/lib/glpm/engine";
 import {
@@ -55,13 +60,21 @@ import {
   suggestValueAction,
   type ValueActionResult,
 } from "@/lib/value-opportunities/value-action";
-import { TIER_STYLES } from "@/components/value-opportunities/ValueOpportunityCells";
 import {
   ValueOpportunityFilters,
-  valueActionFilterEmptyMessage,
-  type ValueActionFilter,
+  valueFiltersEmptyMessage,
 } from "@/components/value-opportunities/ValueOpportunityFilters";
 import { ValueOpportunityRow } from "@/components/value-opportunities/ValueOpportunityRow";
+import {
+  VALUE_BOARD_COLS_BASIC,
+  VALUE_BOARD_COLS_CONF,
+  VALUE_BOARD_HEAD,
+} from "@/components/value-opportunities/value-board-layout";
+import {
+  DEFAULT_VALUE_FILTERS,
+  rowMatchesFilters,
+  type ValueOpportunityFiltersState,
+} from "@/lib/value-opportunities/row-filters";
 
 function pct(n: number): string {
   return `${(n * 100).toFixed(1)}%`;
@@ -98,20 +111,17 @@ function ScoreHeatmap({
     }
   }
   top.sort((x, y) => y.p - x.p);
-  const top5 = top.slice(0, 5);
-  const topMax = top5[0]?.p ?? 1e-9;
+  const topScores = top.slice(0, 8);
+  const topMax = topScores[0]?.p ?? 1e-9;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)] lg:items-start">
-      <div>
-        <p className="mb-2 text-[11px] text-muted">
-          Home goals down the side, away across the top.
-        </p>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-stretch">
+      <div className="min-w-0">
         <div className="table-h-scroll">
-          <table className="mx-auto border-collapse text-[10px] sm:text-xs">
+          <table className="w-full border-collapse text-[10px] sm:text-xs">
             <thead>
               <tr>
-                <th className="p-1 text-muted">
+                <th className="p-1 text-left text-muted">
                   {homeLabel.slice(0, 3)}\{awayLabel.slice(0, 3)}
                 </th>
                 {grid[0]?.map((_, a) => (
@@ -124,19 +134,21 @@ function ScoreHeatmap({
             <tbody>
               {grid.map((row, h) => (
                 <tr key={h}>
-                  <th className="p-1 font-medium tabular-nums text-muted">{h}</th>
+                  <th className="p-1 text-left font-medium tabular-nums text-muted">{h}</th>
                   {row.map((p, a) => {
                     const intensity = p / maxP;
                     return (
                       <td key={a} className="p-0.5" title={`${h}-${a}: ${pct(p)}`}>
                         <div
-                          className="flex h-8 w-8 items-center justify-center rounded-md tabular-nums sm:h-9 sm:w-9"
+                          className="flex aspect-square min-h-8 w-full items-center justify-center rounded-md tabular-nums sm:min-h-9"
                           style={{
                             backgroundColor: `color-mix(in srgb, var(--color-primary, #0ea5e9) ${Math.round(intensity * 85)}%, transparent)`,
                             color: intensity > 0.55 ? "white" : undefined,
                           }}
                         >
-                          {(p * 100).toFixed(1)}
+                          <span className="hidden sm:inline">
+                            {(p * 100).toFixed(1)}
+                          </span>
                         </div>
                       </td>
                     );
@@ -147,19 +159,20 @@ function ScoreHeatmap({
           </table>
         </div>
         {tailMass > 0.004 ? (
-          <p className="mt-2 text-center text-[11px] text-muted">
-            5+ goals on either side: {pct(tailMass)} combined
-          </p>
+          <p className="type-meta mt-2">5+ either side: {pct(tailMass)}</p>
         ) : null}
       </div>
-      <div className="rounded-2xl border border-glass-border bg-surface/50 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Most likely scorelines
+      <div className="flex min-h-0 min-w-0 flex-col">
+        <p className="type-meta mb-2 font-semibold uppercase tracking-wide">
+          Most likely
         </p>
-        <ol className="mt-3 space-y-2.5">
-          {top5.map((s, i) => (
-            <li key={`${s.h}-${s.a}`} className="flex items-center gap-3">
-              <span className="w-4 text-[11px] tabular-nums text-muted">{i + 1}</span>
+        <ol className="flex min-h-0 flex-1 flex-col">
+          {topScores.map((s, i) => (
+            <li
+              key={`${s.h}-${s.a}`}
+              className="flex flex-1 items-center gap-3 border-b border-glass-border/40 last:border-b-0"
+            >
+              <span className="w-4 type-meta tabular-nums">{i + 1}</span>
               <span className="w-12 text-sm font-bold tabular-nums text-foreground">
                 {s.h}-{s.a}
               </span>
@@ -169,7 +182,7 @@ function ScoreHeatmap({
                   style={{ width: `${(s.p / topMax) * 100}%` }}
                 />
               </div>
-              <span className="w-14 text-right text-xs font-medium tabular-nums">
+              <span className="w-14 text-right text-sm font-medium tabular-nums">
                 {pct(s.p)}
               </span>
             </li>
@@ -228,7 +241,14 @@ function ValueOpportunitiesPanel({
   const [book, setBook] = useState<Record<string, string>>({});
   const [bookSource, setBookSource] = useState<Record<string, OddsBookSource>>({});
   const [bankroll, setBankroll] = useState("100");
-  const [actionFilter, setActionFilter] = useState<ValueActionFilter>("all");
+  const [voFilters, setVoFilters] =
+    useState<ValueOpportunityFiltersState>(DEFAULT_VALUE_FILTERS);
+  const [htmlOverwrite, setHtmlOverwrite] = useState(true);
+  const [htmlWarnings, setHtmlWarnings] = useState<string[]>([]);
+  const [uploadBookLabel, setUploadBookLabel] = useState<string | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<string, boolean>
+  >({});
   const bankrollValue = Number(bankroll);
   const bankrollNum =
     Number.isFinite(bankrollValue) && bankrollValue > 0 ? bankrollValue : 100;
@@ -246,19 +266,42 @@ function ValueOpportunitiesPanel({
   const applyAutoFill = useCallback(
     (
       bookByRowId: Record<string, string>,
-      sourceByRowId: Record<string, OddsBookSource>
+      sourceByRowId: Record<string, OddsBookSource>,
+      opts?: { overwrite?: boolean }
     ) => {
-      setBook((prev) => ({ ...prev, ...bookByRowId }));
-      setBookSource((prev) => ({ ...prev, ...sourceByRowId }));
+      const overwrite = opts?.overwrite ?? false;
+      setBook((prevBook) => {
+        const nextBook = { ...prevBook };
+        const appliedIds: string[] = [];
+        for (const [id, price] of Object.entries(bookByRowId)) {
+          if (!overwrite && (prevBook[id] ?? "").trim()) continue;
+          nextBook[id] = price;
+          appliedIds.push(id);
+        }
+        if (appliedIds.length) {
+          setBookSource((prevSource) => {
+            const nextSource = { ...prevSource };
+            for (const id of appliedIds) {
+              if (sourceByRowId[id]) nextSource[id] = sourceByRowId[id];
+            }
+            return nextSource;
+          });
+        }
+        return nextBook;
+      });
     },
     []
   );
 
-  const oddsAutoFill = useOddsAutoFill({
+  useOddsAutoFill({
     leagueSmId: oddsLeagueSupported ? resolvedLeagueSmId : null,
     homeTeamName: homeLabel,
     awayTeamName: awayLabel,
-    onFill: applyAutoFill,
+    kickoffIso: payload.context.matchDate
+      ? `${payload.context.matchDate}T15:00:00Z`
+      : null,
+    onFill: (bookByRowId, sourceByRowId) =>
+      applyAutoFill(bookByRowId, sourceByRowId, { overwrite: false }),
     enabled: oddsLeagueSupported,
   });
 
@@ -455,119 +498,167 @@ function ValueOpportunitiesPanel({
     resolvedLeagueSmId,
   ]);
 
+  const totalRowCount = useMemo(
+    () => sections.reduce((n, section) => n + section.rows.length, 0),
+    [sections]
+  );
+
   const filteredSections = useMemo(() => {
-    if (!showConfidence || actionFilter === "all") return sections;
     return sections
       .map((section) => ({
         ...section,
-        rows: section.rows.filter((r) => r.action?.action === actionFilter),
+        rows: section.rows.filter((r) => rowMatchesFilters(r, voFilters)),
       }))
       .filter((section) => section.rows.length > 0);
-  }, [sections, showConfidence, actionFilter]);
+  }, [sections, voFilters]);
 
-  const edgeChart = filteredSections
-    .flatMap((s) => s.rows)
-    .filter((r) => (showConfidence ? r.histEdgePct : r.modelEdgePct) != null)
-    .map((r) => ({
-      market: r.market,
-      edgePct: (showConfidence ? r.histEdgePct : r.modelEdgePct) as number,
-    }));
+  const shownRowCount = useMemo(
+    () => filteredSections.reduce((n, section) => n + section.rows.length, 0),
+    [filteredSections]
+  );
 
   return (
-    <InsightCard
-      title="Value opportunities"
-      glossaryKey="valueEdge"
-      howToRead=""
-    >
-      {showConfidence ? (
-        <label className="mb-3 block w-full max-w-[10rem] space-y-1">
-          <span className="text-[10px] uppercase tracking-wide text-muted">Bankroll (€)</span>
-          <input
-            className="h-9 w-full rounded-lg border border-glass-border bg-surface px-2 py-1.5 text-sm tabular-nums"
-            inputMode="decimal"
-            value={bankroll}
-            onChange={(e) => setBankroll(e.target.value)}
-            aria-label="Bankroll in euros for Kelly stake"
-            placeholder="e.g. 100"
-          />
-        </label>
-      ) : null}
-
-      {showConfidence ? (
-        <div className="mb-3 flex flex-wrap gap-1.5 text-[11px] sm:gap-2">
-          {(
-            [
-              ["strong", "Strong"],
-              ["moderate", "Moderate"],
-              ["weak", "Weak"],
-              ["none", "None"],
-            ] as const
-          ).map(([tier, label]) => (
-            <span
-              key={tier}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium ring-1 ring-inset ${TIER_STYLES[tier].badge}`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${TIER_STYLES[tier].dot}`} />
-              {label}
-              <span className="hidden font-normal opacity-70 sm:inline">
-                · {TIER_STYLES[tier].label}
-              </span>
+    <div className="min-w-0 lg:col-span-2">
+      <SectionTip title="Value opportunities" glossaryKey="valueEdge" className="mb-3" />
+      <div className="mb-4 flex flex-col gap-3 border-b border-glass-border pb-4 lg:flex-row lg:items-end lg:justify-between">
+        {showConfidence ? (
+          <label className="block w-full max-w-[10rem] space-y-1">
+            <span className="type-meta font-semibold uppercase tracking-wide">
+              Bankroll (€)
             </span>
-          ))}
+            <input
+              className="h-9 w-full rounded-lg border border-glass-border bg-background px-2.5 text-sm tabular-nums"
+              inputMode="decimal"
+              value={bankroll}
+              onChange={(e) => setBankroll(e.target.value)}
+              aria-label="Bankroll in euros for Kelly stake"
+              placeholder="e.g. 100"
+            />
+            <span className="type-meta">
+              Stake € = Kelly % × {bankrollNum.toFixed(0)}
+            </span>
+          </label>
+        ) : (
+          <div />
+        )}
+        <div className="min-w-0 flex-1 lg:max-w-xl">
+          <HtmlOddsUpload
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
+            overwrite={htmlOverwrite}
+            onOverwriteChange={setHtmlOverwrite}
+            onFill={(bookByRowId, sourceByRowId, meta) => {
+              applyAutoFill(bookByRowId, sourceByRowId, {
+                overwrite: htmlOverwrite,
+              });
+              setHtmlWarnings(meta.warnings);
+              if (meta.bookmakerName) setUploadBookLabel(meta.bookmakerName);
+            }}
+          />
         </div>
-      ) : null}
-
-      <div className="mb-3">
-        <ValueOpportunityFilters
-          value={actionFilter}
-          onChange={setActionFilter}
-          showActionFilters={showConfidence}
-        />
       </div>
-
-      {edgeChart.length ? (
-        <div className="mb-1 overflow-x-auto">
-          <EdgeBars data={edgeChart} />
-        </div>
+      {htmlWarnings.length ? (
+        <ul className="mb-3 list-disc space-y-0.5 pl-4 type-meta text-amber-800 dark:text-amber-200">
+          {htmlWarnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
       ) : null}
 
-      <div className="mt-3 space-y-4">
+      <ValueOpportunityFilters
+        value={voFilters}
+        onChange={setVoFilters}
+        showConfidence={showConfidence}
+        shownCount={shownRowCount}
+        totalCount={totalRowCount}
+      />
+
+      <div className="space-y-5">
         {filteredSections.length === 0 ? (
-          <p className="py-4 text-sm text-muted">
-            {valueActionFilterEmptyMessage(actionFilter)}
+          <p className="type-body-muted py-6 text-center">
+            {valueFiltersEmptyMessage(voFilters)}
           </p>
         ) : (
-          filteredSections.map((section) => (
-            <section key={section.title} className="min-w-0">
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-                {section.title}
-              </p>
-              {section.hint ? (
-                <p className="mb-1.5 text-[11px] leading-snug text-muted">{section.hint}</p>
-              ) : null}
-              <div className="rounded-xl border border-glass-border/80 bg-surface/15 px-3">
-                {section.rows.map((r) => {
-                  const edgePct = showConfidence
-                    ? (r.histEdgePct ?? r.modelEdgePct)
-                    : r.modelEdgePct;
-                  return (
-                    <ValueOpportunityRow
-                      key={r.id}
-                      row={r}
-                      bookValue={book[r.id] ?? ""}
-                      bookSource={bookSource[r.id]}
-                      showConfidence={showConfidence}
-                      edgePct={edgePct}
-                      onBookChange={setBookOdds}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          ))
+          filteredSections.map((section) => {
+            const collapsed = Boolean(collapsedSections[section.title]);
+            return (
+              <section key={section.title} className="min-w-0">
+                <button
+                  type="button"
+                  aria-expanded={!collapsed}
+                  onClick={() =>
+                    setCollapsedSections((prev) => ({
+                      ...prev,
+                      [section.title]: !prev[section.title],
+                    }))
+                  }
+                  className="mb-2 flex w-full items-baseline justify-between gap-3 text-left"
+                >
+                  <span className="min-w-0">
+                    <span className="type-section-title block text-base">
+                      {section.title}
+                    </span>
+                    {section.hint && !collapsed ? (
+                      <span className="type-meta mt-0.5 block">{section.hint}</span>
+                    ) : null}
+                  </span>
+                  <span className="type-meta shrink-0">
+                    {collapsed ? `${section.rows.length} markets ▾` : "Hide ▴"}
+                  </span>
+                </button>
+                {!collapsed ? (
+                  <div>
+                    <div
+                      className={`${VALUE_BOARD_HEAD} ${
+                        showConfidence
+                          ? VALUE_BOARD_COLS_CONF
+                          : VALUE_BOARD_COLS_BASIC
+                      }`}
+                    >
+                      <span className="text-left">Market</span>
+                      <span className="text-right">Model</span>
+                      <span className="text-right">Fair</span>
+                      <span className="text-left">Book</span>
+                      {showConfidence ? (
+                        <>
+                          <span className="text-center">Confidence</span>
+                          <span className="text-right">Edge</span>
+                          <span className="text-left">Stake</span>
+                          <span className="text-center">Action</span>
+                        </>
+                      ) : (
+                        <span className="text-right">Edge</span>
+                      )}
+                    </div>
+                    {section.rows.map((r) => {
+                      const edgePct = showConfidence
+                        ? (r.histEdgePct ?? r.modelEdgePct)
+                        : r.modelEdgePct;
+                      const source = bookSource[r.id];
+                      return (
+                        <ValueOpportunityRow
+                          key={r.id}
+                          row={r}
+                          bookValue={book[r.id] ?? ""}
+                          bookSource={source}
+                          bookSourceLabel={
+                            source === "upload" ? uploadBookLabel : null
+                          }
+                          showConfidence={showConfidence}
+                          edgePct={edgePct}
+                          bankroll={bankrollNum}
+                          onBookChange={setBookOdds}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </section>
+            );
+          })
         )}
       </div>
-    </InsightCard>
+    </div>
   );
 }
 
@@ -785,18 +876,6 @@ export function GlpmInsightsDashboard({
     payload.apply.awayXg
   );
 
-  const vsStyleBars = [
-    ...payload.insights.homeVsStyle.slice(0, 4).map((r) => ({
-      name: `${homeLabel.slice(0, 3)} vs ${formatStyle(r.style)}`,
-      home: r.liftPct,
-      away: 0,
-    })),
-    ...payload.insights.awayVsStyle.slice(0, 4).map((r) => ({
-      name: `${awayLabel.slice(0, 3)} vs ${formatStyle(r.style)}`,
-      home: 0,
-      away: r.liftPct,
-    })),
-  ];
 
   const setPieceMissing =
     payload.insights.home.setPieceThreat == null &&
@@ -820,108 +899,81 @@ export function GlpmInsightsDashboard({
     payload.base.awayTeam.style?.avgPpda != null;
 
   return (
-    <div className="liquid-glass-panel min-w-0 max-w-full overflow-x-auto rounded-2xl sm:rounded-[2rem]">
-      <div className="border-b border-glass-border px-4 py-4 sm:px-6">
-        <h2 className="text-lg font-semibold text-foreground sm:text-xl">
-          {homeLabel} <span className="font-normal text-muted">vs</span> {awayLabel}
-        </h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          {useCx
-            ? "Includes rest, travel, weather, lineup, and recency form. Switch to the base model to ignore context."
-            : "Base ratings only. Switch to With context to include rest, travel, weather, lineup, and form."}
-        </p>
-        <div className="mt-3 flex gap-5 text-sm">
-          <button
-            type="button"
-            onClick={() => setUseCx(false)}
-            className={`border-b-2 pb-0.5 transition ${
-              !useCx
-                ? "border-foreground font-semibold text-foreground"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            Base model
-          </button>
-          <button
-            type="button"
-            onClick={() => setUseCx(true)}
-            className={`border-b-2 pb-0.5 transition ${
-              useCx
-                ? "border-foreground font-semibold text-foreground"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            With context
-          </button>
-        </div>
-      </div>
-
-      <div className="min-w-0 space-y-6 p-4 sm:p-6">
-        <InsightCard
-          title="Match overview"
-          glossaryKey="homeAwayXg"
-        >
-          <div className="space-y-4">
-            <OutcomeBar
-              home={markets.homeWin}
-              draw={markets.draw}
-              away={markets.awayWin}
-              homeLabel={homeLabel}
-              awayLabel={awayLabel}
-              homeTeamId={payload.base.homeTeam.smId}
-              awayTeamId={payload.base.awayTeam.smId}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <KpiMeter
-                label={`${homeLabel} xG`}
-                value={fmt(markets.homeXg)}
-                hint={
+    <div className="min-w-0 max-w-full space-y-6">
+      <InsightChapter title="Overview" glossaryKey="homeAwayXg">
+        <div className="min-w-0 space-y-5 lg:col-span-2">
+          <OutcomeBar
+            home={markets.homeWin}
+            draw={markets.draw}
+            away={markets.awayWin}
+            homeLabel={homeLabel}
+            awayLabel={awayLabel}
+            homeTeamId={payload.base.homeTeam.smId}
+            awayTeamId={payload.base.awayTeam.smId}
+          />
+          <div className="flex justify-center">
+            <div className="inline-flex shrink-0 rounded-full border border-glass-border bg-background/70 p-1">
+              <button
+                type="button"
+                onClick={() => setUseCx(false)}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
+                  !useCx
+                    ? "bg-foreground text-background"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                Base
+              </button>
+              <button
+                type="button"
+                onClick={() => setUseCx(true)}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                   useCx
-                    ? `Base ${fmt(payload.base.homeXg)} → CX`
-                    : "Frozen GLPM"
-                }
-                accent="primary"
-              />
-              <KpiMeter
-                label={`${awayLabel} xG`}
-                value={fmt(markets.awayXg)}
-                hint={
-                  useCx
-                    ? `Base ${fmt(payload.base.awayXg)} → CX`
-                    : "Frozen GLPM"
-                }
-                accent="accent"
-              />
-              <KpiMeter
-                label="Over 2.5"
-                value={pct(over25)}
-                hint="From this view's markets"
-              />
-              <KpiMeter label="BTTS yes" value={pct(markets.bttsYes)} />
-              <KpiMeter
-                label="Fair home"
-                value={oddsLabel(markets.homeWin) ?? "-"}
-                hint="1 / model %"
-              />
-              <KpiMeter
-                label="Fair away"
-                value={oddsLabel(markets.awayWin) ?? "-"}
-                hint="1 / model %"
-                accent="accent"
-              />
+                    ? "bg-foreground text-background"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                With context
+              </button>
             </div>
           </div>
-        </InsightCard>
-
-        {useCx ? (
-          <InsightCard title="How context changes xG" glossaryKey="xgWaterfall">
-            <CxFactorPanel
-              homeSteps={homeCxSteps}
-              awaySteps={awayCxSteps}
-              homeLabel={homeLabel}
-              awayLabel={awayLabel}
-            />
-            <div className="mt-4">
+          <MetricStrip
+            items={[
+              {
+                label: `${homeLabel} xG`,
+                value: fmt(markets.homeXg),
+                hint: useCx ? `Base ${fmt(payload.base.homeXg)}` : undefined,
+                accent: "primary",
+              },
+              {
+                label: `${awayLabel} xG`,
+                value: fmt(markets.awayXg),
+                hint: useCx ? `Base ${fmt(payload.base.awayXg)}` : undefined,
+                accent: "accent",
+              },
+              { label: "Over 2.5", value: pct(over25) },
+              { label: "BTTS yes", value: pct(markets.bttsYes) },
+              {
+                label: "Fair home",
+                value: oddsLabel(markets.homeWin) ?? "-",
+                accent: "primary",
+              },
+              {
+                label: "Fair away",
+                value: oddsLabel(markets.awayWin) ?? "-",
+                accent: "accent",
+              },
+            ]}
+          />
+          {useCx ? (
+            <div className="border-t border-glass-border pt-5">
+              <SectionTip title="Context" glossaryKey="xgWaterfall" className="mb-3" />
+              <CxFactorPanel
+                homeSteps={homeCxSteps}
+                awaySteps={awayCxSteps}
+                homeLabel={homeLabel}
+                awayLabel={awayLabel}
+              />
               <RestDaysCompare
                 homeDays={payload.context.homeRestDays}
                 awayDays={payload.context.awayRestDays}
@@ -932,324 +984,397 @@ export function GlpmInsightsDashboard({
                 estimated={payload.context.restIsEstimated ?? true}
               />
             </div>
-          </InsightCard>
-        ) : null}
+          ) : null}
+        </div>
+      </InsightChapter>
 
-        <InsightCard title="Primary ratings radar" glossaryKey="primaryRadar">
+      <InsightChapter title="Ratings" glossaryKey="primaryRadar">
+        <InsightCard title="Radar" glossaryKey="primaryRadar">
           <DualRadarChart data={radarData} homeLabel={homeLabel} awayLabel={awayLabel} />
         </InsightCard>
-
-        {domainGroups.length ? (
-          <InsightCard title="Domain breakdown" glossaryKey="domainBars">
-            <DomainCompareList
-              groups={domainGroups}
-              homeLabel={homeLabel}
-              awayLabel={awayLabel}
-            />
-            {hiddenDomains.length ? (
-              <p className="mt-3 text-[11px] text-muted">
-                Hidden (no trained signal): {hiddenDomains.join(", ")}.
-              </p>
-            ) : null}
-          </InsightCard>
-        ) : hiddenDomains.length ? (
-          <InsightCard title="Domain breakdown" glossaryKey="domainBars">
-            <p className="text-xs text-muted">
-              Sub-skill ratings for this pair are all at the shared 100 ceiling, so
-              there is nothing to compare yet.
-            </p>
-          </InsightCard>
-        ) : null}
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <InsightCard title="Set-piece matchup" glossaryKey="setPieceGauge">
-            {setPieceMissing || setPieceNoSignal ? (
-              <p className="text-xs text-muted">
-                Not available yet. Shot-level set-piece flags are missing, so every
-                club is scored the same 100. That is not a real matchup.
-              </p>
-            ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-xl border border-glass-border bg-surface/50 p-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                    Set-piece attack
-                  </p>
-                  <div className="mt-2 flex justify-between text-sm">
-                    <span className="text-primary">
-                      {homeLabel}{" "}
-                      <strong className="tabular-nums">
-                        {(payload.insights.home.setPieceThreat ?? 0).toFixed(1)}
-                      </strong>
-                    </span>
-                    <span className="text-accent">
-                      {awayLabel}{" "}
-                      <strong className="tabular-nums">
-                        {(payload.insights.away.setPieceThreat ?? 0).toFixed(1)}
-                      </strong>
-                    </span>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-glass-border bg-surface/50 p-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                    Set-piece defence
-                  </p>
-                  <div className="mt-2 flex justify-between text-sm">
-                    <span className="text-primary">
-                      {homeLabel}{" "}
-                      <strong className="tabular-nums">
-                        {(payload.insights.home.setPieceDefence ?? 0).toFixed(1)}
-                      </strong>
-                    </span>
-                    <span className="text-accent">
-                      {awayLabel}{" "}
-                      <strong className="tabular-nums">
-                        {(payload.insights.away.setPieceDefence ?? 0).toFixed(1)}
-                      </strong>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </InsightCard>
-
-          <InsightCard title="Style confrontation" glossaryKey="styleMatchup">
-            {hasStyleMetrics ? (
-              <StyleMetricsCompare
+        <InsightCard title="Domains" glossaryKey="domainBars">
+          {domainGroups.length ? (
+            <>
+              <DomainCompareList
+                groups={domainGroups}
                 homeLabel={homeLabel}
                 awayLabel={awayLabel}
-                homePossession={payload.base.homeTeam.style?.avgPossession ?? null}
-                awayPossession={payload.base.awayTeam.style?.avgPossession ?? null}
-                homePpda={payload.base.homeTeam.style?.avgPpda ?? null}
-                awayPpda={payload.base.awayTeam.style?.avgPpda ?? null}
               />
+              {hiddenDomains.length ? (
+                <p className="type-meta mt-2">
+                  Hidden: {hiddenDomains.join(", ")}.
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="type-meta">
+              {hiddenDomains.length
+                ? "All sub-skills at shared ceiling."
+                : "Domain ratings not available."}
+            </p>
+          )}
+        </InsightCard>
+      </InsightChapter>
+
+      <InsightChapter title="Matchup" glossaryKey="interactions">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <InsightCard title="Set pieces" glossaryKey="setPieceGauge">
+              {setPieceMissing || setPieceNoSignal ? (
+                <p className="type-meta">Set-piece ratings not differentiated yet.</p>
+              ) : (
+                <div>
+                  <div className="mb-1 flex items-center justify-between type-meta uppercase tracking-wide">
+                    <span className="font-medium text-primary">{homeLabel}</span>
+                    <span className="font-medium text-accent">{awayLabel}</span>
+                  </div>
+                  <CompareRow
+                    label="Attack"
+                    home={payload.insights.home.setPieceThreat ?? 0}
+                    away={payload.insights.away.setPieceThreat ?? 0}
+                    max={100}
+                  />
+                  <CompareRow
+                    label="Defence"
+                    home={payload.insights.home.setPieceDefence ?? 0}
+                    away={payload.insights.away.setPieceDefence ?? 0}
+                    max={100}
+                  />
+                  {(() => {
+                    const homeEdge =
+                      (payload.insights.home.setPieceThreat ?? 0) -
+                      (payload.insights.away.setPieceDefence ?? 0);
+                    const awayEdge =
+                      (payload.insights.away.setPieceThreat ?? 0) -
+                      (payload.insights.home.setPieceDefence ?? 0);
+                    return (
+                      <div className="mt-2 flex justify-between gap-3 type-meta uppercase tracking-wide">
+                        <span>
+                          Cross{" "}
+                          <span
+                            className={`font-semibold tabular-nums ${
+                              homeEdge >= 0 ? "text-primary" : "text-accent"
+                            }`}
+                          >
+                            {homeEdge >= 0 ? "+" : ""}
+                            {homeEdge.toFixed(1)}
+                          </span>
+                        </span>
+                        <span>
+                          Cross{" "}
+                          <span
+                            className={`font-semibold tabular-nums ${
+                              awayEdge >= 0 ? "text-accent" : "text-primary"
+                            }`}
+                          >
+                            {awayEdge >= 0 ? "+" : ""}
+                            {awayEdge.toFixed(1)}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </InsightCard>
+
+            <InsightCard title="Style" glossaryKey="styleMatchup">
+              {hasStyleMetrics ? (
+                <StyleMetricsCompare
+                  homeLabel={homeLabel}
+                  awayLabel={awayLabel}
+                  homePossession={
+                    payload.base.homeTeam.style?.avgPossession ?? null
+                  }
+                  awayPossession={
+                    payload.base.awayTeam.style?.avgPossession ?? null
+                  }
+                  homePpda={payload.base.homeTeam.style?.avgPpda ?? null}
+                  awayPpda={payload.base.awayTeam.style?.avgPpda ?? null}
+                />
+              ) : (
+                <p className="type-meta">Possession / PPDA not available.</p>
+              )}
+            </InsightCard>
+          </div>
+
+          <div className="border-t border-glass-border pt-5">
+            <InsightCard title="Interactions" glossaryKey="interactions">
+              <MatchupTugList
+                data={interactionData}
+                homeLabel={homeLabel}
+                awayLabel={awayLabel}
+              />
+            </InsightCard>
+          </div>
+
+          <div className="grid gap-6 border-t border-glass-border pt-5 lg:grid-cols-2">
+            {(payload.insights.homeVsStyle.length ||
+              payload.insights.awayVsStyle.length) ? (
+              <InsightCard title="Vs styles" glossaryKey="vsStyleLift">
+                <DataTable>
+                  <thead>
+                    <tr>
+                      <th className="pr-2 text-left">Style</th>
+                      <th className="px-2 text-right text-primary">{homeLabel}</th>
+                      <th className="px-2 text-right text-accent">{awayLabel}</th>
+                      <th className="pl-2 text-right">n</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from(
+                      new Set([
+                        ...payload.insights.homeVsStyle.map((r) => r.style),
+                        ...payload.insights.awayVsStyle.map((r) => r.style),
+                      ])
+                    )
+                      .slice(0, 6)
+                      .map((style) => {
+                        const h = payload.insights.homeVsStyle.find(
+                          (r) => r.style === style
+                        );
+                        const a = payload.insights.awayVsStyle.find(
+                          (r) => r.style === style
+                        );
+                        const n = Math.max(h?.n ?? 0, a?.n ?? 0);
+                        return (
+                          <tr key={style}>
+                            <td className="pr-2 text-left font-medium">
+                              {formatStyle(style)}
+                            </td>
+                            <td
+                              className={`px-2 text-right ${
+                                (h?.liftPct ?? 0) >= 0
+                                  ? "text-emerald-500"
+                                  : "text-rose-500"
+                              }`}
+                            >
+                              {h
+                                ? `${h.liftPct >= 0 ? "+" : ""}${h.liftPct}%`
+                                : "-"}
+                            </td>
+                            <td
+                              className={`px-2 text-right ${
+                                (a?.liftPct ?? 0) >= 0
+                                  ? "text-emerald-500"
+                                  : "text-rose-500"
+                              }`}
+                            >
+                              {a
+                                ? `${a.liftPct >= 0 ? "+" : ""}${a.liftPct}%`
+                                : "-"}
+                            </td>
+                            <td className="pl-2 text-right text-muted">
+                              {n || "-"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </DataTable>
+              </InsightCard>
             ) : (
-              <p className="text-xs text-muted">
-                Possession and PPDA were not on the match stats for this season.
-              </p>
+              <div />
             )}
-          </InsightCard>
-        </div>
 
-        <InsightCard title="Matchup interactions" glossaryKey="interactions">
-          <MatchupTugList
-            data={interactionData}
-            homeLabel={homeLabel}
-            awayLabel={awayLabel}
-          />
-        </InsightCard>
-
-        {vsStyleBars.length ? (
-          <InsightCard title="Historical lift vs opponent styles" glossaryKey="vsStyleLift">
-            <GroupedCompareBars
-              data={vsStyleBars}
-              homeLabel={`${homeLabel} lift %`}
-              awayLabel={`${awayLabel} lift %`}
-              valueSuffix="%"
-            />
-            <ul className="mt-2 space-y-1 text-[11px] text-muted">
-              {payload.insights.homeVsStyle.slice(0, 3).map((r) => (
-                <li key={`h-${r.style}`}>
-                  {homeLabel} vs {formatStyle(r.style)}: {r.liftPct >= 0 ? "+" : ""}
-                  {r.liftPct}% (n={r.n})
-                </li>
-              ))}
-              {payload.insights.awayVsStyle.slice(0, 3).map((r) => (
-                <li key={`a-${r.style}`}>
-                  {awayLabel} vs {formatStyle(r.style)}: {r.liftPct >= 0 ? "+" : ""}
-                  {r.liftPct}% (n={r.n})
-                </li>
-              ))}
-            </ul>
-          </InsightCard>
-        ) : null}
-
-        {payload.insights.homeFinishingDelta || payload.insights.awayFinishingDelta ? (
-          <InsightCard title="Finishing differential" glossaryKey="finishingDelta">
-            <FinishingCompare
-              home={payload.insights.homeFinishingDelta}
-              away={payload.insights.awayFinishingDelta}
-              homeLabel={homeLabel}
-              awayLabel={awayLabel}
-            />
-          </InsightCard>
-        ) : (
-          <InsightCard title="Finishing differential" glossaryKey="finishingDelta">
-            <p className="text-xs text-muted">
-              No season goals and xG are available for this pair yet. The Finishing
-              axis on the radar still reflects the trained rating.
-            </p>
-          </InsightCard>
-        )}
-
-        <InsightCard title="Goal markets" glossaryKey="overUnder">
-          <OuLadderBars data={ouData} />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:items-stretch">
-            <div className="rounded-xl border border-glass-border bg-surface/50 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                  BTTS
-                </p>
-                <InfoTip label={GLPM_CX_GLOSSARY.btts.label}>
-                  {glossaryTipBody("btts")}
-                </InfoTip>
-              </div>
-              <BttsPanel yes={markets.bttsYes} no={markets.bttsNo} />
+            <div className="space-y-5">
+              <InsightCard title="Finishing" glossaryKey="finishingDelta">
+                {payload.insights.homeFinishingDelta ||
+                payload.insights.awayFinishingDelta ? (
+                  <FinishingCompare
+                    home={payload.insights.homeFinishingDelta}
+                    away={payload.insights.awayFinishingDelta}
+                    homeLabel={homeLabel}
+                    awayLabel={awayLabel}
+                  />
+                ) : (
+                  <p className="type-meta">No season goals/xG yet.</p>
+                )}
+              </InsightCard>
+              <InsightCard title="Events" glossaryKey="cornersCards">
+                <MetricStrip
+                  columns={4}
+                  items={[
+                    {
+                      label: "Corners",
+                      value: fmt(payload.satellites.events.totalCorners, 1),
+                    },
+                    {
+                      label: "Home",
+                      value: fmt(payload.satellites.events.homeCorners, 1),
+                      accent: "primary",
+                    },
+                    {
+                      label: "Away",
+                      value: fmt(payload.satellites.events.awayCorners, 1),
+                      accent: "accent",
+                    },
+                    {
+                      label: "Yellows",
+                      value: fmt(payload.satellites.events.totalYellows, 1),
+                    },
+                  ]}
+                />
+              </InsightCard>
             </div>
-            <div className="rounded-xl border border-glass-border bg-surface/50 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-                  Double chance
-                </p>
-                <InfoTip label={GLPM_CX_GLOSSARY.doubleChance.label}>
-                  {glossaryTipBody("doubleChance")}
-                </InfoTip>
+          </div>
+        </div>
+      </InsightChapter>
+
+      <InsightChapter title="Markets" glossaryKey="overUnder">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
+            <div>
+              <SectionTip title="Goals O/U" glossaryKey="overUnder" className="mb-3" />
+              <OuLadderBars data={ouData} />
+            </div>
+            <div className="space-y-5">
+              <div>
+                <SectionTip title="BTTS" glossaryKey="btts" className="mb-3" />
+                <BttsPanel yes={markets.bttsYes} no={markets.bttsNo} />
               </div>
-              <DoubleChanceList
-                rows={[
-                  {
-                    code: "1X",
-                    label: "Home or draw",
-                    prob: payload.cx.derived.doubleChance.homeOrDraw,
-                  },
-                  {
-                    code: "12",
-                    label: "Either team wins",
-                    prob: payload.cx.derived.doubleChance.homeOrAway,
-                  },
-                  {
-                    code: "X2",
-                    label: "Draw or away",
-                    prob: payload.cx.derived.doubleChance.drawOrAway,
-                  },
-                ]}
+              <div>
+                <SectionTip
+                  title="Double chance"
+                  glossaryKey="doubleChance"
+                  className="mb-3"
+                />
+                <DoubleChanceList
+                  rows={[
+                    {
+                      code: "1X",
+                      label: "Home or draw",
+                      prob: payload.cx.derived.doubleChance.homeOrDraw,
+                    },
+                    {
+                      code: "12",
+                      label: "Either team wins",
+                      prob: payload.cx.derived.doubleChance.homeOrAway,
+                    },
+                    {
+                      code: "X2",
+                      label: "Draw or away",
+                      prob: payload.cx.derived.doubleChance.drawOrAway,
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-6 border-t border-glass-border pt-5 lg:grid-cols-2 lg:items-start">
+            <div className="min-w-0">
+              <SectionTip
+                title="Asian handicap"
+                glossaryKey="asianHandicap"
+                className="mb-3"
+              />
+              <DataTable>
+                <thead>
+                  <tr className="h-9">
+                    <th className="pr-2 text-left align-bottom">AH line</th>
+                    <th className="px-2 text-right align-bottom" colSpan={2}>
+                      Cover
+                    </th>
+                  </tr>
+                  <tr className="h-8">
+                    <th className="pr-2 text-left" />
+                    <th className="px-2 text-right">Home</th>
+                    <th className="pl-2 text-right">Away</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payload.cx.derived.asianHandicap.map((l) => (
+                    <tr key={l.line} className="h-10">
+                      <td className="pr-2 text-left font-medium">
+                        {l.line > 0 ? `+${l.line}` : l.line}
+                      </td>
+                      <td className="px-2 text-right">{pct(l.homeCover)}</td>
+                      <td className="pl-2 text-right">{pct(l.awayCover)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
+            </div>
+            <div className="min-w-0">
+              <SectionTip
+                title="Team totals"
+                glossaryKey="asianHandicap"
+                className="mb-3"
+              />
+              <TeamTotalsTable
+                rows={payload.cx.derived.teamTotals}
+                homeLabel={homeLabel}
+                awayLabel={awayLabel}
               />
             </div>
           </div>
-        </InsightCard>
 
-        <InsightCard title="Asian handicap & team totals" glossaryKey="asianHandicap">
-          <div className="table-h-scroll">
-            <table className="w-full min-w-[28rem] text-sm">
-              <thead>
-                <tr className="border-b border-glass-border text-[11px] font-medium uppercase tracking-wide text-muted">
-                  <th className="py-2 text-left font-medium">AH line</th>
-                  <th className="py-2 text-left font-medium">Home cover</th>
-                  <th className="py-2 text-left font-medium">Away cover</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payload.cx.derived.asianHandicap.map((l) => (
-                  <tr key={l.line} className="border-b border-glass-border/50">
-                    <td className="py-1.5 tabular-nums">
-                      {l.line > 0 ? `+${l.line}` : l.line}
-                    </td>
-                    <td className="py-1.5 tabular-nums">{pct(l.homeCover)}</td>
-                    <td className="py-1.5 tabular-nums">{pct(l.awayCover)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4">
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-              Team totals
-            </p>
-            <TeamTotalsTable
-              rows={payload.cx.derived.teamTotals}
+          <div className="border-t border-glass-border pt-5">
+            <SectionTip
+              title="Score matrix"
+              glossaryKey="scoreHeatmap"
+              className="mb-3"
+            />
+            <ScoreHeatmap
+              matrix={markets.scoreMatrix}
               homeLabel={homeLabel}
               awayLabel={awayLabel}
             />
           </div>
-        </InsightCard>
+        </div>
+      </InsightChapter>
 
-        <InsightCard title="Score probability matrix" glossaryKey="scoreHeatmap">
-          <ScoreHeatmap
-            matrix={markets.scoreMatrix}
-            homeLabel={homeLabel}
-            awayLabel={awayLabel}
-          />
-        </InsightCard>
-
+      <InsightChapter title="Value" glossaryKey="valueEdge">
         <ValueOpportunitiesPanel
           payload={payload}
           useCx={useCx}
           leagueSmId={leagueSmId}
         />
 
-        <InsightCard title="Corners & cards (satellite)" glossaryKey="cornersCards">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiMeter
-              label="Total corners"
-              value={fmt(payload.satellites.events.totalCorners, 1)}
-              hint={`${homeLabel} ${fmt(payload.satellites.events.homeCorners, 1)}`}
-            />
-            <KpiMeter
-              label="Away corners"
-              value={fmt(payload.satellites.events.awayCorners, 1)}
-              accent="accent"
-            />
-            <KpiMeter
-              label="Total yellows"
-              value={fmt(payload.satellites.events.totalYellows, 1)}
-            />
-            <KpiMeter
-              label="Reds (exp.)"
-              value={fmt(
-                payload.satellites.events.homeReds + payload.satellites.events.awayReds,
-                2
-              )}
-            />
-          </div>
-        </InsightCard>
-
         {payload.satellites.playerProps.lines.length ? (
-          <InsightCard title="Player shots props (satellite)" glossaryKey="playerProps">
-            <div className="table-h-scroll">
-              <table className="w-full min-w-[28rem] text-left text-sm sm:min-w-[36rem]">
-                <thead>
-                  <tr className="border-b border-glass-border text-[11px] uppercase text-muted">
-                    <th className="py-2 pr-2">Player</th>
-                    <th className="py-2 pr-2">Side</th>
-                    <th className="py-2 pr-2">Market</th>
-                    <th className="py-2 pr-2">Exp</th>
-                    <th className="py-2 pr-2">O0.5</th>
-                    <th className="py-2 pr-2">O1.5</th>
-                    <th className="py-2">O2.5</th>
+          <div className="min-w-0 lg:col-span-2">
+            <SectionTip
+              title="Player shots"
+              glossaryKey="playerProps"
+              className="mb-3"
+            />
+            <DataTable minWidth="28rem">
+              <thead>
+                <tr>
+                  <th className="pr-2 text-left">Player</th>
+                  <th className="pr-2 text-left">Side</th>
+                  <th className="pr-2 text-left">Market</th>
+                  <th className="pr-2 text-right">Exp.</th>
+                  <th className="pr-2 text-right">O0.5</th>
+                  <th className="pr-2 text-right">O1.5</th>
+                  <th className="text-right">O2.5</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payload.satellites.playerProps.lines.slice(0, 16).map((line) => (
+                  <tr key={`${line.playerSmId}-${line.market}`}>
+                    <td className="pr-2 text-left font-medium">{line.playerName}</td>
+                    <td className="pr-2 text-left text-muted">
+                      {line.side === "home" ? homeLabel : awayLabel}
+                    </td>
+                    <td className="pr-2 text-left">{line.market}</td>
+                    <td className="pr-2 text-right">{fmt(line.expected, 2)}</td>
+                    <td className="pr-2 text-right">{pct(line.pOver05)}</td>
+                    <td className="pr-2 text-right">{pct(line.pOver15)}</td>
+                    <td className="text-right">{pct(line.pOver25)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {payload.satellites.playerProps.lines.slice(0, 16).map((line) => (
-                    <tr
-                      key={`${line.playerSmId}-${line.market}`}
-                      className="border-b border-glass-border/50"
-                    >
-                      <td className="py-1.5 pr-2 font-medium">{line.playerName}</td>
-                      <td className="py-1.5 pr-2 capitalize text-muted">{line.side}</td>
-                      <td className="py-1.5 pr-2">{line.market}</td>
-                      <td className="py-1.5 pr-2 tabular-nums">{fmt(line.expected, 2)}</td>
-                      <td className="py-1.5 pr-2 tabular-nums">{pct(line.pOver05)}</td>
-                      <td className="py-1.5 pr-2 tabular-nums">{pct(line.pOver15)}</td>
-                      <td className="py-1.5 tabular-nums">{pct(line.pOver25)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </InsightCard>
+                ))}
+              </tbody>
+            </DataTable>
+          </div>
         ) : null}
+      </InsightChapter>
 
-        <InsightCard title="Season outrights (satellite)" glossaryKey="seasonSim">
-          <p className="text-xs text-muted">
-            Use <code className="text-[11px]">POST /api/glpm/season-sim</code> with remaining
-            fixtures and current standings. Simulations draw from GLPM or CX 1X2 probabilities and
-            never retrain rating engines.
-          </p>
-        </InsightCard>
-
-        <p className="text-center text-[11px] text-muted">
-          {useCx ? payload.cx.modelVersion : payload.base.predModelVersion}
-        </p>
-      </div>
+      <p className="type-meta text-center">
+        {useCx ? payload.cx.modelVersion : payload.base.predModelVersion}
+      </p>
     </div>
   );
 }
+

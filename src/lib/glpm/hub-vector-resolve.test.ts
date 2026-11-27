@@ -316,6 +316,15 @@ describe("hub-prediction-map", () => {
         2026
       )
     ).toBe("/predict?entity=club&mode=compare&home=11&away=22&matchSmId=99&seasonId=2026");
+    expect(
+      buildGlpmCompareHref(
+        { homeTeamSmId: 11, awayTeamSmId: 22, matchSmId: 99 },
+        2026,
+        8
+      )
+    ).toBe(
+      "/predict?entity=club&mode=compare&home=11&away=22&matchSmId=99&seasonId=2026&competitionId=8"
+    );
   });
 
   it("shortens season names to 26/27 style labels", () => {

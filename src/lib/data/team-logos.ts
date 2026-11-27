@@ -177,7 +177,11 @@ function logoLookupKeys(team: TeamOption): string[] {
   return [...keys];
 }
 
-/** Extra display-name aliases not always present in the generated manifest. */
+/**
+ * Extra display-name aliases not always present in the generated manifest.
+ * 9000xxx ids are local SportMonks-sourced PNGs for clubs missing from SofaScore
+ * logo pulls (promoted / newly listed 26/27 sides).
+ */
 const EXTRA_LOGO_NAME_TO_ID: Record<string, number> = {
   spurs: 33,
   "man utd": 35,
@@ -185,6 +189,26 @@ const EXTRA_LOGO_NAME_TO_ID: Record<string, number> = {
   psg: 1644,
   ajax: 2953,
   "afc ajax": 2953,
+  "cardiff city": 9000069,
+  cardiff: 9000069,
+  "bolton wanderers": 9000016,
+  bolton: 9000016,
+  "sc cambuur": 9001435,
+  cambuur: 9001435,
+  "willem ii": 9000669,
+  "ado den haag": 9001128,
+  "den haag": 9001128,
+  "lincoln city": 9000305,
+};
+
+/** Labels for EXTRA local logo ids (wrong-crest checks / tests). */
+const EXTRA_LOGO_ID_TO_NAME: Record<number, string> = {
+  9000069: "Cardiff City",
+  9000016: "Bolton Wanderers",
+  9001435: "SC Cambuur",
+  9000669: "Willem II",
+  9001128: "ADO Den Haag",
+  9000305: "Lincoln City",
 };
 
 function resolveLogoIdByName(team: TeamOption): number | null {
@@ -197,7 +221,7 @@ function resolveLogoIdByName(team: TeamOption): number | null {
 
 /** True when manifest label and display name refer to the same club. */
 function logoIdMatchesTeamName(logoId: number, team: TeamOption): boolean {
-  const expected = TEAM_LOGO_ID_TO_NAME[logoId];
+  const expected = TEAM_LOGO_ID_TO_NAME[logoId] ?? EXTRA_LOGO_ID_TO_NAME[logoId];
   if (!expected) return false;
   const expectedNorm = normalizeTeamNameKey(expected);
   if (!expectedNorm) return false;
@@ -217,7 +241,10 @@ function logoIdMatchesTeamName(logoId: number, team: TeamOption): boolean {
 export function resolveLogoIdForTeam(team: TeamOption): number | null {
   const byName = resolveLogoIdByName(team);
 
-  if (team.id && TEAM_LOGO_ID_TO_NAME[team.id]) {
+  if (
+    team.id &&
+    (TEAM_LOGO_ID_TO_NAME[team.id] || EXTRA_LOGO_ID_TO_NAME[team.id])
+  ) {
     if (logoIdMatchesTeamName(team.id, team)) return team.id;
     if (byName != null) return byName;
     return team.id;

@@ -184,7 +184,7 @@ function StandingsTable({
                   : String(row.goalDifference);
               const compareHref = `/predict?entity=club&mode=compare&home=${row.teamSmId}${
                 seasonId != null ? `&seasonId=${seasonId}` : ""
-              }`;
+              }${competitionId != null ? `&competitionId=${competitionId}` : ""}`;
               const zone = standingZoneForRank(row.rank, rows.length, zones);
               return (
                 <tr
@@ -243,7 +243,7 @@ export function HomeLeagueStandingsPanel({
   return (
     <div className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-bold text-foreground">League Standings</h2>
+        <h2 className="type-section-title">League Standings</h2>
         {active?.seasonName ? (
           <p className="text-xs text-muted">{active.seasonName}</p>
         ) : null}

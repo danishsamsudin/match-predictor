@@ -5,14 +5,15 @@ import { BRAND_NAME } from "@/lib/brand";
 import { getPricingPlan } from "@/lib/marketing/pricing";
 
 export const metadata: Metadata = {
-  title: "Sign up",
-  description: `Join the ${BRAND_NAME} waitlist.`,
+  title: "Request beta access",
+  description: `Request ${BRAND_NAME} beta access. Approval required before sign-in.`,
+  alternates: { canonical: "/signup" },
 };
 
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plan?: string }>;
+  searchParams: Promise<{ plan?: string; billing?: string }>;
 }) {
   const params = await searchParams;
   const plan = getPricingPlan(params.plan)?.id ?? null;

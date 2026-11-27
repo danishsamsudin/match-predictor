@@ -1,3 +1,4 @@
+import { PageShell } from "@/components/layout/PageShell";
 import { PageHero } from "@/components/match-predictor/PageHero";
 import { NlGroupMatrixGrid } from "@/components/nations-league/NlGroupMatrixGrid";
 import { NationsLeagueRefreshButton } from "@/components/nations-league/NationsLeagueRefreshButton";
@@ -22,13 +23,13 @@ export default async function NationsLeagueHubPage() {
 
   if (!payload) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-12">
+      <PageShell narrow>
         <PageHero
           eyebrow="UEFA Nations League 2026/27"
           title="Nations League hub"
           description="Hub data has not been computed yet. Run npm run nl:seed-fixtures, import form data, then Refresh hub data."
         />
-      </div>
+      </PageShell>
     );
   }
 
@@ -68,9 +69,10 @@ export default async function NationsLeagueHubPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <PageShell>
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageHero
+          className="mb-0 sm:mb-0"
           eyebrow="UEFA Nations League 2026/27"
           title="Nations League hub"
           description="League-phase tables and nl-graham-v1 lines. Prior NL cycles and WCQ form feed the model with lighter weights."
@@ -78,8 +80,8 @@ export default async function NationsLeagueHubPage() {
         <NationsLeagueRefreshButton />
       </div>
 
-      <section className="mb-12">
-        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">Group tables</h2>
+      <section className="mb-10">
+        <h2 className="type-section-title mb-3">Group tables</h2>
         <WorldCupSectionHelp title="Nations League groups">
           <p>
             Leagues A–D mini-groups. Emerald = promotion / finals path. Rose = relegation risk
@@ -89,8 +91,8 @@ export default async function NationsLeagueHubPage() {
         <NlGroupMatrixGrid groupMatrix={payload.groupMatrix} />
       </section>
 
-      <section className="mb-12">
-        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">Upcoming</h2>
+      <section className="mb-10">
+        <h2 className="type-section-title mb-3">Upcoming</h2>
         <WorldCupSectionHelp title="Model lines">
           <p>
             Predictions from nl-graham-v1 (Graham foundation with NL tier and cycle form weights).
@@ -101,9 +103,7 @@ export default async function NationsLeagueHubPage() {
 
       {payload.recent.length > 0 ? (
         <section>
-          <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">
-            Recent results
-          </h2>
+          <h2 className="type-section-title mb-3">Recent results</h2>
           <RecentResultsSection
             matches={payload.recent.map((m) => ({
               matchId: m.id,
@@ -119,9 +119,9 @@ export default async function NationsLeagueHubPage() {
         </section>
       ) : null}
 
-      <p className="mt-8 text-xs text-slate-400">
+      <p className="type-meta mt-8">
         Updated {new Date(payload.updatedAt).toLocaleString()} · {payload.competition}
       </p>
-    </div>
+    </PageShell>
   );
 }

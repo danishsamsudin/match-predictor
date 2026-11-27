@@ -8,6 +8,7 @@ import {
   HomeLiveScoresFallback,
   HomeLiveScoresSection,
 } from "@/components/glpm/HomeLiveScoresSection";
+import { PageShell } from "@/components/layout/PageShell";
 import { createServerClient, tryCreateServiceClient } from "@/lib/supabase";
 import { BRAND_HERO_EYEBROW, BRAND_HERO_SUBTITLE, BRAND_NAME } from "@/lib/brand";
 import { loadGlpmHubCatalogCached } from "@/lib/glpm/hub-catalog";
@@ -273,38 +274,35 @@ export default async function HomePage() {
         adjustedOverall: leader.overall * leagueOmega,
         teamSmId: leader.teamSmId,
         seasonId: rating?.season?.smId ?? null,
+        competitionId,
       }));
     })
     .sort((a, b) => b.adjustedOverall - a.adjustedOverall)
     .slice(0, 8);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <section className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-5 sm:rounded-[2rem] sm:p-10">
-        <div className="space-y-4">
-          <p className="page-hero-eyebrow text-xs font-bold uppercase text-indigo-600 dark:text-cyan-400">
-            {BRAND_HERO_EYEBROW}
-          </p>
-          <h1>
-            <BrandLogo size="hero" />
-          </h1>
-          <p className="max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
-            {BRAND_HERO_SUBTITLE}
-          </p>
-          <div className="flex flex-col gap-2.5 pt-2 min-[400px]:flex-row min-[400px]:flex-wrap">
-            <Link
-              href="/predict"
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-slate-950"
-            >
-              Go to Predict
-            </Link>
-            <Link
-              href="/league"
-              className="inline-flex min-h-11 items-center justify-center rounded-full border border-glass-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground"
-            >
-              Explore League xG
-            </Link>
-          </div>
+    <PageShell>
+      <section className="space-y-4 border-b border-glass-border pb-8">
+        <p className="page-hero-eyebrow type-meta font-bold uppercase text-indigo-600 dark:text-cyan-400">
+          {BRAND_HERO_EYEBROW}
+        </p>
+        <h1>
+          <BrandLogo size="hero" />
+        </h1>
+        <p className="type-body-muted max-w-3xl">{BRAND_HERO_SUBTITLE}</p>
+        <div className="flex flex-col gap-2.5 pt-1 min-[400px]:flex-row min-[400px]:flex-wrap">
+          <Link
+            href="/predict"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-slate-950"
+          >
+            Go to Predict
+          </Link>
+          <Link
+            href="/league"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-glass-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground"
+          >
+            Explore League xG
+          </Link>
         </div>
       </section>
 
@@ -314,27 +312,24 @@ export default async function HomePage() {
         </Suspense>
       </section>
 
-      <section className="mt-8">
+      <section className="mt-8 grid gap-5 lg:grid-cols-2 lg:items-start">
         <HomeLeagueFixturesPanel leagues={fixturesLeagues} />
-      </section>
-
-      <section className="mt-8">
         <HomeLeagueStandingsPanel leagues={standingsBlocks} />
       </section>
 
-      <section className="mt-10 grid gap-4 sm:grid-cols-2">
+      <section className="mt-8 grid gap-5 lg:grid-cols-2">
         <div className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="text-lg font-bold text-foreground">Top Teams Snapshot</h3>
-              <p className="mt-0.5 text-xs text-muted">
+              <h2 className="type-section-title">Top Teams Snapshot</h2>
+              <p className="type-meta mt-1">
                 Ranked by overall × league strength (Ω vs PL). Uses completed
                 rating seasons when the fixture season is still early.
               </p>
             </div>
             <Link
               href="/league"
-              className="shrink-0 text-xs font-semibold text-primary hover:underline"
+              className="type-meta shrink-0 font-semibold text-primary hover:underline"
             >
               League xG →
             </Link>
@@ -346,19 +341,19 @@ export default async function HomePage() {
                 className="flex items-center justify-between rounded-xl border border-glass-border bg-surface/60 px-3 py-2"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{item.team}</p>
-                  <p className="text-xs text-muted">
+                  <p className="type-label truncate">{item.team}</p>
+                  <p className="type-meta">
                     {item.league} · Ω {item.leagueOmega.toFixed(2)}×
                   </p>
                 </div>
                 <Link
-                  href={`/predict?entity=club&mode=compare&home=${item.teamSmId}${item.seasonId != null ? `&seasonId=${item.seasonId}` : ""}`}
+                  href={`/predict?entity=club&mode=compare&home=${item.teamSmId}${item.seasonId != null ? `&seasonId=${item.seasonId}` : ""}${item.competitionId != null ? `&competitionId=${item.competitionId}` : ""}`}
                   className="shrink-0 text-right"
                 >
-                  <p className="text-xs font-semibold text-primary hover:underline">
+                  <p className="type-meta font-semibold text-primary hover:underline">
                     {item.adjustedOverall.toFixed(1)}
                   </p>
-                  <p className="text-[10px] text-muted">
+                  <p className="type-meta">
                     {item.overall.toFixed(1)} raw
                   </p>
                 </Link>
@@ -369,8 +364,8 @@ export default async function HomePage() {
 
         <div className="liquid-glass-panel min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
           <div className="mb-3 flex items-start justify-between gap-3">
-            <h3 className="min-w-0 text-lg font-bold text-foreground">Recent Community Predictions</h3>
-            <Link href="/predictions" className="shrink-0 text-xs font-semibold text-primary hover:underline">
+            <h2 className="type-section-title min-w-0">Recent Community Predictions</h2>
+            <Link href="/predictions" className="type-meta shrink-0 font-semibold text-primary hover:underline">
               Open history →
             </Link>
           </div>
@@ -382,26 +377,26 @@ export default async function HomePage() {
                   href={item.href}
                   className="block rounded-xl border border-glass-border bg-surface/60 px-3 py-2.5"
                 >
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {item.homeTeamName} <span className="text-muted">vs</span> {item.awayTeamName}
+                  <p className="type-label truncate">
+                    {item.homeTeamName} <span className="font-normal text-muted">vs</span> {item.awayTeamName}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted">
+                  <p className="type-meta mt-0.5 truncate">
                     {item.homeWinPct}% / {item.drawPct}% / {item.awayWinPct}% · {item.kind.label}
                   </p>
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted">No recent predictions yet. Be the first to generate one.</p>
+            <p className="type-body-muted">No recent predictions yet. Be the first to generate one.</p>
           )}
         </div>
       </section>
 
       {updatedAt ? (
-        <p className="mt-8 text-center text-xs text-muted">
+        <p className="type-meta mt-8 text-center">
           Model snapshot updated {new Date(updatedAt).toLocaleString()}
         </p>
       ) : null}
-    </div>
+    </PageShell>
   );
 }

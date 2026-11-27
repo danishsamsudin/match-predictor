@@ -1,7 +1,7 @@
 /** Bookmaker keys we request from The Odds API (EU). */
 export type OddsBookmakerKey = "pinnacle" | "unibet_nl" | "unibet";
 
-export type OddsBookSource = "pinnacle" | "unibet";
+export type OddsBookSource = "pinnacle" | "unibet" | "upload";
 
 export type OddsApiOutcome = {
   name: string;

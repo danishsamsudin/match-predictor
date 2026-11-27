@@ -11,6 +11,23 @@ import {
 } from "@/lib/data/team-logos";
 
 describe("team-logos", () => {
+  it("resolves promoted 26/27 clubs via EXTRA aliases to local SportMonks PNGs", () => {
+    const cases = [
+      { name: "Cardiff City", id: 9000069 },
+      { name: "Bolton Wanderers", id: 9000016 },
+      { name: "SC Cambuur", id: 9001435 },
+      { name: "Willem II", id: 9000669 },
+      { name: "ADO Den Haag", id: 9001128 },
+      { name: "Lincoln City", id: 9000305 },
+    ] as const;
+    for (const c of cases) {
+      const logo = resolveTeamLogo({ id: 1, name: c.name });
+      expect(logo).toBe(`/team-logos/${c.id}.png`);
+      const file = path.join(process.cwd(), "public", logo.replace(/^\//, ""));
+      expect(fs.existsSync(file)).toBe(true);
+    }
+  });
+
   it("detects legally square national flags", () => {
     expect(isSquareNationalFlag("Switzerland")).toBe(true);
     expect(isSquareNationalFlag("Brazil")).toBe(false);

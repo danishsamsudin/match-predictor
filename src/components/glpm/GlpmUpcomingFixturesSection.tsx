@@ -79,10 +79,12 @@ function MatchWeather({ weather }: { weather: GlpmHubWeather | null }) {
 export function GlpmUpcomingFlipCard({
   match,
   seasonId,
+  competitionId,
   dayTone = 0,
 }: {
   match: GlpmHubUpcomingMatch;
   seasonId?: number | null;
+  competitionId?: number | null;
   /** 0 = first match day (primary), 1 = second (accent) - used for rail day accents. */
   dayTone?: 0 | 1;
 }) {
@@ -305,7 +307,7 @@ export function GlpmUpcomingFlipCard({
               Flip back
             </button>
             <Link
-              href={buildGlpmCompareHref(match, seasonId)}
+              href={buildGlpmCompareHref(match, seasonId, competitionId)}
               className="rounded-full bg-slate-950 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 dark:bg-white dark:text-slate-950"
             >
               Open compare
@@ -320,9 +322,11 @@ export function GlpmUpcomingFlipCard({
 export function GlpmUpcomingFixturesSection({
   matches,
   seasonId,
+  competitionId,
 }: {
   matches: GlpmHubUpcomingMatch[];
   seasonId?: number | null;
+  competitionId?: number | null;
 }) {
   if (!matches.length) {
     return (
@@ -335,7 +339,12 @@ export function GlpmUpcomingFixturesSection({
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {matches.map((m) => (
-        <GlpmUpcomingFlipCard key={m.matchSmId} match={m} seasonId={seasonId} />
+        <GlpmUpcomingFlipCard
+          key={m.matchSmId}
+          match={m}
+          seasonId={seasonId}
+          competitionId={competitionId}
+        />
       ))}
     </div>
   );

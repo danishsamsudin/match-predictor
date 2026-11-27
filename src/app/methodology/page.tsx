@@ -6,8 +6,11 @@ import { BRAND_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Methodology",
-  description: `How ${BRAND_NAME} league models turn club context into market probabilities.`,
+  description: `How ${BRAND_NAME} league models turn club context into market probabilities and Value Opportunities.`,
+  alternates: { canonical: "/methodology" },
 };
+
+export const revalidate = 3600;
 
 const INPUTS = [
   {
@@ -20,11 +23,15 @@ const INPUTS = [
   },
   {
     title: "Match conditions",
-    body: "Weather and broader match context (rest, travel-style factors where available) refine expected game state - never as a single magic knob.",
+    body: "Weather and broader match context refine expected game state - never as a single magic knob.",
   },
   {
     title: "Competition strength",
     body: "League-level strength framing keeps ratings comparable across competitions without pretending every league is identical.",
+  },
+  {
+    title: "Odds context",
+    body: "Book prices and sharp-book references inform fair-odds compare and Value Opportunities - they do not replace the model score story.",
   },
 ];
 
@@ -39,12 +46,19 @@ const OUTPUTS = [
   },
   {
     title: "Market probabilities",
-    body: "1X2, BTTS, O/U, and related lines are derived from that distribution - research percentages, not tips.",
+    body: "1X2, BTTS, O/U, handicaps, and related lines are derived from that distribution - research percentages, not tips.",
   },
   {
-    title: "Fair-odds views",
-    body: "Model probabilities can be shown as fair decimal prices so you can compare them to bookmaker odds you enter.",
+    title: "Fair-odds & Value Opportunities",
+    body: "Model probabilities become fair decimal prices. Confidence tiers, edge context, and Kelly-style stake language help you triage lines - still research-only.",
   },
+];
+
+const VO_POINTS = [
+  "Confidence tiers calibrated from locked historical evaluations (Strong / Moderate / Weak / None style language).",
+  "Edge vs book when prices are available - informational, not a stake order.",
+  "Fractional Kelly-style sizing language with bankroll caps - you decide whether to act.",
+  "Bet / Watch / Pass actions as a triage filter, not advice to wager.",
 ];
 
 export default function MethodologyPage() {
@@ -53,7 +67,7 @@ export default function MethodologyPage() {
       <SectionHeading
         eyebrow="Methodology"
         title="League models, explained without the secret sauce."
-        description={`${BRAND_NAME} club models (GLPM family) turn league match context into probabilities. We describe categories of inputs and outputs - not weights, coefficients, or training recipes.`}
+        description={`${BRAND_NAME} club models turn league match context into probabilities. We describe categories of inputs and outputs - not weights, coefficients, or training recipes.`}
       />
 
       <DisclaimerBanner className="mt-8">
@@ -67,7 +81,7 @@ export default function MethodologyPage() {
         <ol className="mt-6 grid gap-4 sm:grid-cols-4">
           {["Ratings", "xG-style estimates", "Score distribution", "Market probs"].map(
             (step, index) => (
-              <li key={step} className="liquid-glass-panel rounded-2xl p-5 text-center">
+              <li key={step} className="border-l-2 border-primary/40 pl-4 sm:border-l-0 sm:pl-0 sm:text-center">
                 <p className="text-xs font-bold uppercase tracking-widest text-primary">
                   {index + 1}
                 </p>
@@ -80,9 +94,9 @@ export default function MethodologyPage() {
 
       <section className="mt-12">
         <h2 className="text-2xl font-bold text-foreground">What goes in</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="mt-6 grid gap-6 sm:grid-cols-2">
           {INPUTS.map((item) => (
-            <article key={item.title} className="liquid-glass-panel rounded-2xl p-5">
+            <article key={item.title} className="border-l-2 border-primary/40 pl-4">
               <h3 className="text-lg font-bold text-foreground">{item.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                 {item.body}
@@ -94,9 +108,9 @@ export default function MethodologyPage() {
 
       <section className="mt-12">
         <h2 className="text-2xl font-bold text-foreground">What comes out</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="mt-6 grid gap-6 sm:grid-cols-2">
           {OUTPUTS.map((item) => (
-            <article key={item.title} className="liquid-glass-panel rounded-2xl p-5">
+            <article key={item.title} className="border-l-2 border-primary/40 pl-4">
               <h3 className="text-lg font-bold text-foreground">{item.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                 {item.body}
@@ -106,7 +120,23 @@ export default function MethodologyPage() {
         </div>
       </section>
 
-      <section className="liquid-glass-panel mt-12 rounded-2xl p-6">
+      <section className="mt-12">
+        <h2 className="text-2xl font-bold text-foreground">Value Opportunities (no formulas)</h2>
+        <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-400">
+          We publish what the layer includes - not the equations. Exact shrink factors, thresholds,
+          and calibration knobs stay private.
+        </p>
+        <ul className="mt-6 space-y-3">
+          {VO_POINTS.map((point) => (
+            <li key={point} className="flex gap-3 text-sm text-slate-700 dark:text-slate-300">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-12 border-t border-glass-border pt-8">
         <h2 className="text-lg font-bold text-foreground">What we do not publish</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
           Exact feature weights, proprietary coefficients, training recipes, and internal
@@ -121,6 +151,12 @@ export default function MethodologyPage() {
           className="rounded-full border border-glass-border bg-surface px-5 py-2.5 text-sm font-semibold"
         >
           See features
+        </Link>
+        <Link
+          href="/sources"
+          className="rounded-full border border-glass-border bg-surface px-5 py-2.5 text-sm font-semibold"
+        >
+          Data sources
         </Link>
         <Link
           href="/disclaimer"

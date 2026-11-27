@@ -1,169 +1,106 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DisclaimerBanner } from "@/components/marketing/DisclaimerBanner";
+import { LeaguePerformanceTable } from "@/components/marketing/LeaguePerformanceTable";
+import { MarketingCta } from "@/components/marketing/MarketingCta";
 import { MarketingHero } from "@/components/marketing/MarketingHero";
 import { PricingCards } from "@/components/marketing/PricingCards";
+import { ProductPreview } from "@/components/marketing/ProductPreview";
 import { SectionHeading } from "@/components/marketing/SectionHeading";
 import { BRAND_NAME } from "@/lib/brand";
 import {
+  COVERAGE_LEAGUES,
+  DATA_STACK_TEASER,
   LANDING_PROOF_PRIMARY,
   LANDING_PROOF_SECONDARY,
-  PROOF_LEGAL_NOTE,
-  VALIDATION_METRICS,
 } from "@/lib/marketing/copy";
 
 export const metadata: Metadata = {
   title: `${BRAND_NAME} - Dynamic match intelligence`,
   description:
-    "Win probabilities, expected goals, and market lines from club form, lineups, weather, and history.",
+    "Research win probabilities, expected goals, fair odds, and Value Opportunities across Premier League, Eredivisie, Serie A, Bundesliga, and Championship.",
+  alternates: { canonical: "/" },
 };
 
-const PIPELINE = [
-  {
-    title: "Club context in",
-    body: "Form, lineups, weather, and historical results feed the league models before a fixture is priced.",
-  },
-  {
-    title: "Ratings to xG-style estimates",
-    body: "Team strength signals become expected goals style estimates - research numbers, not guarantees.",
-  },
-  {
-    title: "Score distributions",
-    body: "Those estimates expand into score matrices so markets share one coherent probability story.",
-  },
-  {
-    title: "Market lines out",
-    body: "1X2, BTTS, O/U, and related lines surface as model probabilities and fair-odds style views.",
-  },
-];
-
-const MARKETS = ["1X2", "BTTS", "O/U", "Handicaps", "Fair odds", "+EV compare"];
+export const revalidate = 3600;
 
 export default function LandingPage() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-12">
       <MarketingHero />
 
-      <section className="marketing-reveal marketing-reveal-delay-1 mt-16">
-        <SectionHeading
-          eyebrow="What it is"
-          title="Football research that speaks market language."
-          description={`${BRAND_NAME} turns club match context into win probabilities, expected goals style estimates, and market lines you can compare against book prices - for entertainment and research, not advice.`}
-        />
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              title: "Clear probabilities",
-              body: "Home / draw / away and related markets in one read, without tipster theatrics.",
-            },
-            {
-              title: "League-native models",
-              body: "Built around club competitions and the weekly fixture grind you actually price.",
-            },
-            {
-              title: "Edge workflow",
-              body: "Paste decimal odds, compare fair lines, and see where the model disagrees with the book.",
-            },
-          ].map((card) => (
-            <article key={card.title} className="liquid-glass-panel rounded-2xl p-5">
-              <h3 className="text-lg font-bold text-foreground">{card.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                {card.body}
-              </p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="marketing-reveal marketing-reveal-delay-2 mt-16">
-        <SectionHeading
-          eyebrow="How intel is built"
-          title="From match context to market probabilities."
-          description="High-level pipeline only - no secret weights. League models consume club signals and publish research estimates."
-        />
-        <ol className="mt-8 grid gap-4 sm:grid-cols-2">
-          {PIPELINE.map((step, index) => (
-            <li key={step.title} className="liquid-glass-panel rounded-2xl p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-primary">
-                Step {index + 1}
-              </p>
-              <h3 className="mt-2 text-lg font-bold text-foreground">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                {step.body}
-              </p>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-4">
-          <Link
-            href="/methodology"
-            className="text-sm font-semibold text-primary hover:underline"
-          >
-            Read the methodology →
-          </Link>
-        </div>
-      </section>
-
-      <section className="mt-16">
-        <SectionHeading
-          eyebrow="Markets"
-          title="Lines built for how you actually research."
-          align="left"
-        />
-        <div className="mt-6 flex flex-wrap gap-2">
-          {MARKETS.map((market) => (
+      <section
+        className="marketing-reveal marketing-reveal-delay-1 mt-10 sm:mt-14"
+        aria-labelledby="coverage-heading"
+      >
+        <h2 id="coverage-heading" className="sr-only">
+          League coverage
+        </h2>
+        <div className="flex flex-wrap justify-center gap-2">
+          {COVERAGE_LEAGUES.map((league) => (
             <span
-              key={market}
-              className="rounded-full border border-glass-border bg-surface px-4 py-2 text-sm font-semibold text-foreground"
+              key={league}
+              className="glass-chip rounded-full px-3 py-1.5 text-xs font-semibold text-foreground sm:px-4 sm:py-2 sm:text-sm"
             >
-              {market}
+              {league}
             </span>
           ))}
         </div>
-        <DisclaimerBanner className="mt-6" />
       </section>
 
-      <section className="marketing-reveal mt-16">
+      <section className="marketing-reveal marketing-reveal-delay-2 mt-12 sm:mt-16">
         <SectionHeading
-          eyebrow="In the numbers"
-          title="A realistic sample - not a promise."
-          description={LANDING_PROOF_PRIMARY}
+          eyebrow="Product"
+          title="Research cards built for how you price games."
+          description="Probabilities, fair odds, and Value Opportunities in one workflow - without tipster theatrics."
         />
-        <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
-          {LANDING_PROOF_SECONDARY}
-        </p>
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {VALIDATION_METRICS.map((metric) => (
-            <article
-              key={metric.label}
-              className="metric-tile liquid-glass-panel rounded-2xl border border-glass-border p-4"
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted">
-                {metric.label}
-              </p>
-              <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{metric.value}</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                {metric.detail}
-              </p>
-            </article>
-          ))}
+        <div className="mt-6 sm:mt-8">
+          <ProductPreview />
         </div>
-        <DisclaimerBanner className="mt-6">
-          {PROOF_LEGAL_NOTE}{" "}
-          <Link href="/disclaimer" className="font-semibold underline underline-offset-2">
-            Full disclaimer
-          </Link>
-          .
-        </DisclaimerBanner>
       </section>
 
-      <section className="mt-16">
+      <section className="marketing-reveal mt-12 sm:mt-16">
+        <SectionHeading
+          eyebrow="Performance"
+          title="League model reliability."
+          description={`${LANDING_PROOF_PRIMARY} ${LANDING_PROOF_SECONDARY}`}
+        />
+        <LeaguePerformanceTable />
+      </section>
+
+      <section className="mt-12 sm:mt-16">
+        <SectionHeading
+          eyebrow="Data"
+          title="Where the numbers come from."
+          description="We combine match feeds, odds, xG overlays, and weather so every card sits on transparent inputs."
+        />
+        <ul className="mt-6 grid gap-5 sm:mt-8 sm:grid-cols-2 sm:gap-6">
+          {DATA_STACK_TEASER.map((item) => (
+            <li key={item.name} className="border-l-2 border-primary/40 pl-4">
+              <h3 className="text-base font-bold text-foreground">{item.name}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                {item.detail}
+              </p>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-6 text-sm">
+          <Link
+            href="/sources"
+            className="inline-flex min-h-11 items-center font-semibold text-primary hover:underline"
+          >
+            Full data sources →
+          </Link>
+        </p>
+      </section>
+
+      <section className="mt-12 sm:mt-16">
         <SectionHeading
           eyebrow="Pricing"
-          title="Three paid tiers. Fourteen-day trial on the waitlist."
-          description="No free plan. Start with Pulse for core intel, Edge for the full league workflow, or Oracle when AI research chat opens."
+          title="Beta access. Monthly or annual."
+          description="Pulse, Edge, and Oracle - request access, get approved, then research. No free plan."
         />
-        <div className="mt-8">
+        <div className="mt-6 sm:mt-8">
           <PricingCards />
         </div>
         <p className="mt-4 text-center text-sm text-muted">
@@ -175,24 +112,21 @@ export default function LandingPage() {
         </p>
       </section>
 
-      <section className="liquid-glass-panel mt-16 rounded-[2rem] px-6 py-12 text-center sm:px-10">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground">Ready to research cleaner?</h2>
+      <section className="mt-12 border-t border-glass-border pt-10 text-center sm:mt-16 sm:pt-12">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Request beta access
+        </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-slate-600 dark:text-slate-400">
-          Join the waitlist for a 14-day trial when tiers open, or sign in if you already have access.
+          Sign up, wait for approval, then sign in. Access is invite-gated while we scale the
+          five-league research platform.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link
-            href="/signup"
-            className="chromatic-cta rounded-full bg-slate-950 px-6 py-3 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
-          >
-            Join waitlist
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-full border border-glass-border bg-surface px-6 py-3 text-sm font-semibold"
-          >
+        <div className="mt-6 flex w-full flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <MarketingCta href="/signup" className="w-full sm:w-auto">
+            Request beta access
+          </MarketingCta>
+          <MarketingCta href="/login" variant="secondary" className="w-full sm:w-auto">
             Sign in
-          </Link>
+          </MarketingCta>
         </div>
         <DisclaimerBanner className="mx-auto mt-8 max-w-xl text-left sm:text-center" />
       </section>

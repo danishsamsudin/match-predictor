@@ -605,55 +605,6 @@ export async function runGlpmCxPredict(
     overUnder: base.overUnder,
   });
 
-  let predictionId: string | null = null;
-  if (input.persist !== false) {
-    const { data, error } = await client
-      .from("glpm_cx_prediction_history")
-      .insert({
-        match_sm_id: input.matchSmId ?? null,
-        home_team_sm_id: input.homeTeamSmId,
-        away_team_sm_id: input.awayTeamSmId,
-        season_id: seasonId,
-        base_home_xg: base.homeXg,
-        base_away_xg: base.awayXg,
-        home_xg: cx.homeXg,
-        away_xg: cx.awayXg,
-        home_win_pct: cx.homeWin,
-        draw_pct: cx.draw,
-        away_win_pct: cx.awayWin,
-        btts_yes_pct: cx.bttsYes,
-        btts_no_pct: cx.bttsNo,
-        over_under: cx.overUnder,
-        score_matrix: cx.scoreMatrix,
-        breakdown: {
-          apply,
-          form,
-          context,
-          lineup,
-          statsSeasonId,
-          eventMlActive: events.mlActive,
-          /** Locked shot/SoT market probs for post-match confidence learning. */
-          shotMarkets: {
-            homeShots: shots.homeShots,
-            awayShots: shots.awayShots,
-            totalShots: shots.totalShots,
-            homeSot: shots.homeSot,
-            awaySot: shots.awaySot,
-            totalSot: shots.totalSot,
-            shotsOverUnder: shots.shotsOverUnder,
-            sotOver: shots.sotOver,
-            source: shots.source,
-            mlActive: shots.mlActive,
-          },
-        },
-        model_version: CX_MODEL_VERSION,
-        executed_at: new Date().toISOString(),
-      })
-      .select("id")
-      .maybeSingle();
-    if (!error && data?.id) predictionId = String(data.id);
-  }
-
   let confidenceLayer: ConfidenceLayerConfig | null = null;
   // Prefer the early competitionId; if the caller omitted seasonId, fall back to
   // the effective season used for the prediction so VO confidence still attaches.
@@ -678,7 +629,7 @@ export async function runGlpmCxPredict(
     }
   }
 
-  return {
+  const payload: GlpmCxPredictPayload = {
     base: {
       ...base,
       // keep base payload untouched in meaning; derived is only on cx
@@ -724,9 +675,86 @@ export async function runGlpmCxPredict(
       body: "GLPM-CX builds on frozen GLPM base ratings and xG. Rest, travel, altitude, weather, lineup, and capped recency form multipliers are applied only in this extension, then Dixon-Coles markets are re-derived. GLPM core engines are unchanged.",
     },
     executedAt: new Date().toISOString(),
-    predictionId,
+    predictionId: null,
     priorSeasonCompare,
     seasonCompareNote,
     confidenceLayer,
   };
+
+  if (input.persist !== false) {
+    const id = await persistGlpmCxPrediction(client, payload, {
+      homeTeamSmId: input.homeTeamSmId,
+      awayTeamSmId: input.awayTeamSmId,
+      seasonId,
+      matchSmId: input.matchSmId ?? null,
+      storeUiPayload: !input.lite,
+    });
+    if (id) payload.predictionId = id;
+  }
+
+  return payload;
+}
+
+/** Persist a computed CX payload (optionally including full UI for same-day hydrate). */
+export async function persistGlpmCxPrediction(
+  client: Client,
+  payload: GlpmCxPredictPayload,
+  input: {
+    homeTeamSmId: number;
+    awayTeamSmId: number;
+    seasonId?: number | null;
+    matchSmId?: number | null;
+    /** When true, embed full UI payload in breakdown for same-day hydrate. */
+    storeUiPayload?: boolean;
+  }
+): Promise<string | null> {
+  const seasonId =
+    input.seasonId ??
+    payload.base.seasonId ??
+    null;
+  const { data, error } = await client
+    .from("glpm_cx_prediction_history")
+    .insert({
+      match_sm_id: input.matchSmId ?? null,
+      home_team_sm_id: input.homeTeamSmId,
+      away_team_sm_id: input.awayTeamSmId,
+      season_id: seasonId,
+      base_home_xg: payload.base.homeXg,
+      base_away_xg: payload.base.awayXg,
+      home_xg: payload.cx.homeXg,
+      away_xg: payload.cx.awayXg,
+      home_win_pct: payload.cx.homeWin,
+      draw_pct: payload.cx.draw,
+      away_win_pct: payload.cx.awayWin,
+      btts_yes_pct: payload.cx.bttsYes,
+      btts_no_pct: payload.cx.bttsNo,
+      over_under: payload.cx.overUnder,
+      score_matrix: payload.cx.scoreMatrix,
+      breakdown: {
+        apply: payload.apply,
+        form: payload.form,
+        context: payload.context,
+        lineup: payload.lineup,
+        eventMlActive: payload.satellites.events.mlActive,
+        shotMarkets: {
+          homeShots: payload.satellites.shots.homeShots,
+          awayShots: payload.satellites.shots.awayShots,
+          totalShots: payload.satellites.shots.totalShots,
+          homeSot: payload.satellites.shots.homeSot,
+          awaySot: payload.satellites.shots.awaySot,
+          totalSot: payload.satellites.shots.totalSot,
+          shotsOverUnder: payload.satellites.shots.shotsOverUnder,
+          sotOver: payload.satellites.shots.sotOver,
+          source: payload.satellites.shots.source,
+          mlActive: payload.satellites.shots.mlActive,
+        },
+        ...(input.storeUiPayload ? { uiPayload: payload } : {}),
+      },
+      model_version: CX_MODEL_VERSION,
+      executed_at: payload.executedAt || new Date().toISOString(),
+    })
+    .select("id")
+    .maybeSingle();
+  if (error || !data?.id) return null;
+  return String(data.id);
 }

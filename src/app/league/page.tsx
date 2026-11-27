@@ -1,3 +1,4 @@
+import { PageShell } from "@/components/layout/PageShell";
 import { PageHero } from "@/components/match-predictor/PageHero";
 import { WorldCupSectionHelp } from "@/components/world-cup/WorldCupSectionHelp";
 import { GlpmXgLeaguePicker } from "@/components/glpm/GlpmXgLeaguePicker";
@@ -32,7 +33,7 @@ export default async function LeagueXgPage({
 
   if (!payload) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-12">
+      <PageShell narrow>
         <PageHero
           eyebrow="GLPM · xG"
           title="League xG"
@@ -41,7 +42,7 @@ export default async function LeagueXgPage({
             "xG data unavailable. Configure Supabase and ingest a competition season."
           }
         />
-      </div>
+      </PageShell>
     );
   }
 
@@ -51,52 +52,59 @@ export default async function LeagueXgPage({
     payload.competition != null ? String(payload.competition.smId) : null;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <PageShell>
       <PageHero
         eyebrow="GLPM · xG"
         title="League xG"
         description="Season expected goals for each club, ranked by xG Score (xGF - xGA). Compare against live table position and actual goal difference."
       />
 
-      <GlpmXgLeaguePicker
-        payload={payload}
-        seasonId={activeSeasonId}
-        competitionId={activeCompetitionId}
-      />
+      <div className="mb-8">
+        <GlpmXgLeaguePicker
+          payload={payload}
+          seasonId={activeSeasonId}
+          competitionId={activeCompetitionId}
+        />
+      </div>
 
       {!payload.competitions.length ? (
-        <p className="mb-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+        <p className="mb-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 type-body text-amber-900 dark:text-amber-200">
           No GLPM competitions ingested yet. Run SportMonks season backfill, then
           refresh match stats.
         </p>
       ) : null}
 
       {payload.mostlyProxyXg ? (
-        <p className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+        <p className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 type-body text-amber-900 dark:text-amber-200">
           Most xG values for this league are shot-based proxies, not provider
           expected goals. Treat rankings as directional.
         </p>
       ) : null}
 
-      <section>
-        <WorldCupSectionHelp title="How to read the table">
-          <p>
-            Ranked by <strong>xG Score</strong> (xGF - xGA).{" "}
-            <strong>Pos</strong> is the live league table position.{" "}
-            <strong>Diff</strong> is actual goal difference minus xG Score -
-            positive means outperforming expected GD, negative means
-            underperforming.
-          </p>
-        </WorldCupSectionHelp>
-        <GlpmXgTable
-          rows={payload.xgTable}
-          seasonId={payload.season?.smId ?? null}
-        />
+      <section className="space-y-4">
+        <div>
+          <h2 className="type-section-title mb-2">xG table</h2>
+          <WorldCupSectionHelp title="How to read the table">
+            <p>
+              Ranked by <strong>xG Score</strong> (xGF - xGA).{" "}
+              <strong>Pos</strong> is the live league table position.{" "}
+              <strong>Diff</strong> is actual goal difference minus xG Score -
+              positive means outperforming expected GD, negative means
+              underperforming.
+            </p>
+          </WorldCupSectionHelp>
+        </div>
+        <div className="liquid-glass-panel overflow-hidden rounded-2xl p-2 sm:p-3">
+          <GlpmXgTable
+            rows={payload.xgTable}
+            seasonId={payload.season?.smId ?? null}
+          />
+        </div>
       </section>
 
-      <p className="mt-8 text-center text-xs text-muted">
+      <p className="type-meta mt-8 text-center">
         Updated {new Date(payload.updatedAt).toLocaleString()}
       </p>
-    </div>
+    </PageShell>
   );
 }

@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { tryCreateServiceClient, createServerClient } from "@/lib/supabase";
-import { runGlpmCxPredict } from "@/lib/glpm-cx/run-cx-predict";
+import {
+  persistGlpmCxPrediction,
+  runGlpmCxPredict,
+} from "@/lib/glpm-cx/run-cx-predict";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +19,8 @@ export async function POST(req: Request) {
       seasonId?: number | null;
       matchSmId?: number | null;
       persist?: boolean;
+      /** Persist after response (default true when persist !== false). */
+      persistAsync?: boolean;
     };
 
     const homeTeamSmId = Number(body.homeTeamSmId);
@@ -33,14 +38,32 @@ export async function POST(req: Request) {
       );
     }
 
+    const shouldPersist = body.persist !== false;
+    const persistAsync = body.persistAsync !== false;
     const client = getClient();
     const result = await runGlpmCxPredict(client, {
       homeTeamSmId,
       awayTeamSmId,
       seasonId: body.seasonId ?? null,
       matchSmId: body.matchSmId ?? null,
-      persist: body.persist !== false,
+      persist: shouldPersist && !persistAsync,
     });
+
+    if (shouldPersist && persistAsync) {
+      after(async () => {
+        try {
+          await persistGlpmCxPrediction(getClient(), result, {
+            homeTeamSmId,
+            awayTeamSmId,
+            seasonId: body.seasonId ?? null,
+            matchSmId: body.matchSmId ?? null,
+            storeUiPayload: true,
+          });
+        } catch (err) {
+          console.warn("[glpm-cx] async persist failed", err);
+        }
+      });
+    }
 
     return NextResponse.json(result);
   } catch (err) {

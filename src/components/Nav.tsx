@@ -12,6 +12,7 @@ import {
   isMarketingPath,
   MARKETING_NAV_LINKS,
 } from "@/lib/marketing/routes";
+import { PAGE_MAX_WIDTH_CLASS } from "@/lib/layout";
 
 function linkActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -27,15 +28,37 @@ export function Nav() {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [tournamentsOpen, setTournamentsOpen] = useState(false);
+  const [openMenuLabel, setOpenMenuLabel] = useState<string | null>(null);
   const menuTitleId = useId();
   const marketing = isMarketingPath(pathname);
   const minimalAuthChrome = pathname === "/login" || pathname === "/signup";
 
   useEffect(() => {
     setMenuOpen(false);
-    setTournamentsOpen(false);
+    setOpenMenuLabel(null);
   }, [pathname]);
+
+  useEffect(() => {
+    const hrefs = new Set<string>();
+    for (const link of marketing ? MARKETING_NAV_LINKS : APP_NAV_LINKS) {
+      if (link.children) {
+        for (const child of link.children) hrefs.add(child.href);
+      } else if (link.href) {
+        hrefs.add(link.href);
+      }
+    }
+    if (marketing) {
+      hrefs.add("/signup");
+      hrefs.add("/login");
+      hrefs.add("/about");
+      hrefs.add("/sources");
+    } else {
+      hrefs.add("/home");
+    }
+    for (const href of hrefs) {
+      router.prefetch(href);
+    }
+  }, [marketing, router]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -70,11 +93,16 @@ export function Nav() {
       type="button"
       onClick={handleLogout}
       disabled={isLoggingOut}
-      className="flex min-h-11 items-center justify-center whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-semibold text-slate-500 transition-all duration-300 hover:text-slate-800 disabled:opacity-60 dark:text-slate-400 dark:hover:text-slate-200 sm:min-h-0 sm:px-5 sm:py-2 sm:text-[15px]"
+      className="flex min-h-11 items-center justify-center whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-300 hover:text-slate-950 disabled:opacity-60 dark:text-slate-200 dark:hover:text-white sm:min-h-0 sm:px-5 sm:py-2 sm:text-[15px]"
     >
       {isLoggingOut ? "Signing out…" : "Log out"}
     </button>
   );
+
+  const navInactive =
+    "text-slate-700 hover:text-slate-950 dark:text-slate-200 dark:hover:text-white";
+  const navActive =
+    "bg-slate-950 text-white dark:bg-white dark:text-slate-950";
 
   function renderNavItem(link: AppNavLink, mobile = false) {
     if (link.children) {
@@ -105,30 +133,31 @@ export function Nav() {
         );
       }
 
+      const menuOpenForLink = openMenuLabel === link.label;
       return (
         <div key={link.label} className="relative">
           <button
             type="button"
-            onClick={() => setTournamentsOpen((o) => !o)}
+            onClick={() =>
+              setOpenMenuLabel((current) => (current === link.label ? null : link.label))
+            }
             onBlur={() => {
               // delay so click on link registers
-              window.setTimeout(() => setTournamentsOpen(false), 150);
+              window.setTimeout(() => setOpenMenuLabel(null), 150);
             }}
             className={`flex items-center justify-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-[15px] font-semibold transition-all duration-300 ${
-              active
-                ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
-                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+              active ? navActive : navInactive
             }`}
-            aria-expanded={tournamentsOpen}
+            aria-expanded={menuOpenForLink}
             aria-haspopup="menu"
           >
             {link.label}
-            <ChevronDown className="h-4 w-4 opacity-70" aria-hidden />
+            <ChevronDown className="h-4 w-4 opacity-80" aria-hidden />
           </button>
-          {tournamentsOpen ? (
+          {menuOpenForLink ? (
             <div
               role="menu"
-              className="absolute left-0 top-full z-50 mt-2 min-w-[14rem] rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-950"
+              className="glass-surface absolute left-0 top-full z-50 mt-2 min-w-[14rem] rounded-2xl p-1.5 shadow-xl"
             >
               {link.children.map((child) => {
                 const childActive = linkActive(pathname, child.href);
@@ -140,7 +169,7 @@ export function Nav() {
                     className={`block rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
                       childActive
                         ? "bg-slate-100 text-slate-950 dark:bg-slate-800 dark:text-white"
-                        : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
+                        : "text-slate-800 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-900"
                     }`}
                   >
                     {child.label}
@@ -161,8 +190,8 @@ export function Nav() {
           href={link.href}
           className={`flex min-h-12 items-center rounded-2xl px-4 text-base font-semibold transition ${
             active
-              ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
-              : "text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+              ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
+              : "text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
           }`}
         >
           {link.label}
@@ -175,9 +204,7 @@ export function Nav() {
         key={link.href}
         href={link.href}
         className={`flex items-center justify-center whitespace-nowrap rounded-full px-4 py-2 text-[15px] font-semibold transition-all duration-300 ${
-          active
-            ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950"
-            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+          active ? navActive : navInactive
         }`}
       >
         {link.label}
@@ -193,13 +220,13 @@ export function Nav() {
     );
 
     return (
-      <header className="sticky top-0 z-50 border-b border-white/30 bg-white/50 backdrop-blur-2xl transition-colors duration-500 dark:border-slate-800/50 dark:bg-slate-950/30">
-        <div className="mx-auto max-w-6xl min-w-0 px-4 py-3 sm:px-6 sm:py-3.5">
+      <header className="pointer-events-none sticky top-0 z-50 px-3 pt-3 sm:px-4 sm:pt-4">
+        <div className={`glass-chrome glass-chrome-float pointer-events-auto mx-auto ${PAGE_MAX_WIDTH_CLASS} min-w-0 px-3 py-2.5 sm:px-4 sm:py-3`}>
           <div className="flex items-center justify-between gap-3 md:hidden">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-slate-600 transition hover:bg-white/50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900/50 dark:hover:text-white"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 transition hover:bg-black/5 hover:text-slate-950 dark:text-slate-100 dark:hover:bg-white/10 dark:hover:text-white"
               aria-label="Open menu"
               aria-expanded={menuOpen}
               aria-controls="mobile-nav-drawer"
@@ -217,7 +244,7 @@ export function Nav() {
               <BrandLogo size="md" />
             </Link>
             <div className="flex min-w-0 items-center gap-2">
-              <div className="liquid-glass-pill flex min-w-0 items-center gap-1.5 overflow-visible rounded-full p-1.5">
+              <div className="glass-nav-pill flex min-w-0 items-center gap-1.5 overflow-visible rounded-full p-1.5">
                 <ThemeToggle />
                 {desktopNavLinks}
               </div>
@@ -225,7 +252,7 @@ export function Nav() {
                 <>
                   <Link
                     href="/login"
-                    className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${navInactive}`}
                   >
                     Sign in
                   </Link>
@@ -233,7 +260,7 @@ export function Nav() {
                     href="/signup"
                     className="shrink-0 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
                   >
-                    Join waitlist
+                    Request beta
                   </Link>
                 </>
               ) : (
@@ -244,7 +271,7 @@ export function Nav() {
         </div>
 
         {menuOpen ? (
-          <div className="md:hidden" id="mobile-nav-drawer">
+          <div className="pointer-events-auto md:hidden" id="mobile-nav-drawer">
             <button
               type="button"
               className="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-md"
@@ -255,19 +282,19 @@ export function Nav() {
               role="dialog"
               aria-modal="true"
               aria-labelledby={menuTitleId}
-              className="fixed inset-x-3 top-3 z-[70] max-h-[min(88vh,36rem)] overflow-y-auto rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-950"
+              className="glass-surface fixed inset-x-3 top-3 z-[70] max-h-[min(88vh,36rem)] overflow-y-auto rounded-[1.75rem] p-4 shadow-2xl"
             >
               <div className="flex items-center justify-between gap-3">
                 <p
                   id={menuTitleId}
-                  className="text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400"
+                  className="text-sm font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300"
                 >
                   Menu
                 </p>
                 <button
                   type="button"
                   onClick={() => setMenuOpen(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
                   aria-label="Close menu"
                 >
                   <X className="h-5 w-5" aria-hidden />
@@ -283,7 +310,7 @@ export function Nav() {
                   <div className="grid grid-cols-2 gap-2">
                     <Link
                       href="/login"
-                      className="flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                      className="flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
                     >
                       Sign in
                     </Link>
@@ -291,7 +318,7 @@ export function Nav() {
                       href="/signup"
                       className="flex min-h-11 items-center justify-center rounded-full bg-slate-950 px-4 text-sm font-bold text-white dark:bg-white dark:text-slate-950"
                     >
-                      Join waitlist
+                      Request beta
                     </Link>
                   </div>
                 ) : (
@@ -299,7 +326,7 @@ export function Nav() {
                     type="button"
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="flex min-h-11 w-full items-center justify-center rounded-full px-4 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 disabled:opacity-60 dark:text-slate-400 dark:hover:bg-slate-800"
+                    className="flex min-h-11 w-full items-center justify-center rounded-full px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     {isLoggingOut ? "Signing out…" : "Log out"}
                   </button>
@@ -314,8 +341,8 @@ export function Nav() {
 
   if (minimalAuthChrome) {
     return (
-      <header className="sticky top-0 z-50 border-b border-white/30 bg-white/50 backdrop-blur-2xl transition-colors duration-500 dark:border-slate-800/50 dark:bg-slate-950/30">
-        <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between px-4 py-3 sm:px-6 sm:py-3.5">
+      <header className="pointer-events-none sticky top-0 z-50 px-3 pt-3 sm:px-4 sm:pt-4">
+        <div className={`glass-chrome glass-chrome-float pointer-events-auto mx-auto flex ${PAGE_MAX_WIDTH_CLASS} min-w-0 items-center justify-between px-3 py-2.5 sm:px-4 sm:py-3`}>
           <Link href="/">
             <BrandLogo size="md" />
           </Link>
@@ -323,14 +350,14 @@ export function Nav() {
             {pathname === "/login" ? (
               <Link
                 href="/signup"
-                className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300"
+                className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200"
               >
-                Join waitlist
+                Request beta
               </Link>
             ) : (
               <Link
                 href="/login"
-                className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300"
+                className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200"
               >
                 Sign in
               </Link>
@@ -343,10 +370,7 @@ export function Nav() {
   }
 
   if (marketing) {
-    return renderLinks(
-      MARKETING_NAV_LINKS.map((l) => ({ href: l.href, label: l.label })),
-      "/"
-    );
+    return renderLinks(MARKETING_NAV_LINKS, "/");
   }
 
   return renderLinks(APP_NAV_LINKS, "/home");

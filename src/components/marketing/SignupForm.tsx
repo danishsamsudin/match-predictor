@@ -76,13 +76,12 @@ export function SignupForm({ defaultPlan = "edge" }: SignupFormProps) {
           phone,
           country,
           plan,
+          password,
           marketingOptIn,
           ageConfirmed,
           acceptTerms,
           acceptPrivacy,
           acceptDisclaimer,
-          // Password is collected for future auth wiring; not stored in waitlist this pass.
-          passwordProvided: Boolean(password),
         }),
       });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -100,15 +99,16 @@ export function SignupForm({ defaultPlan = "edge" }: SignupFormProps) {
 
   if (status === "success") {
     return (
-      <div className="liquid-glass-panel rounded-[2rem] p-8 text-center sm:p-10">
-        <h2 className="text-2xl font-bold text-foreground">You&apos;re on the list</h2>
+      <div className="glass-surface rounded-[2rem] p-8 text-center sm:p-10">
+        <h2 className="text-2xl font-bold text-foreground">Beta request received</h2>
         <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-          Thanks for registering interest. Access is invite / waitlist-based while we open tiers.
-          We&apos;ll contact you at <span className="font-semibold text-foreground">{email}</span>{" "}
-          when your plan is ready. No charge today.
+          Your account is <span className="font-semibold text-foreground">pending approval</span>.
+          We&apos;ll review your request for{" "}
+          <span className="font-semibold text-foreground">{email}</span>. Once accepted, you can
+          sign in with the username and password you just created. No charge today.
         </p>
         <p className="mt-4 text-sm text-muted">
-          Already have credentials?{" "}
+          Already approved?{" "}
           <Link href="/login" className="font-semibold text-primary hover:underline">
             Sign in
           </Link>
@@ -122,12 +122,11 @@ export function SignupForm({ defaultPlan = "edge" }: SignupFormProps) {
     "w-full rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20";
 
   return (
-    <form onSubmit={handleSubmit} className="liquid-glass-panel space-y-5 rounded-[2rem] p-6 sm:p-8">
+    <form onSubmit={handleSubmit} className="glass-surface space-y-5 rounded-[2rem] p-6 sm:p-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Create your waitlist account</h1>
+        <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Request beta access</h1>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-          Collecting the details we need for access. Multi-user login ships next - this signup does
-          not create a live session yet.
+          Create credentials now. You can sign in after we set your status to accepted.
         </p>
       </div>
 
@@ -313,7 +312,7 @@ export function SignupForm({ defaultPlan = "edge" }: SignupFormProps) {
             onChange={(e) => setMarketingOptIn(e.target.checked)}
             className="mt-1"
           />
-          <span>Send me product updates and waitlist emails (optional).</span>
+          <span>Send me product updates and beta emails (optional).</span>
         </label>
       </div>
 
@@ -331,7 +330,7 @@ export function SignupForm({ defaultPlan = "edge" }: SignupFormProps) {
         disabled={status === "loading"}
         className="chromatic-cta w-full rounded-full bg-slate-950 py-3.5 text-sm font-bold text-white disabled:opacity-60 dark:bg-white dark:text-slate-950"
       >
-        {status === "loading" ? "Submitting…" : "Join waitlist"}
+        {status === "loading" ? "Submitting…" : "Request beta access"}
       </button>
 
       <p className="text-center text-sm text-muted">

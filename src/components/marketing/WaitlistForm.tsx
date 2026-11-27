@@ -41,27 +41,31 @@ export function WaitlistForm({
       const data = (await response.json().catch(() => null)) as { error?: string; ok?: boolean } | null;
       if (!response.ok) {
         setStatus("error");
-        setMessage(data?.error ?? "Unable to join the waitlist. Please try again.");
+        setMessage(data?.error ?? "Unable to submit. Please try again.");
         return;
       }
       setStatus("success");
-      setMessage("You're on the list. We'll reach out when your tier opens.");
+      setMessage("Thanks - we recorded your interest. For full beta credentials, use Request beta access.");
       setEmail("");
       setName("");
     } catch {
       setStatus("error");
-      setMessage("Unable to join the waitlist. Please try again.");
+      setMessage("Unable to submit. Please try again.");
     }
   }
 
   if (status === "success") {
     return (
-      <div className="liquid-glass-panel rounded-2xl p-6 text-sm text-foreground">
+      <div className="glass-surface rounded-2xl p-6 text-sm text-foreground">
         <p className="font-semibold">{message}</p>
         <p className="mt-2 text-muted">
-          Already have access?{" "}
+          Ready for credentials?{" "}
+          <Link href="/signup" className="font-semibold text-primary hover:underline">
+            Request beta access
+          </Link>{" "}
+          or{" "}
           <Link href="/login" className="font-semibold text-primary hover:underline">
-            Sign in
+            sign in
           </Link>
           .
         </p>
@@ -72,13 +76,17 @@ export function WaitlistForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className={`liquid-glass-panel space-y-4 rounded-2xl ${compact ? "p-5" : "p-6 sm:p-8"}`}
+      className={`glass-surface space-y-4 rounded-2xl ${compact ? "p-5" : "p-6 sm:p-8"}`}
     >
       {!compact ? (
         <div>
-          <h3 className="text-lg font-bold text-foreground">Join the waitlist</h3>
+          <h3 className="text-lg font-bold text-foreground">Stay in the loop</h3>
           <p className="mt-1 text-sm text-muted">
-            Pick a tier. No payment today - we&apos;ll email when the 14-day trial opens.
+            Leave your email for updates, or{" "}
+            <Link href="/signup" className="font-semibold text-primary hover:underline">
+              request beta access
+            </Link>{" "}
+            with credentials. No payment today.
           </p>
         </div>
       ) : null}
@@ -140,10 +148,10 @@ export function WaitlistForm({
         disabled={status === "loading"}
         className="chromatic-cta w-full rounded-full bg-slate-950 py-3.5 text-sm font-bold text-white disabled:opacity-60 dark:bg-white dark:text-slate-950"
       >
-        {status === "loading" ? "Submitting…" : "Join waitlist"}
+        {status === "loading" ? "Submitting…" : "Notify me"}
       </button>
       <p className="text-[11px] leading-relaxed text-muted">
-        By joining you agree we may contact you about DynamixG access. Estimates are not betting
+        By submitting you agree we may contact you about DynamixG access. Estimates are not betting
         advice. 18+.{" "}
         <Link href="/privacy" className="underline underline-offset-2">
           Privacy

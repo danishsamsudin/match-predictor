@@ -2,15 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalDocLayout } from "@/components/marketing/LegalDocLayout";
 import { BRAND_NAME } from "@/lib/brand";
-import { CONTACT_EMAIL } from "@/lib/marketing/copy";
+import { CONTACT_EMAIL, COVERAGE_LEAGUES } from "@/lib/marketing/copy";
 
 export const metadata: Metadata = {
   title: "Disclaimer",
+  description: `${BRAND_NAME} disclaimer: research estimates only, not betting advice. 18+.`,
+  alternates: { canonical: "/disclaimer" },
 };
+
+export const revalidate = 86400;
 
 export default function DisclaimerPage() {
   return (
-    <LegalDocLayout title="Disclaimer & limitation of responsibility">
+    <LegalDocLayout
+      title="Disclaimer & limitation of responsibility"
+      updatedLabel="Updated for league research metrics and beta access - counsel review recommended."
+    >
       <p>
         Please read this carefully before using {BRAND_NAME}. By using the Service you acknowledge
         this Disclaimer together with our{" "}
@@ -27,8 +34,9 @@ export default function DisclaimerPage() {
       <h2 className="text-base font-bold text-foreground">1. Entertainment and research only</h2>
       <p>
         All probabilities, expected goals style estimates, market lines, fair odds, +EV indicators,
-        insights, and AI chat responses are statistical or informational estimates for entertainment
-        and research. They are not guarantees of match outcomes.
+        Value Opportunities language (including confidence, Kelly-style sizing, and Bet / Watch /
+        Pass), insights, and AI chat responses are statistical or informational estimates for
+        entertainment and research. They are not guarantees of match outcomes.
       </p>
 
       <h2 className="text-base font-bold text-foreground">2. Not advice</h2>
@@ -45,12 +53,13 @@ export default function DisclaimerPage() {
         for you, seek local help resources and stop using betting products.
       </p>
 
-      <h2 className="text-base font-bold text-foreground">4. Past performance</h2>
+      <h2 className="text-base font-bold text-foreground">4. Past performance and model metrics</h2>
       <p>
-        Marketing metrics, founder research results (including any World Cup or other sample
-        windows), hit rates, closing-line statistics, drawdowns, and similar figures are illustrative
-        or historical samples. They are not audited performance, not typical subscriber results, and
-        not indicative of future results. Sample sizes may be limited and variance is high.
+        Marketing metrics, league reliability tables, hit rates, calibration statistics, and similar
+        figures for {COVERAGE_LEAGUES.join(", ")} (and any other competitions) are model research
+        samples derived from locked evaluations. They are not audited betting P&amp;L, not typical
+        subscriber results, and not indicative of future results. Sample sizes vary by league and
+        market. Variance is high.
       </p>
 
       <h2 className="text-base font-bold text-foreground">5. No responsibility for decisions</h2>
@@ -64,12 +73,19 @@ export default function DisclaimerPage() {
       <p>
         Models depend on third-party data that may be incomplete, delayed, or incorrect. Features and
         coverage can change without notice. AI features may produce inaccurate or incomplete answers.
+        We do not publish proprietary coefficients or formulas.
       </p>
 
-      <h2 className="text-base font-bold text-foreground">7. Age restriction</h2>
+      <h2 className="text-base font-bold text-foreground">7. Beta software</h2>
+      <p>
+        During beta, features may change, break, or be withdrawn. Approval of an account does not
+        guarantee ongoing access or specific feature availability.
+      </p>
+
+      <h2 className="text-base font-bold text-foreground">8. Age restriction</h2>
       <p>You must be 18 or older to use {BRAND_NAME}.</p>
 
-      <h2 className="text-base font-bold text-foreground">8. Contact</h2>
+      <h2 className="text-base font-bold text-foreground">9. Contact</h2>
       <p>
         Questions about this Disclaimer:{" "}
         <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary">

@@ -50,7 +50,7 @@ export function LoginForm() {
     "w-full rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
 
   return (
-    <div className="liquid-glass-panel relative w-full overflow-hidden rounded-[2rem] p-6 sm:p-8">
+    <div className="glass-surface relative w-full overflow-hidden rounded-[2rem] p-6 sm:p-8">
       <div className="text-center">
         <BrandLogo size="lg" />
         <h1 className="mt-4 text-2xl font-bold text-foreground">Welcome back</h1>
@@ -65,7 +65,7 @@ export function LoginForm() {
             htmlFor="username"
             className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
           >
-            Username
+            Username or email
           </label>
           <input
             id="username"
@@ -119,7 +119,7 @@ export function LoginForm() {
       <p className="mt-6 text-center text-sm text-muted">
         New here?{" "}
         <Link href="/signup" className="font-semibold text-primary hover:underline">
-          Join the waitlist
+          Request beta access
         </Link>
       </p>
       <p className="mt-3 text-center text-[11px] leading-relaxed text-muted">
