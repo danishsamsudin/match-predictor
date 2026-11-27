@@ -20,8 +20,22 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Saved Opta HTML bundles (third-party _files assets, not app source).
+    // Saved Opta / Transfermarkt HTML bundles (third-party assets, not app source).
     "data/**",
+    "src/**/__fixtures__/**",
+    "src/**/*_files/**",
+    // CLI/ops scripts use require() and are not part of the Next app build.
+    "scripts/**",
+    // Offline Python/ML trees and local tooling, not app source.
+    "core/**",
+    "engine/**",
+    "features/**",
+    "models/**",
+    "export/**",
+    "services/**",
+    "tests/**",
+    "config/**",
+    ".venv-ml/**",
   ]),
 ]);
 

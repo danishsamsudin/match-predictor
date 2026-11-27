@@ -231,7 +231,7 @@ export async function runPrediction(input: PredictRequest): Promise<PredictionRe
       )
     : undefined;
 
-  let base = internationalFixture
+  const base = internationalFixture
     ? buildInternationalBaselineXg({
         mu: muResult.mu,
         homeTeamId,

@@ -644,7 +644,7 @@ function buildCandidatesForTeam(input: {
     );
     let normalizedGoalLambda =
       allocBase * (openPlayBudget / Math.max(sumBaseGoals, MIN_SUM_BASE));
-    let normalizedAssistLambda =
+    const normalizedAssistLambda =
       entry.baseAssistLambda *
       entry.tacticalMultiplier *
       (teamAssistBudget / Math.max(sumBaseAssists, MIN_SUM_BASE));

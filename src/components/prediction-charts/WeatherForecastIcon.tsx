@@ -30,6 +30,8 @@ export function WeatherForecastIcon({
 
   return (
     <span title={label} className="inline-flex">
+      {/* Icon is a stable Lucide component from a static map, not created during render. */}
+      {/* eslint-disable-next-line react-hooks/static-components -- lookup from ICON_BY_KIND */}
       <Icon className={iconClass} aria-label={label} />
     </span>
   );

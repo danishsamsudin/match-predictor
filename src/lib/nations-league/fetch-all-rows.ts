@@ -1,13 +1,17 @@
+import type { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const PAGE = 1000;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase query builder is not generic across tables here.
+type AnyFilterBuilder = PostgrestFilterBuilder<any, any, any, any, any>;
 
 /** Paginate a Supabase select so we do not silently stop at the default 1000-row cap. */
 export async function fetchAllRows<T extends Record<string, unknown>>(input: {
   supabase: SupabaseClient;
   table: string;
   select: string;
-  filter?: (query: any) => any;
+  filter?: (query: AnyFilterBuilder) => AnyFilterBuilder;
 }): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; ; from += PAGE) {

@@ -223,14 +223,14 @@ export async function runGrahamWorldCupPredict(input: {
     awayName,
   });
 
-  let homeXg =
+  const homeXg =
     baseline.homeXg *
     gammaHome *
     deltaHome *
     effectiveSigmaHome *
     hostBoost *
     weatherImpact.homeXgMultiplier;
-  let awayXg =
+  const awayXg =
     baseline.awayXg *
     gammaAway *
     deltaAway *

@@ -422,7 +422,7 @@ export async function upsertMatchPlayerGkStats(
     .filter((id): id is number => id != null);
   const playerSmIdByWyId = await loadPlayerSmIdByWyId(supabase, wyPlayerIds);
 
-  let gkByTeam = inferGkByTeamFromEvents(
+  const gkByTeam = inferGkByTeamFromEvents(
     args.events,
     args.teamSmIdByWyId,
     playerSmIdByWyId

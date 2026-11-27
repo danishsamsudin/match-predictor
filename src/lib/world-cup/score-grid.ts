@@ -152,7 +152,7 @@ function normalizeCells(
   maxGoals: number,
   rho: number
 ): { cells: { home: number; away: number; probability: number }[]; renormalized: boolean } {
-  let total = cells.reduce((s, c) => s + c.probability, 0);
+  const total = cells.reduce((s, c) => s + c.probability, 0);
   let renormalized = false;
   if (total <= 0 || !Number.isFinite(total)) {
     const fallback = buildScoreMatrix(homeXg, awayXg, maxGoals, { correlation: rho });

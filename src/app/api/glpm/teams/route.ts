@@ -40,7 +40,7 @@ export async function GET(req: Request) {
     }
 
     const client = getClient();
-    let query = client.from("glpm_teams").select("sm_id,name,official_name").order("name");
+    const query = client.from("glpm_teams").select("sm_id,name,official_name").order("name");
     const { data, error } = await query;
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

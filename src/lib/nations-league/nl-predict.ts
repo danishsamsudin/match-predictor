@@ -189,8 +189,8 @@ export async function runNlGrahamPredict(input: {
   const oneXTwoTemperature =
     calibration.oneXTwoTemperature ?? NL_GRAHAM_1X2_TEMPERATURE;
 
-  let homeXg = baseline.homeXg * homeAdvantage * adjusted.sigmaHome;
-  let awayXg = baseline.awayXg * adjusted.sigmaAway;
+  const homeXg = baseline.homeXg * homeAdvantage * adjusted.sigmaHome;
+  const awayXg = baseline.awayXg * adjusted.sigmaAway;
 
   const rhoBase =
     resolveInternationalScoreCorrelation(

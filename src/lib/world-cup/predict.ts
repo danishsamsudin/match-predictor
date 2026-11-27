@@ -147,9 +147,9 @@ export async function runWorldCupPrediction(
     mu: INTERNATIONAL_BASE_GOALS,
   });
 
-  let lambda =
+  const lambda =
     baseline.homeXg * gammaHome * deltaHome * motivation.sigmaHome * hostBoost;
-  let mu = baseline.awayXg * gammaAway * deltaAway * motivation.sigmaAway;
+  const mu = baseline.awayXg * gammaAway * deltaAway * motivation.sigmaAway;
 
   const rhoBase =
     resolveInternationalScoreCorrelation(lambda, mu, baseline.snapshot.fifa_rating_delta as number) +

@@ -289,9 +289,9 @@ function MatchTimelineRail({
       </div>
 
       <div className="mt-0.5 flex justify-between text-[10px] font-medium tabular-nums text-muted">
-        <span>0'</span>
+        <span>0&apos;</span>
         <span>HT</span>
-        <span>{scale}'</span>
+        <span>{scale}&apos;</span>
       </div>
     </div>
   );

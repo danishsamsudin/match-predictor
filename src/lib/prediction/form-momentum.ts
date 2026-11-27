@@ -116,7 +116,7 @@ function h2hMeetingWeight(
   match: FixtureResult,
   options?: H2HRatesOptions
 ): number {
-  let weight = Math.pow(H2H_RECENCY_DECAY, index);
+  const weight = Math.pow(H2H_RECENCY_DECAY, index);
   if (!isNationalMomentumContext(options?.entityType, options?.leagueId)) {
     return weight;
   }
